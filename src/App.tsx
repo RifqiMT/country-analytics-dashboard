@@ -3,14 +3,16 @@ import { useState } from 'react';
 import { useCountryDashboard } from './hooks/useCountryDashboard';
 import { SummarySection } from './components/SummarySection';
 import { TimeSeriesSection } from './components/TimeSeriesSection';
+import { MacroIndicatorsTimelineSection } from './components/MacroIndicatorsTimelineSection';
 import { PopulationPieSection } from './components/PopulationPieSection';
 import { CountryTableSection } from './components/CountryTableSection';
 import { WorldMapSection } from './components/WorldMapSection';
 import { CountrySelector } from './components/CountrySelector';
 import { AllCountriesTableSection } from './components/AllCountriesTableSection';
+import { SourceSection } from './components/SourceSection';
 import { YearRangeSelector } from './components/YearRangeSelector';
+import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
-import type { MetricId } from './types';
 
 function App() {
   const {
@@ -21,6 +23,8 @@ function App() {
     setCountryCode,
     frequency,
     setFrequency,
+    macroFrequency,
+    setMacroFrequency,
     startYear,
     endYear,
     setStartYear,
@@ -28,14 +32,14 @@ function App() {
     selectedMetricIds,
     setSelectedMetricIds,
     resampled,
+    resampledMacro,
   } = useCountryDashboard();
 
-  const [mainTab, setMainTab] = useState<'country' | 'global'>('country');
+  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source'>('country');
   const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table'>('map');
-  const [mapMetricId, setMapMetricId] = useState<MetricId>('gdpNominal');
+  const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
-  const [globalYearInput, setGlobalYearInput] =
-    useState<number>(DATA_MAX_YEAR);
+  const [globalYearInput, setGlobalYearInput] = useState<number>(DATA_MAX_YEAR);
 
   return (
     <div className="app-root">
@@ -78,9 +82,23 @@ function App() {
             </span>
             <span>Global analytics</span>
           </button>
+          <button
+            type="button"
+            className={`main-tab ${mainTab === 'source' ? 'main-tab-active' : ''}`}
+            onClick={() => setMainTab('source')}
+          >
+            <span className="icon-16">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M2.75 2.5a.25.25 0 0 0-.25.25v10.5c0 .14.11.25.25.25h10.5a.25.25 0 0 0 .25-.25V2.75a.25.25 0 0 0-.25-.25H2.75ZM2 2.75C2 1.78 2.78 1 3.75 1h8.5C13.22 1 14 1.78 14 2.75v10.5c0 .97-.78 1.75-1.75 1.75h-8.5A1.75 1.75 0 0 1 2 13.25V2.75Zm1.5.25v9.5h9v-9.5h-9Zm1.5 0h6v1.5h-6V3Zm0 2.5h6v1h-6v-1Zm0 2.5h6v1h-6v-1Zm0 2.5h4v1h-4v-1Z" />
+              </svg>
+            </span>
+            <span>Source</span>
+          </button>
         </div>
 
-        {mainTab === 'country' ? (
+        {mainTab === 'source' ? (
+          <SourceSection />
+        ) : mainTab === 'country' ? (
           <>
             <div className="top-filters">
               <CountrySelector
@@ -111,6 +129,12 @@ function App() {
                 resampledSeries={resampled}
               />
               <PopulationPieSection data={data} />
+              <MacroIndicatorsTimelineSection
+                data={data}
+                frequency={macroFrequency}
+                setFrequency={setMacroFrequency}
+                resampledSeries={resampledMacro}
+              />
             </section>
 
             <CountryTableSection data={data} />
@@ -205,76 +229,12 @@ function App() {
 
             {globalViewTab === 'map' ? (
               <>
-                <div className="map-metric-row">
-                  <span className="map-metric-label">Metric on map</span>
-                  <div className="map-metric-tags">
-                    <button
-                      type="button"
-                      className={`tag ${mapMetricId === 'gdpNominal' ? 'tag-active' : ''}`}
-                      onClick={() => setMapMetricId('gdpNominal')}
-                    >
-                      <span className="icon-12">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M3 11.5a.75.75 0 0 1 .75-.75h2V4.5a.75.75 0 0 1 1.5 0v6.25h2l.1.01a.75.75 0 0 1-.1 1.49h-2v.75a.75.75 0 0 1-1.5 0V12.5h-2A.75.75 0 0 1 3 11.5Z" />
-                        </svg>
-                      </span>
-                      <span>GDP Nominal</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`tag ${mapMetricId === 'gdpPPP' ? 'tag-active' : ''}`}
-                      onClick={() => setMapMetricId('gdpPPP')}
-                    >
-                      <span className="icon-12">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M4 3.25A1.25 1.25 0 0 1 5.25 2h5.5A1.25 1.25 0 0 1 12 3.25v9.5a.75.75 0 0 1-1.2.6L8 11.5l-2.8 1.85A.75.75 0 0 1 4 12.75v-9.5ZM7 6h3V4.5H7V6Zm0 2.5h3V7H7v1.5Z" />
-                        </svg>
-                      </span>
-                      <span>GDP PPP</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`tag ${
-                        mapMetricId === 'gdpNominalPerCapita' ? 'tag-active' : ''
-                      }`}
-                      onClick={() => setMapMetricId('gdpNominalPerCapita')}
-                    >
-                      <span className="icon-12">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z" />
-                        </svg>
-                      </span>
-                      <span>GDP / Capita</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`tag ${
-                        mapMetricId === 'gdpPPPPerCapita' ? 'tag-active' : ''
-                      }`}
-                      onClick={() => setMapMetricId('gdpPPPPerCapita')}
-                    >
-                      <span className="icon-12">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M3.25 3A.75.75 0 0 1 4 2.25h8A.75.75 0 0 1 12.75 3v2A2.75 2.75 0 0 1 10 7.75H8.5v1H11a.75.75 0 0 1 0 1.5H8.5v1.5a.75.75 0 0 1-1.5 0V10.25H5a.75.75 0 0 1 0-1.5h2V7.75H6A2.75 2.75 0 0 1 3.25 5V3Zm7.5 2V3.75h-6.5V5c0 .69.56 1.25 1.25 1.25h4A1.25 1.25 0 0 0 10.75 5Z" />
-                        </svg>
-                      </span>
-                      <span>GDP / Capita PPP</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`tag ${
-                        mapMetricId === 'populationTotal' ? 'tag-active' : ''
-                      }`}
-                      onClick={() => setMapMetricId('populationTotal')}
-                    >
-                      <span className="icon-12">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Zm4.75-1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1.5 2.5c1.3 0 2.4.86 2.75 2.05a.75.75 0 0 1-.73.95H11a3.74 3.74 0 0 0-.9-2.37c.05-.43.23-.83.5-1.17Z" />
-                        </svg>
-                      </span>
-                      <span>Population</span>
-                    </button>
-                  </div>
+                <div className="map-metric-toolbar-wrapper">
+                  <span className="map-metric-toolbar-label">Metric on map</span>
+                  <MapMetricToolbar
+                    value={mapMetricId}
+                    onChange={setMapMetricId}
+                  />
                 </div>
                 <WorldMapSection
                   data={data}
@@ -291,6 +251,48 @@ function App() {
           </section>
         )}
       </main>
+
+      <footer className="app-footer">
+        <span className="app-footer-text">
+          Developed, managed, and maintained by Rifqi Tjahyono
+        </span>
+        <div className="app-footer-links">
+          <a
+            href="https://www.linkedin.com/in/rifqi-tjahjono/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="app-footer-link"
+            aria-label="LinkedIn profile"
+            title="LinkedIn"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"
+              />
+            </svg>
+          </a>
+          <a
+            href="https://rifqi-tjahyono.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="app-footer-link"
+            aria-label="Personal website"
+            title="Personal website"
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 12a9 9 0 0 1-9 9m9-9a9 9 0 0 0-9-9m9 9H3m9 9a9 9 0 0 1-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 0 1 9-9"
+              />
+            </svg>
+          </a>
+        </div>
+      </footer>
     </div>
   );
 }

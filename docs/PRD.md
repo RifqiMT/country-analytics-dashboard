@@ -1,244 +1,203 @@
-## Product Requirements Document (PRD) – Country Analytics Platform
+# Product Requirements Document (PRD) – Country Analytics Platform
 
-### 1. Problem statement
+**Version:** 1.2  
+**Last updated:** March 2025
 
-Decision‑makers, analysts, and researchers often need to compare countries across **financial**, **demographic**, and **basic health** dimensions. Public data is available (e.g. World Bank, UN, WHO) but:
+---
 
-- The raw APIs and downloads are fragmented and difficult to use.
-- Combining indicators, deriving YoY changes, and building visual comparisons is time‑consuming.
-- Many tools are either too simple (static charts) or too complex (full BI suites).
+## 1. Problem Statement
+
+Decision-makers, analysts, and researchers often need to compare countries across **financial**, **demographic**, and **basic health** dimensions. Public data is available (e.g. World Bank, IMF, UN) but:
+
+- Raw APIs and downloads are fragmented and difficult to use
+- Combining indicators, deriving YoY changes, and building visual comparisons is time-consuming
+- Many tools are either too simple (static charts) or too complex (full BI suites)
 
 The **Country Analytics Platform** provides a focused, opinionated UI to:
 
-- Explore a single country in depth.
-- Compare that country to an average country and global aggregates.
-- Rank and compare all countries using a consistent set of metrics.
+- Explore a single country in depth
+- Compare that country to an average country and global aggregates
+- Rank and compare all countries using a consistent set of metrics
+- Understand data methodology via the Source tab
 
 ---
 
-### 2. Goals and non‑goals
+## 2. Goals and Non-Goals
 
-#### 2.1 Goals
+### 2.1 Goals
 
-- **G1 – Fast insight for a single country**
-  - Present a clean, high‑level summary of financial, demographic, and health metrics.
-  - Make YoY deltas and structural composition (age groups) immediately visible.
+| ID | Goal | Description |
+|----|------|-------------|
+| **G1** | Fast insight for a single country | Clean summary of financial, demographic, health metrics with YoY deltas |
+| **G2** | Intuitive global comparison | Sorting, ranking, map and tables with consistent definitions |
+| **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and API links |
+| **G4** | Analyst-friendly UX | Smooth time navigation, frequency toggles, search, filter chips |
 
-- **G2 – Intuitive global comparison**
-  - Enable sorting and ranking across all countries for key metrics.
-  - Provide a global view by map and tables with consistent definitions.
+### 2.2 Non-Goals (Current Version)
 
-- **G3 – Credible and explainable data**
-  - Use only well‑documented public sources (World Bank WDI, REST Countries).
-  - Clearly communicate data ranges, gaps, and fallbacks.
-
-- **G4 – Analyst‑friendly UX**
-  - Smooth time navigation (year range, sub‑annual interpolation).
-  - Exportable insights via clear visuals and consistent formatting.
-
-#### 2.2 Non‑goals (for this version)
-
-- No user authentication, multi‑tenant features, or saved workspaces.
-- No offline mode or CSV export from the UI.
-- No in‑app ETL across multiple primary providers (e.g. merging IMF + OECD + national statistics); the current implementation focuses on **World Bank WDI** as source of truth.
+- No user authentication, multi-tenant features, or saved workspaces
+- No offline mode or CSV/image export from the UI
+- No in-app ETL merging multiple primary providers beyond World Bank + IMF fallbacks
+- Taiwan excluded (no World Bank WDI coverage)
 
 ---
 
-### 3. Personas (summary)
+## 3. Personas Summary
 
 See `USER_PERSONAS.md` for full detail.
 
-- **P1 – Regional Strategy Lead (primary)**
-  - Needs quick comparisons across countries and regions for planning and board reports.
-- **P2 – Country Economist / Policy Analyst**
-  - Needs to understand structural trends and build narratives around GDP, demographics, and health.
-- **P3 – Corporate Market Expansion Manager**
-  - Wants to evaluate market size, growth, and demographic structure for prioritisation.
-- **P4 – Data / BI Analyst**
-  - Uses the app for quick exploration before moving to a BI tool or notebook.
+| Persona | Role | Primary Need |
+|---------|------|--------------|
+| **P1** | Regional Strategy Lead | Quick comparisons for board reports |
+| **P2** | Country Economist / Policy Analyst | Structural trends, narratives |
+| **P3** | Market Expansion Manager | Market size, growth, demographics |
+| **P4** | Data / BI Analyst | First-pass exploration, validation |
 
 ---
 
-### 4. Scope and features
+## 4. Scope and Features
 
-#### 4.1 Country dashboard
+### 4.1 Main Navigation
 
-**4.1.1 Summary header**
+Three main tabs:
 
-- **Inputs**:
-  - Selected country (ISO2; default `ID` – Indonesia).
-  - Selected year range (defaults: 2000 to `DATA_MAX_YEAR`).
+- **Country dashboard** – Single-country deep dive
+- **Global analytics** – Map and global tables
+- **Source** – Metric definitions, formulas, data source links
+
+### 4.2 Country Dashboard
+
+#### 4.2.1 Summary Header
+
+- **Inputs**: Selected country (ISO2; default `ID`), year range (default 2000–DATA_MAX_YEAR)
 - **Outputs**:
-  - Country name, ISO2, ISO3, flag, region, income level, capital city.
-  - Data window text (e.g. “2000–2024”), based on actual available years.
-  - **General**:
-    - Timezone (from REST Countries).
-    - Currency (name, code, symbol).
-    - Land area & total area (latest non‑null values).
-  - **Financial metrics** (latest non‑null up to end year):
-    - GDP Nominal, GDP PPP, GDP per capita (Nominal), GDP per capita (PPP).
-    - YoY % computed over the last two available annual points for each metric.
-  - **Health & demographics**:
-    - Total population + YoY.
-    - Life expectancy at birth + YoY.
-    - 0–14, 15–64, 65+: percentage of population and absolute values + YoY (based on share series).
+  - Country name, ISO2, ISO3, flag, region, income level, capital city
+  - Data window text (e.g. "2000–2024")
+  - **General**: Timezone, currency (name, code, symbol), land area, total area, EEZ
+  - **Economy**: Currency with symbol alongside name and code
+  - **Financial**: GDP Nominal, GDP PPP, GDP per capita (Nominal & PPP), Gov. debt (USD), Gov. debt (% GDP), Inflation, Lending rate + YoY
+  - **Health & demographics**: Total population, life expectancy, 0–14 / 15–64 / 65+ breakdown + YoY
 
-**4.1.2 Year range filter**
+#### 4.2.2 Year Range Filter
 
-- Editable **Start** and **End** year fields:
-  - Clamped to `[DATA_MIN_YEAR, DATA_MAX_YEAR]`.
-  - Start cannot exceed End; End cannot precede Start.
-  - Commit on Enter or blur (debounced behaviour to avoid excessive network calls).
-- Preset pills:
-  - **Full range** – `startYear = DATA_MIN_YEAR`, `endYear = DATA_MAX_YEAR`.
-  - **Last 10 years** – if available, otherwise clamped to earliest year.
-  - **Last 5 years** – similar logic.
+- Editable Start and End; clamped to [DATA_MIN_YEAR, DATA_MAX_YEAR]
+- Presets: Full range, Last 10 years, Last 5 years
+- Commit on Enter or blur
 
-**4.1.3 Unified time‑series timeline**
+#### 4.2.3 Unified Time-Series Timeline
 
-- Metrics:
-  - Financial: GDP Nominal, GDP PPP, GDP per capita (Nominal), GDP per capita (PPP).
-  - Demographic: Population (total).
-  - Health: Life expectancy.
-- Frequency toggle:
-  - Weekly, monthly, quarterly, annual.
-  - Non‑annual frequencies use interpolated points from the annual series.
-- Behaviour:
-  - Users can toggle metric chips on/off; at least one series must remain selected.
-  - Tooltip (per x‑value) shows:
-    - Metric label and compact value.
-    - Period‑over‑period change:
-      - WoW / MoM / QoQ / YoY depending on frequency.
-      - Categorised as up / down / flat and colour‑coded.
-  - X‑axis labels adapt to frequency (e.g. `Jan 2024`, `Q1 2024`, `2008`).
+- Metrics: GDP Nominal, GDP PPP, GDP per capita (Nominal & PPP), Population, Life expectancy
+- Frequency: Weekly, monthly, quarterly, annual (sub-annual interpolated)
+- Metric chips to toggle series; tooltip with period-over-period change (WoW/MoM/QoQ/YoY)
 
-**4.1.4 Population pie & details**
+#### 4.2.4 Macro Indicators Timeline
 
-- Shows population breakdown for **latest snapshot year**:
-  - 0–14, 15–64, 65+ as slices with % and absolute counts.
-  - Legend styled with Indonesian palette, clear labels, and compact number formatting.
+- Inflation (CPI), Lending interest rate, Government debt (% GDP)
+- Same frequency and resampling as unified timeline
 
-**4.1.5 Country comparison card**
+#### 4.2.5 Population Pie
 
-- Year = latest snapshot year.
-- Rows:
-  - GDP Nominal, GDP PPP, GDP per capita (Nominal), GDP per capita (PPP), Total population.
-  - Optional block: age‑group populations (0–14, 15–64, 65+) toggled via “Core metrics” vs “+ Population age breakdown”.
-- For each metric:
-  - Columns: Selected country level, Selected country YoY, Average country level + YoY, Global total level + YoY.
-  - YoY computed using:
-    - Selected country: from its series.
-    - Avg / Global: aggregated across all available countries (`GlobalCountryMetricsRow`) between current and previous year.
+- 0–14, 15–64, 65+ with % and absolute counts for latest snapshot year
 
----
+#### 4.2.6 Country Comparison Table
 
-### 5. Global analytics
+- Selected country vs average vs global total
+- Toggle: Core metrics vs + Population age breakdown
+- YoY for each metric
 
-#### 5.1 Global view – common behaviour
+### 4.3 Global Analytics
 
-- **Year filter**:
-  - Numeric input with clamping to `[DATA_MIN_YEAR, DATA_MAX_YEAR]`.
-  - Debounced commit on blur or Enter.
-  - Independent of the country dashboard year range.
+#### 4.3.1 Common Behaviour
 
-- **Main tabs**:
-  - `Map` vs `Global table` – **filters are decoupled** from country dashboard.
+- Year filter independent of country dashboard
+- Tabs: Map vs Global table
 
-#### 5.2 Global map
+#### 4.3.2 Global Map
 
-- Metric selector:
-  - GDP Nominal, GDP PPP, GDP per capita (Nominal), GDP per capita (PPP), Population total.
-- Behaviour:
-  - Choropleth shading based on data quantiles or min–max per selected metric.
-  - Tooltip shows:
-    - Country name (World Bank / REST Countries canonical name).
-    - Flag via ISO2 code.
-    - Selected metric value (compact format).
-    - Effective year used (handles year fallback for missing data).
-  - Map does **not** sync country selection or filters with the country dashboard.
+- **Metric selector**: 18 metrics across Financial, Demographics & Health, Geography, Government
+- Choropleth shading; tooltip: country name, flag, metric value, effective year
+- Map does not sync with country dashboard selection
 
-#### 5.3 Global tables
+#### 4.3.3 Global Tables
 
-All tables:
+- **General**: Country (with flag emoji), Code, Region, Government type, Head of government, Total area, EEZ
+- **Financial**: Country (with flag emoji), GDP Nominal, GDP PPP, GDP/Capita, GDP/Capita PPP, Gov. debt (USD), Inflation, Gov. debt (% GDP), Lending rate + YoY
+- **Health & demographics**: Country (with flag emoji), Pop total, Pop 0–14, Pop 15–64, Pop 65+, Life expectancy + YoY
+- All numeric columns sortable asc/desc
+- Code column hidden in Financial and Health views
 
-- One row per **country** (no aggregates or regions).
-- Fully sortable: clicking a header toggles between asc/desc; default sort per view:
-  - General: total area descending.
-  - Financial: GDP Nominal descending.
-  - Health & demographics: total population descending.
-- Display values use compact formatting (k, Mn, Bn, Tn) and stacked **YoY** where applicable.
+### 4.4 Source Tab
 
-**5.3.1 General table**
-
-- Columns:
-  - Country, Code, Total area (km²).
-- Data:
-  - `totalAreaKm2` from surface area (`AG.SRF.TOTL.K2`) or land area fallback (`AG.LND.TOTL.K2`).
-  - No YoY (area is treated as static; latest non‑null per country).
-
-**5.3.2 Financial table**
-
-- Columns:
-  - Country, Code, GDP Nominal, GDP PPP, GDP / Capita, GDP / Capita PPP.
-- For each metric:
-  - Main value: current year.
-  - Secondary line: YoY % based on previous year where available.
-
-**5.3.3 Health & demographics table**
-
-- Columns:
-  - Country, Code, Pop total, Pop 0–14, Pop 15–64, Pop 65+, Life expectancy.
-- Population metrics:
-  - Absolute counts derived from total population and age‑group % shares for the selected year.
-  - YoY % for total and each age group (based on change in counts).
-- Life expectancy:
-  - Uses the latest non‑null value from WDI for each country (static across years).
-  - YoY is only shown where two consecutive annual values exist; otherwise omitted.
+- **Search**: By metric name, description, formula, or source (dynamic filtering)
+- **Filter chips**: World Bank, IMF, Sea Around Us, Marine Regions
+- **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
+- **Metric cards**: Label, description, formula, unit, source links with external-link icons and URLs
 
 ---
 
-### 6. Data rules and edge cases
+## 5. Data Rules and Edge Cases
 
-- **Missing years**:
-  - If a specific year has no data at all for a metric, the global loader:
-    - Steps backwards (`year‑1`, `year‑2`, …) until it finds a year with data, within `[DATA_MIN_YEAR, DATA_MAX_YEAR]`.
-  - Charts and tables always show the **effective year** where data came from.
+### 5.1 Data Sources
 
-- **Countries without data**:
-  - Countries with no relevant data for a metric are still listed but show `–`.
-  - Sorting puts rows with null values at the bottom when sorting descending.
+| Source | Purpose |
+|--------|---------|
+| World Bank WDI | Primary: GDP, population, health, geography, inflation, interest, gov debt |
+| IMF WEO | Fallback for GDP and government debt when WB empty |
+| REST Countries | Timezone, currency, area, government |
+| Sea Around Us / Marine Regions | EEZ (static data) |
 
-- **Country naming**:
-  - `PSE` (West Bank and Gaza) is normalised to **“Palestine (West Bank and Gaza)”**.
-  - Taiwan is not included because the World Bank does not provide full WDI coverage; integrating other providers is out of scope for this version (see future work).
+### 5.2 Fallbacks
 
----
+- **IMF**: Government debt (% GDP), GDP (Nominal) when World Bank returns empty
+- **Territory parent**: 30+ territories (e.g. American Samoa, Andorra, British Virgin Islands) use parent country for inflation and interest rate when WB empty
 
-### 7. Non‑functional requirements
+### 5.3 Missing Data
 
-- **Performance**
-  - Initial country dashboard load in < 2.5s on a typical broadband connection.
-  - Global tables load in < 3s for any valid year, assuming World Bank API responsiveness.
-  - UI interactions (filters, toggles) should feel instantaneous; use debouncing around year inputs.
+- If a year has no data, global loader steps backwards until data found
+- Countries with no data show "–"; sorting puts nulls at bottom when descending
+- Charts and tables handle null gracefully; no crashes
 
-- **Resilience**
-  - Network failures should show friendly error banners, not blank screens.
-  - Partial data:
-    - Components must handle `null` and missing metrics gracefully.
-    - Never crash on undefined series; show “–” where needed.
+### 5.4 Country Naming
 
-- **Accessibility**
-  - Sufficient contrast with the light Indonesian palette (white background, strong text colours).
-  - Keyboard navigation for:
-    - Country search suggestions.
-    - Toggle buttons and pills.
+- Palestine (West Bank and Gaza) for PSE
+- Taiwan excluded (no WDI coverage)
 
 ---
 
-### 8. Future work (not yet implemented)
+## 6. Non-Functional Requirements
 
-- Export capabilities (CSV / image export for charts and tables).
-- Multi‑metric correlation views (scatterplots between GDP per capita and life expectancy, etc.).
-- Additional data providers (IMF, OECD, WHO detailed health metrics) and an ETL layer that merges indicators with explicit precedence rules.
-- Saved dashboards and sharing links with predefined filters and countries.
+### 6.1 Performance
 
+- Initial country dashboard load < 2.5s on typical broadband
+- Global tables load < 3s for any valid year
+- UI interactions (filters, toggles) feel instantaneous; debounce year inputs
+
+### 6.2 Resilience
+
+- Network failures show friendly error banners
+- Partial data: components handle null; show "–" where needed
+- Never crash on undefined series
+
+### 6.3 Accessibility
+
+- Sufficient contrast (light palette)
+- Keyboard navigation for country search, toggles, pills
+- ARIA labels on interactive elements
+
+---
+
+## 7. Tech Guidelines
+
+- **Types**: `src/types.ts` for domain types
+- **API layer**: `src/api/*`; never call APIs from components
+- **Formatting**: `src/utils/numberFormat.ts`, `src/utils/timeSeries.ts`
+- **Metric metadata**: `src/data/metricMetadata.ts` for Source tab
+
+---
+
+## 8. Future Work (Not Yet Implemented)
+
+- Export (CSV, image)
+- Multi-metric correlation views (scatterplots)
+- Additional providers (OECD, WHO) with ETL precedence rules
+- Saved dashboards and shareable URLs

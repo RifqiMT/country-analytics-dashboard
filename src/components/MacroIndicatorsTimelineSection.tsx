@@ -14,29 +14,19 @@ import type {
   MetricSeries,
 } from '../types';
 import { formatCompactNumber } from '../utils/numberFormat';
-interface Props {
-  data?: CountryDashboardData;
-  frequency: Frequency;
-  setFrequency: (f: Frequency) => void;
-  selectedMetricIds: MetricId[];
-  setSelectedMetricIds: (ids: MetricId[]) => void;
-  resampledSeries?: CountryDashboardData['series'];
-}
+import type { TooltipProps } from 'recharts';
+import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
-const METRIC_COLORS: Record<MetricId, string> = {
-  gdpNominal: '#c8102e', // Indonesian red
-  gdpPPP: '#b45309', // deep gold / brown
-  gdpNominalPerCapita: '#f59e0b', // amber
-  gdpPPPPerCapita: '#eab308', // bright gold
-  inflationCPI: '#f97316', // orange for inflation
-  govDebtPercentGDP: '#7f1d1d', // dark red for debt
-  govDebtUSD: '#991b1b', // darker red for debt USD
-  interestRate: '#0369a1', // blue for interest rate
-  populationTotal: '#111827', // near-black for population
-  lifeExpectancy: '#0f766e', // teal for health
-  pop0_14Share: '#2563eb', // blue for young population share
-  pop15_64Share: '#7c3aed', // violet for working-age share
-  pop65PlusShare: '#be123c', // deep rose for senior share
+const MACRO_METRIC_IDS: MetricId[] = [
+  'inflationCPI',
+  'govDebtPercentGDP',
+  'interestRate',
+];
+
+const METRIC_COLORS: Record<string, string> = {
+  inflationCPI: '#f97316',
+  govDebtPercentGDP: '#7f1d1d',
+  interestRate: '#0369a1',
 };
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -46,12 +36,17 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   yearly: 'Annual (observed)',
 };
 
-export function TimeSeriesSection({
+interface Props {
+  data?: CountryDashboardData;
+  frequency: Frequency;
+  setFrequency: (f: Frequency) => void;
+  resampledSeries?: CountryDashboardData['series'];
+}
+
+export function MacroIndicatorsTimelineSection({
   data,
   frequency,
   setFrequency,
-  selectedMetricIds,
-  setSelectedMetricIds,
   resampledSeries,
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
@@ -59,7 +54,7 @@ export function TimeSeriesSection({
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Financial & population trends</h2>
+        <h2 className="section-title">Inflation, debt & interest rate</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
@@ -68,41 +63,52 @@ export function TimeSeriesSection({
   const allSeries: MetricSeries[] = [
     ...finalSeries.financial,
     ...finalSeries.population,
-    ...finalSeries.health.filter(
-      (s) =>
-        s.id !== 'pop0_14Share' &&
-        s.id !== 'pop15_64Share' &&
-        s.id !== 'pop65PlusShare',
-    ),
-  ].filter(
-    (s) =>
-      s.id !== 'inflationCPI' &&
-      s.id !== 'govDebtPercentGDP' &&
-      s.id !== 'interestRate',
-  );
+    ...finalSeries.health,
+  ].filter((s) => MACRO_METRIC_IDS.includes(s.id));
 
-  const labelByMetricId = allSeries.reduce<Record<MetricId, string>>(
+  const displayStartYear =
+    data.range
+      ? Math.max(data.range.startYear, DATA_MIN_YEAR)
+      : DATA_MIN_YEAR;
+  const displayEndYear =
+    data.range
+      ? Math.min(data.range.endYear, DATA_MAX_YEAR)
+      : DATA_MAX_YEAR;
+
+  const labelByMetricId = allSeries.reduce<Record<string, string>>(
     (acc, series) => {
       acc[series.id] = series.label;
       return acc;
     },
-    {} as Record<MetricId, string>,
+    {},
   );
 
-  const baseData = allSeries[0]?.points ?? [];
+  // Use union of all dates from all three metrics so each series can show its full range (WB + IMF fallback).
+  const dateSet = new Map<string, number>();
+  for (const s of allSeries) {
+    for (const p of s.points) {
+      if (p.year < displayStartYear || p.year > displayEndYear) continue;
+      dateSet.set(p.date, p.year);
+    }
+  }
+  const sortedDates = [...dateSet.entries()].sort(
+    (a, b) => a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0]),
+  );
+  const baseData = sortedDates.map(([date, year]) => ({ date, year }));
   const merged = baseData.map((p) => {
-    const row: any = { date: p.date, year: p.year };
-    for (const metricId of selectedMetricIds) {
+    const row: Record<string, string | number | null> = {
+      date: p.date,
+      year: p.year,
+    };
+    for (const metricId of MACRO_METRIC_IDS) {
       const seriesForMetric = allSeries.find((s) => s.id === metricId);
       const value = seriesForMetric?.points.find(
         (sp) => sp.date === p.date,
-      )?.value;
-      row[metricId] = value ?? null;
+      )?.value ?? null;
+      row[metricId] = value;
     }
     return row;
   });
-
-  const availableMetricIds = allSeries.map((s) => s.id);
 
   const xKey = frequency === 'yearly' ? 'year' : 'date';
 
@@ -114,62 +120,45 @@ export function TimeSeriesSection({
       return d.toLocaleDateString('en-US', {
         month: 'short',
         year: 'numeric',
-      }); // e.g. Jan 2024
+      });
     }
     if (frequency === 'quarterly') {
       const quarter = Math.floor(d.getMonth() / 3) + 1;
-      return `Q${quarter} ${d.getFullYear()}`; // e.g. Q1 2024
+      return `Q${quarter} ${d.getFullYear()}`;
     }
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: '2-digit',
-    }); // e.g. Mar 05, 24
+    });
   };
 
   const rawTicks =
     frequency === 'yearly'
       ? baseData.map((p) => p.year)
       : baseData.map((p) => p.date);
-
   const step =
     rawTicks.length <= 6 ? 1 : Math.max(1, Math.floor(rawTicks.length / 6));
-
   const xTicks = rawTicks.filter((_, index) => index % step === 0);
 
-  const unitByMetricId = allSeries.reduce<Record<MetricId, string>>(
-    (acc, s) => {
-      acc[s.id] = s.unit;
-      return acc;
-    },
-    {} as Record<MetricId, string>,
-  );
-
-  const formatTooltipValue = (metricId: MetricId, value: number): string => {
-    if (metricId === 'lifeExpectancy') {
-      return `${value.toFixed(1)} years`;
-    }
-    return formatCompactNumber(value);
-  };
-
-  const CustomTooltip = (props: {
-    active?: boolean;
-    payload?: Array<{ dataKey?: string; value?: number; name?: string; color?: string }>;
-    label?: string | number;
-  }) => {
-    const { active, payload, label } = props;
-    if (!active || !payload || !payload.length || label == null) {
-      return null;
-    }
+  const CustomTooltip = ({
+    active,
+    label,
+    payload,
+  }: TooltipProps<number, string> & { active?: boolean; label?: string; payload?: Array<{ dataKey?: string; value?: number; color?: string; name?: string }> }) => {
+    if (!active || !payload || !payload.length) return null;
 
     const byMetricId = new Map<
       string,
-      { name: string; value: number; color: string; change?: string; changeDirection?: 'up' | 'down' | 'flat'; unit?: string }
+      {
+        name: string;
+        value: number;
+        color: string;
+        change?: string;
+        changeDirection?: 'up' | 'down' | 'flat';
+      }
     >();
-
-    const index = merged.findIndex(
-      (row) => String(row[xKey]) === String(label),
-    );
+    const index = merged.findIndex((row) => row[xKey] === label);
     const prevRow = index > 0 ? merged[index - 1] : undefined;
 
     const freqLabel: Record<Frequency, string> = {
@@ -183,52 +172,32 @@ export function TimeSeriesSection({
       const id = String(p.dataKey);
       const current = p.value as number;
       const prev =
-        prevRow && prevRow[id] != null
-          ? (prevRow[id] as number)
-          : null;
+        prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
 
       let change: string | undefined;
       let changeDirection: 'up' | 'down' | 'flat' | undefined;
       if (prev != null && prev !== 0) {
         const pct = ((current - prev) / Math.abs(prev)) * 100;
         const rounded = Number.isFinite(pct) ? pct : 0;
-        if (rounded > 0.05) {
-          changeDirection = 'up';
-        } else if (rounded < -0.05) {
-          changeDirection = 'down';
-        } else {
-          changeDirection = 'flat';
-        }
+        if (rounded > 0.05) changeDirection = 'up';
+        else if (rounded < -0.05) changeDirection = 'down';
+        else changeDirection = 'flat';
         change = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLabel[frequency]}`;
       }
 
       byMetricId.set(id, {
-        name: labelByMetricId[id as MetricId] ?? String(p.name),
+        name: labelByMetricId[id] ?? String(p.name),
         value: current,
         color: p.color ?? '#6b7280',
         change,
         changeDirection,
-        unit: unitByMetricId[id as MetricId],
       });
     });
 
-    const METRIC_DISPLAY_ORDER: MetricId[] = [
-      'gdpNominal',
-      'gdpPPP',
-      'gdpNominalPerCapita',
-      'gdpPPPPerCapita',
-      'govDebtUSD',
-      'populationTotal',
-      'lifeExpectancy',
-    ];
-
-    const rows = METRIC_DISPLAY_ORDER
-      .filter((id) => selectedMetricIds.includes(id) && byMetricId.has(id))
-      .map((id) => {
-        const r = byMetricId.get(id)!;
-        return { ...r, metricId: id };
-      })
-      .filter((r) => !!r && r.value != null);
+    const rows = MACRO_METRIC_IDS
+      .filter((id) => byMetricId.has(id))
+      .map((id) => byMetricId.get(id)!)
+      .filter(Boolean);
 
     if (!rows.length) return null;
 
@@ -241,17 +210,14 @@ export function TimeSeriesSection({
         </div>
         <div className="chart-tooltip-body">
           {rows.map((row) => (
-            <div key={row.metricId} className="chart-tooltip-row">
+            <div key={row.name} className="chart-tooltip-row">
               <span
                 className="chart-tooltip-dot"
                 style={{ backgroundColor: row.color }}
               />
               <div className="chart-tooltip-label">{row.name}</div>
               <div className="chart-tooltip-value">
-                {formatTooltipValue(row.metricId, row.value)}
-                {row.unit && row.metricId !== 'lifeExpectancy' && (
-                  <span className="chart-tooltip-unit"> {row.unit}</span>
-                )}
+                {formatCompactNumber(row.value)}
               </div>
               {row.change && (
                 <div
@@ -274,13 +240,16 @@ export function TimeSeriesSection({
   };
 
   return (
-    <section className="card timeseries-section">
+    <section className="card timeseries-section dashboard-grid-full">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Unified financial & population timeline</h2>
+          <h2 className="section-title">
+            Inflation, government debt & lending interest rate
+          </h2>
           <p className="muted">
-            Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
-            interpolated from annual observations.
+            Switch between weekly, monthly, quarterly, and annual views.
+            Sub-annual views are smoothly interpolated from annual observations.
+            Government debt uses World Bank and IMF WEO as fallback for full coverage.
           </p>
         </div>
         <div className="pill-group">
@@ -289,9 +258,7 @@ export function TimeSeriesSection({
               key={f}
               type="button"
               className={`pill ${frequency === f ? 'pill-active' : ''}`}
-              onClick={() => {
-                setFrequency(f);
-              }}
+              onClick={() => setFrequency(f)}
             >
               <span className="icon-12">
                 <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -313,29 +280,6 @@ export function TimeSeriesSection({
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="metric-toggle-row">
-        {availableMetricIds.map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={`tag ${selectedMetricIds.includes(id) ? 'tag-active' : ''}`}
-            onClick={() => {
-              if (selectedMetricIds.includes(id)) {
-                setSelectedMetricIds(selectedMetricIds.filter((m) => m !== id));
-              } else {
-                setSelectedMetricIds([...selectedMetricIds, id]);
-              }
-            }}
-          >
-            <span
-              className="tag-swatch"
-              style={{ backgroundColor: METRIC_COLORS[id] }}
-            />
-            {allSeries.find((s) => s.id === id)?.label ?? id}
-          </button>
-        ))}
       </div>
 
       <div className="chart-wrapper">
@@ -375,7 +319,7 @@ export function TimeSeriesSection({
               }}
               content={<CustomTooltip />}
             />
-            {selectedMetricIds.map((metricId) => (
+            {MACRO_METRIC_IDS.map((metricId) => (
               <Line
                 key={metricId}
                 type="monotone"
@@ -390,7 +334,7 @@ export function TimeSeriesSection({
         </ResponsiveContainer>
       </div>
       <div className="chart-legend-row">
-        {selectedMetricIds.map((metricId) => (
+        {MACRO_METRIC_IDS.map((metricId) => (
           <div key={metricId} className="chart-legend-item">
             <span
               className="chart-legend-swatch"
@@ -405,4 +349,3 @@ export function TimeSeriesSection({
     </section>
   );
 }
-

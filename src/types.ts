@@ -4,7 +4,11 @@ export type FinancialMetricId =
   | 'gdpNominal'
   | 'gdpPPP'
   | 'gdpNominalPerCapita'
-  | 'gdpPPPPerCapita';
+  | 'gdpPPPPerCapita'
+  | 'inflationCPI'
+  | 'govDebtPercentGDP'
+  | 'govDebtUSD'
+  | 'interestRate';
 
 export type PopulationMetricId = 'populationTotal';
 
@@ -58,6 +62,12 @@ export interface CountrySummary {
   currencyCode?: string;
   currencyName?: string;
   currencySymbol?: string;
+  /** Descriptive government system from REST Countries, e.g. "presidential republic". */
+  government?: string;
+  /** Simplified head-of-government role, e.g. "President", "Prime Minister", "Monarch". */
+  headOfGovernmentType?: string;
+  /** Government type classification, e.g. "Federal republic", "Parliamentary democracy". */
+  governmentType?: string;
 }
 
 export interface CountryYearSnapshot {
@@ -69,6 +79,10 @@ export interface CountryYearSnapshot {
       gdpPPP?: number | null;
       gdpNominalPerCapita?: number | null;
       gdpPPPPerCapita?: number | null;
+      inflationCPI?: number | null;
+      govDebtPercentGDP?: number | null;
+      govDebtUSD?: number | null;
+      interestRate?: number | null;
     };
     population: {
       total?: number | null;
@@ -80,6 +94,7 @@ export interface CountryYearSnapshot {
     geography?: {
       landAreaKm2?: number | null;
       totalAreaKm2?: number | null;
+      eezKm2?: number | null;
     };
   };
 }
@@ -107,6 +122,10 @@ export interface GlobalCountryMetricsRow {
   gdpPPP?: number | null;
   gdpNominalPerCapita?: number | null;
   gdpPPPPerCapita?: number | null;
+  inflationCPI?: number | null;
+  govDebtPercentGDP?: number | null;
+  govDebtUSD?: number | null;
+  interestRate?: number | null;
   populationTotal?: number | null;
   lifeExpectancy?: number | null;
   // Population age group breakdown (absolute counts, derived from % shares)
@@ -120,6 +139,11 @@ export interface GlobalCountryMetricsRow {
   // Area metrics (sq. km)
   landAreaKm2?: number | null;
   totalAreaKm2?: number | null;
+  eezKm2?: number | null;
+  // Categorical metadata (region, government)
+  region?: string;
+  headOfGovernmentType?: string;
+  governmentType?: string;
 }
 
 

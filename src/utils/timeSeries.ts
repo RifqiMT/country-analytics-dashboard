@@ -16,9 +16,6 @@ export function resampleSeries(
   if (frequency === 'yearly') return series;
 
   const points = [...series.points].sort((a, b) => a.year - b.year);
-  if (points.length <= 1) {
-    return { ...series, points };
-  }
 
   const stepCountByFrequency: Record<Exclude<Frequency, 'yearly'>, number> = {
     quarterly: 4,
@@ -29,46 +26,79 @@ export function resampleSeries(
   const targetSteps = stepCountByFrequency[frequency as Exclude<Frequency, 'yearly'>];
   const resampled: TimePoint[] = [];
 
-  for (let i = 0; i < points.length - 1; i += 1) {
-    const start = points[i];
-    const end = points[i + 1];
-    const yearDiff = end.year - start.year;
-
-    for (let y = 0; y < yearDiff; y += 1) {
-      const baseYear = start.year + y;
-      for (let s = 0; s < targetSteps; s += 1) {
-        const globalStepIndex = y * targetSteps + s;
-        const t =
-          yearDiff === 0
-            ? 0
-            : globalStepIndex / (yearDiff * targetSteps);
-
-        const interpolated = interpolate(start, end, t);
-
-        const date = new Date(baseYear, 0, 1);
-        if (frequency === 'quarterly') {
-          date.setMonth((s % targetSteps) * 3);
-        } else if (frequency === 'monthly') {
-          date.setMonth(s % targetSteps);
-        } else if (frequency === 'weekly') {
-          date.setDate(1 + (s % targetSteps) * 7);
-        }
-
-        resampled.push({
-          date: date.toISOString().slice(0, 10),
-          year: baseYear,
-          value: interpolated,
-        });
-      }
-    }
+  if (points.length === 0) {
+    return { ...series, points: [] };
   }
 
-  const last = points[points.length - 1];
-  resampled.push({
-    date: `${last.year}-01-01`,
-    year: last.year,
-    value: last.value,
-  });
+  if (points.length === 1) {
+    const only = points[0];
+    for (let s = 0; s < targetSteps; s += 1) {
+      const date = new Date(only.year, 0, 1);
+      if (frequency === 'quarterly') {
+        date.setMonth(s * 3);
+      } else if (frequency === 'monthly') {
+        date.setMonth(s);
+      } else if (frequency === 'weekly') {
+        date.setDate(1 + s * 7);
+      }
+      resampled.push({
+        date: date.toISOString().slice(0, 10),
+        year: only.year,
+        value: only.value,
+      });
+    }
+  } else {
+    for (let i = 0; i < points.length - 1; i += 1) {
+      const start = points[i];
+      const end = points[i + 1];
+      const yearDiff = end.year - start.year;
+
+      for (let y = 0; y < yearDiff; y += 1) {
+        const baseYear = start.year + y;
+        for (let s = 0; s < targetSteps; s += 1) {
+          const globalStepIndex = y * targetSteps + s;
+          const t =
+            yearDiff === 0
+              ? 0
+              : globalStepIndex / (yearDiff * targetSteps);
+
+          const interpolated = interpolate(start, end, t);
+
+          const date = new Date(baseYear, 0, 1);
+          if (frequency === 'quarterly') {
+            date.setMonth((s % targetSteps) * 3);
+          } else if (frequency === 'monthly') {
+            date.setMonth(s % targetSteps);
+          } else if (frequency === 'weekly') {
+            date.setDate(1 + (s % targetSteps) * 7);
+          }
+
+          resampled.push({
+            date: date.toISOString().slice(0, 10),
+            year: baseYear,
+            value: interpolated,
+          });
+        }
+      }
+    }
+
+    const last = points[points.length - 1];
+    for (let s = 0; s < targetSteps; s += 1) {
+      const date = new Date(last.year, 0, 1);
+      if (frequency === 'quarterly') {
+        date.setMonth(s * 3);
+      } else if (frequency === 'monthly') {
+        date.setMonth(s);
+      } else if (frequency === 'weekly') {
+        date.setDate(1 + s * 7);
+      }
+      resampled.push({
+        date: date.toISOString().slice(0, 10),
+        year: last.year,
+        value: last.value,
+      });
+    }
+  }
 
   return {
     ...series,
