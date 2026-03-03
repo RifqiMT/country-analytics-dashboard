@@ -1,0 +1,125 @@
+export type Frequency = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+
+export type FinancialMetricId =
+  | 'gdpNominal'
+  | 'gdpPPP'
+  | 'gdpNominalPerCapita'
+  | 'gdpPPPPerCapita';
+
+export type PopulationMetricId = 'populationTotal';
+
+export type HealthMetricId =
+  | 'lifeExpectancy'
+  | 'pop0_14Share'
+  | 'pop15_64Share'
+  | 'pop65PlusShare';
+
+export type MetricId = FinancialMetricId | PopulationMetricId | HealthMetricId;
+
+export interface TimePoint {
+  date: string; // ISO date, typically Jan 1st of the year or synthetic sub-periods
+  year: number;
+  value: number | null;
+}
+
+export interface MetricSeries {
+  id: MetricId;
+  label: string;
+  unit: string;
+  points: TimePoint[];
+}
+
+export interface AgeGroupShare {
+  id: '0_14' | '15_64' | '65_plus';
+  label: string;
+  percentageOfPopulation: number | null;
+}
+
+export interface AgeGroupPopulation extends AgeGroupShare {
+  absolute: number | null;
+}
+
+export interface PopulationBreakdown {
+  year: number;
+  total: number | null;
+  groups: AgeGroupPopulation[];
+}
+
+export interface CountrySummary {
+  iso2Code: string;
+  iso3Code?: string;
+  name: string;
+  region?: string;
+  incomeLevel?: string;
+  capitalCity?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  timezone?: string;
+  currencyCode?: string;
+  currencyName?: string;
+  currencySymbol?: string;
+}
+
+export interface CountryYearSnapshot {
+  country: CountrySummary;
+  year: number;
+  metrics: {
+    financial: {
+      gdpNominal?: number | null;
+      gdpPPP?: number | null;
+      gdpNominalPerCapita?: number | null;
+      gdpPPPPerCapita?: number | null;
+    };
+    population: {
+      total?: number | null;
+      ageBreakdown?: PopulationBreakdown;
+    };
+    health: {
+      lifeExpectancy?: number | null;
+    };
+    geography?: {
+      landAreaKm2?: number | null;
+      totalAreaKm2?: number | null;
+    };
+  };
+}
+
+export interface CountryDashboardData {
+  summary: CountrySummary;
+  range: {
+    startYear: number;
+    endYear: number;
+  };
+  series: {
+    financial: MetricSeries[];
+    population: MetricSeries[];
+    health: MetricSeries[];
+  };
+  latestSnapshot?: CountryYearSnapshot;
+}
+
+export interface GlobalCountryMetricsRow {
+  iso2Code: string;
+  iso3Code?: string;
+  name: string;
+  year: number;
+  gdpNominal?: number | null;
+  gdpPPP?: number | null;
+  gdpNominalPerCapita?: number | null;
+  gdpPPPPerCapita?: number | null;
+  populationTotal?: number | null;
+  lifeExpectancy?: number | null;
+  // Population age group breakdown (absolute counts, derived from % shares)
+  population0_14?: number | null;
+  population15_64?: number | null;
+  population65Plus?: number | null;
+  // Internal helper fields for percentage shares (used to derive absolutes)
+  pop0_14Pct?: number | null;
+  pop15_64Pct?: number | null;
+  pop65PlusPct?: number | null;
+  // Area metrics (sq. km)
+  landAreaKm2?: number | null;
+  totalAreaKm2?: number | null;
+}
+
+
