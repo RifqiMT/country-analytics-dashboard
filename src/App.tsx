@@ -10,6 +10,7 @@ import { WorldMapSection } from './components/WorldMapSection';
 import { CountrySelector } from './components/CountrySelector';
 import { AllCountriesTableSection } from './components/AllCountriesTableSection';
 import { SourceSection } from './components/SourceSection';
+import { ChatbotSection } from './components/ChatbotSection';
 import { YearRangeSelector } from './components/YearRangeSelector';
 import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
@@ -35,7 +36,7 @@ function App() {
     resampledMacro,
   } = useCountryDashboard();
 
-  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source'>('country');
+  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'chat'>('country');
   const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table'>('map');
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
@@ -94,10 +95,24 @@ function App() {
             </span>
             <span>Source</span>
           </button>
+          <button
+            type="button"
+            className={`main-tab ${mainTab === 'chat' ? 'main-tab-active' : ''}`}
+            onClick={() => setMainTab('chat')}
+          >
+            <span className="icon-16">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M8 1.5c-3.5 0-6 2.5-6 5.5 0 1.5.5 2.9 1.4 4-.2.6-.8 2.2-.8 2.2l.9-.3c.5.4 1.1.7 1.8.9.2 1 .9 1.8 1.8 2.2 2.9.9 6-.5 6-4.2 0-3-2.5-5.5-6-5.5Zm2.5 7.5h-5v-1h5v1Zm0-2h-5v-1h5v1Z" />
+              </svg>
+            </span>
+            <span>Analytics assistant</span>
+          </button>
         </div>
 
         {mainTab === 'source' ? (
           <SourceSection />
+        ) : mainTab === 'chat' ? (
+          <ChatbotSection dashboardData={data} />
         ) : mainTab === 'country' ? (
           <>
             <div className="top-filters">

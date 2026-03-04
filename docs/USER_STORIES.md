@@ -223,9 +223,62 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
-## 8. Reliability and Data Quality
+## 8. Analytics Assistant
 
-### US-8.1 – Handle missing data gracefully
+### US-8.1 – Ask questions about metrics and methodology
+
+- **As a** Data/BI Analyst  
+- **I want to** ask natural-language questions about metrics, sources, and methodology  
+- **So that** I can get quick answers without leaving the app  
+
+**Acceptance criteria:**
+- Assistant answers questions about metric definitions, formulas, and data sources
+- When API key is set, LLM provides contextual answers
+- When no API key, rule-based fallback answers methodology and data-style questions
+
+---
+
+### US-8.2 – Get rankings and comparisons
+
+- **As a** Regional Strategy Lead  
+- **I want to** ask "top N countries by X" or "compare X to Y"  
+- **So that** I can get ranked lists and side-by-side comparisons  
+
+**Acceptance criteria:**
+- Rankings return real data (e.g. top 10 by GDP per capita), not "metrics available"
+- Comparisons return side-by-side data for requested countries, not "X vs world"
+- Fallback mode supports rankings and comparisons without LLM
+
+---
+
+### US-8.3 – Use quick-start suggestions
+
+- **As a** Market Expansion Manager  
+- **I want to** click a suggestion chip to ask a common question  
+- **So that** I can get started without typing  
+
+**Acceptance criteria:**
+- Suggestion chips (e.g. "Compare Indonesia to Malaysia") populate the input and send on click
+- Suggestions cover overview, comparison, rankings, and methodology
+
+---
+
+### US-8.4 – Configure model and API key
+
+- **As an** Analyst  
+- **I want to** choose the LLM model and optionally provide my own API key  
+- **So that** I can use the assistant with my preferred setup  
+
+**Acceptance criteria:**
+- Model dropdown: GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
+- Settings panel allows API key input (stored in localStorage)
+- Server env or VITE_OPENAI_API_KEY also supported
+
+---
+
+## 9. Reliability and Data Quality
+
+### US-9.1 – Handle missing data gracefully
 
 - **As any** user  
 - **I do not want** the app to error or show confusing outputs when data is missing  
@@ -237,7 +290,7 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
-### US-8.2 – Communicate methodology
+### US-9.2 – Communicate methodology
 
 - **As a** Data/BI Analyst  
 - **I want to** understand at a high level how metrics are computed  

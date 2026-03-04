@@ -37,6 +37,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Starts with Country dashboard for a key market
 - Switches to Global analytics map to compare regions
 - Sorts global table by GDP or population for rankings
+- Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
 
 ---
 
@@ -73,6 +74,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Deep dive on one country with year range adjustment
 - Uses unified timeline with multiple metrics for correlation
 - Checks Source tab for government debt formula and IMF fallback
+- Asks Analytics assistant about methodology and data sources
 
 ---
 
@@ -109,6 +111,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Uses Country selector to compare 2–3 target markets
 - Focuses on GDP per capita and population age structure
 - Expands age breakdown in comparison table for detailed view
+- Asks Analytics assistant "Compare Indonesia to Malaysia" for quick side-by-side data
 
 ---
 
@@ -145,6 +148,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Explores multiple countries and year ranges
 - Uses Global table with sorting for quick rankings
 - References Source tab for data definitions and API links
+- Uses Analytics assistant for rankings and methodology questions
 
 ---
 
@@ -152,7 +156,7 @@ This document describes the target audiences for the Country Analytics Platform,
 
 | Persona | Primary Tab | Key Features |
 |---------|-------------|--------------|
-| Strategy Lead | Country + Global | Map, global table sort, comparison |
-| Economist | Country + Source | Timeline, year range, metric definitions |
-| Market Manager | Country | Summary, population pie, age breakdown |
-| BI Analyst | All | Global table, Source tab, sorting |
+| Strategy Lead | Country + Global + Chat | Map, global table sort, comparison, Analytics assistant |
+| Economist | Country + Source + Chat | Timeline, year range, metric definitions, methodology questions |
+| Market Manager | Country + Chat | Summary, population pie, age breakdown, quick comparisons |
+| BI Analyst | All | Global table, Source tab, sorting, Analytics assistant |

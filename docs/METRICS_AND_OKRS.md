@@ -10,7 +10,7 @@ This document defines how we measure the success of the Country Analytics Platfo
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **NS-1** | **Weekly Active Analytical Sessions (WAAS)** | Count of distinct sessions per week in which a user: (1) Views at least one country dashboard, and (2) Performs at least one interactive action (e.g. changes year range, switches frequency, switches tab, sorts a global table) |
+| **NS-1** | **Weekly Active Analytical Sessions (WAAS)** | Count of distinct sessions per week in which a user: (1) Views at least one country dashboard, and (2) Performs at least one interactive action (e.g. changes year range, switches frequency, switches tab, sorts a global table, sends a chat message) |
 
 **Why it matters:** Measures whether the tool is being actively used for analysis, not just opened once.
 
@@ -22,6 +22,7 @@ This document defines how we measure the success of the Country Analytics Platfo
 | **E-2** | Depth of exploration | Average number of views per session: frequency changes, sub-toggle changes, map metric switches | Product / UX |
 | **E-3** | Global vs. country balance | Ratio of sessions that reach Global analytics tab vs. only Country dashboard | Product |
 | **E-4** | Source tab engagement | % of sessions that open the Source tab | Product |
+| **E-5** | Analytics assistant engagement | % of sessions that open the Analytics assistant tab and send at least one message | Product |
 
 ---
 
@@ -57,6 +58,14 @@ This document defines how we measure the success of the Country Analytics Platfo
 | **SR-1** | Source search usage | % of Source tab sessions that use the search input |
 | **SR-2** | Source filter usage | % of Source tab sessions that use a filter chip |
 
+### 2.5 Analytics Assistant
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
+| **CA-2** | Fallback vs LLM usage | % of chat sessions that use rule-based fallback (no API key) vs LLM |
+| **CA-3** | Suggestion chip usage | % of chat sessions where at least one suggestion chip is clicked |
+
 ---
 
 ## 3. Product OKRs (Example)
@@ -85,6 +94,13 @@ This document defines how we measure the success of the Country Analytics Platfo
 | **KR3.2** | No critical bugs where charts or tables crash on missing data across a full quarter |
 | **KR3.3** | Documentation (README + PRD) stays in sync with deployed features (no more than 1 release behind) |
 
+### Objective 4 – Drive adoption of Analytics assistant
+
+| Key Result | Target |
+|------------|--------|
+| **KR4.1** | At least 25% of sessions open the Analytics assistant tab |
+| **KR4.2** | Among assistant users, average ≥ 2 messages per session |
+
 ---
 
 ## 4. Instrumentation Guidelines
@@ -106,6 +122,9 @@ Use a `product_area.action` pattern:
 | `global.table_view_changed` | User switches General/Financial/Health |
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip |
+| `chat.message_sent` | User sends a chat message |
+| `chat.suggestion_clicked` | User clicks a suggestion chip |
+| `chat.model_changed` | User changes LLM model |
 
 ### 4.2 Event Payload
 
@@ -114,7 +133,7 @@ Each event should include:
 - `country_iso2` (if relevant)
 - `year` or `year_range`
 - `metric_id` (for timeline, map, or tables)
-- `view` (country_dashboard | global_map | global_table | source)
+- `view` (country_dashboard | global_map | global_table | source | chat)
 
 ### 4.3 Privacy & PII
 
@@ -130,5 +149,6 @@ Each event should include:
 | **ENG-1** | Bundle size | Main bundle size; aim to keep lean |
 | **ENG-2** | API latency (client-perceived) | Time from initiating dashboard fetch to data rendered |
 | **ENG-3** | Error rate | Failed API calls (network / 5xx); React error boundaries triggered |
+| **ENG-4** | Chat API latency | Time from chat send to response (LLM or fallback) |
 
 These can be consumed by a future observability stack when the app is deployed in production.

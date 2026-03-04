@@ -31,6 +31,7 @@ The documentation standard ensures:
 
 | Document | Purpose |
 |----------|---------|
+| **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
 | **docs/PRODUCT_METRICS.md** | Data metrics (GDP, population, etc.) with formulas and WDI codes |
 | **src/data/metricMetadata.ts** | Metric definitions, formulas, source URLs (code-as-docs) |
@@ -57,7 +58,7 @@ The documentation standard ensures:
 ### 3.3 User Stories
 
 - Independently testable
-- Grouped by UI section: Country dashboard, Global analytics, Source tab, Time-series
+- Grouped by UI section: Country dashboard, Global analytics, Source tab, Analytics assistant, Time-series
 - Map to personas and PRD sections
 
 ### 3.4 Metrics & OKRs
@@ -84,7 +85,7 @@ The documentation standard ensures:
 ### 4.2 Ownership
 
 | Domain | Documents |
-|--------|-----------|
+|--------|------------|
 | **Product** | PRD, USER_PERSONAS, USER_STORIES, METRICS_AND_OKRS |
 | **Engineering** | README (tech sections), ARCHITECTURE, config, API docs |
 | **Cross-domain** | Major feature changes require co-review |
@@ -117,8 +118,8 @@ For every feature PR that changes user-visible behaviour:
 
 ### 6.1 Feature → Code Mapping
 
-| PRD Section | Primary Components | API Modules |
-|--------------|-------------------|-------------|
+| PRD Section | Primary Components | API / Utils |
+|-------------|--------------------|-------------|
 | Country dashboard | SummarySection, CountrySelector, YearRangeSelector | worldBank.ts |
 | Time-series | TimeSeriesSection, MacroIndicatorsTimelineSection | worldBank.ts, timeSeries.ts |
 | Population | PopulationPieSection | worldBank.ts |
@@ -126,6 +127,7 @@ For every feature PR that changes user-visible behaviour:
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
 | Source tab | SourceSection | metricMetadata.ts |
+| Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts |
 
 ### 6.2 Reading Order
 
@@ -133,6 +135,7 @@ For every feature PR that changes user-visible behaviour:
 2. src/App.tsx (layout, tabs)
 3. src/hooks/useCountryDashboard.ts (data flow)
 4. src/api/worldBank.ts (data definitions, business rules)
+5. src/utils/chatContext.ts, chatFallback.ts (analytics assistant)
 
 ---
 

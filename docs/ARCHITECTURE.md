@@ -9,30 +9,30 @@ This document describes the data flow, component boundaries, and technical archi
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         App.tsx (Root)                            │
-│  - Main tabs (Country | Global | Source)                         │
+│  - Main tabs (Country | Global | Source | Chat)                  │
 │  - Global state: mainTab, globalViewTab, mapMetricId, year       │
 └─────────────────────────────────────────────────────────────────┘
                                     │
-        ┌───────────────────────────┼───────────────────────────┐
-        ▼                           ▼                           ▼
-┌───────────────┐           ┌───────────────┐           ┌───────────────┐
-│   Country     │           │   Global     │           │   Source      │
-│   Dashboard   │           │   Analytics  │           │   Tab         │
-│               │           │               │           │               │
-│ - Selector   │           │ - Map         │           │ - Search      │
-│ - YearRange  │           │ - MapMetric  │           │ - Filter chips│
-│ - Summary    │           │ - MapSection │           │ - Metric cards│
-│ - TimeSeries │           │ - AllCountries│          │               │
-│ - Macro      │           │   TableSection │          │               │
-│ - Population │           │               │           │               │
-│ - CountryTable│          │               │           │               │
-└───────┬───────┘           └───────┬───────┘           └───────┬───────┘
-        │                           │                           │
-        └───────────────────────────┼───────────────────────────┘
-                                    ▼
-                    ┌───────────────────────────────┐
-                    │   useCountryDashboard hook    │
-                    │   - countryCode, year range   │
+        ┌───────────────────────────┼───────────────────────────┬──────────────────┐
+        ▼                           ▼                           ▼                  ▼
+┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐
+│   Country     │           │   Global     │           │   Source      │   │   Analytics   │
+│   Dashboard   │           │   Analytics  │           │   Tab         │   │   Assistant   │
+│               │           │               │           │               │   │   (Chat)      │
+│ - Selector   │           │ - Map         │           │ - Search      │   │ - Chatbot     │
+│ - YearRange  │           │ - MapMetric  │           │ - Filter chips│   │   Section     │
+│ - Summary    │           │ - MapSection │           │ - Metric cards│   │ - Suggestions │
+│ - TimeSeries │           │ - AllCountries│          │               │   │ - Model/Key   │
+│ - Macro      │           │   TableSection │          │               │   │   settings    │
+│ - Population │           │               │           │               │   │               │
+│ - CountryTable│          │               │           │               │   │               │
+└───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘
+        │                           │                           │                  │
+        └───────────────────────────┼───────────────────────────┘                  │
+                                    ▼                                             │
+                    ┌───────────────────────────────┐                              │
+                    │   useCountryDashboard hook    │◄─────────────────────────────┘
+                    │   - countryCode, year range   │   (dashboardData passed to ChatbotSection)
                     │   - frequency, metricIds      │
                     │   - data, loading, error       │
                     └───────────────────────────────┘
@@ -52,6 +52,14 @@ This document describes the data flow, component boundaries, and technical archi
                     │   - IMF DataMapper             │
                     │   - REST Countries             │
                     │   - FlagCDN, World Atlas       │
+                    └───────────────────────────────┘
+                                    │
+                                    │   Analytics Assistant
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │   /api/chat (Vite plugin)       │
+                    │   - OpenAI API (if key set)     │
+                    │   - chatFallback.ts (else)      │
                     └───────────────────────────────┘
 ```
 
@@ -115,6 +123,33 @@ Merge by country (ISO3); build GlobalCountryMetricsRow[]
 WorldMapSection / AllCountriesTableSection
 ```
 
+### 2.3 Analytics Assistant Data Flow
+
+```
+User sends message
+         │
+         ▼
+ChatbotSection POST /api/chat
+         │
+         ├─► Payload: messages, systemPrompt, model, apiKey, dashboardSnapshot, globalData, globalDataByYear
+         │
+         ▼
+vite-plugin-chat-api.ts middleware
+         │
+         ├─► [API key available] → OpenAI API
+         │         └─► systemPrompt from buildChatSystemPrompt(chatContext.ts)
+         │         └─► Context: metric metadata, country summary, global data
+         │
+         └─► [No API key] → getFallbackResponse(chatFallback.ts)
+                   └─► Rule-based: rankings, comparisons, single-metric, methodology, regions
+         │
+         ▼
+Response streamed (LLM) or returned (fallback)
+         │
+         ▼
+ChatbotSection renders message
+```
+
 ---
 
 ## 3. Component Hierarchy
@@ -162,6 +197,18 @@ App
     └── Metric cards (by category)
 ```
 
+### 3.4 Analytics Assistant
+
+```
+App
+└── ChatbotSection
+    └── Header (title, model dropdown, settings)
+    └── Messages area (user / assistant bubbles)
+    └── Welcome + suggestion chips (when empty)
+    └── Input form (input, send button)
+    └── Settings panel (API key input)
+```
+
 ---
 
 ## 4. API Layer
@@ -184,11 +231,19 @@ App
 | `fetchGovernmentDebtFromIMF` | Gov debt for multiple countries, one year |
 | `fetchGDPFromIMF` | Nominal GDP fallback for territories |
 
-### 4.3 Key Data Structures
+### 4.3 Chat Layer
 
-- **CountrySummary**: iso2, iso3, name, region, currency, etc.
+| Module | Purpose |
+|--------|---------|
+| `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
+| `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology |
+| `vite-plugin-chat-api.ts` | `/api/chat` middleware – proxies to OpenAI or fallback |
+
+### 4.4 Key Data Structures
+
+- **CountrySummary**: iso2, iso3, name, region, currency, governmentType, headOfGovernmentType, etc.
 - **CountryDashboardData**: summary, range, series, latestSnapshot
-- **GlobalCountryMetricsRow**: iso2, iso3, name, year, all metric columns
+- **GlobalCountryMetricsRow**: iso2, iso3, name, year, all metric columns, region, governmentType, headOfGovernmentType
 - **MetricSeries**: id, label, unit, points (TimePoint[])
 
 ---
@@ -227,3 +282,15 @@ App
 
 - Gov debt and lending rate: world median when country has no data
 - Latest non-null: used for sparse indicators (inflation, interest, gov debt)
+
+### 7.4 Analytics Assistant Fallback
+
+When no OpenAI API key is set, `chatFallback.ts` provides rule-based answers for:
+
+- Single-metric lookups ("What is Indonesia's GDP?")
+- Rankings ("Top 10 countries by GDP per capita")
+- Comparisons ("Compare Indonesia to Malaysia")
+- Region filters ("Top 5 Asian countries by GDP")
+- Growth rankings (YoY when two years of data exist)
+- Methodology questions
+- Catch-all for data-style questions

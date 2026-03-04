@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Last updated:** March 2025
 
 ---
@@ -19,6 +19,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 - Compare that country to an average country and global aggregates
 - Rank and compare all countries using a consistent set of metrics
 - Understand data methodology via the Source tab
+- Ask natural-language questions about metrics and methodology via the Analytics Assistant
 
 ---
 
@@ -32,6 +33,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 | **G2** | Intuitive global comparison | Sorting, ranking, map and tables with consistent definitions |
 | **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and API links |
 | **G4** | Analyst-friendly UX | Smooth time navigation, frequency toggles, search, filter chips |
+| **G5** | AI-assisted analysis | Analytics assistant answers questions with LLM or rule-based fallback |
 
 ### 2.2 Non-Goals (Current Version)
 
@@ -59,11 +61,12 @@ See `USER_PERSONAS.md` for full detail.
 
 ### 4.1 Main Navigation
 
-Three main tabs:
+Four main tabs:
 
 - **Country dashboard** – Single-country deep dive
 - **Global analytics** – Map and global tables
 - **Source** – Metric definitions, formulas, data source links
+- **Analytics assistant** – LLM-powered chat for questions about metrics, methodology, and comparisons
 
 ### 4.2 Country Dashboard
 
@@ -133,6 +136,14 @@ Three main tabs:
 - **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
 - **Metric cards**: Label, description, formula, unit, source links with external-link icons and URLs
 
+### 4.5 Analytics Assistant
+
+- **LLM mode** (when API key set): GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
+- **Fallback mode** (no API key): Rule-based answers for rankings, comparisons, single-metric lookups, methodology, regions
+- **Context**: Uses selected country summary, global data (top 50 by GDP, top 20 by GDP per capita), metric metadata
+- **Suggestions**: Quick-start prompts (e.g. "Compare Indonesia to Malaysia", "Top 10 countries by GDP")
+- **Settings**: Model selection; API key input (localStorage)
+
 ---
 
 ## 5. Data Rules and Edge Cases
@@ -143,7 +154,7 @@ Three main tabs:
 |--------|---------|
 | World Bank WDI | Primary: GDP, population, health, geography, inflation, interest, gov debt |
 | IMF WEO | Fallback for GDP and government debt when WB empty |
-| REST Countries | Timezone, currency, area, government |
+| REST Countries | Timezone, currency, area, government type, head of government |
 | Sea Around Us / Marine Regions | EEZ (static data) |
 
 ### 5.2 Fallbacks
@@ -192,6 +203,7 @@ Three main tabs:
 - **API layer**: `src/api/*`; never call APIs from components
 - **Formatting**: `src/utils/numberFormat.ts`, `src/utils/timeSeries.ts`
 - **Metric metadata**: `src/data/metricMetadata.ts` for Source tab
+- **Chat**: `src/utils/chatContext.ts`, `src/utils/chatFallback.ts`, `vite-plugin-chat-api.ts`
 
 ---
 

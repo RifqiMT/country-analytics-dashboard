@@ -11,7 +11,8 @@ This document provides a comprehensive reference for all **data metrics** displa
 | **Financial** | GDP, Gov. debt, Inflation, Interest rate | World Bank WDI, IMF WEO |
 | **Population** | Total, Age groups (0–14, 15–64, 65+) | World Bank WDI |
 | **Health** | Life expectancy | World Bank WDI |
-| **Geography** | Land area, Total area, EEZ | World Bank WDI, Sea Around Us |
+| **Geography** | Land area, Total area, EEZ | World Bank WDI, Sea Around Us, Marine Regions |
+| **Government** | Government type, Head of government | REST Countries (inferred) |
 
 ---
 
@@ -111,4 +112,4 @@ The **Source** tab provides per-metric documentation including:
 - Unit
 - Data source links (World Bank, IMF, Sea Around Us, Marine Regions)
 
-Metadata is defined in `src/data/metricMetadata.ts`.
+Metadata is defined in `src/data/metricMetadata.ts`. Government metrics (`governmentType`, `headOfGovernmentType`) are displayed in the Global tables and map but are not in `metricMetadata.ts` as they are categorical metadata from REST Countries.

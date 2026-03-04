@@ -28,9 +28,10 @@ An **analyst-grade web application** for exploring country-level financial, demo
 
 The Country Analytics Platform provides a **single, unified interface** to:
 
-- **Explore** a country in depth across GDP, population, age structure, life expectancy, and government debt
-- **Compare** countries with time trends, YoY changes, and cross-country rankings
+- **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
+- **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
 - **Understand** data methodology via the Source tab with descriptions, formulas, and API links
+- **Ask** natural-language questions about metrics, sources, and methodology via the Analytics Assistant (LLM-powered or rule-based fallback)
 
 ### 1.2 Target Audience
 
@@ -47,8 +48,9 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | View | Description |
 |------|-------------|
 | **Country dashboard** | Deep dive on a single country with summary, charts, and comparison |
-| **Global analytics** | Interactive map and multi-view tables for all countries |
+| **Global analytics** | Interactive choropleth map and multi-view tables for all countries |
 | **Source** | Metric definitions, formulas, and data source links with search |
+| **Analytics assistant** | LLM-powered chat for questions about metrics, methodology, and comparisons |
 
 ---
 
@@ -58,6 +60,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Credible data** – World Bank WDI, IMF WEO, REST Countries; fallbacks for territories
 - **Intuitive UX** – Searchable country selector, year presets, frequency toggles
 - **Transparent methodology** – Source tab documents every metric with formulas and API links
+- **AI-assisted analysis** – Analytics assistant answers questions with or without an API key (rule-based fallback)
 - **No login required** – Public data, no authentication or workspace setup
 
 ---
@@ -83,7 +86,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Map view** | Choropleth with 18 metrics (Financial, Demographics, Geography, Government) |
 | **Year selector** | Independent of country dashboard |
 | **Map tooltip** | Country name, flag, metric value, effective year |
-| **Global table** | General (area, region, government), Financial (GDP + YoY), Health & demographics (population, age groups, life expectancy + YoY) |
+| **Global table** | General (area, region, government type, head of government), Financial (GDP + YoY), Health & demographics (population, age groups, life expectancy + YoY) |
 | **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
 
 ### 3.3 Source Tab
@@ -92,9 +95,20 @@ The Country Analytics Platform provides a **single, unified interface** to:
 |---------|-------------|
 | **Search** | By metric name, description, formula, or source |
 | **Filter chips** | World Bank, IMF, Sea Around Us, Marine Regions |
+| **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
 | **Metric cards** | Label, description, formula, unit, source links with external-link icons |
 
-### 3.4 Data Fallbacks
+### 3.4 Analytics Assistant (Chat)
+
+| Feature | Description |
+|---------|-------------|
+| **LLM-powered chat** | Ask questions about metrics, data sources, and methodology (GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo) |
+| **Context-aware** | Uses metric metadata, selected country context, and global data when available |
+| **Rule-based fallback** | When no API key: answers rankings, comparisons, single-metric lookups, methodology questions |
+| **Suggestions** | Quick-start prompts for common questions |
+| **Model selection** | Choose model via dropdown; API key via Settings (localStorage) or env |
+
+### 3.5 Data Fallbacks
 
 - **IMF WEO** – Government debt and GDP when World Bank has no data
 - **Territory fallbacks** – Inflation and interest rate from parent country (e.g. American Samoa → US) for 30+ territories
@@ -110,7 +124,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Build** | Vite 7 |
 | **HTTP** | Axios |
 | **Charts** | Recharts |
-| **Map** | react-simple-maps, d3-geo, world-atlas |
+| **Map** | react-simple-maps, d3-geo, d3-scale |
 | **Styling** | CSS (App.css, index.css) |
 
 ### Key Dependencies
@@ -118,6 +132,10 @@ The Country Analytics Platform provides a **single, unified interface** to:
 ```
 axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
 ```
+
+### Custom Infrastructure
+
+- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; proxies to OpenAI or uses rule-based fallback when no API key
 
 ---
 
@@ -134,18 +152,20 @@ User → App.tsx (tabs, filters)
          ↓
     worldBank.ts (WDI) + imf.ts (fallbacks) + REST Countries
          ↓
-    Components (Summary, TimeSeries, Map, Tables, Source)
+    Components (Summary, TimeSeries, Map, Tables, Source, Chatbot)
 ```
 
 ### 5.2 Key Modules
 
 | Module | Purpose |
 |--------|---------|
-| `src/App.tsx` | Layout, main tabs (Country / Global / Source), footer |
+| `src/App.tsx` | Layout, main tabs (Country / Global / Source / Chat), footer |
 | `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state |
 | `src/api/worldBank.ts` | WDI API, global metrics, territory fallbacks |
 | `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
-| `src/components/*` | Presentational components |
+| `src/components/*` | Presentational components including ChatbotSection |
+| `src/utils/chatContext.ts` | System prompt builder for LLM |
+| `src/utils/chatFallback.ts` | Rule-based fallback when no API key |
 | `src/data/metricMetadata.ts` | Metric descriptions, formulas, source URLs |
 | `src/types.ts` | Domain types |
 
@@ -161,7 +181,7 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 |--------|---------|
 | **World Bank WDI** | GDP, population, health, geography, inflation, interest, gov debt |
 | **IMF WEO** | Fallback for GDP and government debt |
-| **REST Countries** | Timezone, currency, area, government |
+| **REST Countries** | Timezone, currency, area, government type, head of government |
 | **Sea Around Us / Marine Regions** | EEZ (Exclusive Economic Zone) |
 | **FlagCDN** | Country flags |
 
@@ -196,6 +216,18 @@ npm run dev
 
 Open the URL printed by Vite (typically `http://localhost:5173`).
 
+### Analytics Assistant (Optional)
+
+The **Analytics assistant** tab uses an LLM to answer questions about the dashboard's metrics and data sources. You can enable it in three ways:
+
+1. **Server env** (recommended): Copy `.env.example` to `.env` and set `OPENAI_API_KEY=sk-your-key-here`
+2. **Public demo key**: Set `VITE_OPENAI_API_KEY=sk-your-key` in `.env` for out-of-box demo (key is baked into the frontend)
+3. **Per-user key**: Click **Settings** in the chat tab and paste your [OpenAI API key](https://platform.openai.com/api-keys) (stored in localStorage)
+
+**Models**: Choose from GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, or GPT-3.5 Turbo via the model dropdown.
+
+**Without an API key**: The assistant uses a rule-based fallback that answers rankings, comparisons, single-metric lookups, methodology questions, and more.
+
 ### Build for Production
 
 ```bash
@@ -226,6 +258,7 @@ npm run preview
 
 | Document | Description |
 |----------|-------------|
+| [docs/README.md](docs/README.md) | Documentation index and quick links |
 | [docs/PRODUCT_DOCUMENTATION_STANDARD.md](docs/PRODUCT_DOCUMENTATION_STANDARD.md) | How we structure and maintain product docs |
 | [docs/PRD.md](docs/PRD.md) | Full product requirements document |
 | [docs/USER_PERSONAS.md](docs/USER_PERSONAS.md) | Target personas and their needs |
