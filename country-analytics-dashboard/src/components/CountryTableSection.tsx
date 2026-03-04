@@ -57,6 +57,7 @@ export function CountryTableSection({ data }: Props) {
   const computeAggregates = (
     key: keyof GlobalCountryMetricsRow,
     seriesId: string,
+    options?: { globalAsAverage?: boolean },
   ) => {
     const valuesCurr = globalRowsCurr
       .map((r) => r[key])
@@ -112,7 +113,16 @@ export function CountryTableSection({ data }: Props) {
         }
       }
 
-      if (sumPrev !== 0) {
+      const useAverageForGlobal = options?.globalAsAverage === true;
+      if (useAverageForGlobal) {
+        if (avgPrev !== 0) {
+          const pct = ((avgCurr - avgPrev) / Math.abs(avgPrev)) * 100;
+          if (Number.isFinite(pct)) {
+            const sign = pct > 0 ? '+' : '';
+            yoyGlobal = `${sign}${pct.toFixed(1)}%`;
+          }
+        }
+      } else if (sumPrev !== 0) {
         const pct = ((sumCurr - sumPrev) / Math.abs(sumPrev)) * 100;
         if (Number.isFinite(pct)) {
           const sign = pct > 0 ? '+' : '';
@@ -121,12 +131,15 @@ export function CountryTableSection({ data }: Props) {
       }
     }
 
+    const useAverageForGlobal = options?.globalAsAverage === true;
+    const globalValue = useAverageForGlobal ? avgCurr : sumCurr;
+
     return {
       selected: series
         ? series.points.find((p) => p.year === snapshot.year)?.value ?? null
         : null,
       avgCountry: avgCurr,
-      global: sumCurr,
+      global: globalValue,
       yoySelected,
       yoyAvg,
       yoyGlobal,
@@ -148,6 +161,25 @@ export function CountryTableSection({ data }: Props) {
   const gdpPPPPerCapitaAgg = computeAggregates(
     'gdpPPPPerCapita',
     'gdpPPPPerCapita',
+  );
+  const inflationCPIAgg = computeAggregates(
+    'inflationCPI',
+    'inflationCPI',
+    { globalAsAverage: true },
+  );
+  const govDebtPercentGDPAgg = computeAggregates(
+    'govDebtPercentGDP',
+    'govDebtPercentGDP',
+    { globalAsAverage: true },
+  );
+  const govDebtUSDAgg = computeAggregates(
+    'govDebtUSD',
+    'govDebtUSD',
+  );
+  const interestRateAgg = computeAggregates(
+    'interestRate',
+    'interestRate',
+    { globalAsAverage: true },
   );
   const populationAgg = computeAggregates(
     'populationTotal',
@@ -333,6 +365,136 @@ export function CountryTableSection({ data }: Props) {
                 {gdpPPPPerCapitaAgg.yoyGlobal && (
                   <div className="table-cell-yoy">
                     {gdpPPPPerCapitaAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Government debt (USD)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(govDebtUSDAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {govDebtUSDAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(govDebtUSDAgg.avgCountry)}
+                </div>
+                {govDebtUSDAgg.yoyAvg && (
+                  <div className="table-cell-yoy">
+                    {govDebtUSDAgg.yoyAvg}
+                  </div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(govDebtUSDAgg.global)}
+                </div>
+                {govDebtUSDAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {govDebtUSDAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Inflation (CPI, %)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(inflationCPIAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {inflationCPIAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(inflationCPIAgg.avgCountry)}
+                </div>
+                {inflationCPIAgg.yoyAvg && (
+                  <div className="table-cell-yoy">{inflationCPIAgg.yoyAvg}</div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(inflationCPIAgg.global)}
+                </div>
+                {inflationCPIAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {inflationCPIAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Government debt (% of GDP)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(govDebtPercentGDPAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {govDebtPercentGDPAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(govDebtPercentGDPAgg.avgCountry)}
+                </div>
+                {govDebtPercentGDPAgg.yoyAvg && (
+                  <div className="table-cell-yoy">
+                    {govDebtPercentGDPAgg.yoyAvg}
+                  </div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(govDebtPercentGDPAgg.global)}
+                </div>
+                {govDebtPercentGDPAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {govDebtPercentGDPAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Lending interest rate (%)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(interestRateAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {interestRateAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(interestRateAgg.avgCountry)}
+                </div>
+                {interestRateAgg.yoyAvg && (
+                  <div className="table-cell-yoy">
+                    {interestRateAgg.yoyAvg}
+                  </div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(interestRateAgg.global)}
+                </div>
+                {interestRateAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {interestRateAgg.yoyGlobal}
                   </div>
                 )}
               </td>

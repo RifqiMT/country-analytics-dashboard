@@ -1,137 +1,164 @@
-## Product metrics & OKRs – Country Analytics Platform
+# Product Metrics & OKRs – Country Analytics Platform
 
-This document defines how we measure the success of the Country Analytics Platform and how those metrics map to product and engineering work.
-
----
-
-### 1. North‑star and core metrics
-
-#### 1.1 North‑star metric
-
-- **NS‑1: Weekly Active Analytical Sessions (WAAS)**
-  - **Definition**: Count of distinct sessions per week in which a user:
-    - Views at least one country dashboard **and**
-    - Performs at least one interactive action (e.g. changes year range, switches frequency, switches tab, or sorts a global table).
-  - **Why it matters**: Measures whether the tool is being actively used for analysis (not just opened once).
-
-#### 1.2 Core engagement metrics
-
-- **E‑1: Country coverage used**
-  - **Definition**: Number of distinct countries viewed per week.
-  - **Owner**: Product / Strategy.
-
-- **E‑2: Depth of exploration**
-  - **Definition**: Average number of views per session of:
-    - Frequency changes on the unified timeline.
-    - Sub‑toggle changes in global tables (General/Financial/Health).
-    - Map metric switches.
-  - **Owner**: Product / UX.
-
-- **E‑3: Global vs. country balance**
-  - **Definition**: Ratio of sessions that reach the **Global analytics** tab vs those that only use the **Country dashboard**.
-  - **Owner**: Product.
+This document defines how we measure the success of the Country Analytics Platform and how those metrics map to product and engineering work. For **data metrics** (GDP, population, etc.), see `PRODUCT_METRICS.md`.
 
 ---
 
-### 2. Feature‑level metrics
+## 1. North-Star and Core Metrics
 
-#### 2.1 Country dashboard
+### 1.1 North-Star Metric
 
-- **CD‑1: Year‑range interaction rate**
-  - % of sessions where the year range is changed from default.
+| ID | Metric | Definition |
+|----|--------|------------|
+| **NS-1** | **Weekly Active Analytical Sessions (WAAS)** | Count of distinct sessions per week in which a user: (1) Views at least one country dashboard, and (2) Performs at least one interactive action (e.g. changes year range, switches frequency, switches tab, sorts a global table, sends a chat message) |
 
-- **CD‑2: Timeline metric diversity**
-  - Average number of distinct metrics enabled on the unified timeline per session.
+**Why it matters:** Measures whether the tool is being actively used for analysis, not just opened once.
 
-- **CD‑3: Age‑group breakdown usage**
-  - % of sessions where the age‑group comparison toggle (“+ Population age breakdown”) is turned on at least once.
+### 1.2 Core Engagement Metrics
 
-#### 2.2 Global analytics – Map
-
-- **GM‑1: Map engagement rate**
-  - % of sessions that open the Global view and stay on the map for at least 10 seconds.
-
-- **GM‑2: Metric diversity (map)**
-  - Number of unique metrics selected on the map per session.
-
-#### 2.3 Global analytics – Tables
-
-- **GT‑1: Sort interaction rate**
-  - % of sessions where at least one table column is sorted (header clicked).
-
-- **GT‑2: Sub‑toggle distribution**
-  - Share of sessions that view each global table:
-    - General, Financial, Health & demographics.
-
-- **GT‑3: YoY visibility**
-  - % of global table rows rendered with a non‑null YoY value for at least one metric.
+| ID | Metric | Definition | Owner |
+|----|--------|------------|-------|
+| **E-1** | Country coverage used | Number of distinct countries viewed per week | Product / Strategy |
+| **E-2** | Depth of exploration | Average number of views per session: frequency changes, sub-toggle changes, map metric switches | Product / UX |
+| **E-3** | Global vs. country balance | Ratio of sessions that reach Global analytics tab vs. only Country dashboard | Product |
+| **E-4** | Source tab engagement | % of sessions that open the Source tab | Product |
+| **E-5** | Analytics assistant engagement | % of sessions that open the Analytics assistant tab and send at least one message | Product |
 
 ---
 
-### 3. Product‑team OKRs (example)
+## 2. Feature-Level Metrics
 
-#### Objective 1 – Make the platform a daily tool for strategy and policy teams
+### 2.1 Country Dashboard
 
-- **KR1.1**: Reach **50 Weekly Active Analytical Sessions** within 3 months of pilot launch.
-- **KR1.2**: At least **60% of active sessions** interact with both the country dashboard and global analytics views.
-- **KR1.3**: Median session duration ≥ **5 minutes**.
+| ID | Metric | Definition |
+|----|--------|------------|
+| **CD-1** | Year-range interaction rate | % of sessions where the year range is changed from default |
+| **CD-2** | Timeline metric diversity | Average number of distinct metrics enabled on the unified timeline per session |
+| **CD-3** | Age-group breakdown usage | % of sessions where the age-group comparison toggle is turned on at least once |
+| **CD-4** | Macro health & labour metric usage | % of weekly active analytical sessions where at least one of unemployment, poverty, under‑5 mortality, maternal mortality, or undernourishment metrics is viewed (summary cards, macro indicators timeline, global map, or tables) |
 
-#### Objective 2 – Improve depth and quality of analysis
+### 2.2 Global Analytics – Map
 
-- **KR2.1**: At least **40% of sessions** modify the year range from the default.
-- **KR2.2**: Average distinct metrics enabled on the unified timeline ≥ **3**.
-- **KR2.3**: At least **30% of sessions** use the Health & demographics global table.
+| ID | Metric | Definition |
+|----|--------|------------|
+| **GM-1** | Map engagement rate | % of sessions that open the Global view and stay on the map for at least 10 seconds |
+| **GM-2** | Metric diversity (map) | Number of unique metrics selected on the map per session |
 
-#### Objective 3 – Ensure data trust and reliability
+### 2.3 Global Analytics – Tables
 
-- **KR3.1**: < **1%** of API calls result in unhandled errors.
-- **KR3.2**: No critical bugs where charts or tables crash on missing data across a full quarter.
-- **KR3.3**: Documentation (README + PRD) stays in sync with deployed features (no more than 1 release behind).
+| ID | Metric | Definition |
+|----|--------|------------|
+| **GT-1** | Sort interaction rate | % of sessions where at least one table column is sorted |
+| **GT-2** | Sub-toggle distribution | Share of sessions that view each global table: General, Financial, Health & demographics |
+| **GT-3** | YoY visibility | % of global table rows rendered with a non-null YoY value for at least one metric |
 
----
+### 2.4 Source Tab
 
-### 4. Instrumentation guidelines
+| ID | Metric | Definition |
+|----|--------|------------|
+| **SR-1** | Source search usage | % of Source tab sessions that use the search input |
+| **SR-2** | Source filter usage | % of Source tab sessions that use a filter chip |
 
-> Note: The current codebase is a pure front‑end application without analytics wiring. These guidelines describe the intended event model for future telemetry.
+### 2.5 Analytics Assistant
 
-#### 4.1 Event naming
-
-- Use a `product_area.action` pattern:
-  - `dashboard.country_changed`
-  - `dashboard.year_range_changed`
-  - `timeline.frequency_changed`
-  - `timeline.metric_toggled`
-  - `global.map_metric_changed`
-  - `global.table_sort_changed`
-  - `global.table_view_changed` (general/financial/health)
-
-- Each event should include:
-  - `country_iso2` (if relevant)
-  - `year` or `year_range`
-  - `metric_id` (for timeline, map, or tables)
-  - `view` (country_dashboard | global_map | global_table)
-
-#### 4.2 Privacy & PII
-
-- No user PII is collected in the current design.
-- If authentication is added, event payloads should reference **user IDs** and **organisation IDs** only via opaque, hashed identifiers.
+| ID | Metric | Definition |
+|----|--------|------------|
+| **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
+| **CA-2** | Source distribution | % of chat sessions by source: Dashboard data, Web search (Tavily), Groq, other LLMs |
+| **CA-3** | Suggestion chip usage | % of chat sessions where at least one suggestion chip is clicked |
 
 ---
 
-### 5. Operational & engineering metrics
+## 3. Product OKRs (Example)
 
-Although this is a front‑end‑only project, engineering quality is still important:
+### Objective 1 – Make the platform a daily tool for strategy and policy teams
 
-- **ENG‑1: Bundle size**
-  - Track the main bundle size and aim to keep it lean, optimising chart and map dependencies as needed.
+| Key Result | Target |
+|------------|--------|
+| **KR1.1** | Reach 50 Weekly Active Analytical Sessions within 3 months of pilot launch |
+| **KR1.2** | At least 60% of active sessions interact with both the country dashboard and global analytics views |
+| **KR1.3** | Median session duration ≥ 5 minutes |
 
-- **ENG‑2: API latency (client‑perceived)**
-  - Measure time from initiating a dashboard fetch to data rendered.
+### Objective 2 – Improve depth and quality of analysis
 
-- **ENG‑3: Error rate**
-  - Log and track:
-    - Failed API calls (network / 5xx).
-    - React error boundaries triggered due to unexpected data shapes.
+| Key Result | Target |
+|------------|--------|
+| **KR2.1** | At least 40% of sessions modify the year range from the default |
+| **KR2.2** | Average distinct metrics enabled on the unified timeline ≥ 3 |
+| **KR2.3** | At least 30% of sessions use the Health & demographics global table |
 
-These can be consumed by a future observability stack if the app is deployed in production.
+### Objective 3 – Ensure data trust and reliability
 
+| Key Result | Target |
+|------------|--------|
+| **KR3.1** | < 1% of API calls result in unhandled errors |
+| **KR3.2** | No critical bugs where charts or tables crash on missing data across a full quarter |
+| **KR3.3** | Documentation (README + PRD) stays in sync with deployed features (no more than 1 release behind) |
+
+### Objective 4 – Drive adoption of Analytics assistant
+
+| Key Result | Target |
+|------------|--------|
+| **KR4.1** | At least 25% of sessions open the Analytics assistant tab |
+| **KR4.2** | Among assistant users, average ≥ 2 messages per session |
+
+---
+
+## 4. Instrumentation Guidelines
+
+> **Note:** The current codebase is a pure front-end application without analytics wiring. These guidelines describe the intended event model for future telemetry.
+
+### 4.1 Event Naming
+
+Use a `product_area.action` pattern:
+
+| Event | When |
+|-------|------|
+| `dashboard.country_changed` | User selects a new country |
+| `dashboard.year_range_changed` | User changes start or end year |
+| `timeline.frequency_changed` | User switches frequency |
+| `timeline.metric_toggled` | User toggles a metric chip |
+| `global.map_metric_changed` | User changes map metric |
+| `global.table_sort_changed` | User sorts a table column |
+| `global.table_view_changed` | User switches General/Financial/Health |
+| `source.search_used` | User enters search query |
+| `source.filter_chip_clicked` | User clicks a source filter chip |
+| `chat.message_sent` | User sends a chat message |
+| `chat.suggestion_clicked` | User clicks a suggestion chip |
+| `chat.model_changed` | User changes LLM model |
+| `chat.source_received` | Assistant response received (payload: source type: Dashboard data | model label | Web search) |
+
+### 4.2 Event Payload
+
+Each event should include:
+
+- `country_iso2` (if relevant)
+- `year` or `year_range`
+- `metric_id` (for timeline, map, or tables)
+- `view` (country_dashboard | global_map | global_table | source | chat)
+
+### 4.3 Privacy & PII
+
+- No user PII is collected in the current design
+- If authentication is added, event payloads should reference **user IDs** and **organisation IDs** only via opaque, hashed identifiers
+
+---
+
+## 5. Operational & Engineering Metrics
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **ENG-1** | Bundle size | Main bundle size; aim to keep lean |
+| **ENG-2** | API latency (client-perceived) | Time from initiating dashboard fetch to data rendered |
+| **ENG-3** | Error rate | Failed API calls (network / 5xx); React error boundaries triggered |
+| **ENG-4** | Chat API latency | Time from chat send to response (LLM or fallback) |
+
+These can be consumed by a future observability stack when the app is deployed in production.
+
+---
+
+## 6. Product Team OKR Cadence
+
+- **Quarterly**: Review OKRs; update targets based on pilot feedback
+- **Monthly**: Track core engagement metrics (E-1 through E-5)
+- **Sprint**: Prioritise feature work that moves KR1–KR4 (e.g. Analytics assistant UX, Source tab discoverability)

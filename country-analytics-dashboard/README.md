@@ -1,165 +1,307 @@
-## Country Analytics Platform
+# Country Analytics Platform
 
-An analyst-grade web application for exploring **country-level financial, demographic, and basic health metrics** from 2000 to the latest available year, powered primarily by the World Bank World Development Indicators (WDI).
+[![React](https://img.shields.io/badge/React-18-61dafb?logo=react)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite)](https://vitejs.dev/)
 
-The tool is designed for **policy makers, strategy teams, economists, and corporate leaders** who need a fast, visual way to compare countries, understand trends, and communicate insights.
-
----
-
-### 1. Product overview
-
-- **Core value**: One place to understand how a country is performing across GDP, population, age structure, and life expectancy, with **time trends**, **YoY changes**, and **cross‑country comparisons**.
-- **Audience**:
-  - Strategy / analytics teams in corporates and governments
-  - Country / regional heads and executives
-  - Researchers and students who need a clean, explorable interface over public data
-- **Key views**:
-  - **Country dashboard** – deep dive on a single country
-  - **Global analytics** – map and multi-view global tables for ranking and comparison
-
-See `docs/PRD.md` for a complete functional specification and `docs/USER_PERSONAS.md` for detailed personas.
+An **analyst-grade web application** for exploring country-level financial, demographic, and health metrics from 2000 to the latest available year. Powered by **World Bank WDI**, **IMF WEO**, **REST Countries**, **Sea Around Us**, and other trusted public data sources.
 
 ---
 
-### 2. Feature summary
+## Table of Contents
 
-- **Country summary**
-  - Country name, ISO2/ISO3 codes, flag, region, income level, capital city
-  - Time window used (e.g. 2000–2024) based on actual data availability
-  - General: timezone, currency (code, name, symbol), land area, total area
-  - Financial metrics (with YoY): GDP nominal, GDP PPP, GDP per capita (nominal & PPP)
-  - Health & demographics (with YoY): total population, life expectancy, 0–14 / 15–64 / 65+ breakdown
-
-- **Unified time-series timeline**
-  - Combined line chart for financial, population, and health metrics
-  - Frequency toggles: **weekly, monthly, quarterly, yearly**
-  - Sub‑annual frequencies are **interpolated** from annual data to maintain smooth trends
-  - Custom tooltip showing:
-    - Metric values (compact format)
-    - Period‑over‑period change (WoW / MoM / QoQ / YoY)
-
-- **Population by age group**
-  - Pie chart and details panel for 0–14, 15–64, 65+
-  - Each slice shows **absolute population** and **share of total**
-
-- **Country comparison (selected vs global)**
-  - Comparison card for the selected country vs:
-    - **Average country** (simple average across all countries)
-    - **Global total**
-  - Metrics: GDP (nominal, PPP, per capita), population + YoY deltas
-  - Toggle to expand/collapse age‑group breakdown rows
-
-- **Global analytics – world map**
-  - Choropleth map using `react-simple-maps` + `world-atlas`
-  - Metric selector: GDP variants and population
-  - Year selector decoupled from the country dashboard filters
-  - Tooltip per country: name, flag, metric value, and effective data year
-
-- **Global analytics – multi‑view tables**
-  - Year selector with debounced input
-  - **Sub‑toggles** for three global tables:
-    - **General** – total area (km²) by country
-    - **Financial** – GDP Nominal, GDP PPP, GDP / Capita, GDP / Capita PPP + YoY
-    - **Health & demographics** – total population, 0–14, 15–64, 65+, and life expectancy + YoY
-  - All visible numeric columns are **sortable asc/desc**
+- [Product Overview](#1-product-overview)
+- [Product Benefits](#2-product-benefits)
+- [Features](#3-features)
+- [Tech Stack](#4-tech-stack)
+- [Architecture](#5-architecture)
+- [Data Sources & Business Rules](#6-data-sources--business-rules)
+- [Getting Started](#7-getting-started)
+- [Development Guidelines](#8-development-guidelines)
+- [Documentation Index](#9-documentation-index)
 
 ---
 
-### 3. Data & business rules
+## 1. Product Overview
 
-- **Primary data source**: World Bank WDI (`src/api/worldBank.ts`)
-  - Financial indicators:
-    - `NY.GDP.MKTP.CD` – GDP (current US$)
-    - `NY.GDP.MKTP.PP.CD` – GDP, PPP (current international $)
-    - `NY.GDP.PCAP.CD` – GDP per capita (current US$)
-    - `NY.GDP.PCAP.PP.CD` – GDP per capita, PPP (current international $)
-  - Demographics:
-    - `SP.POP.TOTL` – Population, total
-    - `SP.POP.0014.TO.ZS` – ages 0–14 (% of total)
-    - `SP.POP.1564.TO.ZS` – ages 15–64 (% of total)
-    - `SP.POP.65UP.TO.ZS` – ages 65+ (% of total)
-  - Health:
-    - `SP.DYN.LE00.IN` – Life expectancy at birth, total (years)
-  - Geography:
-    - `AG.LND.TOTL.K2` – Land area (sq. km)
-    - `AG.SRF.TOTL.K2` – Surface / total area (sq. km)
+### 1.1 Core Value Proposition
 
-- **Coverage window**:
-  - `DATA_MIN_YEAR = 2000`
-  - `DATA_MAX_YEAR = currentYear - 2` (to avoid incomplete latest-year data)
+The Country Analytics Platform provides a **single, unified interface** to:
 
-- **Latest value logic**:
-  - Dashboard snapshot uses **latest non‑null value up to the selected end year**.
-  - Global tables:
-    - For **GDP & population**, series are taken for the requested year; if an entire year is empty, the loader walks backwards until it finds a year with data.
-    - For **area** and **life expectancy**, values are effectively static or slow‑moving, so the app takes the **latest non‑null observation per country** and reuses it across years.
+- **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
+- **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
+- **Understand** data methodology via the Source tab with descriptions, formulas, and source links
+- **Ask** natural-language questions via the Analytics Assistant (year-based routing: Groq for period ≤ current year − 2, Tavily for recent/current)
 
-- **Country code mapping**
-  - World Bank sometimes uses ISO3 codes and aggregate regions.
-  - The app filters to genuine countries using the World Bank country list (`fetchAllCountries`) and also uses REST Countries (`src/api/countryCodes.ts`) to bridge numeric → ISO2/ISO3 where needed (especially for the map).
+### 1.2 Target Audience
 
-More detailed product rules and edge cases (e.g. Taiwan coverage, Palestine naming) are documented in `docs/PRD.md` and `docs/PRODUCT_DOCUMENTATION_STANDARD.md`.
+| Audience | Use Case |
+|----------|----------|
+| **Strategy & analytics teams** | Board reports, regional planning, market prioritisation |
+| **Country / regional heads** | Quick country snapshots and peer comparisons |
+| **Economists & policy analysts** | Trend analysis, structural shifts, research validation |
+| **Market expansion managers** | Market sizing, demographic structure, growth evaluation |
+| **Researchers & students** | Clean, explorable interface over public macro data |
+
+### 1.3 Key Views
+
+| View | Description |
+|------|-------------|
+| **Country dashboard** | Deep dive on a single country with summary, charts, and comparison |
+| **Global analytics** | Interactive choropleth map and multi-view tables for all countries |
+| **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
+| **Analytics assistant** | Chat for questions about metrics, methodology, and general knowledge |
 
 ---
 
-### 4. Tech stack & architecture
+## 2. Product Benefits
 
-- **Frontend**: React 18 + TypeScript + Vite
-- **State management**: local React state + `useCountryDashboard` hook
-- **Charts**: `recharts` (line chart + pie chart)
-- **Map**: `react-simple-maps` + `world-atlas`
-- **HTTP client**: `axios`
-
-Key modules:
-
-- `src/App.tsx`
-  - Top‑level layout and navigation between **Country dashboard** and **Global analytics**
-  - Holds global filter state for global year and map metric
-- `src/hooks/useCountryDashboard.ts`
-  - Fetches country‑level series + snapshot
-  - Manages country selection, year range, frequency, and selected metrics
-- `src/api/worldBank.ts`
-  - Strongly‑typed API layer for WDI and global metrics
-  - Implements resampling windows, latest‑non‑null logic, and global aggregation helpers
-- `src/components/*`
-  - Presentational components for each section (summary, timeline, pie, tables, map)
-- `src/types.ts`
-  - Shared domain model: metrics, time points, country summaries, snapshots, global rows
-
-See `docs/PRODUCT_DOCUMENTATION_STANDARD.md` and `docs/PRD.md` for a deeper architecture and domain overview.
+- **Fast insights** – Single-country summary with YoY deltas in seconds
+- **Credible data** – World Bank WDI, IMF WEO, REST Countries, Sea Around Us; fallbacks for territories
+- **Intuitive UX** – Searchable country selector, year presets, frequency toggles
+- **Transparent methodology** – Source tab documents every metric with formulas and source links
+- **AI-assisted analysis** – Analytics assistant with year-based routing: Groq for period ≤ current year − 2, Tavily (web search) for recent/current; Tavily also selectable as a model
+- **Source attribution** – Each chat response shows its source (Dashboard data, model name, or Web search)
+- **No login required** – Public data, no authentication or workspace setup
 
 ---
 
-### 5. Running and developing
+## 3. Features
 
-From the `country-analytics-dashboard` directory:
+### 3.1 Country Dashboard
+
+| Feature | Description |
+|---------|-------------|
+| **Country selector** | Search by name, ISO2, or ISO3; keyboard navigation |
+| **Year range** | Start/End (2000–currentYear−2); presets: Full, Last 10, Last 5 |
+| **Summary section** | General (region, income, government, capital, timezone, currency, geography), Financial (GDP, debt, inflation, interest + YoY), Health & demographics (population, life expectancy, age groups + YoY) |
+| **Unified time-series** | Line chart; frequency: weekly/monthly/quarterly/yearly; metric chips; tooltip with period-over-period change |
+| **Macro indicators timeline** | Inflation, interest rate, government debt (% GDP) |
+| **Population pie** | 0–14, 15–64, 65+ with % and absolute counts |
+| **Country comparison table** | Selected country vs average vs global total; optional age breakdown |
+
+### 3.2 Global Analytics
+
+| Feature | Description |
+|---------|-------------|
+| **Map view** | Choropleth with 18 metrics (Financial, Demographics, Geography, Government) |
+| **Year selector** | Independent of country dashboard |
+| **Map tooltip** | Country name, flag, metric value, effective year |
+| **Global table** | General (area, region, government type, head of government), Financial (GDP + YoY), Health & demographics (population, age groups, life expectancy + YoY) |
+| **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
+
+### 3.3 Source Tab
+
+| Feature | Description |
+|---------|-------------|
+| **Analytics Assistant flow** | Documents year-based routing: Groq (period ≤ current year − 2), Tavily (recent/current) |
+| **Search** | By metric name, description, formula, or source |
+| **Filter chips** | World Bank, IMF, Sea Around Us, Marine Regions |
+| **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
+| **Metric cards** | Label, description, formula, unit, source links with external-link icons |
+
+### 3.4 Analytics Assistant (Chat)
+
+| Feature | Description |
+|---------|-------------|
+| **Year-based routing** | Period ≤ current year − 2 → Groq; period after (or "now") → Tavily (web search) first |
+| **Model selection** | Multiple providers (OpenAI, Groq, Anthropic, Google, OpenRouter, **Tavily Web Search**); tiers: Best, Balanced, Fast |
+| **Source attribution** | Each response shows source: "Dashboard data", model label, or "Web search" |
+| **Context-aware** | Uses metric metadata, selected country context, and global data |
+| **Out-of-scope handling** | Religion, culture, leaders, capital, language routed to LLM/web search; no dashboard metrics |
+| **Suggestions** | Quick-start prompts for common questions |
+
+### 3.5 Data Fallbacks
+
+- **IMF WEO** – Government debt and GDP when World Bank has no data
+- **Territory fallbacks** – Inflation and interest rate from parent country (e.g. American Samoa → US) for 30+ territories
+
+---
+
+## 4. Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| **Framework** | React 18 |
+| **Language** | TypeScript 5.9 |
+| **Build** | Vite 7 |
+| **HTTP** | Axios |
+| **Charts** | Recharts |
+| **Map** | react-simple-maps, d3-geo, d3-scale |
+| **Styling** | CSS (App.css, index.css) |
+
+### Key Dependencies
+
+```
+axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
+```
+
+### Custom Infrastructure
+
+- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; year-based Groq vs Tavily routing
+
+---
+
+## 5. Architecture
+
+### 5.1 High-Level Flow
+
+```
+User → App.tsx (tabs, filters)
+         ↓
+    useCountryDashboard (country, year range)
+         ↓
+    fetchCountryDashboardData / fetchGlobalCountryMetricsForYear
+         ↓
+    worldBank.ts (WDI) + imf.ts (fallbacks) + REST Countries
+         ↓
+    Components (Summary, TimeSeries, Map, Tables, Source, Chatbot)
+```
+
+### 5.2 Key Modules
+
+| Module | Purpose |
+|--------|---------|
+| `src/App.tsx` | Layout, main tabs (Country / Global / Source / Chat), footer |
+| `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state |
+| `src/api/worldBank.ts` | WDI API, global metrics, territory fallbacks |
+| `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
+| `src/components/*` | Presentational components including ChatbotSection |
+| `src/utils/chatContext.ts` | System prompt builder for LLM |
+| `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
+| `src/config/llm.ts` | LLM model definitions, provider config |
+| `src/data/metricMetadata.ts` | Metric descriptions, formulas, source links |
+| `src/types.ts` | Domain types |
+
+See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
+
+---
+
+## 6. Data Sources & Business Rules
+
+### 6.1 Primary Sources
+
+| Source | Purpose |
+|--------|---------|
+| **World Bank WDI** | GDP, population, health, geography, inflation, interest, gov debt |
+| **IMF WEO** | Fallback for GDP and government debt |
+| **REST Countries** | Timezone, currency, area, government type, head of government |
+| **Sea Around Us / Marine Regions** | EEZ (Exclusive Economic Zone) |
+| **FlagCDN** | Country flags |
+
+### 6.2 Coverage Window
+
+- `DATA_MIN_YEAR = 2000`
+- `DATA_MAX_YEAR = currentYear - 2` (data lag assumption)
+
+### 6.3 Business Rules
+
+- **Latest value**: Dashboard uses latest non-null value up to selected end year
+- **Missing years**: Global loader steps backwards until data found
+- **Territories**: 30+ territories use parent-country fallback for inflation/interest
+- **Country naming**: Palestine (West Bank and Gaza); Taiwan excluded (no WDI coverage)
+- **Source attribution**: Analytics Assistant responses show source (Dashboard data, model label, or Web search)
+- **Out-of-scope**: Religion, culture, leaders, capital, language routed to LLM/web search – never answered with dashboard metrics
+
+### 6.4 Business Guidelines
+
+- **Data credibility**: All metrics cite primary sources; Source tab documents every formula and link
+- **Transparency**: Each chat response displays its source
+- **No login required**: Public data, no authentication or workspace setup
+
+---
+
+## 7. Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- npm 9+
+
+### Install & Run
 
 ```bash
+cd country-analytics-dashboard
 npm install
+npm run setup   # creates .env from .env.example if missing
 npm run dev
 ```
 
-Then open the URL printed by Vite (typically `http://localhost:5173`).
+Open the URL printed by Vite (typically `http://localhost:5173`).
 
-**Recommended practices**
+### Analytics Assistant
 
-- Keep all cross‑cutting types in `src/types.ts`.
-- Add new external data integrations behind the `src/api/*` layer; never call APIs directly from components.
-- Use the utilities in `src/utils/numberFormat.ts` and `src/utils/timeSeries.ts` for:
-  - Compact number formatting (k, Mn, Bn, Tn)
-  - Percentage formatting
-  - Time‑series resampling (weekly/monthly/quarterly from annual)
+The **Analytics assistant** tab uses year-based routing:
+
+1. **Dashboard data** – Rule-based answers for rankings, comparisons, methodology (no keys required)
+2. **Tavily (web search)** – General-knowledge about period after current year − 2 (e.g. "now", "2026")
+3. **Groq** – General-knowledge about period ≤ current year − 2 (e.g. "in 2023"); or when web search fails
+4. **Other LLMs** – User-selected models (OpenAI, Anthropic, etc.); **Tavily Web Search** is also selectable
+
+**To enable LLM and web search:**
+
+1. Run `npm run setup` (creates `.env` if missing) or copy `.env.example` to `.env`
+2. Add the required environment variables (see `.env.example` for variable names)
+3. Obtain keys from each provider's developer console – **never commit real keys**
+4. Run `npm run dev` or `npm run preview` (the chat API does **not** run in a static build)
+
+The chat API runs in both dev and preview modes. Users can also add their own keys via **Settings** in the chat tab.
+
+### Build for Production
+
+```bash
+npm run build
+npm run preview
+```
 
 ---
 
-### 6. Documentation index
+## 8. Development Guidelines
 
-Additional, more detailed documentation lives under `docs/`:
+### Security
 
-- `docs/PRODUCT_DOCUMENTATION_STANDARD.md` – how we organise product & tech docs
-- `docs/PRD.md` – full product requirements document
-- `docs/USER_PERSONAS.md` – primary & secondary personas
-- `docs/USER_STORIES.md` – user stories grouped by persona and feature area
-- `docs/METRICS_AND_OKRS.md` – product metrics, analytics events, OKRs
+- **Never commit API keys.** Use placeholders in `.env.example`. Store real keys only in `.env` (gitignored).
+- **Pre-commit hook**: Run `npm run install-hooks` to block accidental commits of key patterns.
+- **Documentation**: Do not publish API keys or URLs to key provisioning pages in docs or code.
 
-These files are intended to be **living documents** that evolve as the product grows. When you introduce a major feature, please update the relevant doc(s) alongside your code changes.
+### Tech Guidelines
+
+- **Types**: Keep cross-cutting types in `src/types.ts`
+- **API layer**: Add integrations in `src/api/*`; never call APIs from components
+- **Formatting**: Use `src/utils/numberFormat.ts` and `src/utils/timeSeries.ts` for numbers and resampling
+- **Metric metadata**: `src/data/metricMetadata.ts` for Source tab; add new metrics with description, formula, sources
+- **Chat**: `src/utils/chatContext.ts`, `src/utils/chatFallback.ts`, `vite-plugin-chat-api.ts`, `src/config/llm.ts`
+
+### Code Conventions
+
+- **Config**: Add required keys to `.env`; see `.env.example` for variable names
+- **Error messages**: Use generic "add required keys to .env" – do not list specific variable names in user-facing copy
+
+### Adding Features
+
+1. Update `docs/PRD.md` for new requirements
+2. Add user stories to `docs/USER_STORIES.md`
+3. Extend `docs/METRICS_AND_OKRS.md` if new events/KPIs
+4. Update `src/data/metricMetadata.ts` for new metrics
+
+---
+
+## 9. Documentation Index
+
+| Document | Description |
+|----------|-------------|
+| [docs/README.md](docs/README.md) | Documentation index and quick links |
+| [docs/PRODUCT_DOCUMENTATION_STANDARD.md](docs/PRODUCT_DOCUMENTATION_STANDARD.md) | How we structure and maintain product docs |
+| [docs/PRD.md](docs/PRD.md) | Full product requirements document |
+| [docs/USER_PERSONAS.md](docs/USER_PERSONAS.md) | Target personas and their needs |
+| [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories by feature area |
+| [docs/METRICS_AND_OKRS.md](docs/METRICS_AND_OKRS.md) | Engagement metrics, OKRs, instrumentation |
+| [docs/PRODUCT_METRICS.md](docs/PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) with formulas and sources |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow and component architecture |
+
+---
+
+## Credits
+
+**Developed, managed, and maintained by [Rifqi Tjahyono](https://rifqi-tjahyono.com/)**  
+[LinkedIn](https://www.linkedin.com/in/rifqi-tjahjono/) · [Personal Website](https://rifqi-tjahyono.com/)

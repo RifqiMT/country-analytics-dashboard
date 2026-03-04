@@ -1,15 +1,27 @@
 import { useEffect, useState } from 'react';
 import type { GlobalCountryMetricsRow } from '../types';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
-import { formatCompactNumber } from '../utils/numberFormat';
+import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
+import { useToast } from './ToastProvider';
 
 interface Props {
   year: number;
   setYear: (year: number) => void;
 }
 
+/** Convert ISO 3166-1 alpha-2 code to flag emoji (e.g. "US" → 🇺🇸). */
+function getFlagEmoji(iso2: string): string {
+  if (!iso2 || iso2.length !== 2) return '';
+  return iso2
+    .toUpperCase()
+    .split('')
+    .map((c) => String.fromCodePoint(0x1f1e6 - 65 + c.charCodeAt(0)))
+    .join('');
+}
+
 export function AllCountriesTableSection({ year, setYear }: Props) {
+  const { showToast, dismissToast } = useToast();
   const [rows, setRows] = useState<GlobalCountryMetricsRow[]>([]);
   const [rowsPrev, setRowsPrev] = useState<GlobalCountryMetricsRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -23,6 +35,10 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
 
   useEffect(() => {
     let cancelled = false;
+    const loadingId = showToast({
+      type: 'loading',
+      message: `Loading global country table for ${year}…`,
+    });
     async function load() {
       setLoading(true);
       setError(undefined);
@@ -34,6 +50,10 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
         if (!cancelled) {
           setRows(curr);
           setRowsPrev(prev);
+          showToast({
+            type: 'success',
+            message: `Global country table updated for ${year}.`,
+          });
         }
       } catch (e) {
         if (!cancelled) {
@@ -42,16 +62,21 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
               ? e.message
               : 'Failed to load global country table.',
           );
+          showToast({
+            type: 'error',
+            message: 'Failed to load global country table.',
+          });
         }
       } finally {
         if (!cancelled) setLoading(false);
+        dismissToast(loadingId);
       }
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [year, dismissToast, showToast]);
 
   const prevByIso3 = new Map<string, GlobalCountryMetricsRow>();
   for (const r of rowsPrev) {
@@ -183,10 +208,34 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                       Code
                     </th>
                     <th
+                      onClick={() => changeSort('region')}
+                      className="sortable"
+                    >
+                      Region
+                    </th>
+                    <th
+                      onClick={() => changeSort('governmentType')}
+                      className="sortable"
+                    >
+                      Government type
+                    </th>
+                    <th
+                      onClick={() => changeSort('headOfGovernmentType')}
+                      className="sortable"
+                    >
+                      Head of government
+                    </th>
+                    <th
                       onClick={() => changeSort('totalAreaKm2')}
                       className="sortable"
                     >
                       Total area (km²)
+                    </th>
+                    <th
+                      onClick={() => changeSort('eezKm2')}
+                      className="sortable"
+                    >
+                      EEZ (km²)
                     </th>
                   </tr>
                 </thead>
@@ -194,12 +243,26 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                   {sorted.map((row) => {
                     return (
                       <tr key={row.iso2Code}>
-                        <td>{row.name}</td>
+                        <td>
+                          <span className="country-cell">
+                            {getFlagEmoji(row.iso2Code)} {row.name}
+                          </span>
+                        </td>
                         <td>{row.iso3Code ?? row.iso2Code ?? '–'}</td>
+                        <td>{row.region ?? '–'}</td>
+                        <td>{row.governmentType ?? '–'}</td>
+                        <td>{row.headOfGovernmentType ?? '–'}</td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
                             {row.totalAreaKm2 != null
                               ? `${formatCompactNumber(row.totalAreaKm2)} km²`
+                              : '–'}
+                          </div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.eezKm2 != null
+                              ? `${formatCompactNumber(row.eezKm2)} km²`
                               : '–'}
                           </div>
                         </td>
@@ -218,12 +281,6 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                       className="sortable"
                     >
                       Country
-                    </th>
-                    <th
-                      onClick={() => changeSort('iso3Code')}
-                      className="sortable"
-                    >
-                      Code
                     </th>
                     <th
                       onClick={() => changeSort('gdpNominal')}
@@ -249,6 +306,48 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     >
                       GDP / Capita PPP
                     </th>
+                    <th
+                      onClick={() => changeSort('govDebtUSD')}
+                      className="sortable"
+                    >
+                      Gov. debt (USD)
+                    </th>
+                    <th
+                      onClick={() => changeSort('inflationCPI')}
+                      className="sortable"
+                    >
+                      Inflation (CPI, %)
+                    </th>
+                    <th
+                      onClick={() => changeSort('govDebtPercentGDP')}
+                      className="sortable"
+                    >
+                      Gov. debt (% GDP)
+                    </th>
+                    <th
+                      onClick={() => changeSort('interestRate')}
+                      className="sortable"
+                    >
+                      Lending rate (%)
+                    </th>
+                    <th
+                      onClick={() => changeSort('unemploymentRate')}
+                      className="sortable"
+                    >
+                      Unemployment rate (%)
+                    </th>
+                    <th
+                      onClick={() => changeSort('povertyHeadcount215')}
+                      className="sortable"
+                    >
+                      Poverty ($2.15/day, %)
+                    </th>
+                    <th
+                      onClick={() => changeSort('povertyHeadcountNational')}
+                      className="sortable"
+                    >
+                      Poverty (national line, %)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -263,10 +362,29 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                       row,
                       'gdpPPPPerCapita',
                     );
+                    const inflationYoY = getYoYValue(row, 'inflationCPI');
+                    const govDebtYoY = getYoYValue(row, 'govDebtPercentGDP');
+                    const govDebtUSDYoY = getYoYValue(row, 'govDebtUSD');
+                    const interestYoY = getYoYValue(row, 'interestRate');
+                    const unemploymentYoY = getYoYValue(
+                      row,
+                      'unemploymentRate',
+                    );
+                    const pov215YoY = getYoYValue(
+                      row,
+                      'povertyHeadcount215',
+                    );
+                    const povNatYoY = getYoYValue(
+                      row,
+                      'povertyHeadcountNational',
+                    );
                     return (
                       <tr key={row.iso2Code}>
-                        <td>{row.name}</td>
-                        <td>{row.iso3Code ?? row.iso2Code ?? '–'}</td>
+                        <td>
+                          <span className="country-cell">
+                            {getFlagEmoji(row.iso2Code)} {row.name}
+                          </span>
+                        </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
                             {formatCompactNumber(row.gdpNominal ?? null)}
@@ -309,6 +427,68 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                             </div>
                           )}
                         </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatCompactNumber(row.govDebtUSD ?? null)}
+                          </div>
+                          {govDebtUSDYoY && (
+                            <div className="table-cell-yoy">{govDebtUSDYoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.inflationCPI ?? null)}
+                          </div>
+                          {inflationYoY && (
+                            <div className="table-cell-yoy">
+                              {inflationYoY}
+                            </div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.govDebtPercentGDP ?? null)}
+                          </div>
+                          {govDebtYoY && (
+                            <div className="table-cell-yoy">{govDebtYoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.interestRate ?? null)}
+                          </div>
+                          {interestYoY && (
+                            <div className="table-cell-yoy">{interestYoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.unemploymentRate ?? null)}
+                          </div>
+                          {unemploymentYoY && (
+                            <div className="table-cell-yoy">
+                              {unemploymentYoY}
+                            </div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.povertyHeadcount215 ?? null)}
+                          </div>
+                          {pov215YoY && (
+                            <div className="table-cell-yoy">{pov215YoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(
+                              row.povertyHeadcountNational ?? null,
+                            )}
+                          </div>
+                          {povNatYoY && (
+                            <div className="table-cell-yoy">{povNatYoY}</div>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -324,12 +504,6 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                       className="sortable"
                     >
                       Country
-                    </th>
-                    <th
-                      onClick={() => changeSort('iso3Code')}
-                      className="sortable"
-                    >
-                      Code
                     </th>
                     <th
                       onClick={() => changeSort('populationTotal')}
@@ -361,6 +535,26 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     >
                       Life expectancy
                     </th>
+                    <th
+                      onClick={() => changeSort('under5MortalityRate')}
+                      className="sortable"
+                    >
+                      Under-5 mortality (per 1,000)
+                    </th>
+                    <th
+                      onClick={() => changeSort('maternalMortalityRatio')}
+                      className="sortable"
+                    >
+                      Maternal mortality (per 100,000)
+                    </th>
+                    <th
+                      onClick={() =>
+                        changeSort('undernourishmentPrevalence')
+                      }
+                      className="sortable"
+                    >
+                      Undernourishment (% of pop.)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -370,10 +564,25 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     const pop15_64YoY = getYoYValue(row, 'population15_64');
                     const pop65PlusYoY = getYoYValue(row, 'population65Plus');
                     const lifeYoY = getYoYValue(row, 'lifeExpectancy');
+                    const under5YoY = getYoYValue(
+                      row,
+                      'under5MortalityRate',
+                    );
+                    const maternalYoY = getYoYValue(
+                      row,
+                      'maternalMortalityRatio',
+                    );
+                    const malnutritionYoY = getYoYValue(
+                      row,
+                      'undernourishmentPrevalence',
+                    );
                     return (
                       <tr key={row.iso2Code}>
-                        <td>{row.name}</td>
-                        <td>{row.iso3Code ?? row.iso2Code ?? '–'}</td>
+                        <td>
+                          <span className="country-cell">
+                            {getFlagEmoji(row.iso2Code)} {row.name}
+                          </span>
+                        </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
                             {formatCompactNumber(row.populationTotal ?? null)}
@@ -418,6 +627,38 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                             <div className="table-cell-yoy">{lifeYoY}</div>
                           )}
                         </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.under5MortalityRate != null
+                              ? row.under5MortalityRate.toFixed(1)
+                              : '–'}
+                          </div>
+                          {under5YoY && (
+                            <div className="table-cell-yoy">{under5YoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.maternalMortalityRatio != null
+                              ? row.maternalMortalityRatio.toFixed(0)
+                              : '–'}
+                          </div>
+                          {maternalYoY && (
+                            <div className="table-cell-yoy">{maternalYoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(
+                              row.undernourishmentPrevalence ?? null,
+                            )}
+                          </div>
+                          {malnutritionYoY && (
+                            <div className="table-cell-yoy">
+                              {malnutritionYoY}
+                            </div>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -426,6 +667,15 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
             )}
           </table>
         </div>
+      )}
+      {!loading && !error && view === 'financial' && (
+        <p className="muted small" style={{ marginTop: '0.5rem' }}>
+          Government debt: World Bank (IMF Government Finance Statistics) and IMF
+          World Economic Outlook (WEO) for missing countries. Inflation, gov. debt,
+          and lending rate show the latest available value when data for the selected
+          year is missing; where no country data exists, gov. debt and lending rate
+          show the world median as an estimate.
+        </p>
       )}
     </section>
   );

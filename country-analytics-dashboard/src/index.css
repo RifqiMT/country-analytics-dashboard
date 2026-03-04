@@ -1,24 +1,58 @@
 :root {
+  /* Backgrounds */
   --bg: #ffffff;
   --bg-elevated: #ffffff;
-  --bg-elevated-soft: #fef5f5;
-  --border-subtle: rgba(0, 0, 0, 0.06);
-  --border-strong: rgba(0, 0, 0, 0.16);
-  --text-primary: #1f2933;
-  --text-muted: #6b7280;
-  --accent-red: #c8102e; /* Indonesian red */
-  --accent-red-soft: #f97373;
+  --bg-elevated-soft: #fef8f8;
+  --bg-card-hover: #f8fafc;
+  --bg-input: #f9fafb;
+
+  /* Borders */
+  --border-subtle: rgba(148, 163, 184, 0.25);
+  --border-strong: rgba(148, 163, 184, 0.5);
+  --border-focus: rgba(200, 16, 46, 0.35);
+
+  /* Text */
+  --text-primary: #1e293b;
+  --text-muted: #64748b;
+  --text-secondary: #475569;
+
+  /* Accents */
+  --accent-red: #c8102e;
+  --accent-red-soft: #fef2f2;
+  --accent-red-muted: rgba(200, 16, 46, 0.12);
   --accent-gold: #e9b44c;
-  --accent-gold-soft: #f5d27a;
-  --accent-white: #ffffff;
-  --radius-lg: 18px;
+  --accent-gold-soft: #d4a84b;
+  --accent-teal: #0f766e;
+  --accent-teal-soft: rgba(15, 118, 110, 0.12);
+  --accent-positive: #16a34a;
+  --accent-negative: #dc2626;
+  --accent-primary: #0369a1;
+
+  /* Radii */
+  --radius-sm: 8px;
   --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
   --radius-pill: 999px;
-  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
-  --shadow-subtle: 0 1px 2px rgba(15, 23, 42, 0.06);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text',
+
+  /* Shadows */
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --shadow-soft: 0 4px 16px rgba(15, 23, 42, 0.08);
+  --shadow-medium: 0 10px 30px rgba(15, 23, 42, 0.1);
+  --shadow-strong: 0 16px 40px rgba(15, 23, 42, 0.12);
+
+  /* Spacing scale */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     'Inter', sans-serif;
-  line-height: 1.4;
+  line-height: 1.5;
   font-weight: 400;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -35,7 +69,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background: #ffffff;
+  background: #f8fafc;
   color: var(--text-primary);
 }
 

@@ -3,6 +3,7 @@ import type { CountryDashboardData, Frequency, MetricId } from '../types';
 import { fetchCountryDashboardData } from '../api/worldBank';
 import { resampleSeries } from '../utils/timeSeries';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
+import { useToast } from '../components/ToastProvider';
 
 interface UseCountryDashboardOptions {
   initialCountryCode?: string;
@@ -14,6 +15,8 @@ interface UseCountryDashboardResult {
   setCountryCode: (code: string) => void;
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
+  macroFrequency: Frequency;
+  setMacroFrequency: (f: Frequency) => void;
   startYear: number;
   endYear: number;
   setStartYear: (year: number) => void;
@@ -24,6 +27,7 @@ interface UseCountryDashboardResult {
   loading: boolean;
   error?: string;
   resampled: CountryDashboardData['series'] | undefined;
+  resampledMacro: CountryDashboardData['series'] | undefined;
 }
 
 const DEFAULT_COUNTRY = 'ID'; // Indonesia as default
@@ -33,10 +37,14 @@ const DEFAULT_END_YEAR = DATA_MAX_YEAR;
 export function useCountryDashboard(
   options?: UseCountryDashboardOptions,
 ): UseCountryDashboardResult {
+  const { showToast, dismissToast } = useToast();
   const [countryCode, setCountryCode] = useState(
     options?.initialCountryCode ?? DEFAULT_COUNTRY,
   );
   const [frequency, setFrequency] = useState<Frequency>(
+    options?.initialFrequency ?? 'yearly',
+  );
+  const [macroFrequency, setMacroFrequency] = useState<Frequency>(
     options?.initialFrequency ?? 'yearly',
   );
   const [startYear, setStartYear] = useState<number>(DEFAULT_START_YEAR);
@@ -54,6 +62,10 @@ export function useCountryDashboard(
     async function load() {
       setLoading(true);
       setError(undefined);
+      const loadingId = showToast({
+        type: 'loading',
+        message: 'Refreshing country dashboard…',
+      });
       try {
         const result = await fetchCountryDashboardData(
           countryCode,
@@ -62,6 +74,10 @@ export function useCountryDashboard(
         );
         if (!cancelled) {
           setData(result);
+          showToast({
+            type: 'success',
+            message: 'Country dashboard updated.',
+          });
         }
       } catch (e) {
         if (!cancelled) {
@@ -70,9 +86,16 @@ export function useCountryDashboard(
               ? e.message
               : 'Failed to load country analytics data.',
           );
+          showToast({
+            type: 'error',
+            message: 'Failed to load country dashboard.',
+          });
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
+        dismissToast(loadingId);
       }
     }
 
@@ -80,7 +103,7 @@ export function useCountryDashboard(
     return () => {
       cancelled = true;
     };
-  }, [countryCode, startYear, endYear]);
+  }, [countryCode, startYear, endYear, dismissToast, showToast]);
 
   const resampled = data
     ? {
@@ -94,11 +117,27 @@ export function useCountryDashboard(
       }
     : undefined;
 
+  const resampledMacro = data
+    ? {
+        financial: data.series.financial.map((s) =>
+          resampleSeries(s, macroFrequency),
+        ),
+        population: data.series.population.map((s) =>
+          resampleSeries(s, macroFrequency),
+        ),
+        health: data.series.health.map((s) =>
+          resampleSeries(s, macroFrequency),
+        ),
+      }
+    : undefined;
+
   return {
     countryCode,
     setCountryCode,
     frequency,
     setFrequency,
+    macroFrequency,
+    setMacroFrequency,
     startYear,
     endYear,
     setStartYear,
@@ -109,6 +148,7 @@ export function useCountryDashboard(
     loading,
     error,
     resampled,
+    resampledMacro,
   };
 }
 
