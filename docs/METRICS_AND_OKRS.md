@@ -1,6 +1,6 @@
 # Product Metrics & OKRs – Country Analytics Platform
 
-This document defines how we measure the success of the Country Analytics Platform and how those metrics map to product and engineering work.
+This document defines how we measure the success of the Country Analytics Platform and how those metrics map to product and engineering work. For **data metrics** (GDP, population, etc.), see `PRODUCT_METRICS.md`.
 
 ---
 
@@ -63,7 +63,7 @@ This document defines how we measure the success of the Country Analytics Platfo
 | ID | Metric | Definition |
 |----|--------|------------|
 | **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
-| **CA-2** | Fallback vs LLM usage | % of chat sessions that use rule-based fallback (no API key) vs LLM |
+| **CA-2** | Fallback vs LLM usage | % of chat sessions that use rule-based fallback (Dashboard data) vs LLM or Web search |
 | **CA-3** | Suggestion chip usage | % of chat sessions where at least one suggestion chip is clicked |
 
 ---
@@ -125,6 +125,7 @@ Use a `product_area.action` pattern:
 | `chat.message_sent` | User sends a chat message |
 | `chat.suggestion_clicked` | User clicks a suggestion chip |
 | `chat.model_changed` | User changes LLM model |
+| `chat.source_received` | Assistant response received (payload: source type: Dashboard data | model label | Web search) |
 
 ### 4.2 Event Payload
 
@@ -152,3 +153,11 @@ Each event should include:
 | **ENG-4** | Chat API latency | Time from chat send to response (LLM or fallback) |
 
 These can be consumed by a future observability stack when the app is deployed in production.
+
+---
+
+## 6. Product Team OKR Cadence
+
+- **Quarterly**: Review OKRs; update targets based on pilot feedback
+- **Monthly**: Track core engagement metrics (E-1 through E-5)
+- **Sprint**: Prioritise feature work that moves KR1–KR4 (e.g. Analytics assistant UX, Source tab discoverability)

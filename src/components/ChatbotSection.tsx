@@ -3,20 +3,25 @@ import { buildChatSystemPrompt } from '../utils/chatContext';
 import type { CountryDashboardData } from '../types';
 import type { GlobalCountryRowForFallback } from '../utils/chatFallback';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
-import { DATA_MAX_YEAR } from '../config';
+import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import {
   LLM_MODELS,
+  getModelsByTier,
+  TIER_LABELS,
   getEffectiveApiKey,
   getStoredApiKey,
   setStoredApiKey,
   getStoredModel,
   setStoredModel,
+  getProviderForModel,
+  type PerformanceTier,
 } from '../config/llm';
 
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  source?: string;
 }
 
 interface ChatbotSectionProps {
@@ -56,15 +61,24 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
   }, [model]);
 
   useEffect(() => {
+    if (showSettings) {
+      setApiKeyInput(getStoredApiKey(getProviderForModel(model) ?? 'openai') ?? '');
+    }
+  }, [showSettings, model]);
+
+  useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [rowsCurr, rowsPrev] = await Promise.all([
-          fetchGlobalCountryMetricsForYear(year),
-          fetchGlobalCountryMetricsForYear(year - 1),
-        ]);
+        const yearsToLoad = Array.from(
+          { length: DATA_MAX_YEAR - DATA_MIN_YEAR + 1 },
+          (_, i) => DATA_MIN_YEAR + i,
+        );
+        const rowsByYear = await Promise.all(
+          yearsToLoad.map((y) => fetchGlobalCountryMetricsForYear(y)),
+        );
         if (!cancelled) {
-          const map = (rows: typeof rowsCurr) =>
+          const map = (rows: typeof rowsByYear[0]) =>
             rows.map((r) => ({
               name: r.name,
               iso2Code: r.iso2Code,
@@ -88,11 +102,11 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
               headOfGovernmentType: r.headOfGovernmentType,
               governmentType: r.governmentType,
             }));
-          setGlobalData(map(rowsCurr));
-          setGlobalDataByYear({
-            [year]: map(rowsCurr),
-            [year - 1]: map(rowsPrev),
-          });
+          const byYear = Object.fromEntries(
+            yearsToLoad.map((y, i) => [y, map(rowsByYear[i])]),
+          );
+          setGlobalData(map(rowsByYear[0]));
+          setGlobalDataByYear(byYear);
         }
       } catch {
         if (!cancelled) {
@@ -107,8 +121,17 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
     };
   }, [year]);
 
+  const currentProvider = getProviderForModel(model) ?? 'openai';
+  const providerLabels: Record<string, string> = {
+    openai: 'OpenAI',
+    groq: 'Groq',
+    anthropic: 'Anthropic',
+    google: 'Google AI',
+    openrouter: 'OpenRouter',
+  };
+
   const handleSaveApiKey = () => {
-    setStoredApiKey(apiKeyInput || undefined);
+    setStoredApiKey(currentProvider, apiKeyInput || undefined);
     setApiKeyInput('');
     setShowSettings(false);
   };
@@ -132,13 +155,15 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
       setIsLoading(true);
       setError(null);
 
+      const isGroq = (getProviderForModel(model) ?? '') === 'groq';
+      const recentMessages = isGroq ? messages.slice(-4) : messages;
       const allMessages: Array<{ role: string; content: string }> = [
-        ...messages.map((m) => ({ role: m.role, content: m.content })),
+        ...recentMessages.map((m) => ({ role: m.role, content: m.content })),
         { role: 'user', content: trimmed },
       ];
 
       try {
-        const apiKey = getEffectiveApiKey();
+        const apiKey = getEffectiveApiKey(model);
         const dashboardSnapshot =
           dashboardData?.latestSnapshot && dashboardData?.summary
             ? {
@@ -159,9 +184,11 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
               }
             : null;
 
+        const wantsYearlyTimeSeries = /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|to\s*latest|each\s*year|monthly|quarterly|weekly/i.test(trimmed);
+        const globalLimit = wantsYearlyTimeSeries ? 250 : isGroq ? 15 : 999;
         const globalDataPayload =
           globalData.length > 0
-            ? globalData.map((r) => ({
+            ? globalData.slice(0, globalLimit).map((r) => ({
                 name: r.name,
                 iso2Code: r.iso2Code,
                 gdpNominal: r.gdpNominal,
@@ -186,12 +213,35 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
               }))
             : null;
 
+        const yearMatch = trimmed.match(/\b(20[0-2][0-9])\b/);
+        const requestedYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
+        const hasRequestedYear = requestedYear && globalDataByYear[requestedYear];
+        const globalDataByYearEntries = wantsYearlyTimeSeries
+          ? Object.entries(globalDataByYear)
+          : isGroq
+            ? hasRequestedYear
+              ? [[String(requestedYear), globalDataByYear[requestedYear]], ...Object.entries(globalDataByYear).filter(([y]) => Number(y) !== requestedYear)]
+              : Object.entries(globalDataByYear).slice(0, 1)
+            : Object.entries(globalDataByYear);
+        const yearEntryLimit = wantsYearlyTimeSeries ? 999 : isGroq ? 1 : 999;
+        const requestedCountryNames = wantsYearlyTimeSeries
+          ? (trimmed.match(/\b(United Kingdom|United States|South Korea|South Africa|Indonesia|Ukraine|Malaysia|Singapore|Thailand|Vietnam|Philippines|Japan|China|India|Brazil|Mexico|Germany|France|Russia|Australia|Canada)\b/gi) ?? [])
+              .filter((n, i, arr) => arr.findIndex((x) => x.toLowerCase() === n.toLowerCase()) === i)
+          : [];
+        const pickRows = (rows: GlobalCountryRowForFallback[]) => {
+          if (requestedCountryNames.length === 0) return rows.slice(0, globalLimit);
+          const requested = requestedCountryNames.flatMap((name) =>
+            rows.filter((r) => (r.name ?? '').toLowerCase() === name.toLowerCase()),
+          );
+          const rest = rows.filter((r) => !requestedCountryNames.some((n) => (r.name ?? '').toLowerCase() === n.toLowerCase()));
+          return [...requested, ...rest].slice(0, globalLimit);
+        };
         const globalDataByYearPayload =
           Object.keys(globalDataByYear).length > 0
             ? Object.fromEntries(
-                Object.entries(globalDataByYear).map(([y, rows]) => [
+                globalDataByYearEntries.slice(0, yearEntryLimit).map(([y, rows]) => [
                   y,
-                  rows.map((r) => ({
+                  pickRows(rows).map((r) => ({
                     name: r.name,
                     iso2Code: r.iso2Code,
                     gdpNominal: r.gdpNominal,
@@ -218,34 +268,57 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
               )
             : null;
 
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: allMessages,
-            systemPrompt: buildChatSystemPrompt(
-              dashboardData,
-              globalData,
-              globalDataByYear,
-            ),
-            model,
-            dashboardSnapshot,
-            globalData: globalDataPayload,
-            globalDataByYear: globalDataByYearPayload,
-            ...(apiKey && { apiKey }),
-          }),
-        });
+        let res: Response;
+        try {
+          res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              messages: allMessages,
+              systemPrompt: buildChatSystemPrompt(
+                dashboardData,
+                globalData,
+                globalDataByYear,
+                { compact: isGroq, userQuery: trimmed, effectiveYear: year },
+              ),
+              model,
+              dashboardSnapshot,
+              globalData: globalDataPayload,
+              globalDataByYear: globalDataByYearPayload,
+              ...(apiKey && { apiKey }),
+            }),
+          });
+        } catch (netErr) {
+          throw new Error(
+            'Network error. Ensure you run with `npm run dev` (not a static build). Add required keys to .env for LLM and web search. See README.',
+          );
+        }
 
-        const data = await res.json();
+        let data: { content?: string; error?: string; source?: string };
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error(
+            res.status === 404
+              ? 'Chat API not found. Run `npm run dev` or `npm run preview`. Add required keys to .env and restart.'
+              : `Invalid response (${res.status})`,
+          );
+        }
 
         if (!res.ok) {
-          throw new Error(data?.error ?? `Request failed (${res.status})`);
+          const msg = data?.error ?? `Request failed (${res.status})`;
+          throw new Error(
+            res.status === 404
+              ? 'Chat API not found. Run `npm run dev` or `npm run preview`. Add required keys to .env and restart.'
+              : msg,
+          );
         }
 
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
           content: data.content ?? 'No response.',
+          source: data.source,
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
@@ -308,20 +381,25 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
               disabled={isLoading}
               aria-label="Select LLM model"
             >
-              {LLM_MODELS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.label}
-                </option>
-              ))}
+              {(['tier1', 'tier2', 'tier3'] as PerformanceTier[]).map((tier) => {
+                const models = getModelsByTier()[tier];
+                if (models.length === 0) return null;
+                return (
+                  <optgroup key={tier} label={TIER_LABELS[tier]}>
+                    {models.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                );
+              })}
             </select>
           </div>
           <button
             type="button"
             className="chatbot-settings-btn"
-            onClick={() => {
-              setShowSettings(!showSettings);
-              setApiKeyInput(getStoredApiKey() ?? '');
-            }}
+            onClick={() => setShowSettings(!showSettings)}
             aria-label="Chat settings"
             title="API key & settings"
           >
@@ -340,21 +418,27 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
         <div className="chatbot-settings-panel">
           <div className="chatbot-settings-row">
             <label htmlFor="chatbot-apikey" className="chatbot-settings-label">
-              OpenAI API key
+              {providerLabels[currentProvider]} API key (for {LLM_MODELS.find((m) => m.id === model)?.label ?? 'selected model'})
             </label>
             <input
               id="chatbot-apikey"
               type="password"
               className="chatbot-settings-input"
-              placeholder="sk-..."
+              placeholder={
+                currentProvider === 'openai'
+                  ? 'sk-...'
+                  : currentProvider === 'anthropic'
+                    ? 'sk-ant-...'
+                    : 'Paste your API key'
+              }
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
-              aria-label="OpenAI API key"
+              aria-label={`${providerLabels[currentProvider]} API key`}
             />
           </div>
           <p className="chatbot-settings-hint muted">
-            Your key is stored locally. You can also set VITE_OPENAI_API_KEY in
-            .env for a public demo key.
+            Keys are stored locally per provider. For server-side keys, add the required
+            variables to .env (see .env.example for variable names). Never commit real keys.
           </p>
           <div className="chatbot-settings-actions">
             <button
@@ -436,12 +520,19 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
                   </div>
                   <div className="chatbot-message-content" role={m.role === 'user' ? undefined : 'article'}>
                     {m.role === 'assistant' ? (
-                      <div
-                        className="chatbot-message-markdown chat-prose"
-                        dangerouslySetInnerHTML={{
-                          __html: formatMessage(m.content),
-                        }}
-                      />
+                      <>
+                        <div
+                          className="chatbot-message-markdown chat-prose"
+                          dangerouslySetInnerHTML={{
+                            __html: formatMessage(m.content),
+                          }}
+                        />
+                        {m.source && (
+                          <div className="chatbot-message-source" aria-label="Answer source">
+                            Source: {m.source}
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <p className="chatbot-message-user-text">{m.content}</p>
                     )}
@@ -500,8 +591,8 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
 
         {error && (
           <p className="chatbot-error muted">
-            {error.includes('OPENAI_API_KEY')
-              ? 'Set OPENAI_API_KEY in your environment to enable the chat.'
+            {error.includes('API') && error.toLowerCase().includes('key')
+              ? `Add an API key for ${providerLabels[currentProvider]} in Settings, or set the corresponding env var.`
               : error}
           </p>
         )}
@@ -510,13 +601,30 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
   );
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+function escapeAttr(s: string): string {
+  return escapeHtml(s).replace(/"/g, '&quot;');
+}
+
 /** Rich markdown-like formatting for assistant messages – distinguishable structure */
 function formatMessage(text: string): string {
-  const escaped = text
+  // Convert HTML links to markdown before escaping (API may return HTML from web search)
+  let normalized = text.replace(/<a\s+href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi, '[$2]($1)');
+  const escaped = normalized
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
-  const withInline = escaped
+  const withLinks = escaped.replace(
+    /\[([^\]]*)\]\s*\((https?:\/\/[^)\s]+)\)/g,
+    (_, linkText, url) => {
+      const safeUrl = escapeAttr(url);
+      const safeText = escapeHtml(linkText);
+      return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="chat-link">${safeText}</a>`;
+    },
+  );
+  const withInline = withLinks
     .replace(/\*\*(.+?)\*\*/g, '<strong class="chat-strong">$1</strong>')
     .replace(/\*(.+?)\*/g, '<em class="chat-em">$1</em>')
     .replace(/`(.+?)`/g, '<code class="chat-code">$1</code>')

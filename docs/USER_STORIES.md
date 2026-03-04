@@ -263,16 +263,28 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
-### US-8.4 – Configure model and API key
+### US-8.4 – See source attribution for each answer
+
+- **As a** Country Economist  
+- **I want to** see which source produced each assistant response  
+- **So that** I can assess answer provenance and trust  
+
+**Acceptance criteria:**
+- Each assistant message displays a source line: "Dashboard data", model label (e.g. Llama 3.3 70B), or "Web search"
+- Source reflects the cascading flow: Dashboard data → Groq → Web search → other LLMs
+
+---
+
+### US-8.5 – Configure model and API key
 
 - **As an** Analyst  
 - **I want to** choose the LLM model and optionally provide my own API key  
 - **So that** I can use the assistant with my preferred setup  
 
 **Acceptance criteria:**
-- Model dropdown: GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
-- Settings panel allows API key input (stored in localStorage)
-- Server env or VITE_OPENAI_API_KEY also supported
+- Model dropdown: multiple providers and tiers (Best, Balanced, Fast)
+- Settings panel allows API key input (stored in localStorage per provider)
+- Server env or client env keys also supported (see .env.example)
 
 ---
 

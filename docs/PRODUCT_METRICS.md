@@ -105,11 +105,10 @@ This document provides a comprehensive reference for all **data metrics** displa
 
 ## 9. Source Tab Reference
 
-The **Source** tab provides per-metric documentation including:
+The **Source** tab provides:
 
-- Full description
-- Formula
-- Unit
-- Data source links (World Bank, IMF, Sea Around Us, Marine Regions)
+- **Analytics Assistant flow** – Documents answer sources: Dashboard data → Groq → Web search → other LLMs
+- **Per-metric documentation** – Full description, formula, unit, data source links (World Bank, IMF, Sea Around Us, Marine Regions)
+- **Search and filter** – By metric name, description, formula, or source; filter chips by data provider
 
 Metadata is defined in `src/data/metricMetadata.ts`. Government metrics (`governmentType`, `headOfGovernmentType`) are displayed in the Global tables and map but are not in `metricMetadata.ts` as they are categorical metadata from REST Countries.

@@ -58,8 +58,10 @@ This document describes the data flow, component boundaries, and technical archi
                                     ▼
                     ┌───────────────────────────────┐
                     │   /api/chat (Vite plugin)       │
-                    │   - OpenAI API (if key set)     │
-                    │   - chatFallback.ts (else)      │
+                    │   - chatFallback.ts (Dashboard) │
+                    │   - Groq (Llama 3.3 70B)       │
+                    │   - Tavily / Serper (web)       │
+                    │   - OpenAI, Anthropic, etc.     │
                     └───────────────────────────────┘
 ```
 
@@ -125,6 +127,8 @@ WorldMapSection / AllCountriesTableSection
 
 ### 2.3 Analytics Assistant Data Flow
 
+The assistant uses a cascading flow. Each response includes a **source** label (e.g. "Dashboard data", "Llama 3.3 70B (Groq)", "Web search").
+
 ```
 User sends message
          │
@@ -136,18 +140,27 @@ ChatbotSection POST /api/chat
          ▼
 vite-plugin-chat-api.ts middleware
          │
-         ├─► [API key available] → OpenAI API
-         │         └─► systemPrompt from buildChatSystemPrompt(chatContext.ts)
-         │         └─► Context: metric metadata, country summary, global data
+         ├─► Step 1: getFallbackResponse(chatFallback.ts)
+         │         └─► Rule-based: rankings, comparisons, single-metric, methodology, regions
+         │         └─► If answer found → return { content, source: "Dashboard data" }
+         │         └─► If generic help or out-of-scope (leaders, religion, culture, etc.) → continue
          │
-         └─► [No API key] → getFallbackResponse(chatFallback.ts)
-                   └─► Rule-based: rankings, comparisons, single-metric, methodology, regions
+         ├─► Step 2: Groq (Llama 3.3 70B) – server env key
+         │         └─► General-knowledge questions (leaders, capital, language, etc.)
+         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" }
+         │
+         ├─► Step 3: Web search – Tavily or Serper (server env keys)
+         │         └─► Real-time data when Groq fails
+         │         └─► If success → return { content, source: "Web search" }
+         │
+         ├─► Step 4: User-selected LLM (OpenAI, Anthropic, Google, OpenRouter)
+         │         └─► Uses client apiKey or server env key
+         │         └─► If success → return { content, source: model label }
+         │
+         └─► Fallback: Rule-based again with setup hint
          │
          ▼
-Response streamed (LLM) or returned (fallback)
-         │
-         ▼
-ChatbotSection renders message
+ChatbotSection renders message + source line
 ```
 
 ---
@@ -191,8 +204,9 @@ App
 ```
 App
 └── SourceSection
+    └── Analytics Assistant flow (answer sources: Dashboard → Groq → Web → LLMs)
     └── Search input
-    └── Filter chips
+    └── Filter chips (World Bank, IMF, Sea Around Us, Marine Regions)
     └── Suggestions dropdown
     └── Metric cards (by category)
 ```
@@ -236,8 +250,8 @@ App
 | Module | Purpose |
 |--------|---------|
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
-| `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology |
-| `vite-plugin-chat-api.ts` | `/api/chat` middleware – proxies to OpenAI or fallback |
+| `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
+| `vite-plugin-chat-api.ts` | `/api/chat` middleware – cascading flow: fallback → Groq → Tavily/Serper → other LLMs; source attribution |
 
 ### 4.4 Key Data Structures
 
@@ -283,14 +297,19 @@ App
 - Gov debt and lending rate: world median when country has no data
 - Latest non-null: used for sparse indicators (inflation, interest, gov debt)
 
-### 7.4 Analytics Assistant Fallback
+### 7.4 Analytics Assistant Flow
 
-When no OpenAI API key is set, `chatFallback.ts` provides rule-based answers for:
+1. **Dashboard data** – `chatFallback.ts` provides rule-based answers for:
+   - Single-metric lookups ("What is Indonesia's GDP?")
+   - Rankings ("Top 10 countries by GDP per capita")
+   - Comparisons ("Compare Indonesia to Malaysia")
+   - Region filters ("Top 5 Asian countries by GDP")
+   - Growth rankings (YoY when two years of data exist)
+   - Methodology questions
+   - Out-of-scope (religion, culture, leaders, etc.) returns generic help → triggers next step
 
-- Single-metric lookups ("What is Indonesia's GDP?")
-- Rankings ("Top 10 countries by GDP per capita")
-- Comparisons ("Compare Indonesia to Malaysia")
-- Region filters ("Top 5 Asian countries by GDP")
-- Growth rankings (YoY when two years of data exist)
-- Methodology questions
-- Catch-all for data-style questions
+2. **Groq** – Server env key in .env enables Llama 3.3 70B for general-knowledge questions.
+
+3. **Web search** – Server env keys enable real-time answers for current leaders, events, etc. See .env.example for variable names.
+
+4. **Other LLMs** – User API key or server env keys for OpenAI, Anthropic, Google, OpenRouter.

@@ -88,6 +88,32 @@ export function SourceSection() {
         </div>
       </div>
 
+      <div className="source-assistant-flow">
+        <h3 className="source-category-title">Analytics Assistant – answer sources</h3>
+        <p className="source-assistant-intro muted">
+          The chat assistant uses a cascading flow to answer questions. Each response shows its
+          source (e.g. &quot;Dashboard data&quot;, &quot;Llama 3.3 70B (Groq)&quot;, &quot;Web search&quot;).
+        </p>
+        <ol className="source-assistant-steps">
+          <li>
+            <strong>Dashboard data</strong> – Rule-based answers from World Bank, IMF, and Sea Around Us
+            data for rankings, comparisons, single-metric lookups, and methodology questions.
+          </li>
+          <li>
+            <strong>Groq (Llama 3.3 70B)</strong> – General-knowledge questions (e.g. leaders, capital,
+            language, religion) when the rule-based fallback cannot answer. Requires server env key in .env.
+          </li>
+          <li>
+            <strong>Web search</strong> – Tavily or Serper for up-to-date answers when Groq fails or
+            for real-time data. Requires server env key in .env (see .env.example).
+          </li>
+          <li>
+            <strong>Other LLMs</strong> – OpenAI, Anthropic, Google, or OpenRouter when a user API key
+            is set and the selected model is used.
+          </li>
+        </ol>
+      </div>
+
       <div className="source-search-wrapper">
         <div className="source-search-row">
           <div className="source-search-input-wrap">

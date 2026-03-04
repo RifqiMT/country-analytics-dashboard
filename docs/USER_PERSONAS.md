@@ -1,6 +1,6 @@
 # User Personas – Country Analytics Platform
 
-This document describes the target audiences for the Country Analytics Platform, their goals, pain points, and success criteria.
+This document describes the target audiences for the Country Analytics Platform, their goals, pain points, and success criteria. Personas inform feature prioritisation and user stories in `USER_STORIES.md`.
 
 ---
 
@@ -74,7 +74,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Deep dive on one country with year range adjustment
 - Uses unified timeline with multiple metrics for correlation
 - Checks Source tab for government debt formula and IMF fallback
-- Asks Analytics assistant about methodology and data sources
+- Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, model label, or Web search) to assess answer provenance
 
 ---
 

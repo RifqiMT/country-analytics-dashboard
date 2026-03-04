@@ -34,7 +34,7 @@ The documentation standard ensures:
 | **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
 | **docs/PRODUCT_METRICS.md** | Data metrics (GDP, population, etc.) with formulas and WDI codes |
-| **src/data/metricMetadata.ts** | Metric definitions, formulas, source URLs (code-as-docs) |
+| **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs) |
 
 ---
 
@@ -47,6 +47,7 @@ The documentation standard ensures:
   - Exact behaviour of filters, ranges, default values
   - Data fallbacks (e.g. "use latest non-null up to selected year")
   - Edge cases (countries without data, territory fallbacks, Palestine naming)
+  - Analytics Assistant cascading flow and source attribution
 - Reference primary components and API modules
 
 ### 3.2 User Personas
@@ -72,6 +73,7 @@ The documentation standard ensures:
 - High-level data flow diagram (text or Mermaid)
 - Component hierarchy and responsibilities
 - API layer and external integrations
+- Analytics Assistant flow (Dashboard data → Groq → Web search → other LLMs)
 
 ---
 
@@ -127,7 +129,7 @@ For every feature PR that changes user-visible behaviour:
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
 | Source tab | SourceSection | metricMetadata.ts |
-| Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts |
+| Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts |
 
 ### 6.2 Reading Order
 
@@ -136,10 +138,20 @@ For every feature PR that changes user-visible behaviour:
 3. src/hooks/useCountryDashboard.ts (data flow)
 4. src/api/worldBank.ts (data definitions, business rules)
 5. src/utils/chatContext.ts, chatFallback.ts (analytics assistant)
+6. vite-plugin-chat-api.ts (chat API flow)
 
 ---
 
-## 7. Extending This Standard
+## 7. Security and Privacy
+
+- **Never publish API keys** in documentation, code comments, or examples – even public/demo keys
+- Use generic placeholders (e.g. `your-key-here`) in `.env.example`; never commit real keys
+- Refer to "obtain from provider's developer console" – do not include URLs to key provisioning pages
+- In user-facing copy and error messages, use "add required keys to .env" or "see .env.example" instead of listing specific variable names
+
+---
+
+## 8. Extending This Standard
 
 When adding major functionality (e.g. new health metrics, trade data, ESG scores):
 

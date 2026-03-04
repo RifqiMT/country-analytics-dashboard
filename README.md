@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite)](https://vitejs.dev/)
 
-An **analyst-grade web application** for exploring country-level financial, demographic, and health metrics from 2000 to the latest available year. Powered by **World Bank WDI**, **IMF WEO**, **REST Countries**, and other trusted public data sources.
+An **analyst-grade web application** for exploring country-level financial, demographic, and health metrics from 2000 to the latest available year. Powered by **World Bank WDI**, **IMF WEO**, **REST Countries**, **Sea Around Us**, and other trusted public data sources.
 
 ---
 
@@ -30,8 +30,8 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 - **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
 - **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
-- **Understand** data methodology via the Source tab with descriptions, formulas, and API links
-- **Ask** natural-language questions about metrics, sources, and methodology via the Analytics Assistant (LLM-powered or rule-based fallback)
+- **Understand** data methodology via the Source tab with descriptions, formulas, and source links
+- **Ask** natural-language questions about metrics, sources, and methodology via the Analytics Assistant (cascading flow: Dashboard data → LLM → Web search)
 
 ### 1.2 Target Audience
 
@@ -49,18 +49,19 @@ The Country Analytics Platform provides a **single, unified interface** to:
 |------|-------------|
 | **Country dashboard** | Deep dive on a single country with summary, charts, and comparison |
 | **Global analytics** | Interactive choropleth map and multi-view tables for all countries |
-| **Source** | Metric definitions, formulas, and data source links with search |
-| **Analytics assistant** | LLM-powered chat for questions about metrics, methodology, and comparisons |
+| **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
+| **Analytics assistant** | Chat for questions about metrics, methodology, and general knowledge |
 
 ---
 
 ## 2. Product Benefits
 
 - **Fast insights** – Single-country summary with YoY deltas in seconds
-- **Credible data** – World Bank WDI, IMF WEO, REST Countries; fallbacks for territories
+- **Credible data** – World Bank WDI, IMF WEO, REST Countries, Sea Around Us; fallbacks for territories
 - **Intuitive UX** – Searchable country selector, year presets, frequency toggles
-- **Transparent methodology** – Source tab documents every metric with formulas and API links
-- **AI-assisted analysis** – Analytics assistant answers questions with or without an API key (rule-based fallback)
+- **Transparent methodology** – Source tab documents every metric with formulas and source links
+- **AI-assisted analysis** – Analytics assistant with cascading flow: Dashboard data → Groq → Web search → other LLMs
+- **Source attribution** – Each chat response shows its source (Dashboard data, model name, or Web search)
 - **No login required** – Public data, no authentication or workspace setup
 
 ---
@@ -93,6 +94,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
+| **Analytics Assistant flow** | Documents answer sources: Dashboard data → Groq → Web search → other LLMs |
 | **Search** | By metric name, description, formula, or source |
 | **Filter chips** | World Bank, IMF, Sea Around Us, Marine Regions |
 | **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
@@ -102,11 +104,12 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **LLM-powered chat** | Ask questions about metrics, data sources, and methodology (GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo) |
-| **Context-aware** | Uses metric metadata, selected country context, and global data when available |
-| **Rule-based fallback** | When no API key: answers rankings, comparisons, single-metric lookups, methodology questions |
+| **Cascading flow** | Step 1: Dashboard data (rule-based) → Step 2: Groq → Step 3: Tavily/Serper (web search) → Step 4: Other LLMs |
+| **Source attribution** | Each response shows source: "Dashboard data", model label (e.g. Llama 3.3 70B), or "Web search" |
+| **Context-aware** | Uses metric metadata, selected country context, and global data |
+| **Out-of-scope handling** | Religion, culture, leaders, capital, language routed to LLM/web search; no dashboard metrics for these |
+| **Model selection** | Multiple providers and tiers; API keys via Settings (localStorage) or server env |
 | **Suggestions** | Quick-start prompts for common questions |
-| **Model selection** | Choose model via dropdown; API key via Settings (localStorage) or env |
 
 ### 3.5 Data Fallbacks
 
@@ -135,7 +138,7 @@ axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
 
 ### Custom Infrastructure
 
-- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; proxies to OpenAI or uses rule-based fallback when no API key
+- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; cascading flow (Dashboard data → Groq → Tavily/Serper → other LLMs)
 
 ---
 
@@ -165,8 +168,9 @@ User → App.tsx (tabs, filters)
 | `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
 | `src/components/*` | Presentational components including ChatbotSection |
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
-| `src/utils/chatFallback.ts` | Rule-based fallback when no API key |
-| `src/data/metricMetadata.ts` | Metric descriptions, formulas, source URLs |
+| `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
+| `src/config/llm.ts` | LLM model definitions, provider config |
+| `src/data/metricMetadata.ts` | Metric descriptions, formulas, source links |
 | `src/types.ts` | Domain types |
 
 See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
@@ -196,6 +200,14 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 - **Missing years**: Global loader steps backwards until data found
 - **Territories**: 30+ territories use parent-country fallback for inflation/interest
 - **Country naming**: Palestine (West Bank and Gaza); Taiwan excluded (no WDI coverage)
+- **Source attribution**: Analytics Assistant responses show source (Dashboard data, model label, or Web search)
+- **Out-of-scope**: Religion, culture, leaders, capital, language routed to LLM/web search – never answered with dashboard metrics
+
+### 6.4 Business Guidelines
+
+- **Data credibility**: All metrics cite primary sources; Source tab documents every formula and link
+- **Transparency**: Each chat response displays its source
+- **No login required**: Public data, no authentication or workspace setup
 
 ---
 
@@ -211,22 +223,29 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 ```bash
 cd country-analytics-dashboard
 npm install
+npm run setup   # creates .env from .env.example if missing
 npm run dev
 ```
 
 Open the URL printed by Vite (typically `http://localhost:5173`).
 
-### Analytics Assistant (Optional)
+### Analytics Assistant
 
-The **Analytics assistant** tab uses an LLM to answer questions about the dashboard's metrics and data sources. You can enable it in three ways:
+The **Analytics assistant** tab uses a cascading flow to answer questions:
 
-1. **Server env** (recommended): Copy `.env.example` to `.env` and set `OPENAI_API_KEY=sk-your-key-here`
-2. **Public demo key**: Set `VITE_OPENAI_API_KEY=sk-your-key` in `.env` for out-of-box demo (key is baked into the frontend)
-3. **Per-user key**: Click **Settings** in the chat tab and paste your [OpenAI API key](https://platform.openai.com/api-keys) (stored in localStorage)
+1. **Dashboard data** – Rule-based answers for rankings, comparisons, methodology (no keys required)
+2. **Groq** – General-knowledge questions (leaders, capital, language, etc.) when server key is set
+3. **Web search** – Real-time answers when Tavily or Serper key is set
+4. **Other LLMs** – User-selected models when user or server keys are set
 
-**Models**: Choose from GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, or GPT-3.5 Turbo via the model dropdown.
+**To enable LLM and web search:**
 
-**Without an API key**: The assistant uses a rule-based fallback that answers rankings, comparisons, single-metric lookups, methodology questions, and more.
+1. Run `npm run setup` (creates `.env` if missing) or copy `.env.example` to `.env`
+2. Add the required environment variables (see `.env.example` for variable names)
+3. Obtain keys from each provider's developer console – **never commit real keys**
+4. Run `npm run dev` or `npm run preview` (the chat API does **not** run in a static build)
+
+The chat API runs in both dev and preview modes. Users can also add their own keys via **Settings** in the chat tab.
 
 ### Build for Production
 
@@ -239,11 +258,24 @@ npm run preview
 
 ## 8. Development Guidelines
 
-### Code Conventions
+### Security
+
+- **Never commit API keys.** Use placeholders in `.env.example`. Store real keys only in `.env` (gitignored).
+- **Pre-commit hook**: Run `npm run install-hooks` to block accidental commits of key patterns.
+- **Documentation**: Do not publish API keys or URLs to key provisioning pages in docs or code.
+
+### Tech Guidelines
 
 - **Types**: Keep cross-cutting types in `src/types.ts`
 - **API layer**: Add integrations in `src/api/*`; never call APIs from components
 - **Formatting**: Use `src/utils/numberFormat.ts` and `src/utils/timeSeries.ts` for numbers and resampling
+- **Metric metadata**: `src/data/metricMetadata.ts` for Source tab; add new metrics with description, formula, sources
+- **Chat**: `src/utils/chatContext.ts`, `src/utils/chatFallback.ts`, `vite-plugin-chat-api.ts`, `src/config/llm.ts`
+
+### Code Conventions
+
+- **Config**: Add required keys to `.env`; see `.env.example` for variable names
+- **Error messages**: Use generic "add required keys to .env" – do not list specific variable names in user-facing copy
 
 ### Adding Features
 

@@ -2,6 +2,7 @@
  * Fallback responses when no LLM API key is configured.
  * Uses metric metadata and dashboard snapshot to answer common questions.
  */
+import { DATA_MAX_YEAR } from '../config';
 import { METRIC_METADATA } from '../data/metricMetadata';
 import { formatCompactNumber, formatPercentage } from './numberFormat';
 
@@ -69,6 +70,9 @@ export interface DashboardSnapshotForFallback {
   };
 }
 
+/** When fallback returns content containing this, the rule-based answer was generic; plugin may try a free LLM. */
+export const FALLBACK_GENERIC_HELP_MARKER = 'For full conversational answers, add your';
+
 function normalizeQuery(q: string): string {
   return q.toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
 }
@@ -92,6 +96,16 @@ function formatVal(v: number | null | undefined, unit: string): string {
 function parseRequestedYear(q: string): number | null {
   const m = q.match(/\b(20[0-2][0-9])\b/);
   return m ? parseInt(m[1], 10) : null;
+}
+
+/** Parse year range from query: "from 2020 to latest" -> { fromYear: 2020, toYear: DATA_MAX_YEAR } */
+function parseRequestedYearRange(q: string): { fromYear: number; toYear: number } | null {
+  const fromMatch = q.match(/from\s+(20[0-2][0-9])/i);
+  const toYearMatch = q.match(/to\s+(20[0-2][0-9])/i);
+  if (!fromMatch) return null;
+  const fromYear = parseInt(fromMatch[1], 10);
+  const toYear = toYearMatch ? parseInt(toYearMatch[1], 10) : DATA_MAX_YEAR;
+  return { fromYear, toYear };
 }
 
 /** Map user region terms to World Bank region substrings for filtering */
@@ -268,6 +282,15 @@ function parseCountryNames(
     const nameLower = name.toLowerCase();
     if (qLower.includes(nameLower)) found.push(name);
   }
+  if (found.length > 0) return found;
+  const commonCountries = [
+    'Indonesia', 'Ukraine', 'Malaysia', 'Singapore', 'Thailand', 'Vietnam', 'Philippines',
+    'Japan', 'China', 'India', 'Brazil', 'Mexico', 'Germany', 'France', 'United Kingdom',
+    'United States', 'Russia', 'South Korea', 'Australia', 'Canada', 'South Africa',
+  ];
+  for (const name of commonCountries) {
+    if (qLower.includes(name.toLowerCase())) found.push(name);
+  }
   return found;
 }
 
@@ -301,6 +324,8 @@ function formatCountryOverview(
   return lines;
 }
 
+const OUT_OF_SCOPE_FALLBACK = /\b(?:religion|religions|relgiions)\b|(?:religion|religions)\s+(?:in|of)\s+|(?:culture|cultural)\s+(?:of|in)\s+|(?:language|languages)\s+(?:of|in)\s+|(?:president|prime\s+minister|leader|capital)\s+(?:of|in)\s+|(?:independence|national)\s+day|who\s+is\s+(?:the\s+)?(?:president|leader)/i;
+
 export function getFallbackResponse(
   userMessage: string,
   dashboardSnapshot?: DashboardSnapshotForFallback | null,
@@ -308,6 +333,10 @@ export function getFallbackResponse(
   globalDataByYear?: Record<number, GlobalCountryRowForFallback[]> | null,
 ): string {
   const q = normalizeQuery(userMessage);
+
+  if (OUT_OF_SCOPE_FALLBACK.test(q)) {
+    return `I can help with metrics and data in this dashboard (GDP, population, inflation, debt, life expectancy, area, EEZ, etc.). For questions about religion, culture, leaders, or other general knowledge, use the LLM. For full conversational answers, add your OpenAI API key in Settings.`;
+  }
 
   const isSummary = matchesQuery(q, ['summary', 'summarize', 'brief', 'overview in brief']);
   const isComparison = matchesQuery(q, ['compare', 'comparison', 'vs', 'versus', 'relative to', 'rank', 'ranking']);
@@ -323,14 +352,88 @@ export function getFallbackResponse(
   const effectiveData = effectiveYear && dataByYear ? dataByYear[effectiveYear] : globalData;
 
   const isMultiCountry = matchesQuery(q, [' and ', ' & ', ' both ', ' countries', ' to ', ' vs ', ' versus ']);
-  const requestedCountries = effectiveData
-    ? parseCountryNames(q, effectiveData.map((r) => r.name))
-    : [];
+  const allCountryNames = dataByYear
+    ? [...new Set(Object.values(dataByYear).flatMap((rows) => rows.map((r) => r.name)))]
+    : effectiveData?.map((r) => r.name) ?? [];
+  const requestedCountries = parseCountryNames(q, allCountryNames);
 
   const isSelectedCountry = dashboardSnapshot && requestedCountries.length === 1
     && requestedCountries[0].toLowerCase() === dashboardSnapshot.countryName.toLowerCase();
 
   const singleMetricIntent = parseSingleMetricIntent(q);
+
+  const yearlyDataPattern = /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|to\s*latest|all\s*data|each\s*year|monthly|quarterly|weekly/i;
+  const subAnnualPattern = /weekly|monthly|quarterly/i;
+  const wantsYearlyTimeSeries =
+    yearlyDataPattern.test(q) &&
+    (requestedCountries.length >= 1 || allCountryNames.length > 0 || /indonesia|ukraine|malaysia|singapore|brazil|india|china|japan/i.test(q)) &&
+    dataByYear &&
+    Object.keys(dataByYear).length >= 1;
+
+  if (wantsYearlyTimeSeries && dataByYear) {
+    const allYears = Object.keys(dataByYear)
+      .map((k) => (typeof k === 'string' && /^\d+$/.test(k) ? parseInt(k, 10) : Number(k)))
+      .filter((y) => !Number.isNaN(y))
+      .sort((a, b) => a - b);
+    const yearRange = parseRequestedYearRange(userMessage);
+    const years = yearRange
+      ? allYears.filter((y) => y >= yearRange.fromYear && y <= yearRange.toYear)
+      : allYears;
+    const countriesToShow =
+      requestedCountries.length >= 1
+        ? requestedCountries
+        : /all\s*(data|countries?|metrics?)|every\s*country|show\s*all/i.test(userMessage)
+          ? [...new Set(Object.values(dataByYear).flatMap((rows) => rows.map((r) => r.name)))].slice(0, 20)
+          : [];
+    const keyMetrics = [
+      { key: 'gdpNominal' as const, label: 'GDP', format: (v: number | null) => formatVal(v, '') + ' USD' },
+      { key: 'populationTotal' as const, label: 'Population', format: (v: number | null) => formatVal(v, '') + ' people' },
+      { key: 'lifeExpectancy' as const, label: 'LifeExp', format: (v: number | null) => (v != null && !Number.isNaN(v) ? formatVal(v, '') + ' years' : 'N/A') },
+      { key: 'inflationCPI' as const, label: 'Inflation', format: (v: number | null) => formatPercentage(v) },
+      { key: 'govDebtPercentGDP' as const, label: 'Debt', format: (v: number | null) => formatPercentage(v) },
+    ];
+    const lines: string[] = [];
+    if (subAnnualPattern.test(q)) {
+      lines.push(
+        'The dashboard provides **weekly, monthly, quarterly, and yearly** views in the Time Series chart, interpolated from annual data. Below is the **yearly** data from the source:',
+        '',
+      );
+    }
+    const lookup = (y: number) => (dataByYear as Record<string | number, GlobalCountryRowForFallback[]>)[y] ?? (dataByYear as Record<string | number, GlobalCountryRowForFallback[]>)[String(y)];
+    const findRow = (rows: GlobalCountryRowForFallback[] | undefined, searchName: string) => {
+      if (!rows) return undefined;
+      const s = searchName.toLowerCase();
+      return (
+        rows.find((x) => (x.name ?? '').toLowerCase() === s) ??
+        rows.find((x) => (x.name ?? '').toLowerCase().startsWith(s)) ??
+        rows.find((x) => s.startsWith((x.name ?? '').toLowerCase()))
+      );
+    };
+    for (const countryName of countriesToShow.length > 0 ? countriesToShow : allCountryNames.slice(0, 10)) {
+      lines.push(`**${countryName}** – yearly data (${years[0] ?? '?'}–${years[years.length - 1] ?? '?'}):`);
+      lines.push('');
+      let hasAnyForCountry = false;
+      for (const y of years.length > 0 ? years : allYears) {
+        const rows = lookup(y);
+        const r = findRow(rows, countryName);
+        if (r) {
+          hasAnyForCountry = true;
+          const parts = keyMetrics.map((m) => `${m.label}: ${m.format(r[m.key] ?? null)}`);
+          const hasAny = parts.some((s) => !s.endsWith(': N/A'));
+          if (hasAny) {
+            lines.push(`**${y}:** ${parts.join(' | ')}`);
+          } else {
+            lines.push(`**${y}:** (limited data – check Time Series chart)`);
+          }
+        }
+      }
+      if (!hasAnyForCountry) {
+        lines.push(`_No data available for ${countryName} in the requested range. Data may be sparse for some countries/years in the source._`);
+      }
+      lines.push('');
+    }
+    if (lines.length > 2) return lines.join('\n');
+  }
   const requestedMetrics = parseAllRequestedMetrics(q);
   const wantsSpecificMetrics = requestedMetrics.length > 0 && requestedMetrics.length < ALL_METRIC_DEFS.length;
 
@@ -844,12 +947,12 @@ export function getFallbackResponse(
   }
 
   if (effectiveData && effectiveData.length > 0 && requestedCountries.length >= 1) {
-    const looksLikeDataQuestion = /what|how|which|tell|show|give|list|get|find|compare|about/i.test(q);
+    const looksLikeDataQuestion = /what|how|which|tell|show|give|list|get|find|compare|about|data|all/i.test(q);
     if (looksLikeDataQuestion && !rankingReq) {
-      const metricsToShow = requestedMetrics.length > 0 ? requestedMetrics : ALL_METRIC_DEFS.slice(0, 8);
+      const metricsToShow = requestedMetrics.length > 0 ? requestedMetrics : ALL_METRIC_DEFS.slice(0, 12);
       const compactLines: string[] = [];
       for (const countryName of requestedCountries.slice(0, 10)) {
-        const r = effectiveData.find((x) => x.name.toLowerCase() === countryName.toLowerCase());
+        const r = effectiveData.find((x) => (x.name ?? '').toLowerCase() === countryName.toLowerCase());
         if (r) {
           compactLines.push(`**${r.name}** (${effectiveYear})`);
           compactLines.push(...metricsToShow.map((m) => `- ${m.label}: ${m.format(r)}`));
@@ -858,6 +961,17 @@ export function getFallbackResponse(
       }
       if (compactLines.length > 0) return compactLines.join('\n');
     }
+  }
+
+  if (effectiveData && effectiveData.length > 0 && /all\s*(data|countries?|metrics?)|show\s*all|every\s*country/i.test(q)) {
+    const topRows = effectiveData.slice(0, 15);
+    const metricsToShow = ALL_METRIC_DEFS.filter((m) => m.key !== 'region').slice(0, 8);
+    const lines = [`**Available data** (${effectiveYear}, ${effectiveData.length} countries)`, ''];
+    for (const r of topRows) {
+      const parts = metricsToShow.map((m) => `${m.label}: ${m.format(r)}`).filter((s) => !s.endsWith(': N/A'));
+      if (parts.length > 0) lines.push(`**${r.name}:** ${parts.join(' | ')}`);
+    }
+    if (lines.length > 2) return lines.join('\n');
   }
 
   const isMetricsListRequest = matchesQuery(q, ['metric', 'available', 'what data', 'what can']) ||

@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.3  
+**Version:** 1.5  
 **Last updated:** March 2025
 
 ---
@@ -19,7 +19,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 - Compare that country to an average country and global aggregates
 - Rank and compare all countries using a consistent set of metrics
 - Understand data methodology via the Source tab
-- Ask natural-language questions about metrics and methodology via the Analytics Assistant
+- Ask natural-language questions about metrics, methodology, and general knowledge via the Analytics Assistant
 
 ---
 
@@ -31,9 +31,9 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 |----|------|-------------|
 | **G1** | Fast insight for a single country | Clean summary of financial, demographic, health metrics with YoY deltas |
 | **G2** | Intuitive global comparison | Sorting, ranking, map and tables with consistent definitions |
-| **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and API links |
+| **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and source links |
 | **G4** | Analyst-friendly UX | Smooth time navigation, frequency toggles, search, filter chips |
-| **G5** | AI-assisted analysis | Analytics assistant answers questions with LLM or rule-based fallback |
+| **G5** | AI-assisted analysis | Analytics assistant with cascading flow (Dashboard data → Groq → Web search → other LLMs) and source attribution |
 
 ### 2.2 Non-Goals (Current Version)
 
@@ -65,8 +65,8 @@ Four main tabs:
 
 - **Country dashboard** – Single-country deep dive
 - **Global analytics** – Map and global tables
-- **Source** – Metric definitions, formulas, data source links
-- **Analytics assistant** – LLM-powered chat for questions about metrics, methodology, and comparisons
+- **Source** – Metric definitions, formulas, data source links, Analytics Assistant flow
+- **Analytics assistant** – Chat for questions about metrics, methodology, and general knowledge
 
 ### 4.2 Country Dashboard
 
@@ -131,18 +131,41 @@ Four main tabs:
 
 ### 4.4 Source Tab
 
+- **Analytics Assistant flow**: Documents answer sources (Dashboard data → Groq → Web search → other LLMs)
 - **Search**: By metric name, description, formula, or source (dynamic filtering)
 - **Filter chips**: World Bank, IMF, Sea Around Us, Marine Regions
 - **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
-- **Metric cards**: Label, description, formula, unit, source links with external-link icons and URLs
+- **Metric cards**: Label, description, formula, unit, source links with external-link icons
 
 ### 4.5 Analytics Assistant
 
-- **LLM mode** (when API key set): GPT-4o, GPT-4o mini, GPT-4 Turbo, GPT-4, GPT-3.5 Turbo
-- **Fallback mode** (no API key): Rule-based answers for rankings, comparisons, single-metric lookups, methodology, regions
+#### 4.5.1 Cascading Flow
+
+| Step | Source | When Used |
+|------|--------|-----------|
+| 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, methodology; or when rule-based returns generic help for out-of-scope questions |
+| 2 | **Groq (Llama 3.3 70B)** | General-knowledge questions (leaders, capital, language, religion) when server key is set |
+| 3 | **Web search (Tavily/Serper)** | Real-time answers when Groq fails or for current events; requires server key |
+| 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter) when user or server key is set |
+
+#### 4.5.2 Source Attribution
+
+Each response displays a source label:
+
+- **Dashboard data** – Rule-based answers from World Bank, IMF, Sea Around Us data
+- **Model label** – e.g. "Llama 3.3 70B (Groq)", "GPT-4o"
+- **Web search** – Tavily or Serper results
+
+#### 4.5.3 Out-of-Scope Handling
+
+Queries about religion, culture, leaders, capital, language, independence day, etc. are **not** answered with dashboard metrics. They are routed to Groq or web search. Rule-based fallback returns generic help with setup instructions.
+
+#### 4.5.4 Context and Behaviour
+
 - **Context**: Uses selected country summary, global data (top 50 by GDP, top 20 by GDP per capita), metric metadata
 - **Suggestions**: Quick-start prompts (e.g. "Compare Indonesia to Malaysia", "Top 10 countries by GDP")
 - **Settings**: Model selection; API key input (localStorage)
+- **General-knowledge**: LLM instructed to use Wikipedia links; not mention "Dashboard data"
 
 ---
 
@@ -203,11 +226,22 @@ Four main tabs:
 - **API layer**: `src/api/*`; never call APIs from components
 - **Formatting**: `src/utils/numberFormat.ts`, `src/utils/timeSeries.ts`
 - **Metric metadata**: `src/data/metricMetadata.ts` for Source tab
-- **Chat**: `src/utils/chatContext.ts`, `src/utils/chatFallback.ts`, `vite-plugin-chat-api.ts`
+- **Chat**: `src/utils/chatContext.ts`, `src/utils/chatFallback.ts`, `vite-plugin-chat-api.ts`, `src/config/llm.ts`
+- **Config**: Add required keys to `.env`; see `.env.example` for variable names; never commit real keys
 
 ---
 
-## 8. Future Work (Not Yet Implemented)
+## 8. Business Guidelines
+
+- **Data credibility**: All metrics cite primary sources (World Bank, IMF, Sea Around Us); Source tab documents every formula and link
+- **Transparency**: Analytics Assistant responses show source attribution (Dashboard data, model label, or Web search)
+- **Out-of-scope handling**: Religion, culture, leaders, capital, language queries are routed to LLM/web search – never answered with dashboard metrics
+- **Territory handling**: 30+ territories use parent-country fallback for inflation/interest when World Bank returns empty
+- **Country naming**: Palestine (West Bank and Gaza) for PSE; Taiwan excluded (no WDI coverage)
+
+---
+
+## 9. Future Work (Not Yet Implemented)
 
 - Export (CSV, image)
 - Multi-metric correlation views (scatterplots)
