@@ -330,6 +330,24 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     >
                       Lending rate (%)
                     </th>
+                    <th
+                      onClick={() => changeSort('unemploymentRate')}
+                      className="sortable"
+                    >
+                      Unemployment rate (%)
+                    </th>
+                    <th
+                      onClick={() => changeSort('povertyHeadcount215')}
+                      className="sortable"
+                    >
+                      Poverty ($2.15/day, %)
+                    </th>
+                    <th
+                      onClick={() => changeSort('povertyHeadcountNational')}
+                      className="sortable"
+                    >
+                      Poverty (national line, %)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -348,6 +366,18 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     const govDebtYoY = getYoYValue(row, 'govDebtPercentGDP');
                     const govDebtUSDYoY = getYoYValue(row, 'govDebtUSD');
                     const interestYoY = getYoYValue(row, 'interestRate');
+                    const unemploymentYoY = getYoYValue(
+                      row,
+                      'unemploymentRate',
+                    );
+                    const pov215YoY = getYoYValue(
+                      row,
+                      'povertyHeadcount215',
+                    );
+                    const povNatYoY = getYoYValue(
+                      row,
+                      'povertyHeadcountNational',
+                    );
                     return (
                       <tr key={row.iso2Code}>
                         <td>
@@ -431,6 +461,34 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                             <div className="table-cell-yoy">{interestYoY}</div>
                           )}
                         </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.unemploymentRate ?? null)}
+                          </div>
+                          {unemploymentYoY && (
+                            <div className="table-cell-yoy">
+                              {unemploymentYoY}
+                            </div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(row.povertyHeadcount215 ?? null)}
+                          </div>
+                          {pov215YoY && (
+                            <div className="table-cell-yoy">{pov215YoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(
+                              row.povertyHeadcountNational ?? null,
+                            )}
+                          </div>
+                          {povNatYoY && (
+                            <div className="table-cell-yoy">{povNatYoY}</div>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -477,6 +535,26 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     >
                       Life expectancy
                     </th>
+                    <th
+                      onClick={() => changeSort('under5MortalityRate')}
+                      className="sortable"
+                    >
+                      Under-5 mortality (per 1,000)
+                    </th>
+                    <th
+                      onClick={() => changeSort('maternalMortalityRatio')}
+                      className="sortable"
+                    >
+                      Maternal mortality (per 100,000)
+                    </th>
+                    <th
+                      onClick={() =>
+                        changeSort('undernourishmentPrevalence')
+                      }
+                      className="sortable"
+                    >
+                      Undernourishment (% of pop.)
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -486,6 +564,18 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     const pop15_64YoY = getYoYValue(row, 'population15_64');
                     const pop65PlusYoY = getYoYValue(row, 'population65Plus');
                     const lifeYoY = getYoYValue(row, 'lifeExpectancy');
+                    const under5YoY = getYoYValue(
+                      row,
+                      'under5MortalityRate',
+                    );
+                    const maternalYoY = getYoYValue(
+                      row,
+                      'maternalMortalityRatio',
+                    );
+                    const malnutritionYoY = getYoYValue(
+                      row,
+                      'undernourishmentPrevalence',
+                    );
                     return (
                       <tr key={row.iso2Code}>
                         <td>
@@ -535,6 +625,38 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                           </div>
                           {lifeYoY && (
                             <div className="table-cell-yoy">{lifeYoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.under5MortalityRate != null
+                              ? row.under5MortalityRate.toFixed(1)
+                              : '–'}
+                          </div>
+                          {under5YoY && (
+                            <div className="table-cell-yoy">{under5YoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.maternalMortalityRatio != null
+                              ? row.maternalMortalityRatio.toFixed(0)
+                              : '–'}
+                          </div>
+                          {maternalYoY && (
+                            <div className="table-cell-yoy">{maternalYoY}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatPercentage(
+                              row.undernourishmentPrevalence ?? null,
+                            )}
+                          </div>
+                          {malnutritionYoY && (
+                            <div className="table-cell-yoy">
+                              {malnutritionYoY}
+                            </div>
                           )}
                         </td>
                       </tr>

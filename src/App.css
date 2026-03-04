@@ -87,6 +87,7 @@
 
 .main-tabs {
   display: inline-flex;
+  flex-wrap: wrap;
   align-self: flex-start;
   padding: var(--space-1);
   border-radius: var(--radius-pill);
@@ -1454,6 +1455,333 @@ tbody tr:hover {
   background: var(--bg-elevated);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
+}
+
+/* PESTEL tab */
+.pestel-section {
+  margin-top: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.pestel-section .section-header {
+  margin-bottom: var(--space-2);
+}
+
+.pestel-section .section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.pestel-section .section-header .muted {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  max-width: 720px;
+}
+
+.pestel-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-subtle);
+}
+
+.pestel-country-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-input);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.pestel-country-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.pestel-country-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pestel-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  background: var(--accent-red);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.pestel-generate-btn:hover:not(:disabled) {
+  background: var(--accent-red-dark, #b91c1c);
+}
+
+.pestel-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pestel-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: pestel-spin 0.7s linear infinite;
+}
+
+@keyframes pestel-spin {
+  to { transform: rotate(360deg); }
+}
+
+.pestel-hint {
+  margin: var(--space-3) 0;
+  font-size: 0.9rem;
+}
+
+.pestel-error {
+  padding: var(--space-4);
+  background: rgba(185, 28, 28, 0.06);
+  border: 1px solid rgba(185, 28, 28, 0.2);
+  border-radius: var(--radius-lg);
+  color: var(--accent-red);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+/* PESTEL – multi-metric correlation (between button and analysis) */
+.pestel-scatter-section {
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-subtle);
+  transition: box-shadow 0.2s ease;
+}
+
+.pestel-scatter-section:hover {
+  box-shadow: var(--shadow-soft);
+}
+
+.pestel-scatter-title {
+  margin: 0 0 var(--space-2);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.pestel-scatter-desc {
+  margin: 0 0 var(--space-4);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  max-width: 560px;
+}
+
+.pestel-scatter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.pestel-scatter-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.9rem;
+}
+
+.pestel-scatter-label span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pestel-scatter-label select {
+  padding: var(--space-2) var(--space-3);
+  min-width: 200px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pestel-scatter-label select:hover {
+  border-color: var(--border-strong);
+}
+
+.pestel-scatter-label select:focus {
+  outline: none;
+  border-color: var(--accent-red);
+  box-shadow: 0 0 0 2px var(--accent-red-muted);
+}
+
+.correlation-scatter-wrap {
+  min-height: 340px;
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  padding: var(--space-4);
+  border: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 640px) {
+  .pestel-scatter-section {
+    padding: var(--space-4);
+  }
+  .pestel-scatter-label select {
+    min-width: 100%;
+  }
+  .correlation-scatter-wrap {
+    min-height: 280px;
+  }
+}
+
+.correlation-scatter-empty {
+  padding: var(--space-6);
+  text-align: center;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
+}
+
+.correlation-scatter-tooltip {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  box-shadow: var(--shadow-medium);
+}
+
+.correlation-scatter-tooltip strong {
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+/* PESTEL – comprehensive analysis output */
+.pestel-output {
+  padding: var(--space-6) var(--space-8);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-subtle);
+}
+
+.pestel-output-title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 768px) {
+  .pestel-output {
+    padding: var(--space-4) var(--space-5);
+  }
+}
+
+.pestel-content {
+  font-size: 1rem;
+  line-height: 1.75;
+  max-width: 75ch;
+  color: var(--text-secondary);
+}
+
+.pestel-content .pestel-h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: var(--space-6) 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  letter-spacing: 0.02em;
+}
+
+.pestel-content .pestel-h2:first-child {
+  margin-top: 0;
+}
+
+.pestel-content .pestel-h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: var(--space-5) 0 var(--space-2);
+  color: var(--text-primary);
+}
+
+.pestel-content .pestel-h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--text-primary);
+}
+
+.pestel-content .pestel-h5 {
+  font-size: 0.98rem;
+  font-weight: 600;
+  margin: var(--space-3) 0 var(--space-1);
+  color: var(--text-secondary);
+}
+
+.pestel-content .pestel-p {
+  margin: 0 0 var(--space-3);
+  color: var(--text-secondary);
+}
+
+.pestel-content .pestel-ul {
+  margin: 0 0 var(--space-4);
+  padding-left: 1.5rem;
+}
+
+.pestel-content .pestel-li {
+  margin-bottom: var(--space-2);
+  line-height: 1.6;
+}
+
+.pestel-content .pestel-link {
+  color: var(--accent-red);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+.pestel-content .pestel-link:hover {
+  color: var(--accent-red-dark, #b91c1c);
+  text-decoration: underline;
+}
+
+.pestel-source {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Source tab – metric metadata */

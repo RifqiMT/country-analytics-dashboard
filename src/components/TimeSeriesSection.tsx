@@ -32,8 +32,14 @@ const METRIC_COLORS: Record<MetricId, string> = {
   govDebtPercentGDP: '#7f1d1d', // dark red for debt
   govDebtUSD: '#991b1b', // darker red for debt USD
   interestRate: '#0369a1', // blue for interest rate
+  unemploymentRate: '#22c55e', // green for unemployment
+  povertyHeadcount215: '#dc2626', // red for poverty
+  povertyHeadcountNational: '#b91c1c', // dark red for poverty
   populationTotal: '#111827', // near-black for population
   lifeExpectancy: '#0f766e', // teal for health
+  maternalMortalityRatio: '#b91c1c', // dark red for maternal mortality
+  under5MortalityRate: '#fb923c', // orange for child mortality
+  undernourishmentPrevalence: '#16a34a', // green for malnutrition
   pop0_14Share: '#2563eb', // blue for young population share
   pop15_64Share: '#7c3aed', // violet for working-age share
   pop65PlusShare: '#be123c', // deep rose for senior share
@@ -78,7 +84,13 @@ export function TimeSeriesSection({
     (s) =>
       s.id !== 'inflationCPI' &&
       s.id !== 'govDebtPercentGDP' &&
-      s.id !== 'interestRate',
+      s.id !== 'interestRate' &&
+      s.id !== 'unemploymentRate' &&
+      s.id !== 'povertyHeadcount215' &&
+      s.id !== 'povertyHeadcountNational' &&
+      s.id !== 'maternalMortalityRatio' &&
+      s.id !== 'under5MortalityRate' &&
+      s.id !== 'undernourishmentPrevalence',
   );
 
   const labelByMetricId = allSeries.reduce<Record<MetricId, string>>(

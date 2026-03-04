@@ -19,6 +19,8 @@ export interface GlobalCountryRowForFallback {
   govDebtPercentGDP?: number | null;
   govDebtUSD?: number | null;
   interestRate?: number | null;
+  povertyHeadcount215?: number | null;
+  povertyHeadcountNational?: number | null;
   landAreaKm2?: number | null;
   totalAreaKm2?: number | null;
   eezKm2?: number | null;
@@ -54,6 +56,8 @@ export interface DashboardSnapshotForFallback {
       govDebtPercentGDP?: number | null;
       govDebtUSD?: number | null;
       interestRate?: number | null;
+      povertyHeadcount215?: number | null;
+      povertyHeadcountNational?: number | null;
     };
     population?: {
       total?: number | null;
@@ -151,6 +155,9 @@ const METRIC_SYNONYMS: Array<{ pattern: RegExp; key: keyof GlobalCountryRowForFa
   { pattern: /(government\s*)?debt\s*(%|percent|of gdp)/i, key: 'govDebtPercentGDP', label: 'Government debt (% GDP)', format: (v) => formatPercentage(v) },
   { pattern: /debt\s*(in\s*)?(usd|dollars?)|government debt usd/i, key: 'govDebtUSD', label: 'Government debt (USD)', format: (v) => formatVal(v, '') + ' USD' },
   { pattern: /interest\s*rate|lending\s*rate|borrowing cost/i, key: 'interestRate', label: 'Lending interest rate', format: (v) => formatPercentage(v) },
+  { pattern: /poverty\s*\$2\.15|poverty\s*2\.15|2\.15.*poverty|extreme poverty|poverty\s*headcount/i, key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', format: (v) => formatPercentage(v) },
+  { pattern: /poverty\s*national|national\s*poverty\s*line|poverty\s*line/i, key: 'povertyHeadcountNational', label: 'Poverty (national line, %)', format: (v) => formatPercentage(v) },
+  { pattern: /poverty|poor\s*people|people in poverty/i, key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', format: (v) => formatPercentage(v) },
   { pattern: /land\s*area|land size|land\s*km/i, key: 'landAreaKm2', label: 'Land area', format: (v) => formatVal(v, '') + ' km²' },
   { pattern: /total\s*area|surface\s*area|country\s*size|area\s*km/i, key: 'totalAreaKm2', label: 'Total area', format: (v) => formatVal(v, '') + ' km²' },
   { pattern: /eez|exclusive economic|maritime\s*area/i, key: 'eezKm2', label: 'EEZ', format: (v) => formatVal(v, '') + ' km²' },
@@ -184,6 +191,8 @@ const ALL_METRIC_DEFS: Array<{
   { key: 'govDebtPercentGDP', label: 'Gov debt (% GDP)', patterns: [/debt\s*(%|percent|of gdp)|gov.*debt\s*%/i], format: (r) => formatPercentage(r.govDebtPercentGDP ?? null) },
   { key: 'govDebtUSD', label: 'Gov debt (USD)', patterns: [/debt\s*(usd|dollars?)|government debt usd/i], format: (r) => formatVal(r.govDebtUSD ?? null, '') + ' USD' },
   { key: 'interestRate', label: 'Interest rate', patterns: [/interest\s*rate|lending\s*rate|borrowing cost/i], format: (r) => formatPercentage(r.interestRate ?? null) },
+  { key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', patterns: [/poverty\s*\$2\.15|poverty\s*2\.15|2\.15.*poverty|extreme poverty|poverty\s*headcount|poverty|poor\s*people|people in poverty/i], format: (r) => formatPercentage(r.povertyHeadcount215 ?? null) },
+  { key: 'povertyHeadcountNational', label: 'Poverty (national line, %)', patterns: [/poverty\s*national|national\s*poverty\s*line|poverty\s*line/i], format: (r) => formatPercentage(r.povertyHeadcountNational ?? null) },
   { key: 'landAreaKm2', label: 'Land area', patterns: [/land\s*area|land size|land\s*km/i], format: (r) => (r.landAreaKm2 != null ? formatVal(r.landAreaKm2, '') + ' km²' : 'N/A') },
   { key: 'totalAreaKm2', label: 'Total area', patterns: [/total\s*area|surface\s*area|country\s*size|area\s*km/i], format: (r) => (r.totalAreaKm2 != null ? formatVal(r.totalAreaKm2, '') + ' km²' : 'N/A') },
   { key: 'eezKm2', label: 'EEZ', patterns: [/eez|exclusive economic|maritime\s*area/i], format: (r) => (r.eezKm2 != null ? formatVal(r.eezKm2, '') + ' km²' : 'N/A') },
@@ -212,7 +221,8 @@ function parseAllRequestedMetrics(q: string): Array<{ key: MetricKey; label: str
 type RankingMetric =
   | 'gdpNominal' | 'gdpPPP' | 'gdpNominalPerCapita' | 'gdpPPPPerCapita'
   | 'populationTotal' | 'lifeExpectancy' | 'inflationCPI' | 'govDebtPercentGDP'
-  | 'interestRate' | 'landAreaKm2' | 'totalAreaKm2' | 'eezKm2';
+  | 'interestRate' | 'povertyHeadcount215' | 'povertyHeadcountNational'
+  | 'landAreaKm2' | 'totalAreaKm2' | 'eezKm2';
 
 function parseRankingRequest(q: string): {
   isRanking: boolean;
@@ -261,6 +271,7 @@ function parseRankingRequest(q: string): {
   if (/inflation|by inflation/i.test(q)) return { isRanking: true, n, direction, metric: 'inflationCPI', region };
   if (/debt|gov.*debt|by debt/i.test(q)) return { isRanking: true, n, direction, metric: 'govDebtPercentGDP', region };
   if (/interest rate|by interest/i.test(q)) return { isRanking: true, n, direction, metric: 'interestRate', region };
+  if (/poverty|by poverty|poorest countries|richest.*poverty|poverty rate/i.test(q)) return { isRanking: true, n, direction, metric: 'povertyHeadcount215', region };
   if (/land area|by land|land area/i.test(q)) return { isRanking: true, n, direction, metric: 'landAreaKm2', region };
   if (/total area|surface area|by area/i.test(q)) return { isRanking: true, n, direction, metric: 'totalAreaKm2', region };
   if (/eez|exclusive economic|maritime|by eez/i.test(q)) return { isRanking: true, n, direction, metric: 'eezKm2', region };
@@ -311,6 +322,8 @@ function formatCountryOverview(
     `- Lending interest rate: ${formatPercentage(r.interestRate ?? null)}`,
     `- Government debt: ${formatPercentage(r.govDebtPercentGDP ?? null)} of GDP`,
     `- Government debt: ${formatVal(r.govDebtUSD ?? null, '')} USD`,
+    ...(r.povertyHeadcount215 != null ? [`- Poverty ($2.15/day): ${formatPercentage(r.povertyHeadcount215)}`] : []),
+    ...(r.povertyHeadcountNational != null ? [`- Poverty (national line): ${formatPercentage(r.povertyHeadcountNational)}`] : []),
     ...(r.pop0_14Pct != null ? [`- Age 0–14: ${formatPercentage(r.pop0_14Pct)} of population`] : []),
     ...(r.pop15_64Pct != null ? [`- Age 15–64: ${formatPercentage(r.pop15_64Pct)} of population`] : []),
     ...(r.pop65PlusPct != null ? [`- Age 65+: ${formatPercentage(r.pop65PlusPct)} of population`] : []),
@@ -335,7 +348,7 @@ export function getFallbackResponse(
   const q = normalizeQuery(userMessage);
 
   if (OUT_OF_SCOPE_FALLBACK.test(q)) {
-    return `I can help with metrics and data in this dashboard (GDP, population, inflation, debt, life expectancy, area, EEZ, etc.). For questions about religion, culture, leaders, or other general knowledge, use the LLM. For full conversational answers, add your OpenAI API key in Settings.`;
+    return `I can help with metrics and data in this dashboard (GDP, population, inflation, debt, poverty, life expectancy, area, EEZ, etc.). For questions about religion, culture, leaders, or other general knowledge, use the LLM. For full conversational answers, add your OpenAI API key in Settings.`;
   }
 
   const isSummary = matchesQuery(q, ['summary', 'summarize', 'brief', 'overview in brief']);
@@ -575,6 +588,8 @@ export function getFallbackResponse(
             govDebtPercentGDP: row.govDebtPercentGDP,
             govDebtUSD: row.govDebtUSD,
             interestRate: row.interestRate,
+            povertyHeadcount215: row.povertyHeadcount215,
+            povertyHeadcountNational: row.povertyHeadcountNational,
           },
           population: {
             total: row.populationTotal,
@@ -678,6 +693,16 @@ export function getFallbackResponse(
       return `**${countryName} – Lending interest rate** (${year}): ${formatPercentage(f?.interestRate ?? null)}.`;
     }
 
+    if (matchesQuery(q, ['poverty', 'poor', 'poverty rate'])) {
+      const lines = [
+        `**${countryName} – Poverty** (${year})`,
+        '',
+        `- **Poverty ($2.15/day)**: ${formatPercentage(f?.povertyHeadcount215 ?? null)}`,
+        `- **Poverty (national line)**: ${formatPercentage(f?.povertyHeadcountNational ?? null)}`,
+      ];
+      return lines.join('\n');
+    }
+
     const g = metrics.geography;
     if (matchesQuery(q, ['land area', 'land area km', 'land size'])) {
       return `**${countryName} – Land area** (${year}): ${g?.landAreaKm2 != null ? formatVal(g.landAreaKm2, '') + ' km²' : 'N/A'}.`;
@@ -753,6 +778,8 @@ export function getFallbackResponse(
         `- Lending interest rate: ${formatPercentage(f?.interestRate ?? null)}`,
         `- Government debt: ${formatPercentage(f?.govDebtPercentGDP ?? null)} of GDP`,
         `- Government debt: ${formatVal(f?.govDebtUSD ?? null, '')} USD`,
+        `- Poverty ($2.15/day): ${formatPercentage(f?.povertyHeadcount215 ?? null)}`,
+        `- Poverty (national line): ${formatPercentage(f?.povertyHeadcountNational ?? null)}`,
         '',
         '**Population & health**',
         `- Population: ${formatVal(p?.total ?? null, '')} people`,
@@ -778,6 +805,8 @@ export function getFallbackResponse(
       `- Life expectancy: ${formatVal(h?.lifeExpectancy ?? null, '')} years`,
       `- Inflation: ${formatPercentage(f?.inflationCPI ?? null)}`,
       `- Government debt: ${formatPercentage(f?.govDebtPercentGDP ?? null)} of GDP`,
+      ...(f?.povertyHeadcount215 != null ? [`- Poverty ($2.15/day): ${formatPercentage(f.povertyHeadcount215)}`] : []),
+      ...(f?.povertyHeadcountNational != null ? [`- Poverty (national line): ${formatPercentage(f.povertyHeadcountNational)}`] : []),
     ];
     return lines.join('\n');
   }
@@ -833,6 +862,8 @@ export function getFallbackResponse(
       inflationCPI: 'Inflation',
       govDebtPercentGDP: 'Government debt (% GDP)',
       interestRate: 'Lending interest rate',
+      povertyHeadcount215: 'Poverty ($2.15/day, %)',
+      povertyHeadcountNational: 'Poverty (national line, %)',
       landAreaKm2: 'Land area',
       totalAreaKm2: 'Total area',
       eezKm2: 'EEZ',
@@ -849,7 +880,7 @@ export function getFallbackResponse(
     const slice = sorted.slice(0, n);
     const formatMetricVal = (r: GlobalCountryRowForFallback) => {
       const v = r[metric];
-      if (metric === 'inflationCPI' || metric === 'govDebtPercentGDP' || metric === 'interestRate') return formatPercentage(v ?? null);
+      if (metric === 'inflationCPI' || metric === 'govDebtPercentGDP' || metric === 'interestRate' || metric === 'povertyHeadcount215' || metric === 'povertyHeadcountNational') return formatPercentage(v ?? null);
       if (metric === 'lifeExpectancy') return formatVal(v ?? null, '') + ' years';
       if (metric === 'populationTotal') return formatVal(v ?? null, '');
       if (metric === 'landAreaKm2' || metric === 'totalAreaKm2' || metric === 'eezKm2') return formatVal(v ?? null, '') + ' km²';

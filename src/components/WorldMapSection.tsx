@@ -61,6 +61,12 @@ function getMetricFromRow(
       return row.govDebtUSD ?? null;
     case 'interestRate':
       return row.interestRate ?? null;
+    case 'unemploymentRate':
+      return row.unemploymentRate ?? null;
+    case 'povertyHeadcount215':
+      return row.povertyHeadcount215 ?? null;
+    case 'povertyHeadcountNational':
+      return row.povertyHeadcountNational ?? null;
     case 'landAreaKm2':
       return row.landAreaKm2 ?? null;
     case 'totalAreaKm2':
@@ -98,6 +104,12 @@ function getMetricLabel(metricId: MapMetricId): string {
       return 'Government debt (USD)';
     case 'interestRate':
       return 'Lending interest rate (%)';
+    case 'unemploymentRate':
+      return 'Unemployment rate (% of labour force)';
+    case 'povertyHeadcount215':
+      return 'Poverty ($2.15/day, %)';
+    case 'povertyHeadcountNational':
+      return 'Poverty (national line, %)';
     case 'lifeExpectancy':
       return 'Life expectancy (years)';
     case 'landAreaKm2':
@@ -136,6 +148,9 @@ function formatMetricValue(
     case 'inflationCPI':
     case 'govDebtPercentGDP':
     case 'interestRate':
+    case 'unemploymentRate':
+    case 'povertyHeadcount215':
+    case 'povertyHeadcountNational':
       return formatPercentage(value);
     case 'govDebtUSD':
       return formatCompactNumber(value);

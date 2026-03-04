@@ -9,30 +9,30 @@ This document describes the data flow, component boundaries, and technical archi
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         App.tsx (Root)                            │
-│  - Main tabs (Country | Global | Source | Chat)                  │
+│  - Main tabs (Country | Global | PESTEL | Source | Chat)         │
 │  - Global state: mainTab, globalViewTab, mapMetricId, year       │
 └─────────────────────────────────────────────────────────────────┘
                                     │
-        ┌───────────────────────────┼───────────────────────────┬──────────────────┐
-        ▼                           ▼                           ▼                  ▼
-┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐
-│   Country     │           │   Global     │           │   Source      │   │   Analytics   │
-│   Dashboard   │           │   Analytics  │           │   Tab         │   │   Assistant   │
-│               │           │               │           │               │   │   (Chat)      │
-│ - Selector   │           │ - Map         │           │ - Search      │   │ - Chatbot     │
-│ - YearRange  │           │ - MapMetric  │           │ - Filter chips│   │   Section     │
-│ - Summary    │           │ - MapSection │           │ - Metric cards│   │ - Suggestions │
-│ - TimeSeries │           │ - AllCountries│          │               │   │ - Model/Key   │
-│ - Macro      │           │   TableSection │          │               │   │   settings    │
-│ - Population │           │               │           │               │   │               │
-│ - CountryTable│          │               │           │               │   │               │
-└───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘
-        │                           │                           │                  │
-        └───────────────────────────┼───────────────────────────┘                  │
-                                    ▼                                             │
-                    ┌───────────────────────────────┐                              │
-                    │   useCountryDashboard hook    │◄─────────────────────────────┘
-                    │   - countryCode, year range   │   (dashboardData passed to ChatbotSection)
+        ┌───────────────────────────┼───────────────────────────┬──────────────────┬──────────────────┐
+        ▼                           ▼                           ▼                  ▼                  ▼
+┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   Country     │           │   Global     │           │   PESTEL      │   │   Source      │   │   Analytics   │
+│   Dashboard   │           │   Analytics  │           │   Tab         │   │   Tab         │   │   Assistant   │
+│               │           │               │           │               │   │               │   │   (Chat)      │
+│ - Selector   │           │ - Map         │           │ - PESTEL      │   │ - Search      │   │ - Chatbot     │
+│ - YearRange  │           │ - MapMetric  │           │   Section     │   │ - Filter chips│   │   Section     │
+│ - Summary    │           │ - Correlation│           │ - Generate/   │   │ - Metric cards│   │ - Suggestions │
+│ - TimeSeries │           │   ScatterPlot │          │   Refresh     │   │               │   │ - Model/Key   │
+│ - Macro      │           │ - AllCountries│          │               │   │               │   │   settings    │
+│ - Population │           │   TableSection │          │               │   │               │   │               │
+│ - CountryTable│          │               │           │               │   │               │   │               │
+└───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
+        │                           │                           │                  │                  │
+        └───────────────────────────┼───────────────────────────┼──────────────────┘                  │
+                                    ▼                             │                                     │
+                    ┌───────────────────────────────┐              │  (dashboardData / country context) │
+                    │   useCountryDashboard hook    │◄──────────────┴─────────────────────────────────────┘
+                    │   - countryCode, year range   │
                     │   - frequency, metricIds      │
                     │   - data, loading, error       │
                     └───────────────────────────────┘
@@ -81,7 +81,7 @@ useCountryDashboard.fetchCountryDashboardData(countryCode, startYear, endYear)
          │         └─► World Bank /country/{code}
          │         └─► REST Countries /alpha/{iso2}
          │
-         ├─► fetchIndicatorSeries(countryCode, indicator, ...) × 14 indicators
+         ├─► fetchIndicatorSeries(countryCode, indicator, ...) × many indicators
          │         └─► World Bank /country/{code}/indicator/{id}
          │
          ├─► [If territory with empty data] fetch from parent country
@@ -196,11 +196,25 @@ App
 └── WorldMapSection
     └── ComposableMap (react-simple-maps)
     └── Geographies
+└── CorrelationScatterPlot
+    └── X/Y metric selectors
+    └── Scatter chart (Recharts or similar)
 └── AllCountriesTableSection
     └── Table (General | Financial | Health)
 ```
 
-### 3.3 Source Tab
+### 3.3 PESTEL Tab
+
+```
+App
+└── PESTELSection
+    └── Country context (from useCountryDashboard)
+    └── Generate / Refresh button
+    └── Rendered PESTEL content (Political, Economic, Social, Technological, Environmental, Legal)
+    └── Sources and hyperlinks (where applicable)
+```
+
+### 3.4 Source Tab
 
 ```
 App
@@ -212,7 +226,7 @@ App
     └── Metric cards (by category)
 ```
 
-### 3.4 Analytics Assistant
+### 3.5 Analytics Assistant
 
 ```
 App
@@ -252,7 +266,8 @@ App
 |--------|---------|
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
 | `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
-| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing (Groq vs Tavily by implied year); source attribution |
+| `pestelContext.ts` | PESTEL prompt building and generation context for selected country (used by PESTEL tab) |
+| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing (Groq vs Tavily by implied year); source attribution; PESTEL generation |
 
 ### 4.4 Key Data Structures
 

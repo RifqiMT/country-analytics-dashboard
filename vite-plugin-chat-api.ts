@@ -165,6 +165,33 @@ interface SerperSearchResult {
   knowledgeGraph?: { title?: string; description?: string };
 }
 
+/**
+ * Fetch supplemental web data for PESTEL analysis (dimensions with limited dashboard data).
+ * Runs targeted searches for technology, legal, environmental, and political context.
+ */
+async function fetchPestelSupplementWebSearch(
+  countryName: string,
+  year: number,
+): Promise<string | null> {
+  const queries: Array<{ q: string; section: string }> = [
+    { q: `${countryName} technology digital infrastructure policy ${year}`, section: 'Technological' },
+    { q: `${countryName} rule of law legal environment business regulation ${year}`, section: 'Legal' },
+    { q: `${countryName} political stability government environment ${year}`, section: 'Political' },
+    { q: `${countryName} climate environmental policy sustainability ${year}`, section: 'Environmental' },
+  ];
+  const results = await Promise.all(
+    queries.map(({ q }) => fetchWebSearch(q)),
+  );
+  const parts: string[] = [];
+  results.forEach((result, i) => {
+    if (result?.context) {
+      parts.push(`### ${queries[i].section} (web supplement)\n${result.context}`);
+    }
+  });
+  if (parts.length === 0) return null;
+  return `## Supplemental web data for PESTEL (use to enrich dimensions with limited dashboard data)\n\nUse the following real-time web search results to enrich your analysis for Technological, Legal, Political, and Environmental dimensions. Prioritise this data over inference when available.\n\n${parts.join('\n\n')}\n\n---`;
+}
+
 /** Fetch latest info from web search. Tries Tavily first, then Serper. Returns { context, directAnswer } or null. */
 async function fetchWebSearch(query: string): Promise<{ context: string; directAnswer?: string } | null> {
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
@@ -275,16 +302,32 @@ async function fetchSerperSearch(query: string): Promise<{ context: string; dire
   }
 }
 
-/** Max chars for system prompt when using Groq free tier (TPM limit ~12k). ~4 chars/token => ~3k tokens for system. */
-const GROQ_SYSTEM_MAX_CHARS = 8000;
+/** Max chars for system prompt when using Groq free tier. Lower = fewer tokens, fits daily limit. */
+const GROQ_SYSTEM_MAX_CHARS = 5500;
+
+/** Smaller Groq model – uses fewer tokens, fallback when 70b hits rate limit. */
+const GROQ_SMALL_MODEL = 'llama-3.1-8b-instant';
 
 function trimForGroq(messages: ChatMessage[]): ChatMessage[] {
   return messages.map((m) => {
     if (m.role === 'system' && m.content.length > GROQ_SYSTEM_MAX_CHARS) {
-      return { ...m, content: m.content.slice(0, GROQ_SYSTEM_MAX_CHARS) + '\n\n[Context truncated for free tier.]' };
+      return { ...m, content: m.content.slice(0, GROQ_SYSTEM_MAX_CHARS) + '\n\n[Context truncated for free tier limits.]' };
     }
     return m;
   });
+}
+
+function isRateLimitError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /429|rate limit|too many requests/i.test(msg);
+}
+
+function formatUserFriendlyError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (isRateLimitError(err)) {
+    return 'Rate limit reached for the free tier. Please try again later (limits reset daily) or add an API key for another provider (OpenAI, Anthropic, Google) in Settings.';
+  }
+  return msg.slice(0, 120);
 }
 
 /** OpenAI-compatible API (OpenAI, Groq, OpenRouter) */
@@ -423,7 +466,6 @@ function getRuleBasedFallback(
   dashboardSnapshot: unknown,
   globalData: unknown,
   globalDataByYear: unknown,
-  primaryError?: string,
 ): string {
   const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
   let content = getFallbackResponse(
@@ -434,9 +476,6 @@ function getRuleBasedFallback(
   );
   if (content.includes(FALLBACK_GENERIC_HELP_MARKER)) {
     content += SETUP_HINT;
-  }
-  if (primaryError && isDevMode) {
-    content += `\n\n---\n_Debug (dev): ${primaryError}_`;
   }
   return content;
 }
@@ -478,13 +517,15 @@ async function handleChatRequest(
             systemPrompt?: string;
             model?: string;
             apiKey?: string;
+            supplementWithWebSearch?: boolean;
             dashboardSnapshot?: { countryName: string; year: number; metrics: unknown } | null;
             globalData?: Array<Record<string, unknown>> | null;
             globalDataByYear?: Record<string, Array<Record<string, unknown>>> | null;
           };
 
           const messages = body?.messages ?? [];
-          const systemPrompt = body?.systemPrompt ?? '';
+          let systemPrompt = body?.systemPrompt ?? '';
+          const supplementWithWebSearch = !!body?.supplementWithWebSearch;
           const modelId = body?.model ?? DEFAULT_LLM_MODEL;
           const model = isValidModel(modelId) ? modelId : DEFAULT_LLM_MODEL;
           const clientApiKey = typeof body?.apiKey === 'string' ? body.apiKey.trim() : undefined;
@@ -510,19 +551,31 @@ async function handleChatRequest(
           const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
           const userQuery = lastUserMessage?.content ?? '';
 
-          // Step 1: Fallback – rule-based first for all queries
-          const fallbackContent = getRuleBasedFallback(
-            messages,
-            dashboardSnapshot,
-            globalData,
-            globalDataByYear ?? undefined,
-          );
+          // Step 1: Fallback – rule-based first for all queries (skip for PESTEL – always use LLM)
+          const isPestelRequest = supplementWithWebSearch && systemPrompt?.includes('PESTEL');
+          const fallbackContent = isPestelRequest
+            ? FALLBACK_GENERIC_HELP_MARKER
+            : getRuleBasedFallback(
+                messages,
+                dashboardSnapshot,
+                globalData,
+                globalDataByYear ?? undefined,
+              );
           const isGeneralKnowledge = isGeneralKnowledgeQuery(userQuery);
           if (!fallbackContent.includes(FALLBACK_GENERIC_HELP_MARKER) && !isGeneralKnowledge) {
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ content: fallbackContent, source: SOURCE_FALLBACK }));
             return;
+          }
+
+          // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data
+          if (supplementWithWebSearch && dashboardSnapshot?.countryName) {
+            const year = typeof dashboardSnapshot.year === 'number' ? dashboardSnapshot.year : new Date().getFullYear() - 2;
+            const supplement = await fetchPestelSupplementWebSearch(dashboardSnapshot.countryName, year);
+            if (supplement) {
+              systemPrompt = systemPrompt + '\n\n' + supplement;
+            }
           }
 
           const baseSystemPrompt = systemPrompt ?? '';
@@ -572,7 +625,19 @@ async function handleChatRequest(
             }
           }
 
-          // If web search not used (or failed for general-knowledge) – try Groq
+          // PESTEL: prefer user's model first if they have a key (saves Groq free-tier tokens)
+          const userHasNonGroqKey = isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
+          if (userHasNonGroqKey) {
+            try {
+              content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+              if (isValidLlmResponse(content)) usedModelId = model;
+            } catch (err) {
+              llmError = err instanceof Error ? err.message : String(err);
+              content = '';
+            }
+          }
+
+          // If web search not used – try Groq (70b first, then 8b on rate limit)
           if (!isValidLlmResponse(content)) {
             const groqKey = getServerApiKey('groq');
             if (groqKey) {
@@ -580,8 +645,19 @@ async function handleChatRequest(
                 content = await tryLlm(groqKey, 'groq', 'llama-3.3-70b-versatile', openaiFormatMessages);
                 if (isValidLlmResponse(content)) usedModelId = 'llama-3.3-70b-versatile';
               } catch (err) {
-                llmError = err instanceof Error ? err.message : String(err);
-                content = '';
+                if (isRateLimitError(err)) {
+                  try {
+                    content = await tryLlm(groqKey, 'groq', GROQ_SMALL_MODEL, openaiFormatMessages);
+                    if (isValidLlmResponse(content)) usedModelId = GROQ_SMALL_MODEL;
+                    else llmError = err instanceof Error ? err.message : String(err);
+                  } catch (retryErr) {
+                    llmError = err instanceof Error ? err.message : String(err);
+                    content = '';
+                  }
+                } else {
+                  llmError = err instanceof Error ? err.message : String(err);
+                  content = '';
+                }
               }
             }
           }
@@ -644,9 +720,12 @@ async function handleChatRequest(
               dashboardSnapshot,
               globalData,
               globalDataByYear ?? undefined,
-              llmError ?? undefined,
             );
-            content = finalFallback + (finalFallback.includes(FALLBACK_GENERIC_HELP_MARKER) ? SETUP_HINT : '') + (llmError && isDevMode ? `\n\n---\n_Debug (dev): ${llmError}_` : '');
+            const hint = finalFallback.includes(FALLBACK_GENERIC_HELP_MARKER) ? SETUP_HINT : '';
+            const errorNote = llmError
+              ? `\n\n---\n**Note:** ${formatUserFriendlyError(llmError)}`
+              : '';
+            content = finalFallback + hint + errorNote;
             source = SOURCE_FALLBACK;
           }
 

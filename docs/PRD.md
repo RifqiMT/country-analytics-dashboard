@@ -1,7 +1,7 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.6  
-**Last updated:** March 2025
+**Version:** 1.7  
+**Last updated:** March 2026
 
 ---
 
@@ -61,10 +61,11 @@ See `USER_PERSONAS.md` for full detail.
 
 ### 4.1 Main Navigation
 
-Four main tabs:
+Five main tabs:
 
 - **Country dashboard** – Single-country deep dive
-- **Global analytics** – Map and global tables
+- **Global analytics** – Map, correlation scatter (X/Y metrics, country highlight), and global tables
+- **PESTEL** – Generate and view PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis for the selected country with sources and hyperlinks
 - **Source** – Metric definitions, formulas, data source links, Analytics Assistant flow
 - **Analytics assistant** – Chat for questions about metrics, methodology, and general knowledge
 
@@ -78,8 +79,8 @@ Four main tabs:
   - Data window text (e.g. "2000–2024")
   - **General**: Timezone, currency (name, code, symbol), land area, total area, EEZ
   - **Economy**: Currency with symbol alongside name and code
-  - **Financial**: GDP Nominal, GDP PPP, GDP per capita (Nominal & PPP), Gov. debt (USD), Gov. debt (% GDP), Inflation, Lending rate + YoY
-  - **Health & demographics**: Total population, life expectancy, 0–14 / 15–64 / 65+ breakdown + YoY
+  - **Financial**: GDP Nominal, GDP PPP, GDP per capita (Nominal & PPP), Gov. debt (USD), Gov. debt (% GDP), Inflation, Lending rate, Unemployment rate, Poverty headcount ($2.15/day and national line) + YoY
+  - **Health & demographics**: Total population, life expectancy, 0–14 / 15–64 / 65+ breakdown, child and maternal mortality, prevalence of undernourishment + YoY
 
 #### 4.2.2 Year Range Filter
 
@@ -89,13 +90,13 @@ Four main tabs:
 
 #### 4.2.3 Unified Time-Series Timeline
 
-- Metrics: GDP Nominal, GDP PPP, GDP per capita (Nominal & PPP), Population, Life expectancy
+- Metrics: Core structural metrics – GDP Nominal, GDP PPP, GDP per capita (Nominal & PPP), Population, Life expectancy
 - Frequency: Weekly, monthly, quarterly, annual (sub-annual interpolated)
 - Metric chips to toggle series; tooltip with period-over-period change (WoW/MoM/QoQ/YoY)
 
 #### 4.2.4 Macro Indicators Timeline
 
-- Inflation (CPI), Lending interest rate, Government debt (% GDP)
+- Inflation (CPI), Lending interest rate, Government debt (% GDP), Unemployment rate, Poverty headcount ($2.15/day and national line), Under‑5 mortality, Maternal mortality, Prevalence of undernourishment
 - Same frequency and resampling as unified timeline
 
 #### 4.2.5 Population Pie
@@ -117,17 +118,23 @@ Four main tabs:
 
 #### 4.3.2 Global Map
 
-- **Metric selector**: 18 metrics across Financial, Demographics & Health, Geography, Government
+- **Metric selector**: 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, Government
 - Choropleth shading; tooltip: country name, flag, metric value, effective year
 - Map does not sync with country dashboard selection
 
 #### 4.3.3 Global Tables
 
 - **General**: Country (with flag emoji), Code, Region, Government type, Head of government, Total area, EEZ
-- **Financial**: Country (with flag emoji), GDP Nominal, GDP PPP, GDP/Capita, GDP/Capita PPP, Gov. debt (USD), Inflation, Gov. debt (% GDP), Lending rate + YoY
-- **Health & demographics**: Country (with flag emoji), Pop total, Pop 0–14, Pop 15–64, Pop 65+, Life expectancy + YoY
+- **Financial**: Country (with flag emoji), GDP Nominal, GDP PPP, GDP/Capita, GDP/Capita PPP, Gov. debt (USD), Inflation, Gov. debt (% GDP), Lending rate, Unemployment rate, Poverty headcount ($2.15/day and national line) + YoY
+- **Health & demographics**: Country (with flag emoji), Pop total, Pop 0–14, Pop 15–64, Pop 65+, Life expectancy, Under‑5 mortality, Maternal mortality, Prevalence of undernourishment + YoY
 - All numeric columns sortable asc/desc
 - Code column hidden in Financial and Health views
+
+#### 4.3.4 Correlation Scatter (Global)
+
+- **X and Y metric selectors**: Choose any two numeric metrics from the global dataset (e.g. GDP per capita vs life expectancy)
+- **Plot**: All countries as points; selected country (from Country dashboard) highlighted
+- **Use case**: Inspect correlation and outliers across countries for the chosen year
 
 ### 4.4 Source Tab
 
@@ -168,6 +175,14 @@ Queries about religion, culture, leaders, capital, language, independence day, e
 - **Suggestions**: Quick-start prompts (e.g. "Compare Indonesia to Malaysia", "Top 10 countries by GDP")
 - **Settings**: Model selection (including **Tavily Web Search**); API key input (localStorage)
 - **General-knowledge**: LLM instructed to use Wikipedia links; not mention "Dashboard data"
+
+### 4.6 PESTEL Analysis
+
+- **Tab**: Dedicated PESTEL tab in main navigation
+- **Input**: Selected country (from Country dashboard); optional refresh
+- **Output**: Structured PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis with sources and hyperlinks where applicable
+- **Context**: Uses country context and dashboard data; generation via LLM (same infrastructure as Analytics assistant)
+- **Behaviour**: User triggers generate/refresh; response rendered in tab with clear sectioning and attribution
 
 ---
 
@@ -246,6 +261,6 @@ Queries about religion, culture, leaders, capital, language, independence day, e
 ## 9. Future Work (Not Yet Implemented)
 
 - Export (CSV, image)
-- Multi-metric correlation views (scatterplots)
+- Extended correlation views (e.g. correlation matrix, clustering, advanced filtering) building on the current scatterplot
 - Additional providers (OECD, WHO) with ETL precedence rules
 - Saved dashboards and shareable URLs

@@ -43,6 +43,13 @@ This document defines how we measure the success of the Country Analytics Platfo
 | **GM-1** | Map engagement rate | % of sessions that open the Global view and stay on the map for at least 10 seconds |
 | **GM-2** | Metric diversity (map) | Number of unique metrics selected on the map per session |
 
+### 2.2a Global Analytics – Correlation Scatter
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **GC-1** | Correlation view rate | % of sessions that open the Global view and view the correlation scatter (X/Y plot) |
+| **GC-2** | Correlation metric pairs | Number of unique X/Y metric pairs selected per session (when correlation is used) |
+
 ### 2.3 Global Analytics – Tables
 
 | ID | Metric | Definition |
@@ -65,6 +72,13 @@ This document defines how we measure the success of the Country Analytics Platfo
 | **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
 | **CA-2** | Source distribution | % of chat sessions by source: Dashboard data, Web search (Tavily), Groq, other LLMs |
 | **CA-3** | Suggestion chip usage | % of chat sessions where at least one suggestion chip is clicked |
+
+### 2.6 PESTEL
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **PE-1** | PESTEL tab view rate | % of sessions that open the PESTEL tab |
+| **PE-2** | PESTEL generate/refresh rate | % of PESTEL tab sessions where user triggers generate or refresh at least once |
 
 ---
 
@@ -118,8 +132,12 @@ Use a `product_area.action` pattern:
 | `timeline.frequency_changed` | User switches frequency |
 | `timeline.metric_toggled` | User toggles a metric chip |
 | `global.map_metric_changed` | User changes map metric |
+| `global.correlation_view_opened` | User opens correlation scatter view (Map vs Correlation toggle) |
+| `global.correlation_axes_changed` | User changes X or Y metric in correlation scatter |
 | `global.table_sort_changed` | User sorts a table column |
 | `global.table_view_changed` | User switches General/Financial/Health |
+| `pestel.tab_viewed` | User opens PESTEL tab |
+| `pestel.generate_clicked` | User triggers PESTEL generate or refresh |
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip |
 | `chat.message_sent` | User sends a chat message |
@@ -134,7 +152,7 @@ Each event should include:
 - `country_iso2` (if relevant)
 - `year` or `year_range`
 - `metric_id` (for timeline, map, or tables)
-- `view` (country_dashboard | global_map | global_table | source | chat)
+- `view` (country_dashboard | global_map | global_table | global_correlation | pestel | source | chat)
 
 ### 4.3 Privacy & PII
 

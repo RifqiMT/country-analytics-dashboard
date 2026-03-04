@@ -10,6 +10,9 @@ export type MapMetricId =
   | 'govDebtPercentGDP'
   | 'govDebtUSD'
   | 'interestRate'
+  | 'unemploymentRate'
+  | 'povertyHeadcount215'
+  | 'povertyHeadcountNational'
   | 'lifeExpectancy'
   | 'landAreaKm2'
   | 'totalAreaKm2'
@@ -51,6 +54,9 @@ const MAP_METRIC_CATEGORIES: MapMetricCategory[] = [
       { id: 'inflationCPI', label: 'Inflation (CPI, %)', icon: <SvgIcon d="M3.25 8A4.75 4.75 0 0 1 8 3.25a.75.75 0 0 1 0 1.5A3.25 3.25 0 1 0 11.25 8a.75.75 0 0 1 1.5 0A4.75 4.75 0 1 1 3.25 8Z" /> },
       { id: 'govDebtPercentGDP', label: 'Gov. debt (% GDP)', icon: <SvgIcon d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .14.11.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z" /> },
       { id: 'interestRate', label: 'Lending rate (%)', icon: <SvgIcon d="M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5Zm0 1.5h6.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-6.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25ZM6 4.75a.75.75 0 0 1 .75.75v1.19l1.72-.99a.75.75 0 0 1 1.13.65v3a.75.75 0 0 1-1.13.65L6.75 9.46V11a.75.75 0 0 1-1.5 0v-5.5A.75.75 0 0 1 6 4.75Z" /> },
+      { id: 'unemploymentRate', label: 'Unemployment rate (%)', icon: <SvgIcon d="M8 1.5a5 5 0 0 0-5 5c0 3.25 3.5 6 4.4 6.7.36.28.84.28 1.2 0C9.5 12.5 13 9.75 13 6.5a5 5 0 0 0-5-5Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" /> },
+      { id: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', icon: <SvgIcon d="M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z" /> },
+      { id: 'povertyHeadcountNational', label: 'Poverty (national line, %)', icon: <SvgIcon d="M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z" /> },
     ],
   },
   {

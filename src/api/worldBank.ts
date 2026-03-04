@@ -72,11 +72,18 @@ const INDICATORS = {
   inflationCPI: 'FP.CPI.TOTL.ZG', // Inflation, consumer prices (annual %)
   govDebtPercentGDP: 'GC.DOD.TOTL.GD.ZS', // Central government debt (% of GDP); IMF WEO used as fallback for missing
   interestRate: 'FR.INR.LEND', // Lending interest rate (%)
+  unemploymentRate: 'SL.UEM.TOTL.ZS', // Unemployment, total (% of total labor force) (modeled ILO estimate) – ILO, via World Bank WDI
+  povertyHeadcount215: 'SI.POV.DDAY', // Poverty headcount at $2.15/day (2017 PPP) (% of population) – World Bank
+  povertyHeadcountNational: 'SI.POV.NAHC', // Poverty headcount at national poverty line (% of population) – World Bank
   populationTotal: 'SP.POP.TOTL', // Population, total
   pop0_14Pct: 'SP.POP.0014.TO.ZS', // Population ages 0-14 (% of total)
   pop15_64Pct: 'SP.POP.1564.TO.ZS', // Population ages 15-64 (% of total)
   pop65PlusPct: 'SP.POP.65UP.TO.ZS', // Population ages 65 and above (% of total)
   lifeExpectancy: 'SP.DYN.LE00.IN', // Life expectancy at birth, total (years)
+   // Health outcomes – sourced from WHO/UN via WDI
+  maternalMortalityRatio: 'SH.STA.MMRT', // Maternal mortality ratio (modeled estimate, per 100,000 live births) – WHO, UNICEF, UNFPA, World Bank, UNDESA
+  under5MortalityRate: 'SH.DYN.MORT', // Mortality rate, under-5 (per 1,000 live births) – UN Inter-agency Group for Child Mortality Estimation (UNICEF, WHO, World Bank, UNDESA)
+  undernourishmentPrevalence: 'SN.ITK.DEFC.ZS', // Prevalence of undernourishment (% of population) – FAO, UN
   landArea: 'AG.LND.TOTL.K2', // Land area (sq. km)
   surfaceArea: 'AG.SRF.TOTL.K2', // Surface area (sq. km)
 } as const;
@@ -640,8 +647,14 @@ export async function fetchCountryDashboardData(
     inflationCPIRaw,
     govDebtPercentGDPRaw,
     interestRateRaw,
+    unemploymentRateRaw,
+    povertyHeadcount215Raw,
+    povertyHeadcountNationalRaw,
     population,
     lifeExpectancy,
+    maternalMortalityRatioRaw,
+    under5MortalityRateRaw,
+    undernourishmentPrevalenceRaw,
     pop0_14PctSeries,
     pop15_64PctSeries,
     pop65PlusPctSeries,
@@ -655,10 +668,56 @@ export async function fetchCountryDashboardData(
       fetchIndicatorSeries(countryCode, 'gdpNominalPerCapita', startYear, endYear),
       fetchIndicatorSeries(countryCode, 'gdpPPPPerCapita', startYear, endYear),
       fetchIndicatorSeries(countryCode, 'inflationCPI', startYear, endYear),
-      fetchIndicatorSeries(countryCode, 'govDebtPercentGDP', Math.min(startYear, 1990), endYear),
-      fetchIndicatorSeries(countryCode, 'interestRate', Math.min(startYear, 1990), endYear),
+      fetchIndicatorSeries(
+        countryCode,
+        'govDebtPercentGDP',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'interestRate',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'unemploymentRate',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'povertyHeadcount215',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'povertyHeadcountNational',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
       fetchIndicatorSeries(countryCode, 'populationTotal', startYear, endYear),
       fetchIndicatorSeries(countryCode, 'lifeExpectancy', startYear, endYear),
+      fetchIndicatorSeries(
+        countryCode,
+        'maternalMortalityRatio',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'under5MortalityRate',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'undernourishmentPrevalence',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
       fetchIndicatorSeries(countryCode, 'pop0_14Pct', startYear, endYear),
       fetchIndicatorSeries(countryCode, 'pop15_64Pct', startYear, endYear),
       fetchIndicatorSeries(countryCode, 'pop65PlusPct', startYear, endYear),
@@ -697,6 +756,37 @@ export async function fetchCountryDashboardData(
   );
   const interestRate = fillSeriesWithFallback(
     interestRateRawFinal,
+    macroStartYear,
+    endYear,
+  );
+  const unemploymentRate = fillSeriesWithFallback(
+    unemploymentRateRaw,
+    macroStartYear,
+    endYear,
+  );
+  const povertyHeadcount215 = fillSeriesWithFallback(
+    povertyHeadcount215Raw,
+    macroStartYear,
+    endYear,
+  );
+  const povertyHeadcountNational = fillSeriesWithFallback(
+    povertyHeadcountNationalRaw,
+    macroStartYear,
+    endYear,
+  );
+
+  const maternalMortalityRatioSeries = fillSeriesWithFallback(
+    maternalMortalityRatioRaw,
+    macroStartYear,
+    endYear,
+  );
+  const under5MortalityRateSeries = fillSeriesWithFallback(
+    under5MortalityRateRaw,
+    macroStartYear,
+    endYear,
+  );
+  const undernourishmentPrevalenceSeries = fillSeriesWithFallback(
+    undernourishmentPrevalenceRaw,
     macroStartYear,
     endYear,
   );
@@ -802,6 +892,24 @@ export async function fetchCountryDashboardData(
       unit: '%',
       points: interestRate,
     },
+    {
+      id: 'unemploymentRate',
+      label: 'Unemployment rate (% of labour force)',
+      unit: '% of labour force',
+      points: unemploymentRate,
+    },
+    {
+      id: 'povertyHeadcount215',
+      label: 'Poverty headcount ($2.15/day, %)',
+      unit: '% of population',
+      points: povertyHeadcount215,
+    },
+    {
+      id: 'povertyHeadcountNational',
+      label: 'Poverty headcount (national line, %)',
+      unit: '% of population',
+      points: povertyHeadcountNational,
+    },
   ];
 
   const populationSeries: MetricSeries[] = [
@@ -819,6 +927,24 @@ export async function fetchCountryDashboardData(
       label: 'Life Expectancy at Birth (Years)',
       unit: 'Years',
       points: lifeExpectancy,
+    },
+    {
+      id: 'maternalMortalityRatio',
+      label: 'Maternal mortality ratio (per 100,000 live births)',
+      unit: 'Per 100,000 live births',
+      points: maternalMortalityRatioSeries,
+    },
+    {
+      id: 'under5MortalityRate',
+      label: 'Under-5 mortality rate (per 1,000 live births)',
+      unit: 'Per 1,000 live births',
+      points: under5MortalityRateSeries,
+    },
+    {
+      id: 'undernourishmentPrevalence',
+      label: 'Prevalence of undernourishment (% of population)',
+      unit: '% of population',
+      points: undernourishmentPrevalenceSeries,
     },
     {
       id: 'pop0_14Share',
@@ -897,6 +1023,9 @@ export async function fetchCountryDashboardData(
             return null;
           })(),
           interestRate: latestNonNullUpToYear(interestRate, year),
+          unemploymentRate: latestNonNullUpToYear(unemploymentRate, year),
+          povertyHeadcount215: latestNonNullUpToYear(povertyHeadcount215, year),
+          povertyHeadcountNational: latestNonNullUpToYear(povertyHeadcountNational, year),
         },
         population: {
           total: populationBreakdown.total,
@@ -908,6 +1037,18 @@ export async function fetchCountryDashboardData(
         },
         health: {
           lifeExpectancy: latestNonNullUpToYear(lifeExpectancy, year),
+          maternalMortalityRatio: latestNonNullUpToYear(
+            maternalMortalityRatioSeries,
+            year,
+          ),
+          under5MortalityRate: latestNonNullUpToYear(
+            under5MortalityRateSeries,
+            year,
+          ),
+          undernourishmentPrevalence: latestNonNullUpToYear(
+            undernourishmentPrevalenceSeries,
+            year,
+          ),
         },
         geography: {
           landAreaKm2: landAreaValue,
@@ -978,8 +1119,14 @@ export async function fetchGlobalCountryMetricsForYear(
       inflationCPI,
       govDebtPercentGDP,
       interestRate,
+      unemploymentRate,
+      povertyHeadcount215,
+      povertyHeadcountNational,
       populationTotal,
       lifeExpectancy,
+      maternalMortalityRatio,
+      under5MortalityRate,
+      undernourishmentPrevalence,
       pop0_14Pct,
       pop15_64Pct,
       pop65PlusPct,
@@ -993,9 +1140,15 @@ export async function fetchGlobalCountryMetricsForYear(
       fetchGlobalIndicatorLatestUpToYear('inflationCPI', year),
       fetchGlobalIndicatorLatestUpToYear('govDebtPercentGDP', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('interestRate', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('unemploymentRate', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('povertyHeadcount215', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('povertyHeadcountNational', year, 1990),
       fetchGlobalIndicatorForYear('populationTotal', year),
       // Life expectancy changes slowly; use latest non-null value.
       fetchGlobalStaticIndicator('lifeExpectancy'),
+      fetchGlobalIndicatorLatestUpToYear('maternalMortalityRatio', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('under5MortalityRate', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('undernourishmentPrevalence', year, 1990),
       fetchGlobalIndicatorForYear('pop0_14Pct', year),
       fetchGlobalIndicatorForYear('pop15_64Pct', year),
       fetchGlobalIndicatorForYear('pop65PlusPct', year),
@@ -1069,6 +1222,12 @@ export async function fetchGlobalCountryMetricsForYear(
     apply(inflationCPI, 'inflationCPI');
     apply(govDebtPercentGDP, 'govDebtPercentGDP');
     apply(interestRate, 'interestRate');
+    apply(unemploymentRate, 'unemploymentRate');
+    apply(povertyHeadcount215, 'povertyHeadcount215');
+    apply(povertyHeadcountNational, 'povertyHeadcountNational');
+    apply(maternalMortalityRatio, 'maternalMortalityRatio');
+    apply(under5MortalityRate, 'under5MortalityRate');
+    apply(undernourishmentPrevalence, 'undernourishmentPrevalence');
 
     // Fallback: fill missing Gov. debt from IMF (general government gross debt, WEO).
     const missingGovDebtIso3 = [...byIso3.entries()]

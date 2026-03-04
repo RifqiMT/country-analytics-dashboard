@@ -145,6 +145,22 @@ function FinancialCard({
       items: [
         { icon: 'M3.25 8A4.75 4.75 0 0 1 8 3.25a.75.75 0 0 1 0 1.5A3.25 3.25 0 1 0 11.25 8a.75.75 0 0 1 1.5 0A4.75 4.75 0 1 1 3.25 8Z', label: 'Inflation (CPI, %)', value: g?.inflationCPI != null ? `${g.inflationCPI.toFixed(1)}%` : '–', yoy: getYoY(series, 'inflationCPI') },
         { icon: 'M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5ZM6 5v6l4-3-4-3Z', label: 'Lending interest rate', value: g?.interestRate != null ? `${g.interestRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'interestRate') },
+        {
+          icon: 'M8 1.5a5 5 0 0 0-5 5c0 3.25 3.5 6 4.4 6.7.36.28.84.28 1.2 0C9.5 12.5 13 9.75 13 6.5a5 5 0 0 0-5-5Zm0 2.25a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Z',
+          label: 'Unemployment rate (% of labour force)',
+          value:
+            g?.unemploymentRate != null
+              ? `${g.unemploymentRate.toFixed(1)}%`
+              : '–',
+          yoy: getYoY(series, 'unemploymentRate'),
+        },
+      ],
+    },
+    {
+      label: 'Poverty',
+      items: [
+        { icon: 'M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z', label: 'Poverty ($2.15/day, %)', value: g?.povertyHeadcount215 != null ? `${g.povertyHeadcount215.toFixed(1)}%` : '–', yoy: getYoY(series, 'povertyHeadcount215') },
+        { icon: 'M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z', label: 'Poverty (national line, %)', value: g?.povertyHeadcountNational != null ? `${g.povertyHeadcountNational.toFixed(1)}%` : '–', yoy: getYoY(series, 'povertyHeadcountNational') },
       ],
     },
   ];
@@ -218,7 +234,39 @@ function HealthCard({
     {
       label: 'Health',
       items: [
-        { icon: 'M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5Z', label: 'Life expectancy', value: h?.lifeExpectancy != null ? `${h.lifeExpectancy.toFixed(1)} years` : '–', yoy: getYoY(series.health, 'lifeExpectancy') },
+        {
+          icon: 'M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5Z',
+          label: 'Life expectancy',
+          value: h?.lifeExpectancy != null ? `${h.lifeExpectancy.toFixed(1)} years` : '–',
+          yoy: getYoY(series.health, 'lifeExpectancy'),
+        },
+        {
+          icon: 'M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z',
+          label: 'Under-5 mortality (per 1,000)',
+          value:
+            h?.under5MortalityRate != null
+              ? `${h.under5MortalityRate.toFixed(1)}`
+              : '–',
+          yoy: getYoY(series.health, 'under5MortalityRate'),
+        },
+        {
+          icon: 'M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z',
+          label: 'Maternal mortality (per 100,000)',
+          value:
+            h?.maternalMortalityRatio != null
+              ? `${h.maternalMortalityRatio.toFixed(0)}`
+              : '–',
+          yoy: getYoY(series.health, 'maternalMortalityRatio'),
+        },
+        {
+          icon: 'M8 1.5a4.5 4.5 0 0 0-4.5 4.5c0 3.14 4.5 7.5 4.5 7.5s4.5-4.36 4.5-7.5A4.5 4.5 0 0 0 8 1.5Zm0 6.25a1.75 1.75 0 1 1 0-3.5 1.75 1.75 0 0 1 0 3.5Z',
+          label: 'Undernourishment (% of pop.)',
+          value:
+            h?.undernourishmentPrevalence != null
+              ? `${h.undernourishmentPrevalence.toFixed(1)}%`
+              : '–',
+          yoy: getYoY(series.health, 'undernourishmentPrevalence'),
+        },
       ],
     },
     {

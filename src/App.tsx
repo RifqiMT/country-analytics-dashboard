@@ -11,6 +11,7 @@ import { CountrySelector } from './components/CountrySelector';
 import { AllCountriesTableSection } from './components/AllCountriesTableSection';
 import { SourceSection } from './components/SourceSection';
 import { ChatbotSection } from './components/ChatbotSection';
+import { PESTELSection } from './components/PESTELSection';
 import { YearRangeSelector } from './components/YearRangeSelector';
 import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
@@ -36,7 +37,7 @@ function App() {
     resampledMacro,
   } = useCountryDashboard();
 
-  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'chat'>('country');
+  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'chat'>('country');
   const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table'>('map');
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
@@ -69,7 +70,7 @@ function App() {
                 <path d="M8 1.5a5 5 0 0 0-5 5c0 3.25 3.5 6 4.4 6.7.36.28.84.28 1.2 0C9.5 12.5 13 9.75 13 6.5a5 5 0 0 0-5-5Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" />
               </svg>
             </span>
-            <span>Country dashboard</span>
+            <span>Country Dashboard</span>
           </button>
           <button
             type="button"
@@ -81,7 +82,31 @@ function App() {
                 <path d="M8 1.25a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5Zm4.25 6.75c0 .5-.06.98-.18 1.44H9.9c.07-.46.1-.94.1-1.44 0-.5-.03-.98-.1-1.44h2.17c.12.46.18.94.18 1.44Zm-3-1.44A13 13 0 0 1 9.1 8c0 .52-.03 1.01-.09 1.47H7V6.56h2.25ZM7 5.06V2.7c.5.16 1.16.98 1.53 2.36H7Zm-1.5 0C5.87 3.68 6.53 2.86 7 2.7v2.36H5.5Zm0 1.5H7V9.5H4.9A11.5 11.5 0 0 1 4.75 8c0-.52.06-1.01.18-1.44Zm-1.7 0c-.12.46-.18.94-.18 1.44 0 .5.06.98.18 1.44H2.9A5.25 5.25 0 0 1 2.75 8c0-.5.06-.98.18-1.44h.87Zm.52-1.5H4.9c.2-.9.5-1.67.87-2.22A5.27 5.27 0 0 0 3.32 5.06Zm6.18 0h1.58A5.27 5.27 0 0 0 10 3.34c-.37.55-.67 1.32-.87 2.22Zm1.58 4.44H9.5c-.2.9-.5 1.67-.87 2.22a5.27 5.27 0 0 0 2.87-2.22ZM6.9 11.72c-.37-.55-.67-1.32-.87-2.22H4.44A5.27 5.27 0 0 0 6.9 11.72Z" />
               </svg>
             </span>
-            <span>Global analytics</span>
+            <span>Global Analytics</span>
+          </button>
+          <button
+            type="button"
+            className={`main-tab ${mainTab === 'pestel' ? 'main-tab-active' : ''}`}
+            onClick={() => setMainTab('pestel')}
+          >
+            <span className="icon-16">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M2 2.75A1.75 1.75 0 0 1 3.75 1h8.5c.966 0 1.75.784 1.75 1.75v9.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-9.5Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25h-8.5ZM4.5 4.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5Zm0 2a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5Zm0 2a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5Z" />
+              </svg>
+            </span>
+            <span>PESTEL</span>
+          </button>
+          <button
+            type="button"
+            className={`main-tab ${mainTab === 'chat' ? 'main-tab-active' : ''}`}
+            onClick={() => setMainTab('chat')}
+          >
+            <span className="icon-16">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M8 1.5c-3.5 0-6 2.5-6 5.5 0 1.5.5 2.9 1.4 4-.2.6-.8 2.2-.8 2.2l.9-.3c.5.4 1.1.7 1.8.9.2 1 .9 1.8 1.8 2.2 2.9.9 6-.5 6-4.2 0-3-2.5-5.5-6-5.5Zm2.5 7.5h-5v-1h5v1Zm0-2h-5v-1h5v1Z" />
+              </svg>
+            </span>
+            <span>Analytics Assistant</span>
           </button>
           <button
             type="button"
@@ -95,22 +120,12 @@ function App() {
             </span>
             <span>Source</span>
           </button>
-          <button
-            type="button"
-            className={`main-tab ${mainTab === 'chat' ? 'main-tab-active' : ''}`}
-            onClick={() => setMainTab('chat')}
-          >
-            <span className="icon-16">
-              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                <path d="M8 1.5c-3.5 0-6 2.5-6 5.5 0 1.5.5 2.9 1.4 4-.2.6-.8 2.2-.8 2.2l.9-.3c.5.4 1.1.7 1.8.9.2 1 .9 1.8 1.8 2.2 2.9.9 6-.5 6-4.2 0-3-2.5-5.5-6-5.5Zm2.5 7.5h-5v-1h5v1Zm0-2h-5v-1h5v1Z" />
-              </svg>
-            </span>
-            <span>Analytics assistant</span>
-          </button>
         </div>
 
         {mainTab === 'source' ? (
           <SourceSection />
+        ) : mainTab === 'pestel' ? (
+          <PESTELSection dashboardData={data} />
         ) : mainTab === 'chat' ? (
           <ChatbotSection dashboardData={data} />
         ) : mainTab === 'country' ? (

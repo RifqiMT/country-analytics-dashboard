@@ -8,12 +8,18 @@ export type FinancialMetricId =
   | 'inflationCPI'
   | 'govDebtPercentGDP'
   | 'govDebtUSD'
-  | 'interestRate';
+  | 'interestRate'
+  | 'unemploymentRate'
+  | 'povertyHeadcount215'
+  | 'povertyHeadcountNational';
 
 export type PopulationMetricId = 'populationTotal';
 
 export type HealthMetricId =
   | 'lifeExpectancy'
+  | 'maternalMortalityRatio'
+  | 'under5MortalityRate'
+  | 'undernourishmentPrevalence'
   | 'pop0_14Share'
   | 'pop15_64Share'
   | 'pop65PlusShare';
@@ -83,6 +89,9 @@ export interface CountryYearSnapshot {
       govDebtPercentGDP?: number | null;
       govDebtUSD?: number | null;
       interestRate?: number | null;
+      unemploymentRate?: number | null;
+      povertyHeadcount215?: number | null;
+      povertyHeadcountNational?: number | null;
     };
     population: {
       total?: number | null;
@@ -90,6 +99,9 @@ export interface CountryYearSnapshot {
     };
     health: {
       lifeExpectancy?: number | null;
+      maternalMortalityRatio?: number | null;
+      under5MortalityRate?: number | null;
+      undernourishmentPrevalence?: number | null;
     };
     geography?: {
       landAreaKm2?: number | null;
@@ -126,8 +138,14 @@ export interface GlobalCountryMetricsRow {
   govDebtPercentGDP?: number | null;
   govDebtUSD?: number | null;
   interestRate?: number | null;
+  povertyHeadcount215?: number | null;
+  povertyHeadcountNational?: number | null;
   populationTotal?: number | null;
   lifeExpectancy?: number | null;
+  unemploymentRate?: number | null;
+  maternalMortalityRatio?: number | null;
+  under5MortalityRate?: number | null;
+  undernourishmentPrevalence?: number | null;
   // Population age group breakdown (absolute counts, derived from % shares)
   population0_14?: number | null;
   population15_64?: number | null;

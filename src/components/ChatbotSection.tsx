@@ -255,6 +255,8 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
                     govDebtPercentGDP: r.govDebtPercentGDP,
                     govDebtUSD: r.govDebtUSD,
                     interestRate: r.interestRate,
+                    povertyHeadcount215: r.povertyHeadcount215,
+                    povertyHeadcountNational: r.povertyHeadcountNational,
                     landAreaKm2: r.landAreaKm2,
                     totalAreaKm2: r.totalAreaKm2,
                     eezKm2: r.eezKm2,

@@ -80,6 +80,17 @@ export const METRIC_METADATA: MetricMetadata[] = [
     sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/FP.CPI.TOTL.ZG` }],
   },
   {
+    id: 'unemploymentRate',
+    label: 'Unemployment rate (% of labour force)',
+    description:
+      'Unemployment, total (% of total labour force), modelled estimate based on International Labour Organization (ILO) methodology. Measures the share of the labour force that is without work but available for and seeking employment.',
+    formula:
+      'Unemployment rate = (Number of unemployed persons / Total labour force) × 100',
+    unit: '% of labour force',
+    category: 'financial',
+    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SL.UEM.TOTL.ZS` }],
+  },
+  {
     id: 'interestRate',
     label: 'Lending interest rate (%)',
     description:
@@ -88,6 +99,27 @@ export const METRIC_METADATA: MetricMetadata[] = [
     unit: '%',
     category: 'financial',
     sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/FR.INR.LEND` }],
+  },
+  // Financial – Poverty (World Bank WDI)
+  {
+    id: 'povertyHeadcount215',
+    label: 'Poverty headcount ($2.15/day, %)',
+    description:
+      'Percentage of population living below the international poverty line of $2.15 a day (2017 PPP). Extreme poverty measure aligned with UN SDGs and World Bank goals.',
+    formula: 'Share of population with consumption or income below $2.15/day (2017 PPP)',
+    unit: '% of population',
+    category: 'financial',
+    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SI.POV.DDAY` }],
+  },
+  {
+    id: 'povertyHeadcountNational',
+    label: 'Poverty headcount (national line, %)',
+    description:
+      'Percentage of population living below the national poverty line. Each country defines its own poverty threshold based on local costs of living.',
+    formula: 'Share of population below country-specific poverty line',
+    unit: '% of population',
+    category: 'financial',
+    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SI.POV.NAHC` }],
   },
   // Financial – Government debt
   {
@@ -168,6 +200,39 @@ export const METRIC_METADATA: MetricMetadata[] = [
     unit: 'Years',
     category: 'health',
     sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SP.DYN.LE00.IN` }],
+  },
+  {
+    id: 'maternalMortalityRatio',
+    label: 'Maternal mortality ratio (per 100,000 live births)',
+    description:
+      'Number of women who die from pregnancy-related causes while pregnant or within 42 days of pregnancy termination, per 100,000 live births. Aligned with SDG 3.1 and estimated jointly by WHO, UNICEF, UNFPA, the World Bank and UN DESA Population Division.',
+    formula:
+      'Maternal mortality ratio = (Number of maternal deaths / Number of live births) × 100,000',
+    unit: 'Per 100,000 live births',
+    category: 'health',
+    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SH.STA.MMRT` }],
+  },
+  {
+    id: 'under5MortalityRate',
+    label: 'Under-5 mortality rate (per 1,000 live births)',
+    description:
+      'Probability per 1,000 that a newborn baby will die before reaching age five, if subject to current age-specific mortality rates. Estimated by the UN Inter-agency Group for Child Mortality Estimation (UNICEF, WHO, World Bank, UN DESA).',
+    formula:
+      'Under-5 mortality rate = Probability of dying between birth and exact age five, expressed per 1,000 live births',
+    unit: 'Per 1,000 live births',
+    category: 'health',
+    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SH.DYN.MORT` }],
+  },
+  {
+    id: 'undernourishmentPrevalence',
+    label: 'Prevalence of undernourishment (% of population)',
+    description:
+      'Share of the population whose habitual food consumption is insufficient to provide the dietary energy levels required to maintain a normal active and healthy life. SDG indicator 2.1.1 produced by FAO, widely used as a headline malnutrition indicator.',
+    formula:
+      'Prevalence of undernourishment = Population with insufficient dietary energy intake / Total population × 100',
+    unit: '% of population',
+    category: 'health',
+    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SN.ITK.DEFC.ZS` }],
   },
   // Geography
   {

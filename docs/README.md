@@ -8,9 +8,9 @@ This folder contains product and technical documentation for the **Country Analy
 
 | Document | Description |
 |----------|-------------|
-| [PRD.md](PRD.md) | Product Requirements Document – problem, goals, scope, features, NFRs, business guidelines |
-| [USER_PERSONAS.md](USER_PERSONAS.md) | Target personas – roles, goals, pain points, success criteria |
-| [USER_STORIES.md](USER_STORIES.md) | User stories by feature area – Country, Global, Source, Analytics assistant |
+| [PRD.md](PRD.md) | Product Requirements Document – problem, goals, scope, features (Country, Global, PESTEL, Source, Analytics assistant), NFRs, business guidelines |
+| [USER_PERSONAS.md](USER_PERSONAS.md) | Target personas – roles, goals, pain points, success criteria, use of PESTEL and correlation |
+| [USER_STORIES.md](USER_STORIES.md) | User stories by feature area – Country, Global (map, correlation scatter, tables), PESTEL, Source, Analytics assistant |
 
 ---
 
@@ -18,9 +18,9 @@ This folder contains product and technical documentation for the **Country Analy
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Data flow, component hierarchy, API layer, Analytics Assistant year-based routing |
-| [METRICS_AND_OKRS.md](METRICS_AND_OKRS.md) | Product metrics, OKRs, instrumentation guidelines, product team cadence |
-| [PRODUCT_METRICS.md](PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) – formulas, WDI codes, sources |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Data flow, component hierarchy (including PESTEL, Correlation scatter), API layer, Analytics Assistant and PESTEL flow |
+| [METRICS_AND_OKRS.md](METRICS_AND_OKRS.md) | **Engagement metrics and OKRs** – north-star, feature-level metrics (including PESTEL, correlation), instrumentation guidelines, product team cadence |
+| [PRODUCT_METRICS.md](PRODUCT_METRICS.md) | **Data metrics** – GDP, population, health, etc.: formulas, WDI codes, sources; product logic (how metrics feed the UI) |
 | [PRODUCT_DOCUMENTATION_STANDARD.md](PRODUCT_DOCUMENTATION_STANDARD.md) | Doc structure, ownership, change policy, feature→code mapping, security |
 
 ---

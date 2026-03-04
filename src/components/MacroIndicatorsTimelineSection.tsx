@@ -21,12 +21,24 @@ const MACRO_METRIC_IDS: MetricId[] = [
   'inflationCPI',
   'govDebtPercentGDP',
   'interestRate',
+  'unemploymentRate',
+  'povertyHeadcount215',
+  'povertyHeadcountNational',
+  'maternalMortalityRatio',
+  'under5MortalityRate',
+  'undernourishmentPrevalence',
 ];
 
 const METRIC_COLORS: Record<string, string> = {
   inflationCPI: '#f97316',
   govDebtPercentGDP: '#7f1d1d',
   interestRate: '#0369a1',
+  unemploymentRate: '#22c55e',
+  povertyHeadcount215: '#dc2626',
+  povertyHeadcountNational: '#b91c1c',
+  maternalMortalityRatio: '#b91c1c',
+  under5MortalityRate: '#fb923c',
+  undernourishmentPrevalence: '#16a34a',
 };
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -54,7 +66,7 @@ export function MacroIndicatorsTimelineSection({
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Inflation, debt & interest rate</h2>
+        <h2 className="section-title">Inflation, debt, unemployment, poverty & interest</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );

@@ -127,18 +127,23 @@ For every feature PR that changes user-visible behaviour:
 | Population | PopulationPieSection | worldBank.ts |
 | Country comparison | CountryTableSection | worldBank.ts |
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
+| Global correlation scatter | CorrelationScatterPlot | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
+| PESTEL | PESTELSection | pestelContext.ts (prompt/build), LLM via chat API |
 | Source tab | SourceSection | metricMetadata.ts |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts |
 
 ### 6.2 Reading Order
 
 1. README.md → PRD.md → USER_STORIES.md
-2. src/App.tsx (layout, tabs)
+2. src/App.tsx (layout, tabs including PESTEL)
 3. src/hooks/useCountryDashboard.ts (data flow)
 4. src/api/worldBank.ts (data definitions, business rules)
 5. src/utils/chatContext.ts, chatFallback.ts (analytics assistant)
-6. vite-plugin-chat-api.ts (chat API flow)
+6. src/utils/pestelContext.ts (PESTEL prompt and generation)
+7. vite-plugin-chat-api.ts (chat API flow)
+
+**Product logic and business/tech guidelines:** See PRD (Sections 4–5, 7–8) and README Section 6.
 
 ---
 

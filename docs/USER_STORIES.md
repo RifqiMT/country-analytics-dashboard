@@ -158,6 +158,31 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
+## 5a. Global Analytics – Correlation Scatter
+
+### US-5a.1 – Compare two metrics across countries
+
+- **As a** Country Economist or BI Analyst  
+- **I want to** choose two metrics (X and Y) and see all countries plotted  
+- **So that** I can inspect correlation and outliers (e.g. GDP per capita vs life expectancy)  
+
+**Acceptance criteria:**
+- X and Y metric selectors offer numeric metrics from the global dataset
+- Plot shows all countries as points; selected country (from Country dashboard) is highlighted
+- Same year as Global view is used for data
+
+### US-5a.2 – Identify selected country on scatter
+
+- **As a** Strategy Lead  
+- **I want to** see the currently selected country highlighted on the correlation scatter  
+- **So that** I can quickly see where it sits relative to others  
+
+**Acceptance criteria:**
+- Selected country is visually distinct (e.g. colour/size); other countries use a neutral style
+- Changing the country in the Country dashboard updates the highlight when Global view is open
+
+---
+
 ## 6. Global Analytics – Tables
 
 ### US-6.1 – Rank countries by metric
@@ -301,9 +326,33 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
-## 9. Reliability and Data Quality
+## 9. PESTEL
 
-### US-9.1 – Handle missing data gracefully
+### US-9.1 – Generate PESTEL analysis for selected country
+
+- **As a** Strategy Lead or Country Economist  
+- **I want to** open the PESTEL tab and generate a PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis for the selected country  
+- **So that** I can use it in reports or strategy discussions  
+
+**Acceptance criteria:**
+- PESTEL tab shows current country; user can trigger generate/refresh
+- Output is structured by PESTEL dimensions with clear sectioning
+- Where applicable, responses include sources and hyperlinks
+
+### US-9.2 – Use PESTEL with country context
+
+- **As a** BI Analyst  
+- **I want to** have PESTEL generation use the same country as the Country dashboard  
+- **So that** I don’t have to re-select the country  
+
+**Acceptance criteria:**
+- Changing the country in the Country dashboard updates the context for PESTEL; user can refresh to regenerate for the new country
+
+---
+
+## 10. Reliability and Data Quality
+
+### US-10.1 – Handle missing data gracefully
 
 - **As any** user  
 - **I do not want** the app to error or show confusing outputs when data is missing  
@@ -315,7 +364,7 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
-### US-9.2 – Communicate methodology
+### US-10.2 – Communicate methodology
 
 - **As a** Data/BI Analyst  
 - **I want to** understand at a high level how metrics are computed  
