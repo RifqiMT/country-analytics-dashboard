@@ -73,7 +73,7 @@ The documentation standard ensures:
 - High-level data flow diagram (text or Mermaid)
 - Component hierarchy and responsibilities
 - API layer and external integrations
-- Analytics Assistant flow (Dashboard data → Groq → Web search → other LLMs)
+- Analytics Assistant flow (year-based routing: Groq for period ≤ current year − 2, Tavily for recent; Tavily Web Search selectable)
 
 ---
 

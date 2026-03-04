@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.5  
+**Version:** 1.6  
 **Last updated:** March 2025
 
 ---
@@ -33,7 +33,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 | **G2** | Intuitive global comparison | Sorting, ranking, map and tables with consistent definitions |
 | **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and source links |
 | **G4** | Analyst-friendly UX | Smooth time navigation, frequency toggles, search, filter chips |
-| **G5** | AI-assisted analysis | Analytics assistant with cascading flow (Dashboard data → Groq → Web search → other LLMs) and source attribution |
+| **G5** | AI-assisted analysis | Analytics assistant with year-based routing (Groq for period ≤ current year − 2, Tavily for recent/current), Tavily as selectable model, and source attribution |
 
 ### 2.2 Non-Goals (Current Version)
 
@@ -131,7 +131,7 @@ Four main tabs:
 
 ### 4.4 Source Tab
 
-- **Analytics Assistant flow**: Documents answer sources (Dashboard data → Groq → Web search → other LLMs)
+- **Analytics Assistant flow**: Documents year-based routing (Groq for period ≤ current year − 2, Tavily for recent/current)
 - **Search**: By metric name, description, formula, or source (dynamic filtering)
 - **Filter chips**: World Bank, IMF, Sea Around Us, Marine Regions
 - **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
@@ -139,14 +139,16 @@ Four main tabs:
 
 ### 4.5 Analytics Assistant
 
-#### 4.5.1 Cascading Flow
+#### 4.5.1 Cascading Flow (Year-Based Routing)
+
+**Cutoff:** current year − 2. Questions about period ≤ cutoff use Groq; period after (or "now") use Tavily first.
 
 | Step | Source | When Used |
 |------|--------|-----------|
 | 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, methodology; or when rule-based returns generic help for out-of-scope questions |
-| 2 | **Groq (Llama 3.3 70B)** | General-knowledge questions (leaders, capital, language, religion) when server key is set |
-| 3 | **Web search (Tavily/Serper)** | Real-time answers when Groq fails or for current events; requires server key |
-| 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter) when user or server key is set |
+| 2 | **Web search (Tavily/Serper)** | General-knowledge about period **after** current year − 2 (e.g. "now", "2026"); or when **Tavily Web Search** is selected as model |
+| 3 | **Groq (Llama 3.3 70B)** | General-knowledge about period ≤ current year − 2 (e.g. "in 2023"); or when web search fails |
+| 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter, **Tavily Web Search**) when user or server key is set |
 
 #### 4.5.2 Source Attribution
 
@@ -164,7 +166,7 @@ Queries about religion, culture, leaders, capital, language, independence day, e
 
 - **Context**: Uses selected country summary, global data (top 50 by GDP, top 20 by GDP per capita), metric metadata
 - **Suggestions**: Quick-start prompts (e.g. "Compare Indonesia to Malaysia", "Top 10 countries by GDP")
-- **Settings**: Model selection; API key input (localStorage)
+- **Settings**: Model selection (including **Tavily Web Search**); API key input (localStorage)
 - **General-knowledge**: LLM instructed to use Wikipedia links; not mention "Dashboard data"
 
 ---

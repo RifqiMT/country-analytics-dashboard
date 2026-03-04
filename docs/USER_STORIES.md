@@ -271,7 +271,7 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 **Acceptance criteria:**
 - Each assistant message displays a source line: "Dashboard data", model label (e.g. Llama 3.3 70B), or "Web search"
-- Source reflects the cascading flow: Dashboard data → Groq → Web search → other LLMs
+- Source reflects year-based routing: Groq for period ≤ current year − 2, Tavily for recent/current
 
 ---
 
@@ -282,9 +282,22 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 - **So that** I can use the assistant with my preferred setup  
 
 **Acceptance criteria:**
-- Model dropdown: multiple providers and tiers (Best, Balanced, Fast)
+- Model dropdown: multiple providers and tiers (Best, Balanced, Fast), including **Tavily Web Search**
 - Settings panel allows API key input (stored in localStorage per provider)
-- Server env or client env keys also supported (see .env.example)
+- Tavily Web Search uses server key; no client key needed
+
+---
+
+### US-8.6 – Get real-time answers for current period
+
+- **As a** Strategy Lead  
+- **I want to** ask about current leaders or recent events (e.g. "who is the president now")  
+- **So that** I get up-to-date answers from web search  
+
+**Acceptance criteria:**
+- Questions about period after current year − 2 (or "now") use Tavily (web search) first
+- Questions about period ≤ current year − 2 use Groq
+- Selecting Tavily Web Search as model forces web search for all general-knowledge queries
 
 ---
 

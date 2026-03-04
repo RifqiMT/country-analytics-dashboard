@@ -74,7 +74,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Deep dive on one country with year range adjustment
 - Uses unified timeline with multiple metrics for correlation
 - Checks Source tab for government debt formula and IMF fallback
-- Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, model label, or Web search) to assess answer provenance
+- Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, Groq, Web search) and year-based routing (Groq for older period, Tavily for recent) to assess answer provenance
 
 ---
 

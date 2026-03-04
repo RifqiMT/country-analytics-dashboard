@@ -31,7 +31,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
 - **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
 - **Understand** data methodology via the Source tab with descriptions, formulas, and source links
-- **Ask** natural-language questions about metrics, sources, and methodology via the Analytics Assistant (cascading flow: Dashboard data → LLM → Web search)
+- **Ask** natural-language questions via the Analytics Assistant (year-based routing: Groq for period ≤ current year − 2, Tavily for recent/current)
 
 ### 1.2 Target Audience
 
@@ -60,7 +60,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Credible data** – World Bank WDI, IMF WEO, REST Countries, Sea Around Us; fallbacks for territories
 - **Intuitive UX** – Searchable country selector, year presets, frequency toggles
 - **Transparent methodology** – Source tab documents every metric with formulas and source links
-- **AI-assisted analysis** – Analytics assistant with cascading flow: Dashboard data → Groq → Web search → other LLMs
+- **AI-assisted analysis** – Analytics assistant with year-based routing: Groq for period ≤ current year − 2, Tavily (web search) for recent/current; Tavily also selectable as a model
 - **Source attribution** – Each chat response shows its source (Dashboard data, model name, or Web search)
 - **No login required** – Public data, no authentication or workspace setup
 
@@ -94,7 +94,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Analytics Assistant flow** | Documents answer sources: Dashboard data → Groq → Web search → other LLMs |
+| **Analytics Assistant flow** | Documents year-based routing: Groq (period ≤ current year − 2), Tavily (recent/current) |
 | **Search** | By metric name, description, formula, or source |
 | **Filter chips** | World Bank, IMF, Sea Around Us, Marine Regions |
 | **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
@@ -104,11 +104,11 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Cascading flow** | Step 1: Dashboard data (rule-based) → Step 2: Groq → Step 3: Tavily/Serper (web search) → Step 4: Other LLMs |
-| **Source attribution** | Each response shows source: "Dashboard data", model label (e.g. Llama 3.3 70B), or "Web search" |
+| **Year-based routing** | Period ≤ current year − 2 → Groq; period after (or "now") → Tavily (web search) first |
+| **Model selection** | Multiple providers (OpenAI, Groq, Anthropic, Google, OpenRouter, **Tavily Web Search**); tiers: Best, Balanced, Fast |
+| **Source attribution** | Each response shows source: "Dashboard data", model label, or "Web search" |
 | **Context-aware** | Uses metric metadata, selected country context, and global data |
-| **Out-of-scope handling** | Religion, culture, leaders, capital, language routed to LLM/web search; no dashboard metrics for these |
-| **Model selection** | Multiple providers and tiers; API keys via Settings (localStorage) or server env |
+| **Out-of-scope handling** | Religion, culture, leaders, capital, language routed to LLM/web search; no dashboard metrics |
 | **Suggestions** | Quick-start prompts for common questions |
 
 ### 3.5 Data Fallbacks
@@ -138,7 +138,7 @@ axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
 
 ### Custom Infrastructure
 
-- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; cascading flow (Dashboard data → Groq → Tavily/Serper → other LLMs)
+- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; year-based Groq vs Tavily routing
 
 ---
 
@@ -231,12 +231,12 @@ Open the URL printed by Vite (typically `http://localhost:5173`).
 
 ### Analytics Assistant
 
-The **Analytics assistant** tab uses a cascading flow to answer questions:
+The **Analytics assistant** tab uses year-based routing:
 
 1. **Dashboard data** – Rule-based answers for rankings, comparisons, methodology (no keys required)
-2. **Groq** – General-knowledge questions (leaders, capital, language, etc.) when server key is set
-3. **Web search** – Real-time answers when Tavily or Serper key is set
-4. **Other LLMs** – User-selected models when user or server keys are set
+2. **Tavily (web search)** – General-knowledge about period after current year − 2 (e.g. "now", "2026")
+3. **Groq** – General-knowledge about period ≤ current year − 2 (e.g. "in 2023"); or when web search fails
+4. **Other LLMs** – User-selected models (OpenAI, Anthropic, etc.); **Tavily Web Search** is also selectable
 
 **To enable LLM and web search:**
 

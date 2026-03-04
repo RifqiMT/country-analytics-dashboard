@@ -100,6 +100,31 @@ function isGeneralKnowledgeQuery(content: string): boolean {
   return false;
 }
 
+/** Cutoff year: questions about this year or earlier use Groq; after this use Tavily. */
+const DATA_CUTOFF_YEAR = new Date().getFullYear() - 2;
+
+/**
+ * Extract implied year from query. Returns null if no year detected.
+ * "now", "current", "today" → current year.
+ * Explicit years like "2026", "in 2024" → that year.
+ */
+function getImpliedYearFromQuery(content: string): number | null {
+  const q = (content ?? '').trim();
+  if (/\b(?:now|current|today)\b/i.test(q)) return new Date().getFullYear();
+  const yearMatch = q.match(/\b(20[0-2][0-9])\b/);
+  return yearMatch ? parseInt(yearMatch[1], 10) : null;
+}
+
+/**
+ * True if query implies a period after current year minus 2 → use Tavily (real-time).
+ * False if year <= cutoff or explicit old year → use Groq.
+ */
+function isQueryAfterCutoffYear(content: string): boolean {
+  const year = getImpliedYearFromQuery(content);
+  if (year === null) return true; // no year → assume "now" → Tavily
+  return year > DATA_CUTOFF_YEAR;
+}
+
 type ChatMessage = { role: string; content: string };
 
 function readJsonBody(req: import('http').IncomingMessage): Promise<unknown> {
@@ -376,6 +401,7 @@ const PROVIDER_URLS: Record<LlmProvider, string> = {
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
   anthropic: '', // uses custom fetchAnthropic
   google: '', // uses custom fetchGoogle
+  tavily: '', // web search only – not an LLM
 };
 
 /** Validate model ID exists in our list */
@@ -520,19 +546,47 @@ async function handleChatRequest(
           let usedModelId: string | null = null;
           let usedWebSearch = false;
 
-          // Step 2: Fallback failed – try Groq FIRST (dashboard data until current year minus 2)
-          const groqKey = getServerApiKey('groq');
-          if (groqKey) {
-            try {
-              content = await tryLlm(groqKey, 'groq', 'llama-3.3-70b-versatile', openaiFormatMessages);
-              if (isValidLlmResponse(content)) usedModelId = 'llama-3.3-70b-versatile';
-            } catch (err) {
-              llmError = err instanceof Error ? err.message : String(err);
-              content = '';
+          // Step 2: Period <= current year minus 2 → Groq. Period after (or "now") → Tavily (web search first)
+          // Step 3: When Tavily selected, always prefer web search
+          const preferWebSearch =
+            model === 'tavily-web-search' ||
+            (isGeneralKnowledge && isQueryAfterCutoffYear(userQuery));
+          if (preferWebSearch) {
+            const webResult = await fetchWebSearch(userQuery);
+            if (webResult?.directAnswer) {
+              const country = extractCountryForWiki(userQuery);
+              const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
+              const wikiLink = `For more: [${country} – Wikipedia](https://en.wikipedia.org/wiki/${wikiSlug})`;
+              content = webResult.directAnswer.includes('Wikipedia') || webResult.directAnswer.includes('http')
+                ? webResult.directAnswer
+                : `${webResult.directAnswer} ${wikiLink}`;
+              usedWebSearch = true;
+            } else if (webResult?.context) {
+              const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
+              if (snippetMatch) {
+                const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
+                const text = snippetMatch[2] ?? snippetMatch[1];
+                content = url ? `Based on web search: ${text}\n\nSource: [${url}](${url})` : `Based on web search: ${text}`;
+                usedWebSearch = true;
+              }
             }
           }
 
-          // Step 3: Groq failed – try Tavily/Serper (real-time web search)
+          // If web search not used (or failed for general-knowledge) – try Groq
+          if (!isValidLlmResponse(content)) {
+            const groqKey = getServerApiKey('groq');
+            if (groqKey) {
+              try {
+                content = await tryLlm(groqKey, 'groq', 'llama-3.3-70b-versatile', openaiFormatMessages);
+                if (isValidLlmResponse(content)) usedModelId = 'llama-3.3-70b-versatile';
+              } catch (err) {
+                llmError = err instanceof Error ? err.message : String(err);
+                content = '';
+              }
+            }
+          }
+
+          // If still no content (non–general-knowledge or Groq failed) – try web search
           if (!isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
@@ -555,9 +609,10 @@ async function handleChatRequest(
           }
 
           if (!isValidLlmResponse(content)) {
-            if (apiKey && getProviderForModel(model) !== 'groq') {
+            const prov = getProviderForModel(model);
+            if (apiKey && prov !== 'groq' && prov !== 'tavily') {
               try {
-                content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+                content = await tryLlm(apiKey, prov ?? 'openai', model, openaiFormatMessages);
                 if (isValidLlmResponse(content)) usedModelId = model;
               } catch (err) {
                 llmError = err instanceof Error ? err.message : String(err);

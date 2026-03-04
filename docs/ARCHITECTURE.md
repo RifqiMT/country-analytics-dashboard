@@ -145,13 +145,14 @@ vite-plugin-chat-api.ts middleware
          │         └─► If answer found → return { content, source: "Dashboard data" }
          │         └─► If generic help or out-of-scope (leaders, religion, culture, etc.) → continue
          │
-         ├─► Step 2: Groq (Llama 3.3 70B) – server env key
-         │         └─► General-knowledge questions (leaders, capital, language, etc.)
-         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" }
+         ├─► Step 2: Year-based routing – implied year from query
+         │         └─► Period > current year − 2 (or "now") → Web search (Tavily/Serper) first
+         │         └─► Period ≤ current year − 2 → Groq first
+         │         └─► If Tavily Web Search selected as model → always web search first
+         │         └─► If success → return { content, source: "Web search" or "Llama 3.3 70B (Groq)" }
          │
-         ├─► Step 3: Web search – Tavily or Serper (server env keys)
-         │         └─► Real-time data when Groq fails
-         │         └─► If success → return { content, source: "Web search" }
+         ├─► Step 3: Groq (Llama 3.3 70B) – when web search not used or fails
+         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" }
          │
          ├─► Step 4: User-selected LLM (OpenAI, Anthropic, Google, OpenRouter)
          │         └─► Uses client apiKey or server env key
@@ -204,7 +205,7 @@ App
 ```
 App
 └── SourceSection
-    └── Analytics Assistant flow (answer sources: Dashboard → Groq → Web → LLMs)
+    └── Analytics Assistant flow (year-based: Groq for period ≤ current year − 2, Tavily for recent)
     └── Search input
     └── Filter chips (World Bank, IMF, Sea Around Us, Marine Regions)
     └── Suggestions dropdown
@@ -251,7 +252,7 @@ App
 |--------|---------|
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
 | `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
-| `vite-plugin-chat-api.ts` | `/api/chat` middleware – cascading flow: fallback → Groq → Tavily/Serper → other LLMs; source attribution |
+| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing (Groq vs Tavily by implied year); source attribution |
 
 ### 4.4 Key Data Structures
 
@@ -297,7 +298,9 @@ App
 - Gov debt and lending rate: world median when country has no data
 - Latest non-null: used for sparse indicators (inflation, interest, gov debt)
 
-### 7.4 Analytics Assistant Flow
+### 7.4 Analytics Assistant Flow (Year-Based Routing)
+
+**Cutoff:** current year − 2. Implied year from query ("now", explicit year, or no year → "now").
 
 1. **Dashboard data** – `chatFallback.ts` provides rule-based answers for:
    - Single-metric lookups ("What is Indonesia's GDP?")
@@ -308,8 +311,8 @@ App
    - Methodology questions
    - Out-of-scope (religion, culture, leaders, etc.) returns generic help → triggers next step
 
-2. **Groq** – Server env key in .env enables Llama 3.3 70B for general-knowledge questions.
+2. **Web search (Tavily/Serper)** – For general-knowledge about period after current year − 2 (or "now"); or when Tavily Web Search is selected as model.
 
-3. **Web search** – Server env keys enable real-time answers for current leaders, events, etc. See .env.example for variable names.
+3. **Groq** – Llama 3.3 70B for period ≤ current year − 2, or when web search fails. Server env key in .env.
 
 4. **Other LLMs** – User API key or server env keys for OpenAI, Anthropic, Google, OpenRouter.

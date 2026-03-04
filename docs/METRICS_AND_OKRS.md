@@ -63,7 +63,7 @@ This document defines how we measure the success of the Country Analytics Platfo
 | ID | Metric | Definition |
 |----|--------|------------|
 | **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
-| **CA-2** | Fallback vs LLM usage | % of chat sessions that use rule-based fallback (Dashboard data) vs LLM or Web search |
+| **CA-2** | Source distribution | % of chat sessions by source: Dashboard data, Web search (Tavily), Groq, other LLMs |
 | **CA-3** | Suggestion chip usage | % of chat sessions where at least one suggestion chip is clicked |
 
 ---

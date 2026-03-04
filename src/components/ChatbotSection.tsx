@@ -128,6 +128,7 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
     anthropic: 'Anthropic',
     google: 'Google AI',
     openrouter: 'OpenRouter',
+    tavily: 'Tavily',
   };
 
   const handleSaveApiKey = () => {
@@ -437,8 +438,9 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
             />
           </div>
           <p className="chatbot-settings-hint muted">
-            Keys are stored locally per provider. For server-side keys, add the required
-            variables to .env (see .env.example for variable names). Never commit real keys.
+            {currentProvider === 'tavily'
+              ? 'Tavily uses server key. Add to .env (see .env.example). No client key needed.'
+              : 'Keys are stored locally per provider. For server-side keys, add the required variables to .env (see .env.example). Never commit real keys.'}
           </p>
           <div className="chatbot-settings-actions">
             <button

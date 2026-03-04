@@ -9,7 +9,8 @@ export type LlmProvider =
   | 'groq'
   | 'anthropic'
   | 'google'
-  | 'openrouter';
+  | 'openrouter'
+  | 'tavily';
 
 /** Performance tier: 1 = best, 2 = balanced, 3 = fast */
 export type PerformanceTier = 'tier1' | 'tier2' | 'tier3';
@@ -73,6 +74,13 @@ export const LLM_MODELS: LlmModel[] = [
     provider: 'groq',
     tier: 'tier1',
     description: 'Meta flagship, very fast inference, free tier (default)',
+  },
+  {
+    id: 'tavily-web-search',
+    label: 'Tavily Web Search',
+    provider: 'tavily',
+    tier: 'tier1',
+    description: 'Real-time web search for current answers (leaders, events, etc.)',
   },
   // ─── Tier 2: Balanced (speed + quality) ───
   {
@@ -186,6 +194,7 @@ export const PROVIDER_ENV_KEYS: Record<LlmProvider, { client: string; server: st
   anthropic: { client: 'VITE_ANTHROPIC_API_KEY', server: 'ANTHROPIC_API_KEY' },
   google: { client: 'VITE_GOOGLE_AI_API_KEY', server: 'GOOGLE_AI_API_KEY' },
   openrouter: { client: 'VITE_OPENROUTER_API_KEY', server: 'OPENROUTER_API_KEY' },
+  tavily: { client: 'VITE_TAVILY_API_KEY', server: 'TAVILY_API_KEY' },
 };
 
 /** Get public/demo API key for a provider from env (client-side) */

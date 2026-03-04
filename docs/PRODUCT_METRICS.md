@@ -107,7 +107,7 @@ This document provides a comprehensive reference for all **data metrics** displa
 
 The **Source** tab provides:
 
-- **Analytics Assistant flow** – Documents answer sources: Dashboard data → Groq → Web search → other LLMs
+- **Analytics Assistant flow** – Documents year-based routing: Groq for period ≤ current year − 2, Tavily for recent/current; Tavily Web Search selectable
 - **Per-metric documentation** – Full description, formula, unit, data source links (World Bank, IMF, Sea Around Us, Marine Regions)
 - **Search and filter** – By metric name, description, formula, or source; filter chips by data provider
 

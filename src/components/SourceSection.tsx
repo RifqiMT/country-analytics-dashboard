@@ -100,16 +100,16 @@ export function SourceSection() {
             data for rankings, comparisons, single-metric lookups, and methodology questions.
           </li>
           <li>
-            <strong>Groq (Llama 3.3 70B)</strong> – General-knowledge questions (e.g. leaders, capital,
-            language, religion) when the rule-based fallback cannot answer. Requires server env key in .env.
+            <strong>Web search (Tavily)</strong> – For general-knowledge questions about the current
+            period or after current year minus 2 (e.g. &quot;who is the president now&quot;, &quot;in 2026&quot;).
           </li>
           <li>
-            <strong>Web search</strong> – Tavily or Serper for up-to-date answers when Groq fails or
-            for real-time data. Requires server env key in .env (see .env.example).
+            <strong>Groq (Llama 3.3 70B)</strong> – For questions about the period up to current year
+            minus 2 (e.g. &quot;in 2023&quot;), or when web search fails.
           </li>
           <li>
-            <strong>Other LLMs</strong> – OpenAI, Anthropic, Google, or OpenRouter when a user API key
-            is set and the selected model is used.
+            <strong>Other LLMs + Tavily Web Search</strong> – OpenAI, Anthropic, Google, OpenRouter, or
+            Tavily Web Search (selectable in the model dropdown) when a user API key or server key is set.
           </li>
         </ol>
       </div>

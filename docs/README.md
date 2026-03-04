@@ -18,7 +18,7 @@ This folder contains product and technical documentation for the **Country Analy
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Data flow, component hierarchy, API layer, Analytics Assistant cascading flow |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Data flow, component hierarchy, API layer, Analytics Assistant year-based routing |
 | [METRICS_AND_OKRS.md](METRICS_AND_OKRS.md) | Product metrics, OKRs, instrumentation guidelines, product team cadence |
 | [PRODUCT_METRICS.md](PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) – formulas, WDI codes, sources |
 | [PRODUCT_DOCUMENTATION_STANDARD.md](PRODUCT_DOCUMENTATION_STANDARD.md) | Doc structure, ownership, change policy, feature→code mapping, security |
