@@ -1,6 +1,7 @@
 /**
  * Multi-metric correlation scatterplot for new market analysis.
  * Plots countries as points with selectable X/Y metrics from global data.
+ * All numeric metrics are included and grouped by category.
  */
 import {
   ScatterChart,
@@ -14,40 +15,107 @@ import {
 } from 'recharts';
 import type { GlobalCountryMetricsRow } from '../types';
 
+/** All numeric metric keys available in GlobalCountryMetricsRow for scatter axes */
 export type ScatterMetricKey = keyof Pick<
   GlobalCountryMetricsRow,
+  | 'gdpNominal'
+  | 'gdpPPP'
   | 'gdpNominalPerCapita'
   | 'gdpPPPPerCapita'
-  | 'populationTotal'
-  | 'lifeExpectancy'
   | 'inflationCPI'
   | 'govDebtPercentGDP'
+  | 'govDebtUSD'
+  | 'interestRate'
   | 'unemploymentRate'
+  | 'unemployedTotal'
+  | 'labourForceTotal'
   | 'povertyHeadcount215'
   | 'povertyHeadcountNational'
+  | 'populationTotal'
+  | 'population0_14'
+  | 'population15_64'
+  | 'population65Plus'
   | 'pop0_14Pct'
   | 'pop15_64Pct'
   | 'pop65PlusPct'
+  | 'lifeExpectancy'
+  | 'maternalMortalityRatio'
+  | 'under5MortalityRate'
+  | 'undernourishmentPrevalence'
   | 'landAreaKm2'
+  | 'totalAreaKm2'
   | 'eezKm2'
 >;
 
-export const SCATTER_METRIC_OPTIONS: { key: ScatterMetricKey; label: string }[] = [
-  { key: 'gdpNominalPerCapita', label: 'GDP per capita (Nominal, US$)' },
-  { key: 'gdpPPPPerCapita', label: 'GDP per capita (PPP, Intl$)' },
-  { key: 'populationTotal', label: 'Population, total' },
-  { key: 'lifeExpectancy', label: 'Life expectancy (years)' },
-  { key: 'inflationCPI', label: 'Inflation (CPI, %)' },
-  { key: 'govDebtPercentGDP', label: 'Government debt (% of GDP)' },
-  { key: 'unemploymentRate', label: 'Unemployment rate (% of labour force)' },
-  { key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)' },
-  { key: 'povertyHeadcountNational', label: 'Poverty (national line, %)' },
-  { key: 'pop0_14Pct', label: 'Population 0–14 (%)' },
-  { key: 'pop15_64Pct', label: 'Population 15–64 (%)' },
-  { key: 'pop65PlusPct', label: 'Population 65+ (%)' },
-  { key: 'landAreaKm2', label: 'Land area (km²)' },
-  { key: 'eezKm2', label: 'EEZ (km²)' },
+export interface ScatterMetricOption {
+  key: ScatterMetricKey;
+  label: string;
+}
+
+/** Grouped options for X/Y dropdowns (optgroup). Order defines display order. */
+export const SCATTER_METRIC_OPTIONS_GROUPED: { group: string; options: ScatterMetricOption[] }[] = [
+  {
+    group: 'Financial – GDP',
+    options: [
+      { key: 'gdpNominal', label: 'GDP (Nominal, US$)' },
+      { key: 'gdpPPP', label: 'GDP (PPP, Intl$)' },
+      { key: 'gdpNominalPerCapita', label: 'GDP per capita (Nominal, US$)' },
+      { key: 'gdpPPPPerCapita', label: 'GDP per capita (PPP, Intl$)' },
+    ],
+  },
+  {
+    group: 'Financial – Debt & rates',
+    options: [
+      { key: 'govDebtPercentGDP', label: 'Government debt (% of GDP)' },
+      { key: 'govDebtUSD', label: 'Government debt (USD)' },
+      { key: 'interestRate', label: 'Lending interest rate (%)' },
+      { key: 'inflationCPI', label: 'Inflation (CPI, %)' },
+    ],
+  },
+  {
+    group: 'Financial – Labour & poverty',
+    options: [
+      { key: 'unemploymentRate', label: 'Unemployment rate (% of labour force)' },
+      { key: 'unemployedTotal', label: 'Unemployed (number)' },
+      { key: 'labourForceTotal', label: 'Labour force (total)' },
+      { key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)' },
+      { key: 'povertyHeadcountNational', label: 'Poverty (national line, %)' },
+    ],
+  },
+  {
+    group: 'Population',
+    options: [
+      { key: 'populationTotal', label: 'Population, total' },
+      { key: 'pop0_14Pct', label: 'Population 0–14 (%)' },
+      { key: 'pop15_64Pct', label: 'Population 15–64 (%)' },
+      { key: 'pop65PlusPct', label: 'Population 65+ (%)' },
+      { key: 'population0_14', label: 'Population 0–14 (count)' },
+      { key: 'population15_64', label: 'Population 15–64 (count)' },
+      { key: 'population65Plus', label: 'Population 65+ (count)' },
+    ],
+  },
+  {
+    group: 'Health',
+    options: [
+      { key: 'lifeExpectancy', label: 'Life expectancy (years)' },
+      { key: 'maternalMortalityRatio', label: 'Maternal mortality (per 100k)' },
+      { key: 'under5MortalityRate', label: 'Under-5 mortality (per 1k)' },
+      { key: 'undernourishmentPrevalence', label: 'Undernourishment (% of pop.)' },
+    ],
+  },
+  {
+    group: 'Geography',
+    options: [
+      { key: 'landAreaKm2', label: 'Land area (km²)' },
+      { key: 'totalAreaKm2', label: 'Total area (km²)' },
+      { key: 'eezKm2', label: 'EEZ (km²)' },
+    ],
+  },
 ];
+
+/** Flat list of all options (for backward compatibility and lookups) */
+export const SCATTER_METRIC_OPTIONS: ScatterMetricOption[] =
+  SCATTER_METRIC_OPTIONS_GROUPED.flatMap((g) => g.options);
 
 interface CorrelationScatterPlotProps {
   data: GlobalCountryMetricsRow[];
@@ -64,7 +132,21 @@ function getValue(row: GlobalCountryMetricsRow, key: ScatterMetricKey): number |
 }
 
 function formatAxisValue(value: number, key: ScatterMetricKey): string {
-  if (key === 'populationTotal' || key === 'landAreaKm2' || key === 'eezKm2') {
+  const compactKeys: ScatterMetricKey[] = [
+    'populationTotal',
+    'unemployedTotal',
+    'labourForceTotal',
+    'population0_14',
+    'population15_64',
+    'population65Plus',
+    'landAreaKm2',
+    'totalAreaKm2',
+    'eezKm2',
+    'gdpNominal',
+    'gdpPPP',
+    'govDebtUSD',
+  ];
+  if (compactKeys.includes(key)) {
     if (value >= 1e9) return `${(value / 1e9).toFixed(1)}B`;
     if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
     if (value >= 1e3) return `${(value / 1e3).toFixed(1)}K`;
@@ -73,18 +155,21 @@ function formatAxisValue(value: number, key: ScatterMetricKey): string {
     if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
     if (value >= 1e3) return `${(value / 1e3).toFixed(0)}K`;
   }
-  if (
-    key === 'inflationCPI' ||
-    key === 'govDebtPercentGDP' ||
-    key === 'unemploymentRate' ||
-    key === 'povertyHeadcount215' ||
-    key === 'povertyHeadcountNational' ||
-    key === 'pop0_14Pct' ||
-    key === 'pop15_64Pct' ||
-    key === 'pop65PlusPct'
-  ) {
-    return value.toFixed(0);
-  }
+  const pctKeys: ScatterMetricKey[] = [
+    'inflationCPI',
+    'govDebtPercentGDP',
+    'interestRate',
+    'unemploymentRate',
+    'povertyHeadcount215',
+    'povertyHeadcountNational',
+    'pop0_14Pct',
+    'pop15_64Pct',
+    'pop65PlusPct',
+    'undernourishmentPrevalence',
+  ];
+  if (pctKeys.includes(key)) return value.toFixed(0);
+  if (key === 'lifeExpectancy') return value.toFixed(1);
+  if (key === 'maternalMortalityRatio' || key === 'under5MortalityRate') return value.toFixed(0);
   return value.toFixed(1);
 }
 
@@ -123,14 +208,28 @@ export function CorrelationScatterPlot({
 
   const useLogX =
     xMetric === 'populationTotal' ||
+    xMetric === 'population0_14' ||
+    xMetric === 'population15_64' ||
+    xMetric === 'population65Plus' ||
     xMetric === 'landAreaKm2' ||
+    xMetric === 'totalAreaKm2' ||
     xMetric === 'eezKm2' ||
+    xMetric === 'gdpNominal' ||
+    xMetric === 'gdpPPP' ||
+    xMetric === 'govDebtUSD' ||
     xMetric === 'gdpNominalPerCapita' ||
     xMetric === 'gdpPPPPerCapita';
   const useLogY =
     yMetric === 'populationTotal' ||
+    yMetric === 'population0_14' ||
+    yMetric === 'population15_64' ||
+    yMetric === 'population65Plus' ||
     yMetric === 'landAreaKm2' ||
+    yMetric === 'totalAreaKm2' ||
     yMetric === 'eezKm2' ||
+    yMetric === 'gdpNominal' ||
+    yMetric === 'gdpPPP' ||
+    yMetric === 'govDebtUSD' ||
     yMetric === 'gdpNominalPerCapita' ||
     yMetric === 'gdpPPPPerCapita';
 

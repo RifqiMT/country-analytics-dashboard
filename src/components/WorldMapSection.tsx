@@ -33,6 +33,8 @@ interface Props {
   data?: CountryDashboardData;
   selectedMetricId: MapMetricId;
   year: number;
+  /** Increment to force refetch of global map data (e.g. after "Refresh all data"). */
+  refreshTrigger?: number;
 }
 
 function getMetricFromRow(
@@ -63,10 +65,26 @@ function getMetricFromRow(
       return row.interestRate ?? null;
     case 'unemploymentRate':
       return row.unemploymentRate ?? null;
+    case 'unemployedTotal':
+      return row.unemployedTotal ?? null;
+    case 'labourForceTotal':
+      return row.labourForceTotal ?? null;
     case 'povertyHeadcount215':
       return row.povertyHeadcount215 ?? null;
     case 'povertyHeadcountNational':
       return row.povertyHeadcountNational ?? null;
+    case 'maternalMortalityRatio':
+      return row.maternalMortalityRatio ?? null;
+    case 'under5MortalityRate':
+      return row.under5MortalityRate ?? null;
+    case 'undernourishmentPrevalence':
+      return row.undernourishmentPrevalence ?? null;
+    case 'pop0_14Share':
+      return row.pop0_14Pct ?? null;
+    case 'pop15_64Share':
+      return row.pop15_64Pct ?? null;
+    case 'pop65PlusShare':
+      return row.pop65PlusPct ?? null;
     case 'landAreaKm2':
       return row.landAreaKm2 ?? null;
     case 'totalAreaKm2':
@@ -106,12 +124,22 @@ function getMetricLabel(metricId: MapMetricId): string {
       return 'Lending interest rate (%)';
     case 'unemploymentRate':
       return 'Unemployment rate (% of labour force)';
+    case 'unemployedTotal':
+      return 'Unemployed (number of people)';
+    case 'labourForceTotal':
+      return 'Labour force (total)';
     case 'povertyHeadcount215':
       return 'Poverty ($2.15/day, %)';
     case 'povertyHeadcountNational':
       return 'Poverty (national line, %)';
     case 'lifeExpectancy':
       return 'Life expectancy (years)';
+    case 'maternalMortalityRatio':
+      return 'Maternal mortality (per 100,000 live births)';
+    case 'under5MortalityRate':
+      return 'Under‑5 mortality (per 1,000 live births)';
+    case 'undernourishmentPrevalence':
+      return 'Prevalence of undernourishment (%)';
     case 'landAreaKm2':
       return 'Land area (km²)';
     case 'totalAreaKm2':
@@ -151,16 +179,26 @@ function formatMetricValue(
     case 'unemploymentRate':
     case 'povertyHeadcount215':
     case 'povertyHeadcountNational':
+    case 'undernourishmentPrevalence':
+    case 'pop0_14Share':
+    case 'pop15_64Share':
+    case 'pop65PlusShare':
       return formatPercentage(value);
     case 'govDebtUSD':
       return formatCompactNumber(value);
     case 'lifeExpectancy':
       return `${value.toFixed(1)} yrs`;
+    case 'maternalMortalityRatio':
+      return `${formatCompactNumber(value)} per 100k`;
+    case 'under5MortalityRate':
+      return `${formatCompactNumber(value)} per 1k`;
     case 'gdpNominal':
     case 'gdpPPP':
     case 'gdpNominalPerCapita':
     case 'gdpPPPPerCapita':
     case 'populationTotal':
+    case 'unemployedTotal':
+    case 'labourForceTotal':
       return formatCompactNumber(value);
     case 'landAreaKm2':
     case 'totalAreaKm2':
@@ -181,7 +219,7 @@ interface MapTooltipState {
   metricValue: string;
 }
 
-export function WorldMapSection({ data, selectedMetricId, year }: Props) {
+export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger = 0 }: Props) {
   if (!data) {
     return (
       <section className="card map-section">
@@ -240,7 +278,7 @@ export function WorldMapSection({ data, selectedMetricId, year }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [year, dismissToast, showToast]);
+  }, [year, refreshTrigger, dismissToast, showToast]);
 
   useEffect(() => {
     let cancelled = false;

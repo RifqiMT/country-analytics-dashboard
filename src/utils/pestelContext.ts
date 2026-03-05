@@ -232,8 +232,10 @@ Use Markdown links: [Source Name](URL) when referencing data in your text.
 **Legal factors**: Write up to 2 paragraphs. Summarise: legal system; economic law reforms; sector regulations; labour laws; IP and tax.
 
 **Strategic implications for business (PESTEL–SWOT matrix)**:
-- **Opportunities**: 4–6 bullet points
-- **Risks and challenges**: 4–6 bullet points
+- **Strengths**: 2 paragraphs (internal, helpful factors)
+- **Weaknesses**: 2 paragraphs (internal, harmful or limiting factors)
+- **Opportunities**: 2 paragraphs (external, helpful factors)
+- **Risks and challenges**: 2 paragraphs (external, harmful factors)
 `;
 
   const instructions = `
@@ -272,30 +274,40 @@ Write up to 2 summarized paragraphs. Cover legal system, economic law reforms, s
 ---
 
 ### Strategic implications for business (PESTEL–SWOT matrix)
+**Strengths:**
+Write 2 paragraphs on internal factors that are helpful (e.g. stable institutions, skilled workforce, natural resources). Use full sentences; no bullet list.
+
+**Weaknesses:**
+Write 2 paragraphs on internal factors that are harmful or limiting (e.g. infrastructure gaps, dependency on one sector). Use full sentences; no bullet list.
+
 **Opportunities:**
-- 4–6 bullet points (e.g. large consumer market, digital growth, government-supported sectors, ESG investments)
+Write 2 paragraphs on external opportunities (e.g. large consumer market, digital growth, government-supported sectors, ESG investments). Use full sentences; no bullet list.
 
 **Risks and challenges:**
-- 4–6 bullet points (e.g. regulatory complexity, climate vulnerability, skills gaps, commodity/currency exposure)
+Write 2 paragraphs on external risks and challenges (e.g. regulatory complexity, climate vulnerability, skills gaps, commodity/currency exposure). Use full sentences; no bullet list.
 
 ---
 
 ### New market analysis
+- Provide **at least 5 bullet points** in this section. Cover:
 - **Market attractiveness**: Assess the country as a new market. Consider market size, purchasing power, growth potential, stability.
 - **Peer comparison**: Use peer comparison data above (if provided) to position the country.
 - **Strategic implications**: Who should consider this market? What sectors fit best? Main barriers and enablers?
+- Ensure the section has no fewer than 5 distinct bullet points in total.
 
 ---
 
 ### Key takeaways
-- 4–6 bullet points summarising the main opportunities and threats across all PESTEL dimensions
+- **At least 5 bullet points** (5–7 recommended) summarising the main opportunities and threats across all PESTEL dimensions
 
 ### Recommendations
+- Provide **at least 5 bullet points** in this section. Cover:
 - **For investors**: Entry/exit timing, sector focus, risk-adjusted considerations
 - **For businesses**: Market entry strategy, key sectors, operational considerations
 - **For policymakers**: Priority reforms, alignment with standards
 - **Risk mitigation**: Top 3–5 risks and concrete mitigation steps
 - **Priority actions**: 3–5 specific, time-bound actions
+- Ensure the section has no fewer than 5 distinct bullet points in total (across all subsections).
 
 ### Sources
 - List 3–6 key data sources used in the analysis as hyperlinks, e.g. [World Bank WDI](https://data.worldbank.org/indicator), [IMF Datamapper](https://www.imf.org/external/datamapper). Include any web search sources from the supplemental data when used.
@@ -307,7 +319,8 @@ Write up to 2 summarized paragraphs. Cover legal system, economic law reforms, s
 - **Be concise**: Each PESTEL dimension must have at most 2 summarized paragraphs
 - **Strategic focus**: Always tie analysis to implications for business, investment, or policy
 - **Markdown**: Use ## and ### headers, bullet lists, **bold** for emphasis
-- **Length**: Aim for 800–1200 words total (2 paragraphs per PESTEL dimension, plus PESTEL–SWOT matrix, new market analysis, and recommendations)
+- **Bullet minimums**: New market analysis, Key takeaways, and Recommendations must each contain **at least 5 bullet points**.
+- **Length**: Aim for 800–1200 words total (2 paragraphs per PESTEL dimension, plus 8 paragraphs for SWOT matrix (2 per element), new market analysis, and recommendations)
 - **Sources and hyperlinks**: When citing data, include the source name as a hyperlink. Example: "GDP grew by 5% ([World Bank WDI](https://data.worldbank.org/indicator))." Use the URLs provided in "Data sources used" above. For supplemental web search results, use the URLs from the snippets when available. Add at least 2–4 inline source links across the analysis where data is cited.
 `;
 

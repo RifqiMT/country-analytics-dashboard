@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.7  
+**Version:** 1.8  
 **Last updated:** March 2026
 
 ---
@@ -61,11 +61,12 @@ See `USER_PERSONAS.md` for full detail.
 
 ### 4.1 Main Navigation
 
-Five main tabs:
+Six main tabs:
 
 - **Country dashboard** – Single-country deep dive
-- **Global analytics** – Map, correlation scatter (X/Y metrics, country highlight), and global tables
-- **PESTEL** – Generate and view PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis for the selected country with sources and hyperlinks
+- **Global analytics** – Map and global tables (no correlation scatter in this tab)
+- **PESTEL** – Generate and view PESTEL analysis for the selected country with structured sections and sources
+- **Business Analytics** – Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation)
 - **Source** – Metric definitions, formulas, data source links, Analytics Assistant flow
 - **Analytics assistant** – Chat for questions about metrics, methodology, and general knowledge
 
@@ -99,11 +100,15 @@ Five main tabs:
 - Inflation (CPI), Lending interest rate, Government debt (% GDP), Unemployment rate, Poverty headcount ($2.15/day and national line), Under‑5 mortality, Maternal mortality, Prevalence of undernourishment
 - Same frequency and resampling as unified timeline
 
-#### 4.2.5 Population Pie
+#### 4.2.5 Labour / Unemployment Timeline
+
+- Labour and unemployment metrics with same frequency and resampling as macro indicators timeline
+
+#### 4.2.6 Population Pie
 
 - 0–14, 15–64, 65+ with % and absolute counts for latest snapshot year
 
-#### 4.2.6 Country Comparison Table
+#### 4.2.7 Country Comparison Table
 
 - Selected country vs average vs global total
 - Toggle: Core metrics vs + Population age breakdown
@@ -130,11 +135,12 @@ Five main tabs:
 - All numeric columns sortable asc/desc
 - Code column hidden in Financial and Health views
 
-#### 4.3.4 Correlation Scatter (Global)
+#### 4.3.4 Business Analytics (Dedicated Tab)
 
-- **X and Y metric selectors**: Choose any two numeric metrics from the global dataset (e.g. GDP per capita vs life expectancy)
-- **Plot**: All countries as points; selected country (from Country dashboard) highlighted
-- **Use case**: Inspect correlation and outliers across countries for the chosen year
+- **Correlation scatter**: X and Y metric selectors; choose any two numeric metrics from the global dataset (e.g. GDP per capita vs life expectancy). Plot all countries as points; selected country (from Country dashboard) highlighted.
+- **Year selector**: Data year for scatter and correlation (defaults to dashboard end year).
+- **Correlation & causation analysis**: Pearson correlation coefficient (r), approximate p-value, interpretation text, and causation/context note with disclaimer that correlation does not imply causation.
+- **Use case**: Inspect correlation and outliers across countries; explore market positioning; hypothesis generation.
 
 ### 4.4 Source Tab
 
@@ -180,9 +186,17 @@ Queries about religion, culture, leaders, capital, language, independence day, e
 
 - **Tab**: Dedicated PESTEL tab in main navigation
 - **Input**: Selected country (from Country dashboard); optional refresh
-- **Output**: Structured PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis with sources and hyperlinks where applicable
+- **Output**: Structured analysis with the following **section order**:
+  1. **PESTEL Analysis** – Chart with bullet points per PESTEL factor (Political, Economic, Social, Technological, Environmental, Legal)
+  2. **SWOT Analysis** – 2×2 grid with **one bullet per sentence** for Strengths, Weaknesses, Opportunities, Threats
+  3. **Comprehensive Analysis** – Full report (excluding extracted sections below) with source
+  4. **Strategic Implications for Business (PESTEL-SWOT)** – Narrative from the PESTEL–SWOT matrix
+  5. **New Market Analysis** – **At least 5 bullet points** (market attractiveness, peer comparison, strategic implications)
+  6. **Key Takeaways** – **At least 5 bullet points** summarising opportunities and threats
+  7. **Recommendations** – **At least 5 bullet points** (investors, businesses, policymakers, risk mitigation, priority actions)
 - **Context**: Uses country context and dashboard data; generation via LLM (same infrastructure as Analytics assistant)
 - **Behaviour**: User triggers generate/refresh; response rendered in tab with clear sectioning and attribution
+- **Bullet minimums**: Prompt and guidelines require New Market Analysis, Key Takeaways, and Recommendations each to have at least 5 bullet points
 
 ---
 

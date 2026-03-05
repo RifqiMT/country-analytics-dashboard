@@ -164,3 +164,55 @@ export async function fetchGDPFromIMF(
   }
   return points.sort((a, b) => a.year - b.year);
 }
+
+/** IMF WEO NGDPD reports in billions USD; scale to match World Bank (current US$). */
+const IMF_GDP_BILLIONS = true;
+
+/**
+ * Fetch nominal GDP (current prices) from IMF WEO for given countries and year.
+ * Used as fallback in the global table when World Bank has no GDP data (e.g. North Korea, some territories).
+ * Returns a map of ISO3 -> value in current US$ (scaled from billions if applicable).
+ */
+export async function fetchGDPFromIMFForYearBatch(
+  iso3Codes: string[],
+  year: number,
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (!iso3Codes.length) return result;
+
+  const codes = iso3Codes.map((c) => c.toUpperCase());
+  const unique = [...new Set(codes)];
+  const batchSize = 40;
+  for (let i = 0; i < unique.length; i += batchSize) {
+    const batch = unique.slice(i, i + batchSize);
+    const path = batch.join('/');
+    const url = `${IMF_DATAMAPPER_BASE}/NGDPD@WEO/${path}?periods=${year}`;
+    try {
+      const res = await axios.get<Record<string, unknown>>(url, {
+        timeout: 15000,
+        validateStatus: (s) => s === 200,
+        headers: { Accept: 'application/json' },
+      });
+      const data = res.data;
+      if (!data || typeof data !== 'object') continue;
+      const root = (data as Record<string, unknown>).values ?? data;
+      const obj =
+        typeof root === 'object' && root && !Array.isArray(root)
+          ? (root as Record<string, unknown>)
+          : (data as Record<string, unknown>);
+      for (const [key, val] of Object.entries(obj)) {
+        if (key === 'metadata' || key === 'label' || key === 'description') continue;
+        if (val && typeof val === 'object' && !Array.isArray(val)) {
+          const yearVal = (val as Record<string, unknown>)[String(year)];
+          if (typeof yearVal === 'number' && Number.isFinite(yearVal)) {
+            const scaled = IMF_GDP_BILLIONS ? yearVal * 1e9 : yearVal;
+            result.set(key.toUpperCase(), scaled);
+          }
+        }
+      }
+    } catch {
+      // Network / CORS / timeout – skip this batch
+    }
+  }
+  return result;
+}

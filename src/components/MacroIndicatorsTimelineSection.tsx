@@ -29,6 +29,29 @@ const MACRO_METRIC_IDS: MetricId[] = [
   'undernourishmentPrevalence',
 ];
 
+/** Macro timeline metrics grouped by category for legend and tooltip (excludes unemployed/labour – see LabourUnemploymentTimelineSection). */
+const MACRO_CATEGORIES: { label: string; metricIds: MetricId[] }[] = [
+  {
+    label: 'Economic & financial',
+    metricIds: [
+      'inflationCPI',
+      'govDebtPercentGDP',
+      'interestRate',
+      'unemploymentRate',
+      'povertyHeadcount215',
+      'povertyHeadcountNational',
+    ],
+  },
+  {
+    label: 'Health',
+    metricIds: [
+      'maternalMortalityRatio',
+      'under5MortalityRate',
+      'undernourishmentPrevalence',
+    ],
+  },
+];
+
 const METRIC_COLORS: Record<string, string> = {
   inflationCPI: '#f97316',
   govDebtPercentGDP: '#7f1d1d',
@@ -73,9 +96,9 @@ export function MacroIndicatorsTimelineSection({
   }
 
   const allSeries: MetricSeries[] = [
-    ...finalSeries.financial,
-    ...finalSeries.population,
-    ...finalSeries.health,
+    ...(finalSeries.financial ?? []),
+    ...(finalSeries.population ?? []),
+    ...(finalSeries.health ?? []),
   ].filter((s) => MACRO_METRIC_IDS.includes(s.id));
 
   const displayStartYear =
@@ -98,7 +121,8 @@ export function MacroIndicatorsTimelineSection({
   // Use union of all dates from all three metrics so each series can show its full range (WB + IMF fallback).
   const dateSet = new Map<string, number>();
   for (const s of allSeries) {
-    for (const p of s.points) {
+    const points = s.points ?? [];
+    for (const p of points) {
       if (p.year < displayStartYear || p.year > displayEndYear) continue;
       dateSet.set(p.date, p.year);
     }
@@ -114,7 +138,7 @@ export function MacroIndicatorsTimelineSection({
     };
     for (const metricId of MACRO_METRIC_IDS) {
       const seriesForMetric = allSeries.find((s) => s.id === metricId);
-      const value = seriesForMetric?.points.find(
+      const value = seriesForMetric?.points?.find(
         (sp) => sp.date === p.date,
       )?.value ?? null;
       row[metricId] = value;
@@ -213,6 +237,14 @@ export function MacroIndicatorsTimelineSection({
 
     if (!rows.length) return null;
 
+    // Group tooltip rows by category
+    const rowsByCategory = MACRO_CATEGORIES.map((cat) => ({
+      label: cat.label,
+      rows: cat.metricIds
+        .map((id) => byMetricId.get(id))
+        .filter((r): r is NonNullable<typeof r> => r != null),
+    })).filter((g) => g.rows.length > 0);
+
     return (
       <div className="chart-tooltip">
         <div className="chart-tooltip-title">
@@ -221,29 +253,34 @@ export function MacroIndicatorsTimelineSection({
             : String(formatAxisLabel(label as string | number))}
         </div>
         <div className="chart-tooltip-body">
-          {rows.map((row) => (
-            <div key={row.name} className="chart-tooltip-row">
-              <span
-                className="chart-tooltip-dot"
-                style={{ backgroundColor: row.color }}
-              />
-              <div className="chart-tooltip-label">{row.name}</div>
-              <div className="chart-tooltip-value">
-                {formatCompactNumber(row.value)}
-              </div>
-              {row.change && (
-                <div
-                  className={`chart-tooltip-change ${
-                    row.changeDirection === 'up'
-                      ? 'chart-tooltip-change-up'
-                      : row.changeDirection === 'down'
-                        ? 'chart-tooltip-change-down'
-                        : 'chart-tooltip-change-flat'
-                  }`}
-                >
-                  {row.change}
+          {rowsByCategory.map((group) => (
+            <div key={group.label} className="chart-tooltip-category">
+              <div className="chart-tooltip-category-label">{group.label}</div>
+              {group.rows.map((row) => (
+                <div key={row.name} className="chart-tooltip-row">
+                  <span
+                    className="chart-tooltip-dot"
+                    style={{ backgroundColor: row.color }}
+                  />
+                  <div className="chart-tooltip-label">{row.name}</div>
+                  <div className="chart-tooltip-value">
+                    {formatCompactNumber(row.value)}
+                  </div>
+                  {row.change && (
+                    <div
+                      className={`chart-tooltip-change ${
+                        row.changeDirection === 'up'
+                          ? 'chart-tooltip-change-up'
+                          : row.changeDirection === 'down'
+                            ? 'chart-tooltip-change-down'
+                            : 'chart-tooltip-change-flat'
+                      }`}
+                    >
+                      {row.change}
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           ))}
         </div>
@@ -256,12 +293,13 @@ export function MacroIndicatorsTimelineSection({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            Inflation, government debt & lending interest rate
+            Macro indicators timeline
           </h2>
           <p className="muted">
             Switch between weekly, monthly, quarterly, and annual views.
             Sub-annual views are smoothly interpolated from annual observations.
-            Government debt uses World Bank and IMF WEO as fallback for full coverage.
+            Includes inflation, government debt, lending rate, unemployment rate, poverty, and health burden metrics.
+            Unemployed (number) and labour force (total) are in a separate chart below.
           </p>
         </div>
         <div className="pill-group">
@@ -345,16 +383,25 @@ export function MacroIndicatorsTimelineSection({
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <div className="chart-legend-row">
-        {MACRO_METRIC_IDS.map((metricId) => (
-          <div key={metricId} className="chart-legend-item">
-            <span
-              className="chart-legend-swatch"
-              style={{ backgroundColor: METRIC_COLORS[metricId] }}
-            />
-            <span className="chart-legend-label">
-              {labelByMetricId[metricId] ?? metricId}
-            </span>
+      <div className="chart-legend-row chart-legend-categorized">
+        {MACRO_CATEGORIES.map((category) => (
+          <div key={category.label} className="chart-legend-group">
+            <div className="chart-legend-category-label">
+              {category.label}
+            </div>
+            <div className="chart-legend-items">
+              {category.metricIds.map((metricId) => (
+                <div key={metricId} className="chart-legend-item">
+                  <span
+                    className="chart-legend-swatch"
+                    style={{ backgroundColor: METRIC_COLORS[metricId] }}
+                  />
+                  <span className="chart-legend-label">
+                    {labelByMetricId[metricId] ?? metricId}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>

@@ -57,7 +57,7 @@ const POP_COLORS = [
 ];
 
 export function PopulationPieSection({ data }: Props) {
-  if (!data?.latestSnapshot?.metrics.population.ageBreakdown) {
+  if (!data?.latestSnapshot?.metrics?.population?.ageBreakdown?.groups?.length) {
     return (
       <section className="card population-structure-card">
         <h2 className="section-title">Population by age group</h2>
@@ -68,9 +68,9 @@ export function PopulationPieSection({ data }: Props) {
     );
   }
 
-  const breakdown = data.latestSnapshot.metrics.population.ageBreakdown;
-
-  const chartData = breakdown.groups.map((g, idx) => ({
+  const breakdown = data.latestSnapshot!.metrics.population!.ageBreakdown!;
+  const groups = breakdown.groups ?? [];
+  const chartData = groups.map((g, idx) => ({
     name: g.label,
     value: g.absolute ?? 0,
     pct: g.percentageOfPopulation ?? 0,

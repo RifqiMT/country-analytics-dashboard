@@ -91,6 +91,32 @@ export const METRIC_METADATA: MetricMetadata[] = [
     sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SL.UEM.TOTL.ZS` }],
   },
   {
+    id: 'unemployedTotal',
+    label: 'Unemployed (number of people)',
+    description:
+      'Total number of people without work but available for and seeking employment. Modeled ILO estimate from the World Bank WDI. Aligned with ILO definitions and UN population data.',
+    formula: 'Unemployed = Labour force × (Unemployment rate / 100); or directly from ILO-modelled estimates',
+    unit: 'People',
+    category: 'financial',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SL.UEM.TOTL` },
+      { name: 'ILO (via World Bank)', url: 'https://ilostat.ilo.org/' },
+    ],
+  },
+  {
+    id: 'labourForceTotal',
+    label: 'Labour force (total)',
+    description:
+      'Total labour force: people ages 15 and older who supply labour for the production of goods and services. Includes employed and unemployed persons seeking work. Based on ILO methodology and UN Population Division data via World Bank WDI.',
+    formula: 'Labour force = Employed + Unemployed (seeking work)',
+    unit: 'People',
+    category: 'financial',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SL.TLF.TOTL.IN` },
+      { name: 'ILO / UN (via World Bank)', url: 'https://ilostat.ilo.org/' },
+    ],
+  },
+  {
     id: 'interestRate',
     label: 'Lending interest rate (%)',
     description:

@@ -4,6 +4,7 @@ import { useCountryDashboard } from './hooks/useCountryDashboard';
 import { SummarySection } from './components/SummarySection';
 import { TimeSeriesSection } from './components/TimeSeriesSection';
 import { MacroIndicatorsTimelineSection } from './components/MacroIndicatorsTimelineSection';
+import { LabourUnemploymentTimelineSection } from './components/LabourUnemploymentTimelineSection';
 import { PopulationPieSection } from './components/PopulationPieSection';
 import { CountryTableSection } from './components/CountryTableSection';
 import { WorldMapSection } from './components/WorldMapSection';
@@ -12,11 +13,14 @@ import { AllCountriesTableSection } from './components/AllCountriesTableSection'
 import { SourceSection } from './components/SourceSection';
 import { ChatbotSection } from './components/ChatbotSection';
 import { PESTELSection } from './components/PESTELSection';
+import { BusinessAnalyticsSection } from './components/BusinessAnalyticsSection';
 import { YearRangeSelector } from './components/YearRangeSelector';
 import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
+import { clearGlobalCountryMetricsCache } from './api/worldBank';
 
 function App() {
+  const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0);
   const {
     data,
     loading,
@@ -35,13 +39,18 @@ function App() {
     setSelectedMetricIds,
     resampled,
     resampledMacro,
-  } = useCountryDashboard();
+  } = useCountryDashboard({ refreshTrigger: dataRefreshTrigger });
 
-  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'chat'>('country');
+  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'business' | 'chat'>('country');
   const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table'>('map');
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
   const [globalYearInput, setGlobalYearInput] = useState<number>(DATA_MAX_YEAR);
+
+  const handleRefreshAllData = () => {
+    clearGlobalCountryMetricsCache();
+    setDataRefreshTrigger((t) => t + 1);
+  };
 
   return (
     <div className="app-root">
@@ -53,10 +62,36 @@ function App() {
             country (2000 – latest), powered by World Bank, UN, WHO, and IMF data.
           </p>
         </div>
+        <div className="app-header-actions">
+          <button
+            type="button"
+            className="app-refresh-btn"
+            onClick={handleRefreshAllData}
+            disabled={loading}
+            title={`Refresh all data from APIs (${DATA_MIN_YEAR}–${DATA_MAX_YEAR})`}
+            aria-label="Refresh all data from APIs"
+          >
+            <span className="app-refresh-icon" aria-hidden>
+              <svg viewBox="0 0 16 16" width="18" height="18">
+                <path
+                  fill="currentColor"
+                  d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5.75.75 0 0 1-1.5 0A5 5 0 1 0 8 3v1.5a.75.75 0 0 1-1.5 0v-3A.75.75 0 0 1 7 1h3a.75.75 0 0 1 0 1.5H8.28A6.5 6.5 0 0 1 8 1.5Z"
+                />
+              </svg>
+            </span>
+            <span>Refresh all data</span>
+          </button>
+        </div>
       </header>
 
       {loading && !data && <div className="banner banner-loading">Loading country analytics…</div>}
-      {error && <div className="banner banner-error">{error}</div>}
+      {error && (
+        <div className="banner banner-error">
+          {error.includes("Cannot read properties of null") || error.includes("reading 'map'")
+            ? 'Data could not be loaded. Please try another country or refresh.'
+            : error}
+        </div>
+      )}
 
       <main className="app-main">
         <div className="main-tabs">
@@ -98,6 +133,18 @@ function App() {
           </button>
           <button
             type="button"
+            className={`main-tab ${mainTab === 'business' ? 'main-tab-active' : ''}`}
+            onClick={() => setMainTab('business')}
+          >
+            <span className="icon-16">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4.5 2A1.5 1.5 0 0 0 3 3.5v9A1.5 1.5 0 0 0 4.5 14h7a1.5 1.5 0 0 0 1.5-1.5v-7L9.5 2H4.5ZM9 3.21 12.79 7H9V3.21ZM4.5 3.5H8v4.5a.5.5 0 0 0 .5.5h4.5v4.5a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5Z" />
+              </svg>
+            </span>
+            <span>Business Analytics</span>
+          </button>
+          <button
+            type="button"
             className={`main-tab ${mainTab === 'chat' ? 'main-tab-active' : ''}`}
             onClick={() => setMainTab('chat')}
           >
@@ -125,9 +172,11 @@ function App() {
         {mainTab === 'source' ? (
           <SourceSection />
         ) : mainTab === 'pestel' ? (
-          <PESTELSection dashboardData={data} />
+          <PESTELSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
+        ) : mainTab === 'business' ? (
+          <BusinessAnalyticsSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
         ) : mainTab === 'chat' ? (
-          <ChatbotSection dashboardData={data} />
+          <ChatbotSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
         ) : mainTab === 'country' ? (
           <>
             <div className="top-filters">
@@ -147,7 +196,7 @@ function App() {
               />
             </div>
 
-            <SummarySection data={data} />
+            <SummarySection data={data} loading={loading} countryCode={countryCode} />
 
             <section className="dashboard-grid">
               <TimeSeriesSection
@@ -165,9 +214,15 @@ function App() {
                 setFrequency={setMacroFrequency}
                 resampledSeries={resampledMacro}
               />
+              <LabourUnemploymentTimelineSection
+                data={data}
+                frequency={macroFrequency}
+                setFrequency={setMacroFrequency}
+                resampledSeries={resampledMacro}
+              />
             </section>
 
-            <CountryTableSection data={data} />
+            <CountryTableSection data={data} refreshTrigger={dataRefreshTrigger} />
           </>
         ) : (
           <section className="card global-section">
@@ -270,12 +325,14 @@ function App() {
                   data={data}
                   selectedMetricId={mapMetricId}
                   year={globalYear}
+                  refreshTrigger={dataRefreshTrigger}
                 />
               </>
             ) : (
               <AllCountriesTableSection
                 year={globalYear}
                 setYear={setGlobalYear}
+                refreshTrigger={dataRefreshTrigger}
               />
             )}
           </section>

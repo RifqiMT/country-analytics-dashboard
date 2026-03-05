@@ -1,5 +1,6 @@
 import type { CountryDashboardData, CountrySummary, MetricSeries } from '../types';
 import { formatCompactNumber, formatPercentage, formatYearRange } from '../utils/numberFormat';
+import { DATA_MIN_YEAR, DATA_MAX_YEAR } from '../config';
 
 const SvgIcon = ({ d, className }: { d: string; className?: string }) => (
   <svg viewBox="0 0 16 16" aria-hidden className={className}>
@@ -154,6 +155,8 @@ function FinancialCard({
               : '–',
           yoy: getYoY(series, 'unemploymentRate'),
         },
+        { icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z', label: 'Unemployed (number)', value: formatCompactNumber(g?.unemployedTotal ?? null), yoy: getYoY(series, 'unemployedTotal') },
+        { icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z', label: 'Labour force (total)', value: formatCompactNumber(g?.labourForceTotal ?? null), yoy: getYoY(series, 'labourForceTotal') },
       ],
     },
     {
@@ -318,27 +321,36 @@ function HealthCard({
 
 interface Props {
   data?: CountryDashboardData;
+  loading?: boolean;
+  countryCode?: string;
 }
 
-export function SummarySection({ data }: Props) {
+export function SummarySection({ data, loading = false, countryCode }: Props) {
   if (!data) {
+    const noCountry = !countryCode?.trim();
     return (
       <section className="summary-section card">
         <h2 className="section-title">Global Country Snapshot</h2>
         <p className="muted">
-          Loading country highlights from trusted sources (World Bank, WHO, UN, IMF)...
+          {noCountry
+            ? 'Select a country above to view analytics and highlights from trusted sources (World Bank, WHO, UN, IMF).'
+            : 'Loading country highlights from trusted sources (World Bank, WHO, UN, IMF)...'}
         </p>
       </section>
     );
   }
 
   const { summary, range, latestSnapshot } = data;
-  const yearRangeLabel = formatYearRange(range.startYear, range.endYear);
+  const safeSummary = summary ?? { name: '–', iso2Code: '–' } as CountrySummary;
+  const yearRangeLabel = formatYearRange(
+    range?.startYear ?? DATA_MIN_YEAR,
+    range?.endYear ?? DATA_MAX_YEAR,
+  );
 
-  const g = latestSnapshot?.metrics.financial;
-  const p = latestSnapshot?.metrics.population;
-  const h = latestSnapshot?.metrics.health;
-  const geo = latestSnapshot?.metrics.geography;
+  const g = latestSnapshot?.metrics?.financial;
+  const p = latestSnapshot?.metrics?.population;
+  const h = latestSnapshot?.metrics?.health;
+  const geo = latestSnapshot?.metrics?.geography;
 
   const latestYear = latestSnapshot?.year;
 
@@ -346,8 +358,9 @@ export function SummarySection({ data }: Props) {
     if (!series || latestYear == null) return null;
     const s = series.find((m) => m.id === id);
     if (!s) return null;
-    const curr = s.points.find((pt) => pt.year === latestYear)?.value;
-    const prev = s.points.find((pt) => pt.year === latestYear - 1)?.value;
+    const points = s.points ?? [];
+    const curr = points.find((pt) => pt.year === latestYear)?.value;
+    const prev = points.find((pt) => pt.year === latestYear - 1)?.value;
     if (curr == null || prev == null || prev === 0) return null;
     const pct = ((curr - prev) / Math.abs(prev)) * 100;
     if (!Number.isFinite(pct)) return null;
@@ -365,13 +378,13 @@ export function SummarySection({ data }: Props) {
           </div>
           <div className="overview-title-row">
             <h1 className="overview-title">
-              {summary.name}
-              <span className="overview-code">({summary.iso2Code})</span>
+              {safeSummary.name}
+              <span className="overview-code">({safeSummary.iso2Code})</span>
             </h1>
             <div className="overview-flag">
               <img
-                src={`https://flagcdn.com/w80/${summary.iso2Code.toLowerCase()}.png`}
-                alt={`${summary.name} flag`}
+                src={`https://flagcdn.com/w80/${(safeSummary.iso2Code || 'xx').toLowerCase()}.png`}
+                alt={`${safeSummary.name} flag`}
               />
             </div>
           </div>
@@ -388,9 +401,9 @@ export function SummarySection({ data }: Props) {
       </div>
 
       <div className="summary-grid">
-        <GeneralCard summary={summary} geo={geo} />
-        <FinancialCard g={g} getYoY={getYoY} series={data.series.financial} />
-        <HealthCard p={p} h={h} getYoY={getYoY} series={data.series} />
+        <GeneralCard summary={safeSummary} geo={geo} />
+        <FinancialCard g={g} getYoY={getYoY} series={data.series?.financial ?? []} />
+        <HealthCard p={p} h={h} getYoY={getYoY} series={data.series ?? { financial: [], population: [], health: [] }} />
       </div>
     </section>
   );

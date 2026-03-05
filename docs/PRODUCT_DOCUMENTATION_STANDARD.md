@@ -1,6 +1,6 @@
 # Product Documentation Standard
 
-This document defines how we structure and maintain product and technical documentation for the **Country Analytics Platform**.
+This document defines how we structure and maintain product and technical documentation for the **Country Analytics Platform**. All documentation should cover product overview, product benefits, features, logic, business guidelines, tech guidelines, tech stacks, and other elements needed for product and engineering alignment.
 
 ---
 
@@ -8,9 +8,10 @@ This document defines how we structure and maintain product and technical docume
 
 The documentation standard ensures:
 
-- **Product managers and business stakeholders** can understand scope, features, and success metrics
+- **Product managers and business stakeholders** can understand scope, features, success metrics, and business rules
 - **Designers and analysts** can align on personas and user stories
 - **Engineers** can onboard quickly and understand architecture, data flow, and tech guidelines
+- **Single source of truth** for product overview, benefits, feature behaviour, data logic, and non-functional expectations
 
 ---
 
@@ -20,12 +21,12 @@ The documentation standard ensures:
 
 | Document | Owner | Purpose |
 |----------|-------|---------|
-| **README.md** | Engineering | High-level intro, quickstart, tech stack, links to deeper docs |
-| **docs/PRD.md** | Product | Single source of truth for what the product does: problem, goals, scope, features, NFRs |
+| **README.md** | Engineering | High-level intro, product overview, benefits, features, quickstart, tech stack, data sources, links to deeper docs |
+| **docs/PRD.md** | Product | Single source of truth: problem, goals, scope, features (Country, Global, PESTEL, Business Analytics, Source, Analytics Assistant), data rules, NFRs, business and tech guidelines |
 | **docs/USER_PERSONAS.md** | Product | Target audiences, goals, pain points, success criteria |
 | **docs/USER_STORIES.md** | Product | Functional requirements as user stories, grouped by feature |
 | **docs/METRICS_AND_OKRS.md** | Product | Product metrics, OKRs, instrumentation guidelines |
-| **docs/ARCHITECTURE.md** | Engineering | Data flow, component boundaries, API layer |
+| **docs/ARCHITECTURE.md** | Engineering | Data flow, component boundaries, API layer, tech stack details |
 
 ### 2.2 Supporting Documents
 
@@ -33,47 +34,60 @@ The documentation standard ensures:
 |----------|---------|
 | **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
-| **docs/PRODUCT_METRICS.md** | Data metrics (GDP, population, etc.) with formulas and WDI codes |
+| **docs/PRODUCT_METRICS.md** | Data metrics (GDP, population, etc.) with formulas, WDI codes, and source references |
 | **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs) |
 
 ---
 
 ## 3. Document Content Guidelines
 
-### 3.1 PRD (Product Requirements Document)
+### 3.1 README (Root)
+
+Must include: **Product overview** (value proposition, target audience, key views); **Product benefits** (fast insights, credible data, UX, transparency, AI-assisted analysis); **Features** summary per tab (Country, Global, PESTEL, Business Analytics, Source, Analytics Assistant); **Tech stack** (framework, language, build, HTTP, charts, map, styling; key dependencies; custom infrastructure); **Architecture** high-level flow; **Data sources & business rules**; **Getting started** (prerequisites, install, run, API keys, build); **Development guidelines** (security, tech conventions, adding features); **Documentation index**.
+
+### 3.2 PRD (Product Requirements Document)
 
 - Focus on **what** and **why**, not low-level implementation
 - Capture:
   - Exact behaviour of filters, ranges, default values
+  - All main tabs and sub-features (including **Business Analytics** – correlation scatter, causation analysis – and **PESTEL** section order and bullet requirements)
   - Data fallbacks (e.g. "use latest non-null up to selected year")
   - Edge cases (countries without data, territory fallbacks, Palestine naming)
   - Analytics Assistant cascading flow and source attribution
+  - PESTEL output structure: PESTEL Analysis chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations; at least 5 bullet points each for New Market Analysis, Key Takeaways, and Recommendations
 - Reference primary components and API modules
 
-### 3.2 User Personas
+### 3.3 User Personas
 
 - 3–5 detailed personas
 - Each persona: role, goals, pain points, success criteria, typical usage
+- Include use of **Business Analytics** (correlation scatter, causation analysis) and **PESTEL** where relevant
 - Ground in realistic scenarios (e.g. "Regional Strategy Lead for APAC")
 
-### 3.3 User Stories
+### 3.4 User Stories
 
 - Independently testable
-- Grouped by UI section: Country dashboard, Global analytics, Source tab, Analytics assistant, Time-series
+- Grouped by UI section: Country dashboard, Global analytics, PESTEL, **Business Analytics**, Source, Analytics assistant, Time-series
 - Map to personas and PRD sections
 
-### 3.4 Metrics & OKRs
+### 3.5 Metrics & OKRs
 
-- Each product metric: name, definition, owner, source, target
+- North-star and core engagement metrics; feature-level metrics (Country, Global, **Business Analytics/correlation**, Source, Chat, PESTEL)
+- Each product metric: name, definition, owner, source, target where applicable
 - OKRs with measurable key results
 - Instrumentation event naming convention
 
-### 3.5 Architecture
+### 3.6 Architecture
 
 - High-level data flow diagram (text or Mermaid)
-- Component hierarchy and responsibilities
+- Component hierarchy and responsibilities (including **Business Analytics**, PESTEL section structure)
 - API layer and external integrations
 - Analytics Assistant flow (year-based routing: Groq for period ≤ current year − 2, Tavily for recent; Tavily Web Search selectable)
+
+### 3.7 Product Metrics (Data)
+
+- How metrics feed the UI (Country, Global, Source, Chat, PESTEL)
+- Per-metric: ID, label, unit, formula, fallback; WDI codes and data quality rules
 
 ---
 
@@ -101,8 +115,9 @@ For every feature PR that changes user-visible behaviour:
 | New requirement | PRD |
 | New story or closed story | USER_STORIES |
 | New events or KPIs | METRICS_AND_OKRS |
-| New metric or source | metricMetadata.ts, PRD |
+| New metric or source | metricMetadata.ts, PRD, PRODUCT_METRICS |
 | Architecture change | ARCHITECTURE, README |
+| New tab or major feature | README, PRD, USER_PERSONAS, USER_STORIES, METRICS_AND_OKRS |
 
 ---
 
@@ -123,12 +138,12 @@ For every feature PR that changes user-visible behaviour:
 | PRD Section | Primary Components | API / Utils |
 |-------------|--------------------|-------------|
 | Country dashboard | SummarySection, CountrySelector, YearRangeSelector | worldBank.ts |
-| Time-series | TimeSeriesSection, MacroIndicatorsTimelineSection | worldBank.ts, timeSeries.ts |
+| Time-series & macro | TimeSeriesSection, MacroIndicatorsTimelineSection, LabourUnemploymentTimelineSection | worldBank.ts, timeSeries.ts |
 | Population | PopulationPieSection | worldBank.ts |
 | Country comparison | CountryTableSection | worldBank.ts |
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
-| Global correlation scatter | CorrelationScatterPlot | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
+| Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
 | PESTEL | PESTELSection | pestelContext.ts (prompt/build), LLM via chat API |
 | Source tab | SourceSection | metricMetadata.ts |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts |
@@ -136,12 +151,13 @@ For every feature PR that changes user-visible behaviour:
 ### 6.2 Reading Order
 
 1. README.md → PRD.md → USER_STORIES.md
-2. src/App.tsx (layout, tabs including PESTEL)
+2. src/App.tsx (layout, tabs: Country, Global, PESTEL, Business Analytics, Analytics Assistant, Source)
 3. src/hooks/useCountryDashboard.ts (data flow)
 4. src/api/worldBank.ts (data definitions, business rules)
 5. src/utils/chatContext.ts, chatFallback.ts (analytics assistant)
 6. src/utils/pestelContext.ts (PESTEL prompt and generation)
-7. vite-plugin-chat-api.ts (chat API flow)
+7. src/components/BusinessAnalyticsSection.tsx, CorrelationScatterPlot.tsx, correlationAnalysis.ts (Business Analytics)
+8. vite-plugin-chat-api.ts (chat API flow)
 
 **Product logic and business/tech guidelines:** See PRD (Sections 4–5, 7–8) and README Section 6.
 
@@ -164,4 +180,6 @@ When adding major functionality (e.g. new health metrics, trade data, ESG scores
 2. **USER_STORIES** – New stories tagged by persona
 3. **METRICS_AND_OKRS** – New metrics, events, OKR updates
 4. **metricMetadata.ts** – New metric entries with description, formula, sources
-5. **README** – Update feature summary if it affects product pitch
+5. **PRODUCT_METRICS** – New data metric tables and WDI codes
+6. **README** – Update feature summary if it affects product pitch
+7. **ARCHITECTURE** – Update component hierarchy and data flow if needed

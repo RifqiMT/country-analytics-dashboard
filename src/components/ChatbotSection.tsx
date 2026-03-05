@@ -26,6 +26,8 @@ interface Message {
 
 interface ChatbotSectionProps {
   dashboardData?: CountryDashboardData | null;
+  /** Increment to force reload of global data (e.g. after "Refresh all data"). */
+  refreshTrigger?: number;
 }
 
 const SUGGESTIONS = [
@@ -36,7 +38,7 @@ const SUGGESTIONS = [
   'Summary of key metrics',
 ];
 
-export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
+export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSectionProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -68,45 +70,54 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
+    const preferredYear = dashboardData?.latestSnapshot?.year ?? DATA_MAX_YEAR;
+    const yearsToLoad = Array.from(
+      { length: DATA_MAX_YEAR - DATA_MIN_YEAR + 1 },
+      (_, i) => DATA_MIN_YEAR + i,
+    );
+    const map = (rows: Awaited<ReturnType<typeof fetchGlobalCountryMetricsForYear>>) =>
+      rows.map((r) => ({
+        name: r.name,
+        iso2Code: r.iso2Code,
+        gdpNominal: r.gdpNominal,
+        gdpPPP: r.gdpPPP,
+        gdpNominalPerCapita: r.gdpNominalPerCapita,
+        gdpPPPPerCapita: r.gdpPPPPerCapita,
+        populationTotal: r.populationTotal,
+        lifeExpectancy: r.lifeExpectancy,
+        inflationCPI: r.inflationCPI,
+        govDebtPercentGDP: r.govDebtPercentGDP,
+        govDebtUSD: r.govDebtUSD,
+        interestRate: r.interestRate,
+        unemploymentRate: r.unemploymentRate,
+        unemployedTotal: r.unemployedTotal,
+        labourForceTotal: r.labourForceTotal,
+        povertyHeadcount215: r.povertyHeadcount215,
+        povertyHeadcountNational: r.povertyHeadcountNational,
+        maternalMortalityRatio: r.maternalMortalityRatio,
+        under5MortalityRate: r.under5MortalityRate,
+        undernourishmentPrevalence: r.undernourishmentPrevalence,
+        population0_14: r.population0_14,
+        population15_64: r.population15_64,
+        population65Plus: r.population65Plus,
+        landAreaKm2: r.landAreaKm2,
+        totalAreaKm2: r.totalAreaKm2,
+        eezKm2: r.eezKm2,
+        pop0_14Pct: r.pop0_14Pct,
+        pop15_64Pct: r.pop15_64Pct,
+        pop65PlusPct: r.pop65PlusPct,
+        region: r.region,
+        headOfGovernmentType: r.headOfGovernmentType,
+        governmentType: r.governmentType,
+      }));
+
+    async function loadFirstYear() {
       try {
-        const yearsToLoad = Array.from(
-          { length: DATA_MAX_YEAR - DATA_MIN_YEAR + 1 },
-          (_, i) => DATA_MIN_YEAR + i,
-        );
-        const rowsByYear = await Promise.all(
-          yearsToLoad.map((y) => fetchGlobalCountryMetricsForYear(y)),
-        );
+        const rows = await fetchGlobalCountryMetricsForYear(preferredYear);
         if (!cancelled) {
-          const map = (rows: typeof rowsByYear[0]) =>
-            rows.map((r) => ({
-              name: r.name,
-              iso2Code: r.iso2Code,
-              gdpNominal: r.gdpNominal,
-              gdpPPP: r.gdpPPP,
-              gdpNominalPerCapita: r.gdpNominalPerCapita,
-              gdpPPPPerCapita: r.gdpPPPPerCapita,
-              populationTotal: r.populationTotal,
-              lifeExpectancy: r.lifeExpectancy,
-              inflationCPI: r.inflationCPI,
-              govDebtPercentGDP: r.govDebtPercentGDP,
-              govDebtUSD: r.govDebtUSD,
-              interestRate: r.interestRate,
-              landAreaKm2: r.landAreaKm2,
-              totalAreaKm2: r.totalAreaKm2,
-              eezKm2: r.eezKm2,
-              pop0_14Pct: r.pop0_14Pct,
-              pop15_64Pct: r.pop15_64Pct,
-              pop65PlusPct: r.pop65PlusPct,
-              region: r.region,
-              headOfGovernmentType: r.headOfGovernmentType,
-              governmentType: r.governmentType,
-            }));
-          const byYear = Object.fromEntries(
-            yearsToLoad.map((y, i) => [y, map(rowsByYear[i])]),
-          );
-          setGlobalData(map(rowsByYear[0]));
-          setGlobalDataByYear(byYear);
+          const mapped = map(rows);
+          setGlobalData(mapped);
+          setGlobalDataByYear((prev) => ({ ...prev, [preferredYear]: mapped }));
         }
       } catch {
         if (!cancelled) {
@@ -115,11 +126,41 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
         }
       }
     }
-    void load();
+
+    async function loadRemainingYears() {
+      const rest = yearsToLoad.filter((y) => y !== preferredYear);
+      if (rest.length === 0) return;
+      try {
+        const rowsByYear = await Promise.all(
+          rest.map((y) => fetchGlobalCountryMetricsForYear(y)),
+        );
+        if (!cancelled) {
+          setGlobalDataByYear((prev) => {
+            const next = { ...prev };
+            rest.forEach((y, i) => {
+              next[y] = map(rowsByYear[i]);
+            });
+            return next;
+          });
+          setGlobalData((prev) => {
+            if (prev.length > 0) return prev;
+            return map(rowsByYear[rowsByYear.length - 1] ?? []);
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setGlobalDataByYear((prev) => (Object.keys(prev).length > 0 ? prev : {}));
+        }
+      }
+    }
+
+    void loadFirstYear().then(() => {
+      if (!cancelled) void loadRemainingYears();
+    });
     return () => {
       cancelled = true;
     };
-  }, [year]);
+  }, [year, refreshTrigger]);
 
   const currentProvider = getProviderForModel(model) ?? 'openai';
   const providerLabels: Record<string, string> = {
@@ -186,7 +227,8 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
             : null;
 
         const wantsYearlyTimeSeries = /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|to\s*latest|each\s*year|monthly|quarterly|weekly/i.test(trimmed);
-        const globalLimit = wantsYearlyTimeSeries ? 250 : isGroq ? 15 : 999;
+        // Use enough rows for rule-based fallback rankings (top N by metric). Groq prompt stays compact via buildChatSystemPrompt options.
+        const globalLimit = wantsYearlyTimeSeries ? 250 : 999;
         const globalDataPayload =
           globalData.length > 0
             ? globalData.slice(0, globalLimit).map((r) => ({
@@ -202,6 +244,15 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
                 govDebtPercentGDP: r.govDebtPercentGDP,
                 govDebtUSD: r.govDebtUSD,
                 interestRate: r.interestRate,
+                unemploymentRate: r.unemploymentRate,
+                unemployedTotal: r.unemployedTotal,
+                labourForceTotal: r.labourForceTotal,
+                maternalMortalityRatio: r.maternalMortalityRatio,
+                under5MortalityRate: r.under5MortalityRate,
+                undernourishmentPrevalence: r.undernourishmentPrevalence,
+                population0_14: r.population0_14,
+                population15_64: r.population15_64,
+                population65Plus: r.population65Plus,
                 landAreaKm2: r.landAreaKm2,
                 totalAreaKm2: r.totalAreaKm2,
                 eezKm2: r.eezKm2,
@@ -255,8 +306,17 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
                     govDebtPercentGDP: r.govDebtPercentGDP,
                     govDebtUSD: r.govDebtUSD,
                     interestRate: r.interestRate,
+                    unemploymentRate: r.unemploymentRate,
+                    unemployedTotal: r.unemployedTotal,
+                    labourForceTotal: r.labourForceTotal,
                     povertyHeadcount215: r.povertyHeadcount215,
                     povertyHeadcountNational: r.povertyHeadcountNational,
+                    maternalMortalityRatio: r.maternalMortalityRatio,
+                    under5MortalityRate: r.under5MortalityRate,
+                    undernourishmentPrevalence: r.undernourishmentPrevalence,
+                    population0_14: r.population0_14,
+                    population15_64: r.population15_64,
+                    population65Plus: r.population65Plus,
                     landAreaKm2: r.landAreaKm2,
                     totalAreaKm2: r.totalAreaKm2,
                     eezKm2: r.eezKm2,
@@ -500,7 +560,15 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
             </div>
           ) : (
             <div className="chatbot-message-list">
-              {messages.map((m) => (
+              {messages.map((m, index) => {
+                const isRankingFallback =
+                  m.role === 'assistant' &&
+                  m.source === 'Dashboard data' &&
+                  (m.content.includes('try your question again') || m.content.includes('Ranking data'));
+                const lastUserMessageBefore = isRankingFallback
+                  ? [...messages.slice(0, index)].reverse().find((msg) => msg.role === 'user')?.content
+                  : undefined;
+                return (
                 <div
                   key={m.id}
                   className={`chatbot-message chatbot-message-${m.role}${m.content.includes("couldn't process") ? ' chatbot-message-error' : ''}`}
@@ -536,13 +604,27 @@ export function ChatbotSection({ dashboardData }: ChatbotSectionProps) {
                             Source: {m.source}
                           </div>
                         )}
+                        {lastUserMessageBefore && (
+                          <div className="chatbot-try-again-wrap">
+                            <button
+                              type="button"
+                              className="chatbot-try-again-btn"
+                              onClick={() => sendMessage(lastUserMessageBefore)}
+                              disabled={isLoading}
+                              aria-label="Try again with same question"
+                            >
+                              Try again
+                            </button>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <p className="chatbot-message-user-text">{m.content}</p>
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {isLoading && (
                 <div className="chatbot-message chatbot-message-assistant chatbot-loading">
                   <div className="chatbot-message-avatar">

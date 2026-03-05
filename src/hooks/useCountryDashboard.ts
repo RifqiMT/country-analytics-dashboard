@@ -8,6 +8,8 @@ import { useToast } from '../components/ToastProvider';
 interface UseCountryDashboardOptions {
   initialCountryCode?: string;
   initialFrequency?: Frequency;
+  /** Increment to force refetch of country dashboard data (e.g. after "Refresh all data"). */
+  refreshTrigger?: number;
 }
 
 interface UseCountryDashboardResult {
@@ -38,6 +40,7 @@ export function useCountryDashboard(
   options?: UseCountryDashboardOptions,
 ): UseCountryDashboardResult {
   const { showToast, dismissToast } = useToast();
+  const refreshTrigger = options?.refreshTrigger ?? 0;
   const [countryCode, setCountryCode] = useState(
     options?.initialCountryCode ?? DEFAULT_COUNTRY,
   );
@@ -58,6 +61,13 @@ export function useCountryDashboard(
   const [error, setError] = useState<string>();
 
   useEffect(() => {
+    const code = countryCode?.trim();
+    if (!code) {
+      setData(undefined);
+      setError(undefined);
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -68,7 +78,7 @@ export function useCountryDashboard(
       });
       try {
         const result = await fetchCountryDashboardData(
-          countryCode,
+          code,
           startYear,
           endYear,
         );
@@ -103,29 +113,31 @@ export function useCountryDashboard(
     return () => {
       cancelled = true;
     };
-  }, [countryCode, startYear, endYear, dismissToast, showToast]);
+  }, [countryCode, startYear, endYear, refreshTrigger, dismissToast, showToast]);
 
-  const resampled = data
+  const resampled = data?.series
     ? {
-        financial: data.series.financial.map((s) =>
+        financial: (data.series.financial ?? []).map((s) =>
           resampleSeries(s, frequency),
         ),
-        population: data.series.population.map((s) =>
+        population: (data.series.population ?? []).map((s) =>
           resampleSeries(s, frequency),
         ),
-        health: data.series.health.map((s) => resampleSeries(s, frequency)),
+        health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, frequency),
+        ),
       }
     : undefined;
 
-  const resampledMacro = data
+  const resampledMacro = data?.series
     ? {
-        financial: data.series.financial.map((s) =>
+        financial: (data.series.financial ?? []).map((s) =>
           resampleSeries(s, macroFrequency),
         ),
-        population: data.series.population.map((s) =>
+        population: (data.series.population ?? []).map((s) =>
           resampleSeries(s, macroFrequency),
         ),
-        health: data.series.health.map((s) =>
+        health: (data.series.health ?? []).map((s) =>
           resampleSeries(s, macroFrequency),
         ),
       }

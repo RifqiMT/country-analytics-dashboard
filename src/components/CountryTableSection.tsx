@@ -5,9 +5,11 @@ import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 
 interface Props {
   data?: CountryDashboardData;
+  /** Increment to force refetch of global comparison data (e.g. after "Refresh all data"). */
+  refreshTrigger?: number;
 }
 
-export function CountryTableSection({ data }: Props) {
+export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   if (!data?.latestSnapshot) {
     return (
       <section className="card table-section">
@@ -52,7 +54,7 @@ export function CountryTableSection({ data }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [snapshot.year]);
+  }, [snapshot.year, refreshTrigger]);
 
   const computeAggregates = (
     key: keyof GlobalCountryMetricsRow,
@@ -83,14 +85,15 @@ export function CountryTableSection({ data }: Props) {
     let yoyAvg: string | null = null;
     let yoyGlobal: string | null = null;
     const series = (() => {
-      if (seriesId === 'populationTotal') return data.series.population[0];
-      const health = data.series.health.find((s) => s.id === seriesId);
+      if (seriesId === 'populationTotal') return (data.series?.population ?? [])[0];
+      const health = (data.series?.health ?? []).find((s) => s.id === seriesId);
       if (health) return health;
-      return data.series.financial.find((s) => s.id === seriesId);
+      return (data.series?.financial ?? []).find((s) => s.id === seriesId);
     })();
     if (series) {
-      const curr = series.points.find((p) => p.year === snapshot.year)?.value;
-      const prev = series.points.find((p) => p.year === snapshot.year - 1)
+      const points = series.points ?? [];
+      const curr = points.find((p) => p.year === snapshot.year)?.value;
+      const prev = points.find((p) => p.year === snapshot.year - 1)
         ?.value;
       if (curr != null && prev != null && prev !== 0) {
         const pct = ((curr - prev) / Math.abs(prev)) * 100;
@@ -136,7 +139,7 @@ export function CountryTableSection({ data }: Props) {
 
     return {
       selected: series
-        ? series.points.find((p) => p.year === snapshot.year)?.value ?? null
+        ? (series.points ?? []).find((p) => p.year === snapshot.year)?.value ?? null
         : null,
       avgCountry: avgCurr,
       global: globalValue,
@@ -181,6 +184,19 @@ export function CountryTableSection({ data }: Props) {
     'interestRate',
     { globalAsAverage: true },
   );
+  const unemploymentRateAgg = computeAggregates(
+    'unemploymentRate',
+    'unemploymentRate',
+    { globalAsAverage: true },
+  );
+  const unemployedTotalAgg = computeAggregates(
+    'unemployedTotal',
+    'unemployedTotal',
+  );
+  const labourForceTotalAgg = computeAggregates(
+    'labourForceTotal',
+    'labourForceTotal',
+  );
   const populationAgg = computeAggregates(
     'populationTotal',
     'populationTotal',
@@ -199,7 +215,7 @@ export function CountryTableSection({ data }: Props) {
     'pop65PlusShare',
   );
 
-  const ageGroups = snapshot.metrics.population.ageBreakdown?.groups ?? [];
+  const ageGroups = snapshot.metrics?.population?.ageBreakdown?.groups ?? [];
 
   return (
     <section className="card table-section">
@@ -495,6 +511,105 @@ export function CountryTableSection({ data }: Props) {
                 {interestRateAgg.yoyGlobal && (
                   <div className="table-cell-yoy">
                     {interestRateAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Unemployment rate (% of labour force)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(unemploymentRateAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {unemploymentRateAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(unemploymentRateAgg.avgCountry)}
+                </div>
+                {unemploymentRateAgg.yoyAvg && (
+                  <div className="table-cell-yoy">
+                    {unemploymentRateAgg.yoyAvg}
+                  </div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatPercentage(unemploymentRateAgg.global)}
+                </div>
+                {unemploymentRateAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {unemploymentRateAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Unemployed (number of people)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(unemployedTotalAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {unemployedTotalAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(unemployedTotalAgg.avgCountry)}
+                </div>
+                {unemployedTotalAgg.yoyAvg && (
+                  <div className="table-cell-yoy">
+                    {unemployedTotalAgg.yoyAvg}
+                  </div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(unemployedTotalAgg.global)}
+                </div>
+                {unemployedTotalAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {unemployedTotalAgg.yoyGlobal}
+                  </div>
+                )}
+              </td>
+            </tr>
+            <tr>
+              <td>Labour force (total)</td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(labourForceTotalAgg.selected)}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {labourForceTotalAgg.yoySelected ?? '–'}
+                </div>
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(labourForceTotalAgg.avgCountry)}
+                </div>
+                {labourForceTotalAgg.yoyAvg && (
+                  <div className="table-cell-yoy">
+                    {labourForceTotalAgg.yoyAvg}
+                  </div>
+                )}
+              </td>
+              <td className="numeric-cell">
+                <div className="table-cell-main">
+                  {formatCompactNumber(labourForceTotalAgg.global)}
+                </div>
+                {labourForceTotalAgg.yoyGlobal && (
+                  <div className="table-cell-yoy">
+                    {labourForceTotalAgg.yoyGlobal}
                   </div>
                 )}
               </td>

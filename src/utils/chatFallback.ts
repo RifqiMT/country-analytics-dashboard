@@ -19,8 +19,17 @@ export interface GlobalCountryRowForFallback {
   govDebtPercentGDP?: number | null;
   govDebtUSD?: number | null;
   interestRate?: number | null;
+  unemploymentRate?: number | null;
+  unemployedTotal?: number | null;
+  labourForceTotal?: number | null;
   povertyHeadcount215?: number | null;
   povertyHeadcountNational?: number | null;
+  maternalMortalityRatio?: number | null;
+  under5MortalityRate?: number | null;
+  undernourishmentPrevalence?: number | null;
+  population0_14?: number | null;
+  population15_64?: number | null;
+  population65Plus?: number | null;
   landAreaKm2?: number | null;
   totalAreaKm2?: number | null;
   eezKm2?: number | null;
@@ -56,6 +65,9 @@ export interface DashboardSnapshotForFallback {
       govDebtPercentGDP?: number | null;
       govDebtUSD?: number | null;
       interestRate?: number | null;
+      unemploymentRate?: number | null;
+      unemployedTotal?: number | null;
+      labourForceTotal?: number | null;
       povertyHeadcount215?: number | null;
       povertyHeadcountNational?: number | null;
     };
@@ -65,7 +77,12 @@ export interface DashboardSnapshotForFallback {
         groups?: Array<{ id: string; percentageOfPopulation?: number | null }>;
       };
     };
-    health?: { lifeExpectancy?: number | null };
+    health?: {
+      lifeExpectancy?: number | null;
+      maternalMortalityRatio?: number | null;
+      under5MortalityRate?: number | null;
+      undernourishmentPrevalence?: number | null;
+    };
     geography?: {
       landAreaKm2?: number | null;
       totalAreaKm2?: number | null;
@@ -155,6 +172,9 @@ const METRIC_SYNONYMS: Array<{ pattern: RegExp; key: keyof GlobalCountryRowForFa
   { pattern: /(government\s*)?debt\s*(%|percent|of gdp)/i, key: 'govDebtPercentGDP', label: 'Government debt (% GDP)', format: (v) => formatPercentage(v) },
   { pattern: /debt\s*(in\s*)?(usd|dollars?)|government debt usd/i, key: 'govDebtUSD', label: 'Government debt (USD)', format: (v) => formatVal(v, '') + ' USD' },
   { pattern: /interest\s*rate|lending\s*rate|borrowing cost/i, key: 'interestRate', label: 'Lending interest rate', format: (v) => formatPercentage(v) },
+  { pattern: /unemployment\s*rate|jobless\s*rate|unemployment\s*%/i, key: 'unemploymentRate', label: 'Unemployment rate (%)', format: (v) => formatPercentage(v) },
+  { pattern: /unemployed\s*(people|persons?|number)|number\s*of\s*unemployed|people\s*unemployed/i, key: 'unemployedTotal', label: 'Unemployed (number)', format: (v) => formatVal(v, '') + ' people' },
+  { pattern: /labour\s*force|labor\s*force|workforce\s*size|total\s*labour|total\s*labor/i, key: 'labourForceTotal', label: 'Labour force (total)', format: (v) => formatVal(v, '') + ' people' },
   { pattern: /poverty\s*\$2\.15|poverty\s*2\.15|2\.15.*poverty|extreme poverty|poverty\s*headcount/i, key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', format: (v) => formatPercentage(v) },
   { pattern: /poverty\s*national|national\s*poverty\s*line|poverty\s*line/i, key: 'povertyHeadcountNational', label: 'Poverty (national line, %)', format: (v) => formatPercentage(v) },
   { pattern: /poverty|poor\s*people|people in poverty/i, key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', format: (v) => formatPercentage(v) },
@@ -164,6 +184,12 @@ const METRIC_SYNONYMS: Array<{ pattern: RegExp; key: keyof GlobalCountryRowForFa
   { pattern: /age\s*0[- ]?14|youth|children\s*%/i, key: 'pop0_14Pct', label: 'Age 0–14 (% of population)', format: (v) => formatPercentage(v) },
   { pattern: /age\s*15[- ]?64|working\s*age|labor\s*force\s*%/i, key: 'pop15_64Pct', label: 'Age 15–64 (% of population)', format: (v) => formatPercentage(v) },
   { pattern: /age\s*65|elderly|senior|65\+|old age/i, key: 'pop65PlusPct', label: 'Age 65+ (% of population)', format: (v) => formatPercentage(v) },
+  { pattern: /maternal\s*mortality|maternal\s*death|mmr\b|mothers?\s*dying|pregnancy\s*death/i, key: 'maternalMortalityRatio', label: 'Maternal mortality (per 100k)', format: (v) => (v != null ? formatVal(v, '') + ' per 100k' : 'N/A') },
+  { pattern: /under[- ]?5\s*mortality|child\s*mortality|under\s*five|u5mr|infant\s*mortality|under5/i, key: 'under5MortalityRate', label: 'Under-5 mortality (per 1k)', format: (v) => (v != null ? formatVal(v, '') + ' per 1k' : 'N/A') },
+  { pattern: /undernourish|malnutrition|hunger|food\s*insecurity|undernutrition/i, key: 'undernourishmentPrevalence', label: 'Undernourishment (%)', format: (v) => formatPercentage(v) },
+  { pattern: /population\s*0[- ]?14|youth\s*population|children\s*population|pop\s*0[- ]?14\s*(count|number)/i, key: 'population0_14', label: 'Population 0–14 (count)', format: (v) => formatVal(v, '') + ' people' },
+  { pattern: /population\s*15[- ]?64|working[- ]?age\s*population|pop\s*15[- ]?64\s*(count|number)/i, key: 'population15_64', label: 'Population 15–64 (count)', format: (v) => formatVal(v, '') + ' people' },
+  { pattern: /population\s*65|elderly\s*population|senior\s*population|pop\s*65\+\s*(count|number)/i, key: 'population65Plus', label: 'Population 65+ (count)', format: (v) => formatVal(v, '') + ' people' },
 ];
 
 function parseSingleMetricIntent(q: string): (typeof METRIC_SYNONYMS)[0] | null {
@@ -191,6 +217,9 @@ const ALL_METRIC_DEFS: Array<{
   { key: 'govDebtPercentGDP', label: 'Gov debt (% GDP)', patterns: [/debt\s*(%|percent|of gdp)|gov.*debt\s*%/i], format: (r) => formatPercentage(r.govDebtPercentGDP ?? null) },
   { key: 'govDebtUSD', label: 'Gov debt (USD)', patterns: [/debt\s*(usd|dollars?)|government debt usd/i], format: (r) => formatVal(r.govDebtUSD ?? null, '') + ' USD' },
   { key: 'interestRate', label: 'Interest rate', patterns: [/interest\s*rate|lending\s*rate|borrowing cost/i], format: (r) => formatPercentage(r.interestRate ?? null) },
+  { key: 'unemploymentRate', label: 'Unemployment rate (%)', patterns: [/unemployment\s*rate|jobless\s*rate|unemployment\s*%/i], format: (r) => formatPercentage(r.unemploymentRate ?? null) },
+  { key: 'unemployedTotal', label: 'Unemployed (number)', patterns: [/unemployed\s*(people|persons?|number)|number\s*of\s*unemployed|people\s*unemployed/i], format: (r) => formatVal(r.unemployedTotal ?? null, '') + ' people' },
+  { key: 'labourForceTotal', label: 'Labour force (total)', patterns: [/labour\s*force|labor\s*force|workforce\s*size|total\s*labour|total\s*labor/i], format: (r) => formatVal(r.labourForceTotal ?? null, '') + ' people' },
   { key: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', patterns: [/poverty\s*\$2\.15|poverty\s*2\.15|2\.15.*poverty|extreme poverty|poverty\s*headcount|poverty|poor\s*people|people in poverty/i], format: (r) => formatPercentage(r.povertyHeadcount215 ?? null) },
   { key: 'povertyHeadcountNational', label: 'Poverty (national line, %)', patterns: [/poverty\s*national|national\s*poverty\s*line|poverty\s*line/i], format: (r) => formatPercentage(r.povertyHeadcountNational ?? null) },
   { key: 'landAreaKm2', label: 'Land area', patterns: [/land\s*area|land size|land\s*km/i], format: (r) => (r.landAreaKm2 != null ? formatVal(r.landAreaKm2, '') + ' km²' : 'N/A') },
@@ -199,6 +228,12 @@ const ALL_METRIC_DEFS: Array<{
   { key: 'pop0_14Pct', label: 'Age 0–14%', patterns: [/age\s*0[- ]?14|youth|children\s*%/i], format: (r) => formatPercentage(r.pop0_14Pct ?? null) },
   { key: 'pop15_64Pct', label: 'Age 15–64%', patterns: [/age\s*15[- ]?64|working\s*age|labor\s*force/i], format: (r) => formatPercentage(r.pop15_64Pct ?? null) },
   { key: 'pop65PlusPct', label: 'Age 65+%', patterns: [/age\s*65|elderly|senior|65\+|old age/i], format: (r) => formatPercentage(r.pop65PlusPct ?? null) },
+  { key: 'maternalMortalityRatio', label: 'Maternal mortality (per 100k)', patterns: [/maternal\s*mortality|maternal\s*death|mmr\b|mothers?\s*dying|pregnancy\s*death/i], format: (r) => (r.maternalMortalityRatio != null ? formatVal(r.maternalMortalityRatio, '') + ' per 100k' : 'N/A') },
+  { key: 'under5MortalityRate', label: 'Under-5 mortality (per 1k)', patterns: [/under[- ]?5\s*mortality|child\s*mortality|under\s*five|u5mr|infant\s*mortality|under5/i], format: (r) => (r.under5MortalityRate != null ? formatVal(r.under5MortalityRate, '') + ' per 1k' : 'N/A') },
+  { key: 'undernourishmentPrevalence', label: 'Undernourishment (%)', patterns: [/undernourish|malnutrition|hunger|food\s*insecurity|undernutrition/i], format: (r) => formatPercentage(r.undernourishmentPrevalence ?? null) },
+  { key: 'population0_14', label: 'Population 0–14 (count)', patterns: [/population\s*0[- ]?14|youth\s*population|children\s*population|pop\s*0[- ]?14\s*(count|number)/i], format: (r) => (r.population0_14 != null ? formatVal(r.population0_14, '') + ' people' : 'N/A') },
+  { key: 'population15_64', label: 'Population 15–64 (count)', patterns: [/population\s*15[- ]?64|working[- ]?age\s*population|pop\s*15[- ]?64\s*(count|number)/i], format: (r) => (r.population15_64 != null ? formatVal(r.population15_64, '') + ' people' : 'N/A') },
+  { key: 'population65Plus', label: 'Population 65+ (count)', patterns: [/population\s*65|elderly\s*population|senior\s*population|pop\s*65\+\s*(count|number)/i], format: (r) => (r.population65Plus != null ? formatVal(r.population65Plus, '') + ' people' : 'N/A') },
   { key: 'governmentType', label: 'Gov type', patterns: [/government\s*type|gov\s*type|political system|form of government|political/i], format: (r) => r.governmentType ?? 'N/A' },
   { key: 'headOfGovernmentType', label: 'Head of gov', patterns: [/head\s*of\s*government|head\s*of\s*gov|leader|head of state/i], format: (r) => r.headOfGovernmentType ?? 'N/A' },
   { key: 'region', label: 'Region', patterns: [/region|geographic\s*region/i], format: (r) => r.region ?? 'N/A' },
@@ -221,7 +256,10 @@ function parseAllRequestedMetrics(q: string): Array<{ key: MetricKey; label: str
 type RankingMetric =
   | 'gdpNominal' | 'gdpPPP' | 'gdpNominalPerCapita' | 'gdpPPPPerCapita'
   | 'populationTotal' | 'lifeExpectancy' | 'inflationCPI' | 'govDebtPercentGDP'
-  | 'interestRate' | 'povertyHeadcount215' | 'povertyHeadcountNational'
+  | 'interestRate' | 'unemploymentRate' | 'unemployedTotal' | 'labourForceTotal'
+  | 'povertyHeadcount215' | 'povertyHeadcountNational'
+  | 'maternalMortalityRatio' | 'under5MortalityRate' | 'undernourishmentPrevalence'
+  | 'population0_14' | 'population15_64' | 'population65Plus'
   | 'landAreaKm2' | 'totalAreaKm2' | 'eezKm2';
 
 function parseRankingRequest(q: string): {
@@ -271,6 +309,15 @@ function parseRankingRequest(q: string): {
   if (/inflation|by inflation/i.test(q)) return { isRanking: true, n, direction, metric: 'inflationCPI', region };
   if (/debt|gov.*debt|by debt/i.test(q)) return { isRanking: true, n, direction, metric: 'govDebtPercentGDP', region };
   if (/interest rate|by interest/i.test(q)) return { isRanking: true, n, direction, metric: 'interestRate', region };
+  if (/unemployment\s*rate|by unemployment\s*rate|jobless\s*rate/i.test(q)) return { isRanking: true, n, direction, metric: 'unemploymentRate', region };
+  if (/unemployed|number of unemployed|by unemployed|most unemployed/i.test(q)) return { isRanking: true, n, direction, metric: 'unemployedTotal', region };
+  if (/labour\s*force|labor\s*force|workforce|by labour|by labor/i.test(q)) return { isRanking: true, n, direction, metric: 'labourForceTotal', region };
+  if (/maternal\s*mortality|maternal\s*death|mmr|mothers?\s*dying|pregnancy\s*death|by maternal/i.test(q)) return { isRanking: true, n, direction, metric: 'maternalMortalityRatio', region };
+  if (/under[- ]?5\s*mortality|child\s*mortality|under\s*five|u5mr|infant\s*mortality|by under.?5|by child mortality/i.test(q)) return { isRanking: true, n, direction, metric: 'under5MortalityRate', region };
+  if (/undernourish|malnutrition|hunger|food\s*insecurity|by undernourish|by malnutrition/i.test(q)) return { isRanking: true, n, direction, metric: 'undernourishmentPrevalence', region };
+  if (/population\s*0[- ]?14|youth\s*population|children\s*population|by youth population/i.test(q)) return { isRanking: true, n, direction, metric: 'population0_14', region };
+  if (/population\s*15[- ]?64|working[- ]?age\s*population|by working age/i.test(q)) return { isRanking: true, n, direction, metric: 'population15_64', region };
+  if (/population\s*65|elderly\s*population|senior\s*population|by elderly|by senior population/i.test(q)) return { isRanking: true, n, direction, metric: 'population65Plus', region };
   if (/poverty|by poverty|poorest countries|richest.*poverty|poverty rate/i.test(q)) return { isRanking: true, n, direction, metric: 'povertyHeadcount215', region };
   if (/land area|by land|land area/i.test(q)) return { isRanking: true, n, direction, metric: 'landAreaKm2', region };
   if (/total area|surface area|by area/i.test(q)) return { isRanking: true, n, direction, metric: 'totalAreaKm2', region };
@@ -320,6 +367,9 @@ function formatCountryOverview(
     `- Life expectancy: ${formatVal(r.lifeExpectancy ?? null, '')} years`,
     `- Inflation: ${formatPercentage(r.inflationCPI ?? null)}`,
     `- Lending interest rate: ${formatPercentage(r.interestRate ?? null)}`,
+    `- Unemployment rate: ${formatPercentage(r.unemploymentRate ?? null)}`,
+    ...(r.unemployedTotal != null ? [`- Unemployed (number): ${formatVal(r.unemployedTotal, '')} people`] : []),
+    ...(r.labourForceTotal != null ? [`- Labour force (total): ${formatVal(r.labourForceTotal, '')} people`] : []),
     `- Government debt: ${formatPercentage(r.govDebtPercentGDP ?? null)} of GDP`,
     `- Government debt: ${formatVal(r.govDebtUSD ?? null, '')} USD`,
     ...(r.povertyHeadcount215 != null ? [`- Poverty ($2.15/day): ${formatPercentage(r.povertyHeadcount215)}`] : []),
@@ -327,6 +377,12 @@ function formatCountryOverview(
     ...(r.pop0_14Pct != null ? [`- Age 0–14: ${formatPercentage(r.pop0_14Pct)} of population`] : []),
     ...(r.pop15_64Pct != null ? [`- Age 15–64: ${formatPercentage(r.pop15_64Pct)} of population`] : []),
     ...(r.pop65PlusPct != null ? [`- Age 65+: ${formatPercentage(r.pop65PlusPct)} of population`] : []),
+    ...(r.population0_14 != null ? [`- Population 0–14 (count): ${formatVal(r.population0_14, '')} people`] : []),
+    ...(r.population15_64 != null ? [`- Population 15–64 (count): ${formatVal(r.population15_64, '')} people`] : []),
+    ...(r.population65Plus != null ? [`- Population 65+ (count): ${formatVal(r.population65Plus, '')} people`] : []),
+    ...(r.maternalMortalityRatio != null ? [`- Maternal mortality: ${formatVal(r.maternalMortalityRatio, '')} per 100k live births`] : []),
+    ...(r.under5MortalityRate != null ? [`- Under-5 mortality: ${formatVal(r.under5MortalityRate, '')} per 1k live births`] : []),
+    ...(r.undernourishmentPrevalence != null ? [`- Undernourishment: ${formatPercentage(r.undernourishmentPrevalence)} of population`] : []),
     `- Land area: ${r.landAreaKm2 != null ? formatVal(r.landAreaKm2, '') + ' km²' : 'N/A'}`,
     `- Total area: ${r.totalAreaKm2 != null ? formatVal(r.totalAreaKm2, '') + ' km²' : 'N/A'}`,
     `- EEZ: ${r.eezKm2 != null ? formatVal(r.eezKm2, '') + ' km²' : 'N/A'}`,
@@ -348,7 +404,7 @@ export function getFallbackResponse(
   const q = normalizeQuery(userMessage);
 
   if (OUT_OF_SCOPE_FALLBACK.test(q)) {
-    return `I can help with metrics and data in this dashboard (GDP, population, inflation, debt, poverty, life expectancy, area, EEZ, etc.). For questions about religion, culture, leaders, or other general knowledge, use the LLM. For full conversational answers, add your OpenAI API key in Settings.`;
+    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about religion, culture, or current leaders, use the LLM. For full conversational answers, add your API key in Settings.`;
   }
 
   const isSummary = matchesQuery(q, ['summary', 'summarize', 'brief', 'overview in brief']);
@@ -588,6 +644,9 @@ export function getFallbackResponse(
             govDebtPercentGDP: row.govDebtPercentGDP,
             govDebtUSD: row.govDebtUSD,
             interestRate: row.interestRate,
+            unemploymentRate: row.unemploymentRate,
+            unemployedTotal: row.unemployedTotal,
+            labourForceTotal: row.labourForceTotal,
             povertyHeadcount215: row.povertyHeadcount215,
             povertyHeadcountNational: row.povertyHeadcountNational,
           },
@@ -595,7 +654,12 @@ export function getFallbackResponse(
             total: row.populationTotal,
             ageBreakdown: ageGroups.length ? { groups: ageGroups } : undefined,
           },
-          health: { lifeExpectancy: row.lifeExpectancy },
+          health: {
+            lifeExpectancy: row.lifeExpectancy,
+            maternalMortalityRatio: row.maternalMortalityRatio,
+            under5MortalityRate: row.under5MortalityRate,
+            undernourishmentPrevalence: row.undernourishmentPrevalence,
+          },
           geography: {
             landAreaKm2: row.landAreaKm2,
             totalAreaKm2: row.totalAreaKm2,
@@ -691,6 +755,30 @@ export function getFallbackResponse(
 
     if (matchesQuery(q, ['interest rate', 'lending rate'])) {
       return `**${countryName} – Lending interest rate** (${year}): ${formatPercentage(f?.interestRate ?? null)}.`;
+    }
+
+    if (matchesQuery(q, ['unemployment rate', 'jobless rate'])) {
+      return `**${countryName} – Unemployment rate** (${year}): ${formatPercentage(f?.unemploymentRate ?? null)}.`;
+    }
+
+    if (matchesQuery(q, ['unemployed', 'number of unemployed', 'people unemployed'])) {
+      return `**${countryName} – Unemployed (number)** (${year}): ${formatVal(f?.unemployedTotal ?? null, '')} people.`;
+    }
+
+    if (matchesQuery(q, ['labour force', 'labor force', 'workforce', 'total labour', 'total labor'])) {
+      return `**${countryName} – Labour force (total)** (${year}): ${formatVal(f?.labourForceTotal ?? null, '')} people.`;
+    }
+
+    if (matchesQuery(q, ['maternal mortality', 'maternal death', 'mmr', 'mothers dying', 'pregnancy death'])) {
+      return `**${countryName} – Maternal mortality** (${year}): ${formatVal(h?.maternalMortalityRatio ?? null, '')} per 100,000 live births.`;
+    }
+
+    if (matchesQuery(q, ['under-5 mortality', 'under 5 mortality', 'child mortality', 'under five', 'u5mr', 'infant mortality'])) {
+      return `**${countryName} – Under-5 mortality** (${year}): ${formatVal(h?.under5MortalityRate ?? null, '')} per 1,000 live births.`;
+    }
+
+    if (matchesQuery(q, ['undernourishment', 'malnutrition', 'hunger', 'food insecurity'])) {
+      return `**${countryName} – Undernourishment** (${year}): ${formatPercentage(h?.undernourishmentPrevalence ?? null)} of population.`;
     }
 
     if (matchesQuery(q, ['poverty', 'poor', 'poverty rate'])) {
@@ -862,8 +950,17 @@ export function getFallbackResponse(
       inflationCPI: 'Inflation',
       govDebtPercentGDP: 'Government debt (% GDP)',
       interestRate: 'Lending interest rate',
+      unemploymentRate: 'Unemployment rate (%)',
+      unemployedTotal: 'Unemployed (number)',
+      labourForceTotal: 'Labour force (total)',
       povertyHeadcount215: 'Poverty ($2.15/day, %)',
       povertyHeadcountNational: 'Poverty (national line, %)',
+      maternalMortalityRatio: 'Maternal mortality (per 100k)',
+      under5MortalityRate: 'Under-5 mortality (per 1k)',
+      undernourishmentPrevalence: 'Undernourishment (%)',
+      population0_14: 'Population 0–14 (count)',
+      population15_64: 'Population 15–64 (count)',
+      population65Plus: 'Population 65+ (count)',
       landAreaKm2: 'Land area',
       totalAreaKm2: 'Total area',
       eezKm2: 'EEZ',
@@ -880,9 +977,11 @@ export function getFallbackResponse(
     const slice = sorted.slice(0, n);
     const formatMetricVal = (r: GlobalCountryRowForFallback) => {
       const v = r[metric];
-      if (metric === 'inflationCPI' || metric === 'govDebtPercentGDP' || metric === 'interestRate' || metric === 'povertyHeadcount215' || metric === 'povertyHeadcountNational') return formatPercentage(v ?? null);
+      if (metric === 'inflationCPI' || metric === 'govDebtPercentGDP' || metric === 'interestRate' || metric === 'unemploymentRate' || metric === 'povertyHeadcount215' || metric === 'povertyHeadcountNational' || metric === 'undernourishmentPrevalence') return formatPercentage(v ?? null);
       if (metric === 'lifeExpectancy') return formatVal(v ?? null, '') + ' years';
-      if (metric === 'populationTotal') return formatVal(v ?? null, '');
+      if (metric === 'populationTotal' || metric === 'unemployedTotal' || metric === 'labourForceTotal' || metric === 'population0_14' || metric === 'population15_64' || metric === 'population65Plus') return formatVal(v ?? null, '');
+      if (metric === 'maternalMortalityRatio') return (v != null ? formatVal(v, '') + ' per 100k' : 'N/A');
+      if (metric === 'under5MortalityRate') return (v != null ? formatVal(v, '') + ' per 1k' : 'N/A');
       if (metric === 'landAreaKm2' || metric === 'totalAreaKm2' || metric === 'eezKm2') return formatVal(v ?? null, '') + ' km²';
       if (metric === 'gdpNominal' || metric === 'gdpPPP' || metric === 'gdpNominalPerCapita' || metric === 'gdpPPPPerCapita') return formatVal(v ?? null, '') + (metric === 'gdpPPP' || metric === 'gdpPPPPerCapita' ? ' Intl$' : ' USD');
       return formatVal(v ?? null, '');
@@ -914,6 +1013,10 @@ export function getFallbackResponse(
       }
     }
     lines.push(`Total: ${sorted.length} countries with data. Use the **Global tab** for more.`);
+    if (sorted.length < 30) {
+      lines.push('');
+      lines.push('_Tip: For the full global ranking, open the **Global** tab → Table view → sort by the desired metric._');
+    }
     return lines.join('\n');
   }
 
@@ -957,7 +1060,7 @@ export function getFallbackResponse(
   }
 
   if (rankingReq && !effectiveData?.length) {
-    return `**Ranking data**\n\nTo view top/low country rankings, use the **Global tab** (Table view) to sort by any metric. The assistant can provide rankings when data is loaded.`;
+    return `**Ranking data**\n\nGlobal data may still be loading. Please wait a few seconds and **try your question again**—the assistant will then return the actual top or lowest countries by the metric you asked for.\n\nYou can also open the **Global** tab → **Table** view and sort by the metric (e.g. GDP, Population, Life expectancy) to see the full list immediately.`;
   }
 
   if (matchesQuery(q, ['world average', 'global average', 'worldwide average']) && effectiveData && effectiveData.length > 0) {
@@ -1042,6 +1145,15 @@ export function getFallbackResponse(
   if (matchesQuery(q, ['life expectancy']))
     return `**Life expectancy at birth**: Number of years a newborn would live if current mortality patterns stayed the same. Calculated from period life expectancy in mortality tables. Unit: years. Source: World Bank WDI.`;
 
+  if (matchesQuery(q, ['maternal mortality', 'maternal death', 'mmr']))
+    return `**Maternal mortality ratio**: Number of women who die from pregnancy-related causes while pregnant or within 42 days of pregnancy termination, per 100,000 live births. Aligned with SDG 3.1. Estimated jointly by WHO, UNICEF, UNFPA, World Bank and UN DESA. Unit: per 100,000 live births. Source: World Bank WDI.`;
+
+  if (matchesQuery(q, ['under-5 mortality', 'under 5 mortality', 'child mortality', 'u5mr']))
+    return `**Under-5 mortality rate**: Probability per 1,000 that a newborn will die before reaching age five, if subject to current age-specific mortality rates. SDG indicator. Estimated by UN Inter-agency Group (UNICEF, WHO, World Bank, UN DESA). Unit: per 1,000 live births. Source: World Bank WDI.`;
+
+  if (matchesQuery(q, ['undernourishment', 'malnutrition', 'hunger']))
+    return `**Prevalence of undernourishment**: Share of the population whose habitual food consumption is insufficient to provide the dietary energy required for a normal active and healthy life. SDG indicator 2.1.1. Unit: % of population. Source: FAO via World Bank WDI.`;
+
   if (matchesQuery(q, ['inflation', 'cpi']))
     return `**Inflation (CPI, %)**: Annual percentage change in the consumer price index. Measures how prices of a basket of consumer goods and services change over time. Formula: ((CPI_t − CPI_{t−1}) / CPI_{t−1}) × 100. Source: World Bank WDI.`;
 
@@ -1051,25 +1163,24 @@ export function getFallbackResponse(
   if (matchesQuery(q, ['eez', 'exclusive economic zone', 'maritime']))
     return `**Exclusive Economic Zone (EEZ)**: Marine area extending 200 nautical miles from the coast over which a country has special rights regarding exploration and use of marine resources. Defined by UN Convention on the Law of the Sea. Sources: Sea Around Us, Marine Regions.`;
 
-  const defaultHelp = `I can help with questions about the metrics and data in this dashboard. Try any combination:
+  const defaultHelp = `I can help with questions about **all metrics** in this dashboard. Examples:
 
-**Rankings + extra metrics**
-- "Top 5 countries by GDP with government type and head of government"
-- "Top 10 by GDP per capita including inflation and debt"
-- "List of GDP, population, and life expectancy for top 20 countries"
+**Rankings (any metric)**
+- "Top 10 countries by GDP" · "Lowest 5 by unemployment rate"
+- "Top 20 by maternal mortality" · "Top 10 by labour force" · "Top 5 by undernourishment"
 
 **Single or multiple countries**
 - "GDP and inflation of Indonesia" · "Population and life expectancy for Brazil and Mexico"
+- "Maternal mortality in Nigeria" · "Undernourishment for India and Bangladesh"
 - "Overview of [country]" · "All information about [country]"
 
-**Regions & growth**
+**Regions & methodology**
 - "Top 5 Asian countries by population" · "Countries in Europe"
-- "Fastest growing markets" · "Top 10 by GDP per capita"
-
-**Methodology**
 - "What is GDP?" · "How is inflation calculated?" · "Data sources"
 
-**Unlimited combinations** – Ask for any mix of: GDP, PPP, per capita, population, life expectancy, inflation, debt, interest rate, land area, EEZ, age groups, government type, head of government, region. For full conversational answers, add your OpenAI API key in Settings.`;
+**Full list:** Ask "What metrics are available?" or open the **Source** tab.
+
+**Unlimited combinations** – You can ask for any mix of: GDP, PPP, per capita, population, life expectancy, inflation, debt, interest rate, unemployment, labour force, poverty, maternal mortality, under-5 mortality, undernourishment, land area, EEZ, age groups, government type, region. For full conversational answers, add your API key in Settings.`;
 
   if (matchesQuery(q, ['help', 'hello', 'hi', 'how to', 'how do i', 'get started', 'what can you'])) {
     return defaultHelp;

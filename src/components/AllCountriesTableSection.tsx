@@ -8,6 +8,8 @@ import { useToast } from './ToastProvider';
 interface Props {
   year: number;
   setYear: (year: number) => void;
+  /** Increment to force refetch of global table data (e.g. after "Refresh all data"). */
+  refreshTrigger?: number;
 }
 
 /** Convert ISO 3166-1 alpha-2 code to flag emoji (e.g. "US" → 🇺🇸). */
@@ -20,7 +22,7 @@ function getFlagEmoji(iso2: string): string {
     .join('');
 }
 
-export function AllCountriesTableSection({ year, setYear }: Props) {
+export function AllCountriesTableSection({ year, setYear, refreshTrigger = 0 }: Props) {
   const { showToast, dismissToast } = useToast();
   const [rows, setRows] = useState<GlobalCountryMetricsRow[]>([]);
   const [rowsPrev, setRowsPrev] = useState<GlobalCountryMetricsRow[]>([]);
@@ -76,7 +78,7 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [year, dismissToast, showToast]);
+  }, [year, refreshTrigger, dismissToast, showToast]);
 
   const prevByIso3 = new Map<string, GlobalCountryMetricsRow>();
   for (const r of rowsPrev) {
@@ -92,10 +94,10 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
     key: keyof GlobalCountryMetricsRow,
   ): string | null {
     const prev =
-      (current.iso3Code && prevByIso3.get(current.iso3Code)) ||
-      (current.iso2Code && prevByIso3.get(current.iso2Code));
+      (current.iso3Code ? prevByIso3.get(current.iso3Code) : undefined) ??
+      (current.iso2Code ? prevByIso3.get(current.iso2Code) : undefined);
     const currVal = current[key];
-    const prevVal = prev?.[key];
+    const prevVal = prev != null ? prev[key] : undefined;
     if (
       currVal == null ||
       prevVal == null ||
@@ -337,6 +339,18 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                       Unemployment rate (%)
                     </th>
                     <th
+                      onClick={() => changeSort('unemployedTotal')}
+                      className="sortable"
+                    >
+                      Unemployed (number)
+                    </th>
+                    <th
+                      onClick={() => changeSort('labourForceTotal')}
+                      className="sortable"
+                    >
+                      Labour force (total)
+                    </th>
+                    <th
                       onClick={() => changeSort('povertyHeadcount215')}
                       className="sortable"
                     >
@@ -369,6 +383,14 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                     const unemploymentYoY = getYoYValue(
                       row,
                       'unemploymentRate',
+                    );
+                    const unemployedTotalYoY = getYoYValue(
+                      row,
+                      'unemployedTotal',
+                    );
+                    const labourForceTotalYoY = getYoYValue(
+                      row,
+                      'labourForceTotal',
                     );
                     const pov215YoY = getYoYValue(
                       row,
@@ -468,6 +490,26 @@ export function AllCountriesTableSection({ year, setYear }: Props) {
                           {unemploymentYoY && (
                             <div className="table-cell-yoy">
                               {unemploymentYoY}
+                            </div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatCompactNumber(row.unemployedTotal ?? null)}
+                          </div>
+                          {unemployedTotalYoY && (
+                            <div className="table-cell-yoy">
+                              {unemployedTotalYoY}
+                            </div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {formatCompactNumber(row.labourForceTotal ?? null)}
+                          </div>
+                          {labourForceTotalYoY && (
+                            <div className="table-cell-yoy">
+                              {labourForceTotalYoY}
                             </div>
                           )}
                         </td>

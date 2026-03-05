@@ -11,9 +11,17 @@ export type MapMetricId =
   | 'govDebtUSD'
   | 'interestRate'
   | 'unemploymentRate'
+  | 'unemployedTotal'
+  | 'labourForceTotal'
   | 'povertyHeadcount215'
   | 'povertyHeadcountNational'
   | 'lifeExpectancy'
+  | 'maternalMortalityRatio'
+  | 'under5MortalityRate'
+  | 'undernourishmentPrevalence'
+  | 'pop0_14Share'
+  | 'pop15_64Share'
+  | 'pop65PlusShare'
   | 'landAreaKm2'
   | 'totalAreaKm2'
   | 'eezKm2'
@@ -55,6 +63,8 @@ const MAP_METRIC_CATEGORIES: MapMetricCategory[] = [
       { id: 'govDebtPercentGDP', label: 'Gov. debt (% GDP)', icon: <SvgIcon d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .14.11.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z" /> },
       { id: 'interestRate', label: 'Lending rate (%)', icon: <SvgIcon d="M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5Zm0 1.5h6.5a.25.25 0 0 1 .25.25v8.5a.25.25 0 0 1-.25.25h-6.5a.25.25 0 0 1-.25-.25v-8.5a.25.25 0 0 1 .25-.25ZM6 4.75a.75.75 0 0 1 .75.75v1.19l1.72-.99a.75.75 0 0 1 1.13.65v3a.75.75 0 0 1-1.13.65L6.75 9.46V11a.75.75 0 0 1-1.5 0v-5.5A.75.75 0 0 1 6 4.75Z" /> },
       { id: 'unemploymentRate', label: 'Unemployment rate (%)', icon: <SvgIcon d="M8 1.5a5 5 0 0 0-5 5c0 3.25 3.5 6 4.4 6.7.36.28.84.28 1.2 0C9.5 12.5 13 9.75 13 6.5a5 5 0 0 0-5-5Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" /> },
+      { id: 'unemployedTotal', label: 'Unemployed (number)', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" /> },
+      { id: 'labourForceTotal', label: 'Labour force (total)', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" /> },
       { id: 'povertyHeadcount215', label: 'Poverty ($2.15/day, %)', icon: <SvgIcon d="M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z" /> },
       { id: 'povertyHeadcountNational', label: 'Poverty (national line, %)', icon: <SvgIcon d="M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z" /> },
     ],
@@ -65,7 +75,13 @@ const MAP_METRIC_CATEGORIES: MapMetricCategory[] = [
     icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" />,
     metrics: [
       { id: 'populationTotal', label: 'Population', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Zm4.75-1.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0Zm-1.5 2.5c1.3 0 2.4.86 2.75 2.05a.75.75 0 0 1-.73.95H11a3.74 3.74 0 0 0-.9-2.37c.05-.43.23-.83.5-1.17Z" /> },
+      { id: 'pop0_14Share', label: 'Pop. 0–14 (%)', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" /> },
+      { id: 'pop15_64Share', label: 'Pop. 15–64 (%)', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" /> },
+      { id: 'pop65PlusShare', label: 'Pop. 65+ (%)', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" /> },
       { id: 'lifeExpectancy', label: 'Life expectancy', icon: <SvgIcon d="M8 3.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5ZM5.75 8.5A2.75 2.75 0 0 0 3 11.25v.5c0 .69.56 1.25 1.25 1.25h7.5A1.25 1.25 0 0 0 13 11.75v-.5A2.75 2.75 0 0 0 10.25 8.5h-4.5Z" /> },
+      { id: 'maternalMortalityRatio', label: 'Maternal mortality (per 100k)', icon: <SvgIcon d="M8 3.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5ZM5.75 8.5A2.75 2.75 0 0 0 3 11.25v.5c0 .69.56 1.25 1.25 1.25h7.5A1.25 1.25 0 0 0 13 11.75v-.5A2.75 2.75 0 0 0 10.25 8.5h-4.5Z" /> },
+      { id: 'under5MortalityRate', label: 'Under‑5 mortality (per 1k)', icon: <SvgIcon d="M8 3.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5ZM5.75 8.5A2.75 2.75 0 0 0 3 11.25v.5c0 .69.56 1.25 1.25 1.25h7.5A1.25 1.25 0 0 0 13 11.75v-.5A2.75 2.75 0 0 0 10.25 8.5h-4.5Z" /> },
+      { id: 'undernourishmentPrevalence', label: 'Undernourishment (%)', icon: <SvgIcon d="M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z" /> },
     ],
   },
   {

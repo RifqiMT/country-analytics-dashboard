@@ -9,7 +9,8 @@ This document provides a comprehensive reference for all **data metrics** displa
 The same data metrics are used across the product in different ways:
 
 - **Country dashboard**: Summary cards (latest values + YoY), unified time-series (core structural metrics), macro indicators timeline, population pie, and country comparison table.
-- **Global analytics**: Choropleth map (one metric per view), correlation scatter (two metrics X/Y), and global tables (General, Financial, Health & demographics with YoY).
+- **Global analytics**: Choropleth map (one metric per view), global tables (General, Financial, Health & demographics with YoY). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
+- **Business Analytics**: Correlation scatter uses two metrics from the global dataset; correlation & causation analysis (Pearson r, p-value) is computed from the same metrics.
 - **Source tab**: Each metric is documented with label, description, formula, unit, and source links; metadata comes from `src/data/metricMetadata.ts`.
 - **Analytics assistant & PESTEL**: Use country context and global data (including these metrics) for answers and PESTEL generation.
 

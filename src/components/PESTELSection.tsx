@@ -1,16 +1,305 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { buildPestelSystemPrompt } from '../utils/pestelContext';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
-import {
-  CorrelationScatterPlot,
-  SCATTER_METRIC_OPTIONS,
-  type ScatterMetricKey,
-} from './CorrelationScatterPlot';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { getStoredModel, getEffectiveApiKey } from '../config/llm';
 
+/** Parsed bullet points per PESTEL pillar for the chart view */
+export interface PestelChartData {
+  political: string[];
+  economic: string[];
+  sociocultural: string[];
+  technological: string[];
+  environmental: string[];
+  legal: string[];
+}
+
+const PESTEL_HEADERS = [
+  { key: 'political', title: 'Political', letter: 'P' },
+  { key: 'economic', title: 'Economic', letter: 'E' },
+  { key: 'sociocultural', title: 'Sociocultural', letter: 'S' },
+  { key: 'technological', title: 'Technological', letter: 'T' },
+  { key: 'environmental', title: 'Environmental', letter: 'E' },
+  { key: 'legal', title: 'Legal', letter: 'L' },
+] as const;
+
+/** Extract section content between two ### headers. Returns text up to next ### or end. */
+function getSectionContent(full: string, sectionTitle: string): string {
+  const patterns = [
+    new RegExp(`###\\s*${sectionTitle}\\s*factors?\\s*\\n([\\s\\S]*?)(?=###|$)`, 'i'),
+    new RegExp(`##\\s*${sectionTitle}\\s*factors?\\s*\\n([\\s\\S]*?)(?=##|$)`, 'i'),
+  ];
+  for (const re of patterns) {
+    const m = full.match(re);
+    if (m?.[1]) return m[1].trim();
+  }
+  return '';
+}
+
+/** Turn section text into up to 5 short bullet points (from existing bullets or sentence splits). */
+function sectionToBullets(text: string, maxBullets = 5): string[] {
+  const bullets: string[] = [];
+  const lines = text.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  for (const line of lines) {
+    const bullet = line.replace(/^[-*]\s*/, '').trim();
+    if (!bullet) continue;
+    if (bullet.length > 120) {
+      const sentences = bullet.split(/(?<=[.!?])\s+/).filter(Boolean);
+      for (const s of sentences.slice(0, maxBullets - bullets.length)) {
+        const t = s.trim();
+        if (t.length > 15) bullets.push(t);
+      }
+    } else {
+      bullets.push(bullet);
+    }
+    if (bullets.length >= maxBullets) break;
+  }
+  if (bullets.length === 0 && text.length > 20) {
+    const sentences = text.replace(/\n/g, ' ').split(/(?<=[.!?])\s+/).filter(Boolean);
+    for (const s of sentences.slice(0, maxBullets)) {
+      const t = s.trim();
+      if (t.length > 15) bullets.push(t);
+    }
+  }
+  return bullets.slice(0, maxBullets);
+}
+
+/** Parse full PESTEL analysis into per-pillar bullet points for the chart. */
+export function parsePestelBullets(analysis: string): PestelChartData {
+  const sections: Record<string, string> = {
+    political: getSectionContent(analysis, 'Political'),
+    economic: getSectionContent(analysis, 'Economic'),
+    sociocultural: getSectionContent(analysis, 'Social'),
+    technological: getSectionContent(analysis, 'Technological'),
+    environmental: getSectionContent(analysis, 'Environmental'),
+    legal: getSectionContent(analysis, 'Legal'),
+  };
+  return {
+    political: sectionToBullets(sections.political),
+    economic: sectionToBullets(sections.economic),
+    sociocultural: sectionToBullets(sections.sociocultural),
+    technological: sectionToBullets(sections.technological),
+    environmental: sectionToBullets(sections.environmental),
+    legal: sectionToBullets(sections.legal),
+  };
+}
+
+export interface SwotChartData {
+  strengths: string[];
+  weaknesses: string[];
+  opportunities: string[];
+  threats: string[];
+}
+
+/** Split paragraphs into one bullet per sentence (up to maxBullets). */
+function paragraphsToSentenceBullets(
+  paragraphs: string[],
+  stripMd: (s: string) => string,
+  maxBullets = 24,
+): string[] {
+  const out: string[] = [];
+  for (const p of paragraphs) {
+    if (out.length >= maxBullets) break;
+    const normalized = p.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    if (!normalized) continue;
+    const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+    for (const s of sentences) {
+      if (out.length >= maxBullets) break;
+      const t = stripMd(s.trim());
+      if (t.length >= 15) out.push(t.length <= 320 ? t : t.slice(0, 317) + '…');
+    }
+  }
+  return out;
+}
+
+function getSwotBlock(analysis: string, headerPattern: string): string[] {
+  const stripMd = (s: string) => s.replace(/\*\*[^*]+\*\*/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/\s+/g, ' ').trim();
+  let rawText = '';
+  const paragraphs: string[] = [];
+  const addFromText = (text: string) => {
+    rawText = text.trim();
+    const lines = rawText.split(/\n/).map((l) => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      const b = stripMd(line.replace(/^[-*]\s*/, '').trim());
+      if (b.length > 10) paragraphs.push(b);
+    }
+  };
+  const escaped = headerPattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const reBold = new RegExp('\\*\\*\\s*' + escaped + '\\s*\\*\\*:?\\s*[\\n\\r]*([\\s\\S]*?)(?=\\*\\*|###|##|$)', 'i');
+  const mBold = analysis.match(reBold);
+  if (mBold?.[1]) addFromText(mBold[1]);
+  const reHeader = new RegExp('(?:###|##)\\s*' + escaped + '\\s*[\\n\\r]+([\\s\\S]*?)(?=(?:###|##)\\s|\\*\\*|$)', 'i');
+  const mHeader = analysis.match(reHeader);
+  if (mHeader?.[1] && paragraphs.length === 0) addFromText(mHeader[1]);
+  if (paragraphs.length > 0) return paragraphsToSentenceBullets(paragraphs, stripMd, 24);
+  if (rawText.length > 30) {
+    const bullets = paragraphsToSentenceBullets(
+      rawText.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim().split(/(?<=[.!?])\s+/).filter(Boolean).map((s) => s.trim()).filter((s) => s.length >= 15),
+      stripMd,
+      24,
+    );
+    if (bullets.length > 0) return bullets;
+    const one = stripMd(rawText.replace(/\n/g, ' ').trim());
+    if (one.length > 40) return [one.length <= 320 ? one : one.slice(0, 317) + '…'];
+  }
+  return [];
+}
+
+function getSwotBlockMulti(analysis: string, patterns: string[]): string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const p of patterns) {
+    for (const b of getSwotBlock(analysis, p)) {
+      const key = b.slice(0, 80).toLowerCase();
+      if (!seen.has(key)) { seen.add(key); result.push(b); }
+    }
+    if (result.length >= 24) break;
+  }
+  return result.slice(0, 24);
+}
+
+function parseSwotSectionFallback(analysis: string): SwotChartData {
+  const stripMd = (s: string) => s.replace(/\*\*[^*]+\*\*/g, '').replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/\s+/g, ' ').trim();
+  let section = analysis.match(/(?:Strategic implications|PESTEL[-\u2013]SWOT matrix|SWOT matrix)[\s\S]*?(?=###\s*New market|###\s*Key takeaways|###\s*Recommendations|###\s*Sources|$)/i)?.[0] ?? '';
+  if (section.length < 50) {
+    const strengthsIdx = analysis.search(/\*\*\s*Strengths\s*\*?\*?:?/i);
+    if (strengthsIdx >= 0) {
+      const after = analysis.slice(strengthsIdx);
+      const endIdx = after.search(/\n###\s*(?:New market|Key takeaways|Recommendations|Sources)/i);
+      section = endIdx >= 0 ? after.slice(0, endIdx) : after;
+    }
+  }
+  const parts: Record<keyof SwotChartData, string> = { strengths: '', weaknesses: '', opportunities: '', threats: '' };
+  const splitPoints: { key: keyof SwotChartData; re: RegExp }[] = [
+    { key: 'strengths', re: /\*\*\s*Strengths\s*\*?\*?:?\s*[\n\r]*/i },
+    { key: 'weaknesses', re: /\*\*\s*Weaknesses\s*\*?\*?:?\s*[\n\r]*/i },
+    { key: 'opportunities', re: /\*\*\s*Opportunities\s*\*?\*?:?\s*[\n\r]*/i },
+    { key: 'threats', re: /\*\*\s*(?:Risks\s+and\s+challenges|Threats|Risks)\s*\*?\*?:?\s*[\n\r]*/i },
+  ];
+  for (let i = 0; i < splitPoints.length; i++) {
+    const { key, re } = splitPoints[i];
+    const m = section.match(re);
+    if (!m || m.index == null) continue;
+    const start = m.index + m[0].length;
+    const nextIdx = splitPoints.slice(i + 1).map(({ re: r }) => section.slice(start).search(r)).find((idx) => idx >= 0);
+    const end = nextIdx !== undefined && nextIdx >= 0 ? start + nextIdx : section.length;
+    parts[key] = section.slice(start, end).trim();
+  }
+  const toBullets = (text: string): string[] => {
+    if (text.length < 20) return [];
+    const normalized = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
+    const sentences = normalized.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const bullets: string[] = [];
+    for (const s of sentences.slice(0, 24)) {
+      const t = stripMd(s.trim());
+      if (t.length >= 15) bullets.push(t.length <= 320 ? t : t.slice(0, 317) + '…');
+    }
+    if (bullets.length === 0 && normalized.length > 40) bullets.push(normalized.length <= 320 ? normalized : normalized.slice(0, 317) + '…');
+    return bullets;
+  };
+  return {
+    strengths: toBullets(parts.strengths),
+    weaknesses: toBullets(parts.weaknesses),
+    opportunities: toBullets(parts.opportunities),
+    threats: toBullets(parts.threats),
+  };
+}
+
+export function parseSwotBullets(analysis: string): SwotChartData {
+  const primary = {
+    strengths: getSwotBlockMulti(analysis, ['Strengths']),
+    weaknesses: getSwotBlockMulti(analysis, ['Weaknesses']),
+    opportunities: getSwotBlockMulti(analysis, ['Opportunities']),
+    threats: getSwotBlockMulti(analysis, ['Risks and challenges', 'Threats', 'Risks']),
+  };
+  const hasAny = primary.strengths.length > 0 || primary.weaknesses.length > 0 || primary.opportunities.length > 0 || primary.threats.length > 0;
+  if (hasAny) return primary;
+  const fallback = parseSwotSectionFallback(analysis);
+  return {
+    strengths: fallback.strengths.length > 0 ? fallback.strengths : primary.strengths,
+    weaknesses: fallback.weaknesses.length > 0 ? fallback.weaknesses : primary.weaknesses,
+    opportunities: fallback.opportunities.length > 0 ? fallback.opportunities : primary.opportunities,
+    threats: fallback.threats.length > 0 ? fallback.threats : primary.threats,
+  };
+}
+
+/** Extract the Strategic implications (PESTEL–SWOT matrix) block from the full analysis. */
+function getStrategicImplicationsBlock(analysis: string): string {
+  const match = analysis.match(/(###\s*Strategic\s+implications[\s\S]*?)(?=###\s*New market|###\s*Key takeaways|###\s*Recommendations|###\s*Sources|$)/i);
+  return match ? match[1].trim() : '';
+}
+
+/** Return the full report with the Strategic implications block removed. */
+function getReportWithoutStrategicImplications(analysis: string): string {
+  const block = getStrategicImplicationsBlock(analysis);
+  if (!block) return analysis;
+  const idx = analysis.indexOf(block);
+  if (idx < 0) return analysis;
+  const before = analysis.slice(0, idx).trimEnd();
+  const after = analysis.slice(idx + block.length).replace(/^\s*[\n\r]+/, '');
+  return (before + '\n\n' + after).trim();
+}
+
+/** Extract the New market analysis block from the full analysis. */
+function getNewMarketAnalysisBlock(analysis: string): string {
+  const match = analysis.match(/(###\s*New\s+market\s+analysis[\s\S]*?)(?=###\s*Key takeaways|###\s*Recommendations|###\s*Sources|$)/i);
+  return match ? match[1].trim() : '';
+}
+
+/** Return the given report string with the New market analysis block removed. */
+function getReportWithoutNewMarketAnalysis(report: string): string {
+  const block = getNewMarketAnalysisBlock(report);
+  if (!block) return report;
+  const idx = report.indexOf(block);
+  if (idx < 0) return report;
+  const before = report.slice(0, idx).trimEnd();
+  const after = report.slice(idx + block.length).replace(/^\s*[\n\r]+/, '');
+  return (before + '\n\n' + after).trim();
+}
+
+/** Extract the Key takeaways block from the full analysis. */
+function getKeyTakeawaysBlock(analysis: string): string {
+  const match = analysis.match(/(###\s*Key\s+takeaways[\s\S]*?)(?=###\s*Recommendations|###\s*Sources|$)/i);
+  return match ? match[1].trim() : '';
+}
+
+/** Return the given report string with the Key takeaways block removed. */
+function getReportWithoutKeyTakeaways(report: string): string {
+  const block = getKeyTakeawaysBlock(report);
+  if (!block) return report;
+  const idx = report.indexOf(block);
+  if (idx < 0) return report;
+  const before = report.slice(0, idx).trimEnd();
+  const after = report.slice(idx + block.length).replace(/^\s*[\n\r]+/, '');
+  return (before + '\n\n' + after).trim();
+}
+
+/** Extract the Recommendations block from the full analysis. */
+function getRecommendationsBlock(analysis: string): string {
+  const match = analysis.match(/(###\s*Recommendations[\s\S]*?)(?=###\s*Sources|$)/i);
+  return match ? match[1].trim() : '';
+}
+
+/** Return the given report string with the Recommendations block removed. */
+function getReportWithoutRecommendations(report: string): string {
+  const block = getRecommendationsBlock(report);
+  if (!block) return report;
+  const idx = report.indexOf(block);
+  if (idx < 0) return report;
+  const before = report.slice(0, idx).trimEnd();
+  const after = report.slice(idx + block.length).replace(/^\s*[\n\r]+/, '');
+  return (before + '\n\n' + after).trim();
+}
+
+/** Strip the leading ### header line from a block to avoid duplicating the section title in the UI. */
+function stripLeadingH3(block: string): string {
+  return block.replace(/^###\s+[^\n]+\n+/i, '').trim();
+}
+
 interface PESTELSectionProps {
   dashboardData?: CountryDashboardData | null;
+  /** Increment to force refetch of global data used for PESTEL (e.g. after "Refresh all data"). */
+  refreshTrigger?: number;
 }
 
 /** Simple markdown-like formatting: headers, bold, links, lists */
@@ -94,7 +383,7 @@ function formatPestelContent(text: string): React.ReactNode {
   }
   flushList();
 
-  return elements;
+  return <div className="pestel-content-inner">{elements}</div>;
 }
 
 function formatInlineMarkdown(text: string): React.ReactNode {
@@ -137,14 +426,127 @@ function formatInlineMarkdown(text: string): React.ReactNode {
   return parts.length === 1 ? parts[0] : <>{parts}</>;
 }
 
-export function PESTELSection({ dashboardData }: PESTELSectionProps) {
+const PESTEL_CHART_COLORS = [
+  { header: '#1e3a5f', bg: 'rgba(30, 58, 95, 0.12)' },
+  { header: '#0d5c2e', bg: 'rgba(13, 92, 46, 0.12)' },
+  { header: '#8b6914', bg: 'rgba(139, 105, 20, 0.12)' },
+  { header: '#b84a2b', bg: 'rgba(184, 74, 43, 0.12)' },
+  { header: '#6b2d3c', bg: 'rgba(107, 45, 60, 0.12)' },
+  { header: '#4a3c5c', bg: 'rgba(74, 60, 92, 0.12)' },
+] as const;
+
+function PestelChart({ analysis }: { analysis: string }) {
+  const chartData = useMemo(() => parsePestelBullets(analysis), [analysis]);
+  const hasAnyBullets = PESTEL_HEADERS.some((h) => chartData[h.key].length > 0);
+  if (!hasAnyBullets) return null;
+  return (
+    <div className="pestel-chart">
+      <h4 className="pestel-chart-title">PESTEL Analysis</h4>
+      <p className="pestel-chart-subtitle muted">Summarized bullet points by macro-environmental factor.</p>
+      <div className="pestel-chart-grid" role="list">
+        {PESTEL_HEADERS.map(({ key, title, letter }, i) => {
+          const bullets = chartData[key];
+          const colors = PESTEL_CHART_COLORS[i];
+          return (
+            <div key={key} className="pestel-chart-col" role="listitem" aria-label={`${title}: ${bullets.length} points`}>
+              <div className="pestel-chart-header" style={{ backgroundColor: colors.header, color: '#fff' }}>
+                <span className="pestel-chart-header-letter" aria-hidden>{letter}</span>
+                <span className="pestel-chart-header-name">{title.toUpperCase()}</span>
+              </div>
+              <div className="pestel-chart-body" style={{ backgroundColor: colors.bg }}>
+                {bullets.length > 0 ? (
+                  <ul className="pestel-chart-list">
+                    {bullets.map((b, j) => (
+                      <li key={j} className="pestel-chart-bullet">{b}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="pestel-chart-empty muted">No summary available.</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const SWOT_QUADRANTS = [
+  { key: 'strengths', title: 'Strengths', letter: 'S' },
+  { key: 'weaknesses', title: 'Weaknesses', letter: 'W' },
+  { key: 'opportunities', title: 'Opportunities', letter: 'O' },
+  { key: 'threats', title: 'Threats', letter: 'T' },
+] as const;
+
+const SWOT_CHART_COLORS = [
+  { header: '#2d6a4f', bg: 'rgba(45, 106, 79, 0.12)' },
+  { header: '#c2410c', bg: 'rgba(194, 65, 12, 0.12)' },
+  { header: '#0369a1', bg: 'rgba(3, 105, 161, 0.12)' },
+  { header: '#be123c', bg: 'rgba(190, 18, 60, 0.12)' },
+];
+
+function SwotChart({ analysis }: { analysis: string }) {
+  const data = useMemo(() => parseSwotBullets(analysis), [analysis]);
+  return (
+    <div className="swot-chart">
+      <h4 className="swot-chart-title">SWOT Analysis</h4>
+      <p className="swot-chart-subtitle muted">Internal vs external, helpful vs harmful.</p>
+      <div className="swot-chart-axes">
+        <span className="swot-axis swot-axis-internal" aria-hidden>internal</span>
+        <span className="swot-axis swot-axis-external" aria-hidden>external</span>
+        <span className="swot-axis swot-axis-helpful" aria-hidden>helpful</span>
+        <span className="swot-axis swot-axis-harmful" aria-hidden>harmful</span>
+      </div>
+      <div className="swot-chart-grid">
+        {SWOT_QUADRANTS.map((q, i) => {
+          const bullets = data[q.key];
+          const colors = SWOT_CHART_COLORS[i];
+          return (
+            <div
+              key={q.key}
+              className="swot-chart-quadrant"
+              style={{
+                ['--swot-header' as string]: colors.header,
+                ['--swot-bg' as string]: colors.bg,
+              }}
+            >
+              <div className="swot-chart-quadrant-header">
+                <span className="swot-chart-quadrant-title">{q.title}</span>
+              </div>
+              <div className="swot-chart-quadrant-body">
+                {bullets.length > 0 ? (
+                  <ul className="swot-chart-list">
+                    {bullets.map((b, j) => (
+                      <li key={j} className="swot-chart-bullet">{b}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="swot-chart-empty muted">No summary available. See full report below.</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function PESTELSection({ dashboardData, refreshTrigger = 0 }: PESTELSectionProps) {
   const [analysis, setAnalysis] = useState<string | null>(null);
   const [source, setSource] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
-  const [xMetric, setXMetric] = useState<ScatterMetricKey>('gdpNominalPerCapita');
-  const [yMetric, setYMetric] = useState<ScatterMetricKey>('lifeExpectancy');
+
+  const strategicImplicationsBlock = useMemo(() => (analysis ? getStrategicImplicationsBlock(analysis) : ''), [analysis]);
+
+  const newMarketAnalysisBlock = useMemo(() => (analysis ? getNewMarketAnalysisBlock(analysis) : ''), [analysis]);
+
+  const keyTakeawaysBlock = useMemo(() => (analysis ? getKeyTakeawaysBlock(analysis) : ''), [analysis]);
+
+  const recommendationsBlock = useMemo(() => (analysis ? getRecommendationsBlock(analysis) : ''), [analysis]);
 
   const year =
     dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? 2022;
@@ -158,7 +560,7 @@ export function PESTELSection({ dashboardData }: PESTELSectionProps) {
     return () => {
       cancelled = true;
     };
-  }, [dashboardData, year]);
+  }, [dashboardData, year, refreshTrigger]);
 
   const generateAnalysis = useCallback(async () => {
     if (!dashboardData) {
@@ -174,7 +576,7 @@ export function PESTELSection({ dashboardData }: PESTELSectionProps) {
     const model = getStoredModel();
     const apiKey = getEffectiveApiKey(model);
     const systemPrompt = buildPestelSystemPrompt(dashboardData, globalMetrics);
-    const userMessage = `Generate a comprehensive PESTEL analysis for ${dashboardData.summary.name} based on the data provided. Follow the required structure: Executive summary, all six PESTEL factors (Political, Economic, Social, Technological, Environmental, Legal) with up to 2 summarized paragraphs each, Strategic implications for business (PESTEL–SWOT matrix: Opportunities and Risks and challenges), New market analysis, Key takeaways, and Recommendations. Use the exact numbers and time-series trends from the context. Keep each PESTEL element concise (max 2 paragraphs).`;
+    const userMessage = `Generate a comprehensive PESTEL analysis for ${dashboardData.summary.name} based on the data provided. Follow the required structure: Executive summary, all six PESTEL factors (Political, Economic, Social, Technological, Environmental, Legal) with up to 2 summarized paragraphs each, Strategic implications for business (PESTEL–SWOT matrix: Strengths, Weaknesses, Opportunities, and Risks and challenges — write 2 paragraphs per element, no bullet lists), New market analysis (at least 5 bullet points), Key takeaways (at least 5 bullet points), and Recommendations (at least 5 bullet points). Use the exact numbers and time-series trends from the context. Keep each PESTEL element concise (max 2 paragraphs).`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -275,65 +677,73 @@ export function PESTELSection({ dashboardData }: PESTELSectionProps) {
         </div>
       )}
 
-      {dashboardData && globalMetrics.length > 0 && (
-        <div className="pestel-scatter-section">
-          <h3 className="pestel-scatter-title">Multi-metric correlation analysis</h3>
-          <p className="pestel-scatter-desc muted">
-            Compare countries across two metrics to explore market positioning and correlations.
-            The selected country is highlighted in gold.
-          </p>
-          <div className="pestel-scatter-controls">
-            <label className="pestel-scatter-label">
-              <span>X axis</span>
-              <select
-                value={xMetric}
-                onChange={(e) => setXMetric(e.target.value as ScatterMetricKey)}
-                aria-label="X-axis metric"
-              >
-                {SCATTER_METRIC_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="pestel-scatter-label">
-              <span>Y axis</span>
-              <select
-                value={yMetric}
-                onChange={(e) => setYMetric(e.target.value as ScatterMetricKey)}
-                aria-label="Y-axis metric"
-              >
-                {SCATTER_METRIC_OPTIONS.map((o) => (
-                  <option key={o.key} value={o.key}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <CorrelationScatterPlot
-            data={globalMetrics}
-            xMetric={xMetric}
-            yMetric={yMetric}
-            highlightCountryIso2={dashboardData.summary.iso2Code}
-            year={year}
-          />
-        </div>
-      )}
-
       {analysis && (
-        <div className="pestel-output" role="article" aria-label="Comprehensive PESTEL analysis">
-          <h3 className="pestel-output-title">Comprehensive Analysis</h3>
-          <div className="pestel-content">
-            {formatPestelContent(analysis)}
+        <>
+          {/* PESTEL chart: separate section */}
+          <div className="pestel-chart-section" role="region" aria-label="PESTEL factors chart">
+            <PestelChart analysis={analysis} />
           </div>
-          {source && (
-            <p className="pestel-source muted">
-              Source: {source}
-            </p>
-          )}
-        </div>
+
+          {/* SWOT Analysis: 2x2 grid with summarized bullet points */}
+          <div className="swot-chart-section" role="region" aria-label="SWOT Analysis">
+            <SwotChart analysis={analysis} />
+          </div>
+
+          {/* Comprehensive Analysis: full report (excluding extracted sections above), source */}
+          <div className="pestel-output" role="article" aria-label="Comprehensive PESTEL analysis">
+            <h3 className="pestel-output-title">Comprehensive Analysis</h3>
+
+            <div className="pestel-content">
+              <h3 className="pestel-content-heading">Full report</h3>
+              {formatPestelContent(getReportWithoutRecommendations(getReportWithoutKeyTakeaways(getReportWithoutNewMarketAnalysis(getReportWithoutStrategicImplications(analysis)))))}
+            </div>
+            {source && (
+              <p className="pestel-source muted">
+                Source: {source}
+              </p>
+            )}
+          </div>
+
+          {/* Strategic Implications: PESTEL–SWOT matrix narrative (own section) */}
+          {strategicImplicationsBlock ? (
+            <div className="pestel-output strategic-implications-section" role="region" aria-label="Strategic Implications for Business (PESTEL-SWOT)">
+              <h3 className="pestel-output-title">Strategic Implications for Business (PESTEL-SWOT)</h3>
+              <div className="pestel-content">
+                {formatPestelContent(stripLeadingH3(strategicImplicationsBlock))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* New Market Analysis: own section */}
+          {newMarketAnalysisBlock ? (
+            <div className="pestel-output new-market-analysis-section" role="region" aria-label="New Market Analysis">
+              <h3 className="pestel-output-title">New Market Analysis</h3>
+              <div className="pestel-content">
+                {formatPestelContent(stripLeadingH3(newMarketAnalysisBlock))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Key Takeaways: own section */}
+          {keyTakeawaysBlock ? (
+            <div className="pestel-output key-takeaways-section" role="region" aria-label="Key Takeaways">
+              <h3 className="pestel-output-title">Key Takeaways</h3>
+              <div className="pestel-content">
+                {formatPestelContent(stripLeadingH3(keyTakeawaysBlock))}
+              </div>
+            </div>
+          ) : null}
+
+          {/* Recommendations: own section */}
+          {recommendationsBlock ? (
+            <div className="pestel-output recommendations-section" role="region" aria-label="Recommendations">
+              <h3 className="pestel-output-title">Recommendations</h3>
+              <div className="pestel-content">
+                {formatPestelContent(stripLeadingH3(recommendationsBlock))}
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
     </section>
   );

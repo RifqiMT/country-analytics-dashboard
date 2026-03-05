@@ -73,7 +73,8 @@ This document describes the target audiences for the Country Analytics Platform,
 
 - Deep dive on one country with year range adjustment
 - Uses unified timeline with multiple metrics for correlation
-- Uses **Global correlation scatter** to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
+- Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
+- Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis with sources
 - Checks Source tab for government debt formula and IMF fallback
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, Groq, Web search) and year-based routing (Groq for older period, Tavily for recent) to assess answer provenance
@@ -149,7 +150,7 @@ This document describes the target audiences for the Country Analytics Platform,
 
 - Explores multiple countries and year ranges
 - Uses Global table with sorting for quick rankings
-- Uses **Global correlation scatter** to explore relationships between metrics (e.g. GDP per capita vs under‑5 mortality) and highlight selected country
+- Uses **Business Analytics** tab to explore relationships between metrics (e.g. GDP per capita vs under‑5 mortality) and highlight selected country; reviews Pearson correlation and causation note
 - Uses **PESTEL** tab for structured country-level PESTEL analysis with sources before building reports
 - References Source tab for data definitions and API links
 - Uses Analytics assistant for rankings and methodology questions
@@ -160,7 +161,7 @@ This document describes the target audiences for the Country Analytics Platform,
 
 | Persona | Primary Tab | Key Features |
 |---------|-------------|--------------|
-| Strategy Lead | Country + Global + Chat | Map, global table sort, correlation scatter, comparison, Analytics assistant |
-| Economist | Country + Global + PESTEL + Source + Chat | Timeline, year range, correlation scatter, PESTEL, metric definitions, methodology questions |
+| Strategy Lead | Country + Global + Business Analytics + Chat | Map, global table sort, correlation scatter (Business Analytics), comparison, Analytics assistant |
+| Economist | Country + Global + PESTEL + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL, metric definitions, methodology questions |
 | Market Manager | Country + Chat | Summary, population pie, age breakdown, quick comparisons |
-| BI Analyst | All | Global table, correlation scatter, PESTEL, Source tab, sorting, Analytics assistant |
+| BI Analyst | All | Global table, Business Analytics (correlation scatter), PESTEL, Source tab, sorting, Analytics assistant |

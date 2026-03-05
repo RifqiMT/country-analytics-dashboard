@@ -10,6 +10,8 @@ export type FinancialMetricId =
   | 'govDebtUSD'
   | 'interestRate'
   | 'unemploymentRate'
+  | 'unemployedTotal'
+  | 'labourForceTotal'
   | 'povertyHeadcount215'
   | 'povertyHeadcountNational';
 
@@ -90,6 +92,8 @@ export interface CountryYearSnapshot {
       govDebtUSD?: number | null;
       interestRate?: number | null;
       unemploymentRate?: number | null;
+      unemployedTotal?: number | null;
+      labourForceTotal?: number | null;
       povertyHeadcount215?: number | null;
       povertyHeadcountNational?: number | null;
     };
@@ -143,6 +147,8 @@ export interface GlobalCountryMetricsRow {
   populationTotal?: number | null;
   lifeExpectancy?: number | null;
   unemploymentRate?: number | null;
+  unemployedTotal?: number | null;
+  labourForceTotal?: number | null;
   maternalMortalityRatio?: number | null;
   under5MortalityRate?: number | null;
   undernourishmentPrevalence?: number | null;

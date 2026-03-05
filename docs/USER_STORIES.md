@@ -158,28 +158,40 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
-## 5a. Global Analytics – Correlation Scatter
+## 5a. Business Analytics – Correlation Scatter & Causation
 
 ### US-5a.1 – Compare two metrics across countries
 
 - **As a** Country Economist or BI Analyst  
-- **I want to** choose two metrics (X and Y) and see all countries plotted  
+- **I want to** open the Business Analytics tab, choose two metrics (X and Y), and see all countries plotted  
 - **So that** I can inspect correlation and outliers (e.g. GDP per capita vs life expectancy)  
 
 **Acceptance criteria:**
 - X and Y metric selectors offer numeric metrics from the global dataset
 - Plot shows all countries as points; selected country (from Country dashboard) is highlighted
-- Same year as Global view is used for data
+- Year selector controls data year for scatter and correlation
+- Correlation & causation block shows Pearson r, p-value, interpretation, and causation note with disclaimer
 
 ### US-5a.2 – Identify selected country on scatter
 
 - **As a** Strategy Lead  
-- **I want to** see the currently selected country highlighted on the correlation scatter  
+- **I want to** see the currently selected country highlighted on the correlation scatter in Business Analytics  
 - **So that** I can quickly see where it sits relative to others  
 
 **Acceptance criteria:**
 - Selected country is visually distinct (e.g. colour/size); other countries use a neutral style
-- Changing the country in the Country dashboard updates the highlight when Global view is open
+- Changing the country in the Country dashboard updates the highlight when Business Analytics tab is open
+
+### US-5a.3 – Understand correlation and causation
+
+- **As a** Country Economist  
+- **I want to** see Pearson correlation (r), p-value, and a short interpretation plus causation/context note  
+- **So that** I can assess relationship strength and avoid conflating correlation with causation  
+
+**Acceptance criteria:**
+- Correlation block shows r, n, and p-value (when computable)
+- Interpretation text and causation disclaimer are visible below the scatter
+- Insufficient data (e.g. fewer than 3 countries with both metrics) shows a friendly message
 
 ---
 
@@ -336,7 +348,8 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 **Acceptance criteria:**
 - PESTEL tab shows current country; user can trigger generate/refresh
-- Output is structured by PESTEL dimensions with clear sectioning
+- Output is structured in this order: PESTEL Analysis (chart), SWOT Analysis (one bullet per sentence), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations
+- New Market Analysis, Key Takeaways, and Recommendations each contain at least 5 bullet points
 - Where applicable, responses include sources and hyperlinks
 
 ### US-9.2 – Use PESTEL with country context

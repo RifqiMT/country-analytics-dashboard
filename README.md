@@ -47,9 +47,10 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | View | Description |
 |------|-------------|
-| **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, and comparison |
-| **Global analytics** | Interactive choropleth map, correlation scatter (X/Y metrics, country highlight), and multi-view tables for all countries |
-| **PESTEL** | Generate and view PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis for the selected country with sources and hyperlinks |
+| **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, labour/unemployment, and comparison |
+| **Global analytics** | Interactive choropleth map and multi-view tables for all countries |
+| **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations (at least 5 bullet points each for New Market, Key Takeaways, Recommendations) |
+| **Business Analytics** | Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation) |
 | **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
 | **Analytics assistant** | Chat for questions about metrics, methodology, and general knowledge |
 
@@ -78,6 +79,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Summary section** | General (region, income, government, capital, timezone, currency, geography), Financial (GDP, debt, inflation, interest, unemployment, poverty + YoY), Health & demographics (population, life expectancy, age groups, child & maternal mortality, undernourishment + YoY) |
 | **Unified time-series** | Line chart for core structural metrics (GDP levels & per-capita, population, life expectancy); frequency: weekly/monthly/quarterly/yearly; metric chips; tooltip with period-over-period change |
 | **Macro indicators timeline** | Inflation, lending interest rate, government debt (% GDP), unemployment, poverty, and key health burden metrics (under‑5 mortality, maternal mortality, undernourishment) |
+| **Labour / unemployment timeline** | Labour and unemployment metrics with same frequency and resampling as macro timeline |
 | **Population pie** | 0–14, 15–64, 65+ with % and absolute counts |
 | **Country comparison table** | Selected country vs average vs global total; optional age breakdown |
 
@@ -86,19 +88,29 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | Feature | Description |
 |---------|-------------|
 | **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, and Government |
-| **Correlation scatter** | Choose X and Y metrics; plot all countries; highlight selected country; inspect correlation across countries |
 | **Year selector** | Independent of country dashboard |
 | **Map tooltip** | Country name, flag, metric value, effective year |
 | **Global table** | General (area, region, government type, head of government), Financial (GDP, debt, inflation, lending rate, unemployment, poverty + YoY), Health & demographics (population, age groups, life expectancy, under‑5 mortality, maternal mortality, undernourishment + YoY) |
 | **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
 
-### 3.4 PESTEL
+### 3.3 PESTEL
 
 | Feature | Description |
 |---------|-------------|
 | **PESTEL tab** | Dedicated view for PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis of the selected country |
+| **Section order** | PESTEL Analysis (chart), SWOT Analysis (one bullet per sentence), Comprehensive Analysis (full report), Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations |
+| **Bullet minimums** | New Market Analysis, Key Takeaways, and Recommendations each have at least 5 bullet points (enforced via prompt) |
 | **Generate / refresh** | Trigger generation with current country context; responses include sources and hyperlinks where applicable |
 | **Context-aware** | Uses selected country and dashboard data to produce structured analysis |
+
+### 3.4 Business Analytics
+
+| Feature | Description |
+|---------|-------------|
+| **Correlation scatter** | Choose X and Y metrics; plot all countries; highlight selected country (from Country dashboard); inspect correlation |
+| **Year selector** | Data year for scatter and correlation (syncs with dashboard year by default) |
+| **Correlation & causation analysis** | Pearson correlation coefficient (r), approximate p-value, interpretation text, and causation/context note with disclaimer |
+| **Country highlight** | Selected country from Country dashboard is highlighted on the scatter; changing country updates highlight |
 
 ### 3.5 Source Tab
 
@@ -157,7 +169,7 @@ axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
 ### 5.1 High-Level Flow
 
 ```
-User → App.tsx (tabs, filters)
+User → App.tsx (tabs: Country | Global | PESTEL | Business Analytics | Chat | Source)
          ↓
     useCountryDashboard (country, year range)
          ↓
@@ -165,21 +177,22 @@ User → App.tsx (tabs, filters)
          ↓
     worldBank.ts (WDI) + imf.ts (fallbacks) + REST Countries
          ↓
-    Components (Summary, TimeSeries, Map, Tables, Source, Chatbot)
+    Components (Summary, TimeSeries, Map, Tables, Business Analytics, Source, Chatbot, PESTEL)
 ```
 
 ### 5.2 Key Modules
 
 | Module | Purpose |
 |--------|---------|
-| `src/App.tsx` | Layout, main tabs (Country / Global / PESTEL / Source / Chat), footer |
+| `src/App.tsx` | Layout, main tabs (Country / Global / PESTEL / Business Analytics / Chat / Source), footer |
 | `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state |
 | `src/api/worldBank.ts` | WDI API, global metrics, territory fallbacks |
 | `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
-| `src/components/*` | Presentational components including ChatbotSection, PESTELSection, CorrelationScatterPlot |
+| `src/components/*` | Presentational components including ChatbotSection, PESTELSection, BusinessAnalyticsSection, CorrelationScatterPlot |
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
 | `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
 | `src/utils/pestelContext.ts` | PESTEL prompt building and generation context for selected country |
+| `src/utils/correlationAnalysis.ts` | Pearson correlation and causation interpretation for Business Analytics |
 | `src/config/llm.ts` | LLM model definitions, provider config |
 | `src/data/metricMetadata.ts` | Metric descriptions, formulas, source links |
 | `src/types.ts` | Domain types |

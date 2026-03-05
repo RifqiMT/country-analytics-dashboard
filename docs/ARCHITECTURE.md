@@ -9,29 +9,29 @@ This document describes the data flow, component boundaries, and technical archi
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         App.tsx (Root)                            │
-│  - Main tabs (Country | Global | PESTEL | Source | Chat)         │
+│  - Main tabs (Country | Global | PESTEL | Business Analytics | Chat | Source)         │
 │  - Global state: mainTab, globalViewTab, mapMetricId, year       │
 └─────────────────────────────────────────────────────────────────┘
                                     │
-        ┌───────────────────────────┼───────────────────────────┬──────────────────┬──────────────────┐
-        ▼                           ▼                           ▼                  ▼                  ▼
-┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   Country     │           │   Global     │           │   PESTEL      │   │   Source      │   │   Analytics   │
-│   Dashboard   │           │   Analytics  │           │   Tab         │   │   Tab         │   │   Assistant   │
-│               │           │               │           │               │   │               │   │   (Chat)      │
-│ - Selector   │           │ - Map         │           │ - PESTEL      │   │ - Search      │   │ - Chatbot     │
-│ - YearRange  │           │ - MapMetric  │           │   Section     │   │ - Filter chips│   │   Section     │
-│ - Summary    │           │ - Correlation│           │ - Generate/   │   │ - Metric cards│   │ - Suggestions │
-│ - TimeSeries │           │   ScatterPlot │          │   Refresh     │   │               │   │ - Model/Key   │
-│ - Macro      │           │ - AllCountries│          │               │   │               │   │   settings    │
-│ - Population │           │   TableSection │          │               │   │               │   │               │
-│ - CountryTable│          │               │           │               │   │               │   │               │
-└───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
-        │                           │                           │                  │                  │
-        └───────────────────────────┼───────────────────────────┼──────────────────┘                  │
-                                    ▼                             │                                     │
-                    ┌───────────────────────────────┐              │  (dashboardData / country context) │
-                    │   useCountryDashboard hook    │◄──────────────┴─────────────────────────────────────┘
+        ┌───────────────────────────┼───────────────────────────┬──────────────────┬──────────────────┬──────────────┐
+        ▼                           ▼                           ▼                  ▼                  ▼                  ▼
+┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
+│   Country     │           │   Global     │           │   PESTEL      │   │   Business    │   │   Analytics   │   │   Source      │
+│   Dashboard   │           │   Analytics  │           │   Tab         │   │   Analytics   │   │   Assistant   │   │   Tab         │
+│               │           │               │           │               │   │   Tab         │   │   (Chat)      │   │               │
+│ - Selector   │           │ - Map         │           │ - PESTEL      │   │ - Correlation │   │ - Chatbot     │   │ - Search      │
+│ - YearRange  │           │ - MapMetric  │           │   Section     │   │   Scatter     │   │   Section     │   │ - Filter chips│
+│ - Summary    │           │ - AllCountries│           │ - Generate/   │   │ - X/Y metrics │   │ - Suggestions │   │ - Metric cards│
+│ - TimeSeries │           │   TableSection │          │   Refresh     │   │ - Pearson r   │   │ - Model/Key   │   │               │
+│ - Macro      │           │               │           │               │   │   & causation │   │   settings    │   │               │
+│ - Population │           │               │           │               │   │               │   │               │   │               │
+│ - CountryTable│          │               │           │               │   │               │   │               │   │               │
+└───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
+        │                           │                           │                  │                  │                  │
+        └───────────────────────────┼───────────────────────────┼──────────────────┼──────────────────┘                  │
+                                    ▼                             │                                     │                  │
+                    ┌───────────────────────────────┐              │  (dashboardData / country context) │                  │
+                    │   useCountryDashboard hook    │◄──────────────┴─────────────────────────────────────┘                  │
                     │   - countryCode, year range   │
                     │   - frequency, metricIds      │
                     │   - data, loading, error       │
@@ -196,25 +196,34 @@ App
 └── WorldMapSection
     └── ComposableMap (react-simple-maps)
     └── Geographies
-└── CorrelationScatterPlot
-    └── X/Y metric selectors
-    └── Scatter chart (Recharts or similar)
 └── AllCountriesTableSection
     └── Table (General | Financial | Health)
 ```
 
-### 3.3 PESTEL Tab
+### 3.3 Business Analytics
+
+```
+App
+└── BusinessAnalyticsSection
+    └── Year selector, highlight country selector
+    └── CorrelationScatterPlot
+        └── X/Y metric selectors
+        └── Scatter chart (Recharts)
+    └── Correlation & causation analysis (Pearson r, p-value, interpretation, causation note)
+```
+
+### 3.4 PESTEL Tab
 
 ```
 App
 └── PESTELSection
     └── Country context (from useCountryDashboard)
     └── Generate / Refresh button
-    └── Rendered PESTEL content (Political, Economic, Social, Technological, Environmental, Legal)
+    └── Rendered output in section order: PESTEL Analysis (chart), SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis (≥5 bullets), Key Takeaways (≥5 bullets), Recommendations (≥5 bullets)
     └── Sources and hyperlinks (where applicable)
 ```
 
-### 3.4 Source Tab
+### 3.5 Source Tab
 
 ```
 App
@@ -226,7 +235,7 @@ App
     └── Metric cards (by category)
 ```
 
-### 3.5 Analytics Assistant
+### 3.6 Analytics Assistant
 
 ```
 App
@@ -269,7 +278,15 @@ App
 | `pestelContext.ts` | PESTEL prompt building and generation context for selected country (used by PESTEL tab) |
 | `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing (Groq vs Tavily by implied year); source attribution; PESTEL generation |
 
-### 4.4 Key Data Structures
+### 4.4 Business Analytics
+
+| Module | Purpose |
+|--------|---------|
+| `BusinessAnalyticsSection.tsx` | Tab UI: year selector, highlight country, CorrelationScatterPlot, correlation & causation block |
+| `CorrelationScatterPlot.tsx` | X/Y metric selectors, scatter chart, tooltip; uses global metrics for selected year |
+| `correlationAnalysis.ts` | `computeCorrelationAnalysis()` – Pearson r, p-value, interpretation text, causation note |
+
+### 4.5 Key Data Structures
 
 - **CountrySummary**: iso2, iso3, name, region, currency, governmentType, headOfGovernmentType, etc.
 - **CountryDashboardData**: summary, range, series, latestSnapshot

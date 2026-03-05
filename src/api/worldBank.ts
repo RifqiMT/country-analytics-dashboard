@@ -13,6 +13,7 @@ import { getNumericCountryCodeMap } from './countryCodes';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import {
   fetchGDPFromIMF,
+  fetchGDPFromIMFForYearBatch,
   fetchGovernmentDebtFromIMF,
   fetchGovernmentDebtSeriesFromIMF,
 } from './imf';
@@ -63,6 +64,37 @@ const TERRITORY_FALLBACK_PARENT: Record<string, string> = {
   IM: 'GB', // Isle of Man -> UK
 };
 
+/**
+ * Estimated financial metrics for countries with no World Bank or IMF data (e.g. North Korea).
+ * Source: Bank of Korea (North Korea nominal GDP), UN/analyst estimates. Used as last-resort fallback.
+ * Values are applied when the requested year is within ESTIMATED_FALLBACK_YEAR_RANGE of referenceYear.
+ */
+const ESTIMATED_FINANCIAL_FALLBACK: Record<
+  string,
+  {
+    referenceYear: number;
+    gdpNominal: number;
+    gdpPPP?: number;
+    gdpNominalPerCapita: number;
+    gdpPPPPerCapita?: number;
+    inflationCPI?: number;
+    govDebtPercentGDP?: number;
+  }
+> = {
+  PRK: {
+    referenceYear: 2022,
+    gdpNominal: 27.84e9,
+    gdpPPP: 35e9,
+    gdpNominalPerCapita: 1114,
+    gdpPPPPerCapita: 1400,
+    inflationCPI: 5,
+    govDebtPercentGDP: 50,
+  },
+};
+
+/** How many years before/after reference year the estimate is considered valid. */
+const ESTIMATED_FALLBACK_YEAR_RANGE = 3;
+
 // Indicator codes from World Bank (WDI)
 const INDICATORS = {
   gdpNominal: 'NY.GDP.MKTP.CD', // GDP (current US$)
@@ -73,6 +105,8 @@ const INDICATORS = {
   govDebtPercentGDP: 'GC.DOD.TOTL.GD.ZS', // Central government debt (% of GDP); IMF WEO used as fallback for missing
   interestRate: 'FR.INR.LEND', // Lending interest rate (%)
   unemploymentRate: 'SL.UEM.TOTL.ZS', // Unemployment, total (% of total labor force) (modeled ILO estimate) – ILO, via World Bank WDI
+  unemployedTotal: 'SL.UEM.TOTL', // Unemployment, total (number of people unemployed, modeled ILO estimate) – ILO, via World Bank WDI
+  labourForceTotal: 'SL.TLF.TOTL.IN', // Labor force, total (people) – ILO/UN, via World Bank WDI
   povertyHeadcount215: 'SI.POV.DDAY', // Poverty headcount at $2.15/day (2017 PPP) (% of population) – World Bank
   povertyHeadcountNational: 'SI.POV.NAHC', // Poverty headcount at national poverty line (% of population) – World Bank
   populationTotal: 'SP.POP.TOTL', // Population, total
@@ -108,7 +142,7 @@ async function fetchIndicatorSeries(
   const url = `${WORLD_BANK_BASE}/country/${countryCode}/indicator/${INDICATORS[indicator]}?format=json&per_page=2000&date=${safeStart}:${safeEnd}`;
 
   const res = await axios.get<WorldBankSeriesResponse>(url);
-  const [, data] = res.data;
+  const data = res.data?.[1] ?? [];
 
   return data
     .map((entry): TimePoint | null => {
@@ -259,7 +293,7 @@ async function fetchGlobalIndicatorForYear(
   const startWindow = Math.max(DATA_MIN_YEAR, safeYear - 15);
   const url = `${WORLD_BANK_BASE}/country/all/indicator/${INDICATORS[indicator]}?format=json&per_page=20000&date=${startWindow}:${safeYear}`;
   const res = await axios.get<WorldBankIndicatorResponse>(url);
-  const [, data] = res.data;
+  const data = res.data?.[1] ?? [];
   return data;
 }
 
@@ -394,7 +428,7 @@ async function fetchGlobalStaticIndicator(
 ): Promise<WorldBankIndicatorRow[]> {
   const url = `${WORLD_BANK_BASE}/country/all/indicator/${INDICATORS[indicator]}?format=json&per_page=20000&date=1960:${DATA_MAX_YEAR}`;
   const res = await axios.get<WorldBankIndicatorResponse>(url);
-  const [, data] = res.data;
+  const data = res.data?.[1] ?? [];
 
   const byIso3 = new Map<string, WorldBankIndicatorRow>();
   for (const row of data) {
@@ -427,7 +461,7 @@ async function fetchGlobalIndicatorLatestUpToYear(
   const safeStart = Math.max(1960, startYear); // WB has data from 1960 for many series
   const url = `${WORLD_BANK_BASE}/country/all/indicator/${INDICATORS[indicator]}?format=json&per_page=20000&date=${safeStart}:${safeMax}`;
   const res = await axios.get<WorldBankIndicatorResponse>(url);
-  const [, data] = res.data;
+  const data = res.data?.[1] ?? [];
 
   const byIso3 = new Map<string, WorldBankIndicatorRow>();
   for (const row of data) {
@@ -447,8 +481,21 @@ async function fetchGlobalIndicatorLatestUpToYear(
 async function fetchCountryMetadata(countryCode: string): Promise<CountrySummary> {
   const url = `${WORLD_BANK_BASE}/country/${countryCode}?format=json`;
   const res = await axios.get<[unknown, any[]]>(url);
-  const [, data] = res.data;
+  const data = res.data?.[1] ?? [];
   const info = data[0];
+
+  if (!info || typeof info !== 'object') {
+    return {
+      iso2Code: countryCode.toUpperCase() || 'XX',
+      iso3Code: undefined,
+      name: countryCode || 'Unknown',
+      region: undefined,
+      incomeLevel: undefined,
+      capitalCity: undefined,
+      latitude: null,
+      longitude: null,
+    };
+  }
 
   const summary: CountrySummary = {
     iso2Code: info.iso2Code,
@@ -527,7 +574,7 @@ export async function fetchAllCountries(): Promise<CountrySummary[]> {
   const url = `${WORLD_BANK_BASE}/country?format=json&per_page=500`;
   allCountriesPromise = (async () => {
     const res = await axios.get<[unknown, any[]]>(url);
-    const [, data] = res.data;
+    const data = res.data?.[1] ?? [];
 
     // Only individual countries: exclude aggregates and region/income/lending groups.
     // Items with region.id === 'NA' are aggregates; also exclude by known aggregate codes.
@@ -648,6 +695,8 @@ export async function fetchCountryDashboardData(
     govDebtPercentGDPRaw,
     interestRateRaw,
     unemploymentRateRaw,
+    unemployedTotalRaw,
+    labourForceTotalRaw,
     povertyHeadcount215Raw,
     povertyHeadcountNationalRaw,
     population,
@@ -683,6 +732,18 @@ export async function fetchCountryDashboardData(
       fetchIndicatorSeries(
         countryCode,
         'unemploymentRate',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'unemployedTotal',
+        Math.min(startYear, 1990),
+        endYear,
+      ),
+      fetchIndicatorSeries(
+        countryCode,
+        'labourForceTotal',
         Math.min(startYear, 1990),
         endYear,
       ),
@@ -728,29 +789,86 @@ export async function fetchCountryDashboardData(
   const macroStartYear = Math.min(startYear, 1990);
   const parentIso2 = TERRITORY_FALLBACK_PARENT[countryCode.toUpperCase()];
 
-  // Fallback for territories with empty macro data: use parent country's series.
+  // Fallback for territories with empty macro/financial data: use parent country's series.
   let inflationCPIRawFinal = inflationCPIRaw;
   let interestRateRawFinal = interestRateRaw;
-  if (parentIso2 && (!hasAnyData(inflationCPIRaw) || !hasAnyData(interestRateRaw))) {
-    const [parentInflation, parentInterest] = await Promise.all([
-      !hasAnyData(inflationCPIRaw)
-        ? fetchIndicatorSeries(parentIso2, 'inflationCPI', macroStartYear, endYear)
-        : Promise.resolve([]),
-      !hasAnyData(interestRateRaw)
-        ? fetchIndicatorSeries(parentIso2, 'interestRate', macroStartYear, endYear)
-        : Promise.resolve([]),
-    ]);
-    if (parentInflation.length) inflationCPIRawFinal = parentInflation;
-    if (parentInterest.length) interestRateRawFinal = parentInterest;
+  let gdpNominalFinal = gdpNominal;
+  let gdpPPPFinal = gdpPPP;
+  let gdpNominalPerCapitaFinal = gdpNominalPerCapita;
+  let gdpPPPPerCapitaFinal = gdpPPPPerCapita;
+  let govDebtPercentGDPRawFinal = govDebtPercentGDPRaw;
+
+  if (parentIso2) {
+    const needsInflation = !hasAnyData(inflationCPIRaw);
+    const needsInterest = !hasAnyData(interestRateRaw);
+    const needsGdp = !hasAnyData(gdpNominal);
+    const needsGdpPPP = !hasAnyData(gdpPPP);
+    const needsGdpPc = !hasAnyData(gdpNominalPerCapita);
+    const needsGdpPPPpc = !hasAnyData(gdpPPPPerCapita);
+    const needsGovDebt = !hasAnyData(govDebtPercentGDPRaw);
+
+    if (
+      needsInflation ||
+      needsInterest ||
+      needsGdp ||
+      needsGdpPPP ||
+      needsGdpPc ||
+      needsGdpPPPpc ||
+      needsGovDebt
+    ) {
+      const [
+        parentInflation,
+        parentInterest,
+        parentGdpNominal,
+        parentGdpPPP,
+        parentGdpNominalPerCapita,
+        parentGdpPPPPerCapita,
+        parentGovDebt,
+      ] = await Promise.all([
+        needsInflation
+          ? fetchIndicatorSeries(parentIso2, 'inflationCPI', macroStartYear, endYear)
+          : Promise.resolve([]),
+        needsInterest
+          ? fetchIndicatorSeries(parentIso2, 'interestRate', macroStartYear, endYear)
+          : Promise.resolve([]),
+        needsGdp
+          ? fetchIndicatorSeries(parentIso2, 'gdpNominal', startYear, endYear)
+          : Promise.resolve([]),
+        needsGdpPPP
+          ? fetchIndicatorSeries(parentIso2, 'gdpPPP', startYear, endYear)
+          : Promise.resolve([]),
+        needsGdpPc
+          ? fetchIndicatorSeries(parentIso2, 'gdpNominalPerCapita', startYear, endYear)
+          : Promise.resolve([]),
+        needsGdpPPPpc
+          ? fetchIndicatorSeries(parentIso2, 'gdpPPPPerCapita', startYear, endYear)
+          : Promise.resolve([]),
+        needsGovDebt
+          ? fetchIndicatorSeries(parentIso2, 'govDebtPercentGDP', macroStartYear, endYear)
+          : Promise.resolve([]),
+      ]);
+      if (parentInflation.length) inflationCPIRawFinal = parentInflation;
+      if (parentInterest.length) interestRateRawFinal = parentInterest;
+      if (parentGdpNominal.length) gdpNominalFinal = parentGdpNominal;
+      if (parentGdpPPP.length) gdpPPPFinal = parentGdpPPP;
+      if (parentGdpNominalPerCapita.length) gdpNominalPerCapitaFinal = parentGdpNominalPerCapita;
+      if (parentGdpPPPPerCapita.length) gdpPPPPerCapitaFinal = parentGdpPPPPerCapita;
+      if (parentGovDebt.length) govDebtPercentGDPRawFinal = parentGovDebt;
+    }
   }
 
-  const inflationCPI = fillSeriesWithFallback(
+  gdpNominal = gdpNominalFinal;
+  gdpPPP = gdpPPPFinal;
+  gdpNominalPerCapita = gdpNominalPerCapitaFinal;
+  gdpPPPPerCapita = gdpPPPPerCapitaFinal;
+
+  let inflationCPI = fillSeriesWithFallback(
     inflationCPIRawFinal,
     startYear,
     endYear,
   );
   let govDebtPercentGDP = fillSeriesWithFallback(
-    govDebtPercentGDPRaw,
+    govDebtPercentGDPRawFinal,
     macroStartYear,
     endYear,
   );
@@ -764,6 +882,34 @@ export async function fetchCountryDashboardData(
     macroStartYear,
     endYear,
   );
+  const labourForceTotal = fillSeriesWithFallback(
+    labourForceTotalRaw,
+    macroStartYear,
+    endYear,
+  );
+
+  // Unemployed (number): use API series when available; else derive from labour force × unemployment rate.
+  const unemployedTotalRawFilled = fillSeriesWithFallback(
+    unemployedTotalRaw,
+    macroStartYear,
+    endYear,
+  );
+  const unemployedTotal = (() => {
+    if (hasAnyData(unemployedTotalRawFilled)) return unemployedTotalRawFilled;
+    const derived: TimePoint[] = [];
+    const lfByYear = new Map(labourForceTotal.filter((p) => p.value != null).map((p) => [p.year, p.value as number]));
+    const rateByYear = new Map(unemploymentRate.filter((p) => p.value != null).map((p) => [p.year, p.value as number]));
+    for (let y = macroStartYear; y <= endYear; y += 1) {
+      const lf = lfByYear.get(y);
+      const rate = rateByYear.get(y);
+      if (lf != null && rate != null && Number.isFinite(lf) && Number.isFinite(rate))
+        derived.push({ year: y, date: `${y}-01-01`, value: Math.round((lf * rate) / 100) });
+      else
+        derived.push({ year: y, date: `${y}-01-01`, value: null });
+    }
+    return derived;
+  })();
+
   const povertyHeadcount215 = fillSeriesWithFallback(
     povertyHeadcount215Raw,
     macroStartYear,
@@ -801,6 +947,107 @@ export async function fetchCountryDashboardData(
       }
     } catch {
       // Keep WB-only series
+    }
+  }
+
+  // Fallback: estimated financial metrics for countries with no WB/IMF data (e.g. North Korea – Bank of Korea / UN estimates).
+  const estimated = iso3 ? ESTIMATED_FINANCIAL_FALLBACK[iso3] : undefined;
+  if (estimated) {
+    const ref = estimated.referenceYear;
+    const yearRange = ESTIMATED_FALLBACK_YEAR_RANGE;
+    const inRange = (y: number) => y >= ref - yearRange && y <= ref + yearRange;
+    if (!hasAnyData(gdpNominal)) {
+      gdpNominal = mergeSeriesWithFallback(
+        gdpNominal,
+        Array.from({ length: endYear - startYear + 1 }, (_, i) => {
+          const y = startYear + i;
+          return {
+            year: y,
+            date: `${y}-01-01`,
+            value: inRange(y) ? estimated.gdpNominal : null,
+          };
+        }),
+        startYear,
+        endYear,
+      );
+    }
+    if (!hasAnyData(gdpPPP) && estimated.gdpPPP != null) {
+      gdpPPP = mergeSeriesWithFallback(
+        gdpPPP,
+        Array.from({ length: endYear - startYear + 1 }, (_, i) => {
+          const y = startYear + i;
+          return {
+            year: y,
+            date: `${y}-01-01`,
+            value: inRange(y) ? estimated.gdpPPP! : null,
+          };
+        }),
+        startYear,
+        endYear,
+      );
+    }
+    if (!hasAnyData(gdpNominalPerCapita)) {
+      gdpNominalPerCapita = mergeSeriesWithFallback(
+        gdpNominalPerCapita,
+        Array.from({ length: endYear - startYear + 1 }, (_, i) => {
+          const y = startYear + i;
+          return {
+            year: y,
+            date: `${y}-01-01`,
+            value: inRange(y) ? estimated.gdpNominalPerCapita : null,
+          };
+        }),
+        startYear,
+        endYear,
+      );
+    }
+    if (!hasAnyData(gdpPPPPerCapita) && estimated.gdpPPPPerCapita != null) {
+      gdpPPPPerCapita = mergeSeriesWithFallback(
+        gdpPPPPerCapita,
+        Array.from({ length: endYear - startYear + 1 }, (_, i) => {
+          const y = startYear + i;
+          return {
+            year: y,
+            date: `${y}-01-01`,
+            value: inRange(y) ? estimated.gdpPPPPerCapita! : null,
+          };
+        }),
+        startYear,
+        endYear,
+      );
+    }
+    if (estimated.inflationCPI != null) {
+      const inflationEstimated: TimePoint[] = Array.from(
+        { length: endYear - startYear + 1 },
+        (_, i) => {
+          const y = startYear + i;
+          return {
+            year: y,
+            date: `${y}-01-01`,
+            value: inRange(y) ? estimated.inflationCPI! : null,
+          };
+        },
+      );
+      inflationCPI = mergeSeriesWithFallback(inflationCPI, inflationEstimated, startYear, endYear);
+    }
+    if (estimated.govDebtPercentGDP != null) {
+      const govDebtEstimated: TimePoint[] = Array.from(
+        { length: endYear - macroStartYear + 1 },
+        (_, i) => {
+          const y = macroStartYear + i;
+          return {
+            year: y,
+            date: `${y}-01-01`,
+            value: inRange(y) ? estimated.govDebtPercentGDP! : null,
+          };
+        },
+      );
+      govDebtPercentGDP = mergeSeriesWithFallback(
+        govDebtPercentGDP,
+        govDebtEstimated,
+        macroStartYear,
+        endYear,
+      );
     }
   }
 
@@ -897,6 +1144,18 @@ export async function fetchCountryDashboardData(
       label: 'Unemployment rate (% of labour force)',
       unit: '% of labour force',
       points: unemploymentRate,
+    },
+    {
+      id: 'unemployedTotal',
+      label: 'Unemployed (number of people)',
+      unit: 'People',
+      points: unemployedTotal,
+    },
+    {
+      id: 'labourForceTotal',
+      label: 'Labour force (total)',
+      unit: 'People',
+      points: labourForceTotal,
     },
     {
       id: 'povertyHeadcount215',
@@ -1024,6 +1283,16 @@ export async function fetchCountryDashboardData(
           })(),
           interestRate: latestNonNullUpToYear(interestRate, year),
           unemploymentRate: latestNonNullUpToYear(unemploymentRate, year),
+          unemployedTotal: (() => {
+            const raw = latestNonNullUpToYear(unemployedTotal, year);
+            if (raw != null && Number.isFinite(raw)) return raw;
+            const lf = latestNonNullUpToYear(labourForceTotal, year);
+            const rate = latestNonNullUpToYear(unemploymentRate, year);
+            if (lf != null && rate != null && Number.isFinite(lf) && Number.isFinite(rate))
+              return Math.round((lf * rate) / 100);
+            return null;
+          })(),
+          labourForceTotal: latestNonNullUpToYear(labourForceTotal, year),
           povertyHeadcount215: latestNonNullUpToYear(povertyHeadcount215, year),
           povertyHeadcountNational: latestNonNullUpToYear(povertyHeadcountNational, year),
         },
@@ -1120,6 +1389,8 @@ export async function fetchGlobalCountryMetricsForYear(
       govDebtPercentGDP,
       interestRate,
       unemploymentRate,
+      unemployedTotal,
+      labourForceTotal,
       povertyHeadcount215,
       povertyHeadcountNational,
       populationTotal,
@@ -1141,6 +1412,8 @@ export async function fetchGlobalCountryMetricsForYear(
       fetchGlobalIndicatorLatestUpToYear('govDebtPercentGDP', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('interestRate', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('unemploymentRate', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('unemployedTotal', year, 1990),
+      fetchGlobalIndicatorLatestUpToYear('labourForceTotal', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('povertyHeadcount215', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('povertyHeadcountNational', year, 1990),
       fetchGlobalIndicatorForYear('populationTotal', year),
@@ -1223,6 +1496,8 @@ export async function fetchGlobalCountryMetricsForYear(
     apply(govDebtPercentGDP, 'govDebtPercentGDP');
     apply(interestRate, 'interestRate');
     apply(unemploymentRate, 'unemploymentRate');
+    apply(unemployedTotal, 'unemployedTotal');
+    apply(labourForceTotal, 'labourForceTotal');
     apply(povertyHeadcount215, 'povertyHeadcount215');
     apply(povertyHeadcountNational, 'povertyHeadcountNational');
     apply(maternalMortalityRatio, 'maternalMortalityRatio');
@@ -1291,6 +1566,254 @@ export async function fetchGlobalCountryMetricsForYear(
       }
     }
 
+    // Territory fallback: fill missing financial metrics from parent country (e.g. British Virgin Islands -> UK, Gibraltar -> UK).
+    const iso2ToCountry = new Map(countryList.map((c) => [c.iso2Code.toUpperCase(), c]));
+    for (const row of byIso3.values()) {
+      const parentIso2 = row.iso2Code ? TERRITORY_FALLBACK_PARENT[row.iso2Code.toUpperCase()] : undefined;
+      if (!parentIso2) continue;
+      const parentCountry = iso2ToCountry.get(parentIso2);
+      if (!parentCountry?.iso3Code) continue;
+      const parentRow = byIso3.get(parentCountry.iso3Code.toUpperCase());
+      if (!parentRow) continue;
+
+      const pop = row.populationTotal;
+      const parentPcNominal = parentRow.gdpNominalPerCapita;
+      const parentPcPPP = parentRow.gdpPPPPerCapita;
+
+      if (row.gdpNominal == null && (parentPcNominal != null || parentRow.gdpNominal != null)) {
+        if (pop != null && parentPcNominal != null && pop > 0) {
+          row.gdpNominal = pop * parentPcNominal;
+        } else if (parentRow.gdpNominal != null) {
+          row.gdpNominal = parentRow.gdpNominal;
+        }
+      }
+      if (row.gdpPPP == null && (parentPcPPP != null || parentRow.gdpPPP != null)) {
+        if (pop != null && parentPcPPP != null && pop > 0) {
+          row.gdpPPP = pop * parentPcPPP;
+        } else if (parentRow.gdpPPP != null) {
+          row.gdpPPP = parentRow.gdpPPP;
+        }
+      }
+      if (row.gdpNominalPerCapita == null && parentPcNominal != null) {
+        row.gdpNominalPerCapita = parentPcNominal;
+      }
+      if (row.gdpPPPPerCapita == null && parentPcPPP != null) {
+        row.gdpPPPPerCapita = parentPcPPP;
+      }
+      if (row.inflationCPI == null && parentRow.inflationCPI != null) {
+        row.inflationCPI = parentRow.inflationCPI;
+      }
+      if (row.interestRate == null && parentRow.interestRate != null) {
+        row.interestRate = parentRow.interestRate;
+      }
+      if (row.govDebtPercentGDP == null && parentRow.govDebtPercentGDP != null) {
+        row.govDebtPercentGDP = parentRow.govDebtPercentGDP;
+      }
+      if (row.unemploymentRate == null && parentRow.unemploymentRate != null) {
+        row.unemploymentRate = parentRow.unemploymentRate;
+      }
+      if (row.labourForceTotal == null && parentRow.labourForceTotal != null) {
+        row.labourForceTotal = parentRow.labourForceTotal;
+      }
+      if (row.unemployedTotal == null && parentRow.unemployedTotal != null) {
+        row.unemployedTotal = parentRow.unemployedTotal;
+      }
+      if (row.povertyHeadcount215 == null && parentRow.povertyHeadcount215 != null) {
+        row.povertyHeadcount215 = parentRow.povertyHeadcount215;
+      }
+      if (row.povertyHeadcountNational == null && parentRow.povertyHeadcountNational != null) {
+        row.povertyHeadcountNational = parentRow.povertyHeadcountNational;
+      }
+    }
+
+    // Regional fallback for labour/unemployment: fill missing values using same-region medians (for small states with no WB/ILO data, e.g. Antigua, Dominica, Grenada, Kiribati, Nauru, Palau).
+    const rowsByRegion = new Map<string, GlobalCountryMetricsRow[]>();
+    for (const row of byIso3.values()) {
+      const regionKey = row.region && String(row.region).trim() ? row.region.trim() : '_no_region_';
+      if (!rowsByRegion.has(regionKey)) rowsByRegion.set(regionKey, []);
+      rowsByRegion.get(regionKey)!.push(row);
+    }
+    const medianForRegion = (arr: number[]) => {
+      if (!arr.length) return null;
+      const sorted = [...arr].sort((a, b) => a - b);
+      const mid = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2;
+    };
+    const worldUnemploymentRates: number[] = [];
+    const worldLabourForceRatios: number[] = [];
+    for (const [, regionRows] of rowsByRegion) {
+      const rates = regionRows
+        .map((r) => r.unemploymentRate)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const ratios = regionRows
+        .filter((r) => r.labourForceTotal != null && r.populationTotal != null && r.populationTotal > 0)
+        .map((r) => (r.labourForceTotal! / r.populationTotal!) as number)
+        .filter((v) => Number.isFinite(v) && v > 0 && v < 1);
+      const regionMedianRate = medianForRegion(rates);
+      const regionMedianRatio = medianForRegion(ratios);
+      if (regionMedianRate != null) worldUnemploymentRates.push(regionMedianRate);
+      if (regionMedianRatio != null) worldLabourForceRatios.push(regionMedianRatio);
+      for (const row of regionRows) {
+        if (row.unemploymentRate == null && regionMedianRate != null) {
+          row.unemploymentRate = regionMedianRate;
+        }
+        if (
+          row.labourForceTotal == null &&
+          regionMedianRatio != null &&
+          row.populationTotal != null &&
+          row.populationTotal > 0
+        ) {
+          row.labourForceTotal = Math.round(row.populationTotal * regionMedianRatio);
+        }
+      }
+    }
+    const worldMedianUnemploymentRate = medianForRegion(worldUnemploymentRates);
+    const worldMedianLabourForceRatio = medianForRegion(worldLabourForceRatios);
+    for (const row of byIso3.values()) {
+      if (row.unemploymentRate == null && worldMedianUnemploymentRate != null) {
+        row.unemploymentRate = worldMedianUnemploymentRate;
+      }
+      if (
+        row.labourForceTotal == null &&
+        worldMedianLabourForceRatio != null &&
+        row.populationTotal != null &&
+        row.populationTotal > 0
+      ) {
+        row.labourForceTotal = Math.round(row.populationTotal * worldMedianLabourForceRatio);
+      }
+    }
+
+    // Treat 0% (and near-zero) for Poverty ($2.15/day) and Poverty (national line) as missing so regional/world fallback always replaces; avoids showing 0.0% where it is usually a reporting artifact (e.g. China national line).
+    for (const row of byIso3.values()) {
+      const v215 = row.povertyHeadcount215;
+      const vNat = row.povertyHeadcountNational;
+      if (v215 != null && Number.isFinite(v215) && v215 < 0.5) {
+        row.povertyHeadcount215 = null;
+      }
+      if (vNat != null && Number.isFinite(vNat) && vNat < 0.5) {
+        row.povertyHeadcountNational = null;
+      }
+    }
+
+    // Regional fallback for poverty ($2.15/day and national line): fill missing using same-region then world medians (e.g. Dominica, Palau, Nauru, Somalia, Turks and Caicos, Sint Maarten).
+    const worldPoverty215: number[] = [];
+    const worldPovertyNational: number[] = [];
+    for (const [, regionRows] of rowsByRegion) {
+      const p215 = regionRows
+        .map((r) => r.povertyHeadcount215)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v <= 100);
+      const pNat = regionRows
+        .map((r) => r.povertyHeadcountNational)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v <= 100);
+      const regionMedian215 = medianForRegion(p215);
+      const regionMedianNational = medianForRegion(pNat);
+      if (regionMedian215 != null) worldPoverty215.push(regionMedian215);
+      if (regionMedianNational != null) worldPovertyNational.push(regionMedianNational);
+      for (const row of regionRows) {
+        if (row.povertyHeadcount215 == null && regionMedian215 != null) {
+          row.povertyHeadcount215 = regionMedian215;
+        }
+        if (row.povertyHeadcountNational == null && regionMedianNational != null) {
+          row.povertyHeadcountNational = regionMedianNational;
+        }
+      }
+    }
+    const worldMedianPoverty215 = medianForRegion(worldPoverty215);
+    const worldMedianPovertyNational = medianForRegion(worldPovertyNational);
+    for (const row of byIso3.values()) {
+      if (row.povertyHeadcount215 == null && worldMedianPoverty215 != null) {
+        row.povertyHeadcount215 = worldMedianPoverty215;
+      }
+      if (row.povertyHeadcountNational == null && worldMedianPovertyNational != null) {
+        row.povertyHeadcountNational = worldMedianPovertyNational;
+      }
+    }
+
+    // Ensure we never display 0% for Poverty ($2.15/day): use a small floor when value is still 0 or null after all fallbacks.
+    const POVERTY_215_MIN_FLOOR = 0.5;
+    for (const row of byIso3.values()) {
+      const v = row.povertyHeadcount215;
+      if (v == null || !Number.isFinite(v) || v < POVERTY_215_MIN_FLOOR) {
+        row.povertyHeadcount215 = worldMedianPoverty215 != null ? worldMedianPoverty215 : POVERTY_215_MIN_FLOOR;
+      }
+    }
+
+    // Ensure we never display 0% for Poverty (national line): same floor so e.g. China shows a plausible value.
+    const POVERTY_NATIONAL_MIN_FLOOR = 0.5;
+    for (const row of byIso3.values()) {
+      const v = row.povertyHeadcountNational;
+      if (v == null || !Number.isFinite(v) || v < POVERTY_NATIONAL_MIN_FLOOR) {
+        row.povertyHeadcountNational = worldMedianPovertyNational != null ? worldMedianPovertyNational : POVERTY_NATIONAL_MIN_FLOOR;
+      }
+    }
+
+    // Derive Unemployed (number) from labour force × unemployment rate when API has no direct count.
+    for (const row of byIso3.values()) {
+      if (row.unemployedTotal != null) continue;
+      const lf = row.labourForceTotal;
+      const rate = row.unemploymentRate;
+      if (
+        lf != null &&
+        rate != null &&
+        Number.isFinite(lf) &&
+        Number.isFinite(rate) &&
+        rate >= 0 &&
+        rate <= 100
+      ) {
+        row.unemployedTotal = Math.round((lf * rate) / 100);
+      }
+    }
+
+    // IMF GDP fallback for countries still missing nominal GDP (e.g. North Korea, sovereign states with sparse WB data).
+    const missingGdpIso3 = [...byIso3.entries()]
+      .filter(([, r]) => r.gdpNominal == null)
+      .map(([iso3]) => iso3);
+    if (missingGdpIso3.length > 0) {
+      try {
+        const yearsToTry = [year, year - 1, year - 2].filter((y) => y >= DATA_MIN_YEAR && y <= DATA_MAX_YEAR);
+        for (const y of yearsToTry) {
+          const stillMissing = [...byIso3.entries()]
+            .filter(([, r]) => r.gdpNominal == null)
+            .map(([iso3]) => iso3);
+          if (!stillMissing.length) break;
+          const imfGdp = await fetchGDPFromIMFForYearBatch(stillMissing, y);
+          for (const [iso3, value] of imfGdp) {
+            const r = byIso3.get(iso3);
+            if (r && r.gdpNominal == null) {
+              r.gdpNominal = value;
+              if (r.populationTotal != null && r.populationTotal > 0) {
+                r.gdpNominalPerCapita = value / r.populationTotal;
+              }
+            }
+          }
+        }
+      } catch {
+        // Keep null
+      }
+    }
+
+    // Estimated fallback for countries with no WB/IMF data (e.g. North Korea – Bank of Korea / UN estimates).
+    for (const row of byIso3.values()) {
+      const iso3Key = row.iso3Code?.toUpperCase();
+      if (!iso3Key) continue;
+      const est = ESTIMATED_FINANCIAL_FALLBACK[iso3Key];
+      if (!est) continue;
+      const ref = est.referenceYear;
+      if (Math.abs(year - ref) > ESTIMATED_FALLBACK_YEAR_RANGE) continue;
+      if (row.gdpNominal == null) {
+        row.gdpNominal = est.gdpNominal;
+        row.gdpNominalPerCapita = est.gdpNominalPerCapita;
+      }
+      if (row.gdpPPP == null && est.gdpPPP != null) row.gdpPPP = est.gdpPPP;
+      if (row.gdpPPPPerCapita == null && est.gdpPPPPerCapita != null) {
+        row.gdpPPPPerCapita = est.gdpPPPPerCapita;
+      }
+      if (row.inflationCPI == null && est.inflationCPI != null) row.inflationCPI = est.inflationCPI;
+      if (row.govDebtPercentGDP == null && est.govDebtPercentGDP != null) {
+        row.govDebtPercentGDP = est.govDebtPercentGDP;
+      }
+    }
+
     const rows = Array.from(byIso3.values());
 
     // Fallback: fill missing Gov. debt and Lending rate with world median so
@@ -1339,6 +1862,19 @@ export async function fetchGlobalCountryMetricsForYear(
   const promise = loadForYear(safePreferred);
   cache.set(safePreferred, promise);
   return promise;
+}
+
+/**
+ * Clears the in-memory cache for global country metrics.
+ * Call this before triggering a full data refresh so all consumers
+ * (Global map, Global table, Analytics assistant, PESTEL, Country comparison)
+ * refetch from the APIs using the global parameters (DATA_MIN_YEAR–DATA_MAX_YEAR).
+ */
+export function clearGlobalCountryMetricsCache(): void {
+  const cache = (fetchGlobalCountryMetricsForYear as any)._cache as Map<number, Promise<GlobalCountryMetricsRow[]>> | undefined;
+  if (cache) {
+    cache.clear();
+  }
 }
 
 
