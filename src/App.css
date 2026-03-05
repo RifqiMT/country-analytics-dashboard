@@ -1438,6 +1438,11 @@
   color: #111827;
 }
 
+.chart-tooltip-absolute {
+  font-weight: 500;
+  color: #6b7280;
+}
+
 .chart-tooltip-unit {
   font-weight: 500;
   color: #6b7280;
@@ -1591,6 +1596,13 @@
 .table-metric-value {
   font-weight: 500;
   color: var(--text-primary);
+}
+
+.table-metric-absolute {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
 }
 
 .table-metric-change {
@@ -2552,6 +2564,26 @@ tbody tr:hover {
   background: var(--bg-elevated);
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
+}
+
+.source-feature-list {
+  margin: var(--space-3) 0;
+}
+
+.source-feature-list .source-feature-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: var(--space-3) 0 var(--space-1);
+}
+
+.source-feature-list .source-feature-name:first-child {
+  margin-top: 0;
+}
+
+.source-feature-list p.muted {
+  margin-bottom: var(--space-2);
+  font-size: 0.9rem;
 }
 
 .source-assistant-intro {

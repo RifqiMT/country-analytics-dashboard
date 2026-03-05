@@ -19,12 +19,17 @@ This document describes the data flow, component boundaries, and technical archi
 │   Country     │           │   Global     │           │   PESTEL      │   │   Business    │   │   Analytics   │   │   Source      │
 │   Dashboard   │           │   Analytics  │           │   Tab         │   │   Analytics   │   │   Assistant   │   │   Tab         │
 │               │           │               │           │               │   │   Tab         │   │   (Chat)      │   │               │
-│ - Selector   │           │ - Map         │           │ - PESTEL      │   │ - Correlation │   │ - Chatbot     │   │ - Search      │
-│ - YearRange  │           │ - MapMetric  │           │   Section     │   │   Scatter     │   │   Section     │   │ - Filter chips│
-│ - Summary    │           │ - AllCountries│           │ - Generate/   │   │ - X/Y metrics │   │ - Suggestions │   │ - Metric cards│
-│ - TimeSeries │           │   TableSection │          │   Refresh     │   │ - Pearson r   │   │ - Model/Key   │   │               │
-│ - Macro      │           │               │           │               │   │   & causation │   │   settings    │   │               │
+│ - Selector   │           │ - Map         │           │ - PESTEL      │   │ - Correlation │   │ - Chatbot     │   │ - Where data  │
+│ - YearRange  │           │ - MapMetric  │           │   Section     │   │   Scatter     │   │   Section     │   │   appears     │
+│ - Summary    │           │ - AllCountries│           │ - Generate/   │   │ - X/Y metrics │   │ - Suggestions │   │ - Search      │
+│ - TimeSeries │           │   TableSection │          │   Refresh     │   │ - Pearson r   │   │ - Model/Key   │   │ - Filter chips│
+│ - Macro      │           │ - Zoom, flag  │           │               │   │   & causation │   │   settings    │   │   (WB, IMF,   │
+│   (economic  │           │   on hover    │           │               │   │               │   │               │   │   REST, etc.)  │
+│   & health)  │           │               │           │               │   │               │   │               │   │ - Metric cards │
+│ - Labour     │           │               │           │               │   │               │   │               │   │   (incl.       │
+│   timeline   │           │               │           │               │   │               │   │               │   │   context)     │
 │ - Population │           │               │           │               │   │               │   │               │   │               │
+│   Structure  │           │               │           │               │   │               │   │               │   │               │
 │ - CountryTable│          │               │           │               │   │               │   │               │   │               │
 └───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
         │                           │                           │                  │                  │                  │
@@ -86,6 +91,9 @@ useCountryDashboard.fetchCountryDashboardData(countryCode, startYear, endYear)
          │
          ├─► [If territory with empty data] fetch from parent country
          │         └─► TERRITORY_FALLBACK_PARENT map
+         │
+         ├─► [If Taiwan / missing WDI] synthetic country entry; metrics from parent or regional medians
+         │         └─► fetchCountryMetadata: REST Countries fallback
          │
          ├─► [If GDP empty] fetchGDPFromIMF(iso3, ...)
          │         └─► IMF DataMapper NGDPD@WEO
@@ -181,10 +189,14 @@ App
 └── TimeSeriesSection
     └── LineChart (Recharts)
     └── CustomTooltip
-└── PopulationPieSection
-    └── PieChart (Recharts)
-└── MacroIndicatorsTimelineSection
+└── MacroIndicatorsTimelineSection (variant: economic)
     └── LineChart (Recharts)
+└── MacroIndicatorsTimelineSection (variant: health)
+    └── LineChart (Recharts)
+└── LabourUnemploymentTimelineSection
+    └── LineChart (Recharts), dual Y-axis
+└── PopulationStructureSection
+    └── LineChart (Recharts), age-group shares + absolute
 └── CountryTableSection
 ```
 
@@ -194,8 +206,9 @@ App
 App
 └── MapMetricToolbar
 └── WorldMapSection
+    └── ZoomableGroup (zoom, reset)
     └── ComposableMap (react-simple-maps)
-    └── Geographies
+    └── Geographies (flag on hover)
 └── AllCountriesTableSection
     └── Table (General | Financial | Health)
 ```
@@ -228,11 +241,12 @@ App
 ```
 App
 └── SourceSection
+    └── Where metrics and information appear (Country Dashboard, Global, PESTEL, Business Analytics, Analytics Assistant)
     └── Analytics Assistant flow (year-based: Groq for period ≤ current year − 2, Tavily for recent)
     └── Search input
-    └── Filter chips (World Bank, IMF, Sea Around Us, Marine Regions)
+    └── Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO)
     └── Suggestions dropdown
-    └── Metric cards (by category)
+    └── Metric cards (Financial, Population, Health, Geography, Country metadata & context)
 ```
 
 ### 3.6 Analytics Assistant
@@ -325,12 +339,18 @@ App
 - **Government debt**: IMF WEO when WB empty
 - **GDP**: IMF NGDPD when WB empty (territories)
 
-### 7.3 Global Metrics
+### 7.3 Taiwan
+
+- **Country list**: Synthetic entry (TW, TWN) added when not in World Bank list so Taiwan appears in selectors and map.
+- **Metrics**: When World Bank WDI has no direct data, use fallback (e.g. parent or regional/world medians) per `worldBank.ts` logic.
+- **Metadata**: REST Countries used for country metadata when World Bank returns empty.
+
+### 7.4 Global Metrics
 
 - Gov debt and lending rate: world median when country has no data
 - Latest non-null: used for sparse indicators (inflation, interest, gov debt)
 
-### 7.4 Analytics Assistant Flow (Year-Based Routing)
+### 7.5 Analytics Assistant Flow (Year-Based Routing)
 
 **Cutoff:** current year − 2. Implied year from query ("now", explicit year, or no year → "now").
 

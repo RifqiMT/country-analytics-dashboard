@@ -7,14 +7,20 @@ const CATEGORY_LABELS: Record<MetricMetadata['category'], string> = {
   population: 'Population',
   health: 'Health',
   geography: 'Geography',
+  context: 'Country metadata & context',
 };
 
 /** Filter chips by data source – metrics are filtered to those citing each source. */
 const SOURCE_FILTER_CHIPS = [
   'World Bank',
   'IMF',
+  'REST Countries',
   'Sea Around Us',
   'Marine Regions',
+  'ILO',
+  'WHO',
+  'UN',
+  'FAO',
 ];
 
 function matchesSearch(metric: MetricMetadata, query: string): boolean {
@@ -45,7 +51,7 @@ export function SourceSection() {
 
   const byCategory = useMemo(() => {
     const acc = {} as Record<MetricMetadata['category'], MetricMetadata[]>;
-    for (const cat of ['financial', 'population', 'health', 'geography'] as const) {
+    for (const cat of ['financial', 'population', 'health', 'geography', 'context'] as const) {
       acc[cat] = [];
     }
     for (const m of filteredMetrics) {
@@ -74,6 +80,7 @@ export function SourceSection() {
     'population',
     'health',
     'geography',
+    'context',
   ];
 
   return (
@@ -82,36 +89,60 @@ export function SourceSection() {
         <div>
           <h2 className="section-title">Data sources & methodology</h2>
           <p className="muted">
-            All metrics used in this dashboard, with descriptions, formulas, and links to the
-            original data sources.
+            All metrics and information used across the platform: Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant. Each metric includes description, formula, unit, and links to the original data sources.
           </p>
         </div>
       </div>
 
       <div className="source-assistant-flow">
-        <h3 className="source-category-title">Analytics Assistant – answer sources</h3>
+        <h3 className="source-category-title">Where metrics and information appear</h3>
         <p className="source-assistant-intro muted">
-          The chat assistant uses a cascading flow to answer questions. Each response shows its
-          source (e.g. &quot;Dashboard data&quot;, &quot;Llama 3.3 70B (Groq)&quot;, &quot;Web search&quot;).
+          The platform uses the same metrics and sources across Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and the Analytics Assistant. Below is how each feature uses data.
         </p>
+
+        <div className="source-feature-list">
+          <h4 className="source-feature-name">Country Dashboard</h4>
+          <p className="muted">
+            Summary cards (latest values and YoY), Unified Financial &amp; Population Timeline, Macro Indicators Timeline (economic &amp; financial and health), Unemployed &amp; Labour Force Timeline, Population Structure (age-group shares and absolute counts), and Country Comparison table. Data: World Bank WDI, IMF WEO (fallbacks for GDP and debt). Territory fallbacks (e.g. Taiwan) use parent or regional data when direct series are missing.
+          </p>
+
+          <h4 className="source-feature-name">Global view (Map &amp; Table)</h4>
+          <p className="muted">
+            Choropleth map: any metric from the list (GDP, population, life expectancy, inflation, debt, unemployment, labour force, poverty, age-group shares, land/area/EEZ, region, government type). Global table: all countries and years with sortable columns and YoY growth. Sources: World Bank WDI, IMF, Sea Around Us, Marine Regions, REST Countries (region, government type). Country list: World Bank with synthetic entries for territories (e.g. Taiwan) when needed.
+          </p>
+
+          <h4 className="source-feature-name">PESTEL analysis</h4>
+          <p className="muted">
+            Political, Economic, Social, Technological, Environmental, Legal and SWOT content generated from dashboard data and country context. Inputs: World Bank WDI, IMF, REST Countries (government, currency, capital), Sea Around Us / Marine Regions (EEZ). LLM providers (Groq, OpenAI, Anthropic, Google, OpenRouter) when API keys are set; otherwise rule-based summaries from the same metrics.
+          </p>
+
+          <h4 className="source-feature-name">Business Analytics</h4>
+          <p className="muted">
+            Correlation scatter: any two metrics from the global dataset (X and Y). Correlation &amp; causation analysis: Pearson correlation coefficient (r), approximate p-value, and trend line. Data: same as Global view (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions). No separate data source; methodology is documented in the UI.
+          </p>
+
+          <h4 className="source-feature-name">Analytics Assistant – answer sources</h4>
+          <p className="muted">
+            Each response shows its source (e.g. &quot;Dashboard data&quot;, &quot;Llama 3.3 70B (Groq)&quot;, &quot;Web search&quot;). Cascading flow:
+          </p>
+        </div>
         <ol className="source-assistant-steps">
           <li>
-            <strong>Dashboard data</strong> – Rule-based answers from World Bank, IMF, and Sea Around Us
-            data for rankings, comparisons, single-metric lookups, and methodology questions.
+            <strong>Dashboard data</strong> – Rule-based answers from World Bank WDI, IMF, and Sea Around Us / Marine Regions for rankings, comparisons, single-metric lookups, and methodology questions. Uses all metrics in this tab plus region, income level, government type from World Bank and REST Countries.
           </li>
           <li>
-            <strong>Web search (Tavily)</strong> – For general-knowledge questions about the current
-            period or after current year minus 2 (e.g. &quot;who is the president now&quot;, &quot;in 2026&quot;).
+            <strong>Web search (Tavily)</strong> – For general-knowledge questions about the current period or after current year minus 2 (e.g. &quot;who is the president now&quot;, &quot;in 2026&quot;).
           </li>
           <li>
-            <strong>Groq (Llama 3.3 70B)</strong> – For questions about the period up to current year
-            minus 2 (e.g. &quot;in 2023&quot;), or when web search fails.
+            <strong>Groq (Llama 3.3 70B)</strong> – For questions about the period up to current year minus 2 (e.g. &quot;in 2023&quot;), or when web search fails.
           </li>
           <li>
-            <strong>Other LLMs + Tavily Web Search</strong> – OpenAI, Anthropic, Google, OpenRouter, or
-            Tavily Web Search (selectable in the model dropdown) when a user API key or server key is set.
+            <strong>Other LLMs + Tavily Web Search</strong> – OpenAI, Anthropic, Google, OpenRouter, or Tavily Web Search (selectable in the model dropdown) when a user API key or server key is set.
           </li>
         </ol>
+        <p className="source-assistant-intro muted">
+          All metrics below (Financial, Population, Health, Geography, Country metadata &amp; context) are searchable and linked to their primary sources.
+        </p>
       </div>
 
       <div className="source-search-wrapper">

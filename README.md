@@ -74,22 +74,21 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Country selector** | Search by name, ISO2, or ISO3; keyboard navigation |
+| **Country selector** | Search by name, ISO2, or ISO3; keyboard navigation; suggestive filter |
 | **Year range** | Start/End (2000–currentYear−2); presets: Full, Last 10, Last 5 |
 | **Summary section** | General (region, income, government, capital, timezone, currency, geography), Financial (GDP, debt, inflation, interest, unemployment, poverty + YoY), Health & demographics (population, life expectancy, age groups, child & maternal mortality, undernourishment + YoY) |
-| **Unified time-series** | Line chart for core structural metrics (GDP levels & per-capita, population, life expectancy); frequency: weekly/monthly/quarterly/yearly; metric chips; tooltip with period-over-period change |
-| **Macro indicators timeline** | Inflation, lending interest rate, government debt (% GDP), unemployment, poverty, and key health burden metrics (under‑5 mortality, maternal mortality, undernourishment) |
-| **Labour / unemployment timeline** | Labour and unemployment metrics with same frequency and resampling as macro timeline |
-| **Population pie** | 0–14, 15–64, 65+ with % and absolute counts |
-| **Country comparison table** | Selected country vs average vs global total; optional age breakdown |
+| **Unified time-series** | Line chart for core structural metrics (GDP levels & per-capita, population, life expectancy); frequency: weekly/monthly/quarterly/yearly; metric chips; chart/table view; tooltip with period-over-period change |
+| **Macro indicators timeline** | **Economic & financial**: Inflation, lending interest rate, government debt (% GDP), unemployment, poverty. **Health** (separate section): Under‑5 mortality, maternal mortality, undernourishment. Each section has independent frequency dropdown and chart/table view; metric chips to show/hide series. |
+| **Unemployed & labour force timeline** | Unemployed (number) and labour force (total) with dual Y-axis; same frequency and view options as macro sections; metric chips; growth (WoW/MoM/QoQ/YoY) in tooltip and table |
+| **Population structure** | Timeline of population by age group (0–14, 15–64, 65+): shares (% of total) and simplified absolute counts (derived from total × share). Frequency dropdown, chart/table view, metric chips; tooltip and table show % and absolute (e.g. 25.3% · 65.2 Mn). World Bank WDI. |
+| **Country comparison table** | Selected country vs average vs global total; optional age breakdown; YoY for each metric |
 
 ### 3.2 Global Analytics
 
 | Feature | Description |
 |---------|-------------|
-| **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, and Government |
+| **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, and Government. **Zoom** in/out and reset; **hover** shows country name, flag (proportionally on shape), metric value, effective year. |
 | **Year selector** | Independent of country dashboard |
-| **Map tooltip** | Country name, flag, metric value, effective year |
 | **Global table** | General (area, region, government type, head of government), Financial (GDP, debt, inflation, lending rate, unemployment, poverty + YoY), Health & demographics (population, age groups, life expectancy, under‑5 mortality, maternal mortality, undernourishment + YoY) |
 | **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
 
@@ -116,11 +115,11 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Analytics Assistant flow** | Documents year-based routing: Groq (period ≤ current year − 2), Tavily (recent/current) |
+| **Where metrics and information appear** | Explains how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant |
 | **Search** | By metric name, description, formula, or source |
-| **Filter chips** | World Bank, IMF, Sea Around Us, Marine Regions |
+| **Filter chips** | World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO |
 | **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
-| **Metric cards** | Label, description, formula, unit, source links with external-link icons |
+| **Metric cards** | Grouped by category: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Each card: label, description, formula, unit, source links with external-link icons |
 
 ### 3.6 Analytics Assistant (Chat)
 
@@ -137,6 +136,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 - **IMF WEO** – Government debt and GDP when World Bank has no data
 - **Territory fallbacks** – Inflation and interest rate from parent country (e.g. American Samoa → US) for 30+ territories
+- **Taiwan** – Synthetic country entry in the country list; metrics use fallback to parent (e.g. China) or regional/global medians when World Bank WDI has no direct coverage. Metadata from REST Countries where available.
 
 ---
 
@@ -185,16 +185,17 @@ User → App.tsx (tabs: Country | Global | PESTEL | Business Analytics | Chat | 
 | Module | Purpose |
 |--------|---------|
 | `src/App.tsx` | Layout, main tabs (Country / Global / PESTEL / Business Analytics / Chat / Source), footer |
-| `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state |
-| `src/api/worldBank.ts` | WDI API, global metrics, territory fallbacks |
+| `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state (including macro economic, macro health, labour, population-structure frequencies) |
+| `src/api/worldBank.ts` | WDI API, global metrics, territory and Taiwan fallbacks |
 | `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
-| `src/components/*` | Presentational components including ChatbotSection, PESTELSection, BusinessAnalyticsSection, CorrelationScatterPlot |
+| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health variants), LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, AllCountriesTableSection, PESTELSection, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
 | `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
 | `src/utils/pestelContext.ts` | PESTEL prompt building and generation context for selected country |
 | `src/utils/correlationAnalysis.ts` | Pearson correlation and causation interpretation for Business Analytics |
+| `src/utils/timeSeries.ts` | Resampling for timelines |
 | `src/config/llm.ts` | LLM model definitions, provider config |
-| `src/data/metricMetadata.ts` | Metric descriptions, formulas, source links |
+| `src/data/metricMetadata.ts` | Metric descriptions, formulas, source links (including context/country metadata) |
 | `src/types.ts` | Domain types |
 
 See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
@@ -223,7 +224,8 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 - **Latest value**: Dashboard uses latest non-null value up to selected end year
 - **Missing years**: Global loader steps backwards until data found
 - **Territories**: 30+ territories use parent-country fallback for inflation/interest
-- **Country naming**: Palestine (West Bank and Gaza); Taiwan excluded (no WDI coverage)
+- **Taiwan**: Included in country list (synthetic entry); metrics use fallback (e.g. parent or regional medians) when WDI has no direct data; metadata from REST Countries
+- **Country naming**: Palestine (West Bank and Gaza) for PSE
 - **Source attribution**: Analytics Assistant responses show source (Dashboard data, model label, or Web search)
 - **Out-of-scope**: Religion, culture, leaders, capital, language routed to LLM/web search – never answered with dashboard metrics
 

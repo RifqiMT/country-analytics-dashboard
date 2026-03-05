@@ -87,23 +87,25 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 ### US-3.1 – See age group breakdown
 
 - **As a** Market Expansion Manager  
-- **I want to** see population by age groups  
+- **I want to** see population by age groups (shares and absolute counts)  
 - **So that** I can infer product portfolio relevance  
 
 **Acceptance criteria:**
-- Pie slices and details match the 0–14, 15–64, 65+ group definitions
-- Values show both % and absolute counts
+- **Population Structure** section shows timeline of 0–14, 15–64, 65+ as % of total and simplified absolute counts (e.g. 65.2 Mn)
+- Frequency dropdown and chart/table view; metric chips to show/hide series
+- Tooltip and table show both percentage and absolute with growth (WoW/MoM/QoQ/YoY) where applicable
 
 ---
 
 ### US-3.2 – See age group trends
 
 - **As a** Country Economist  
-- **I want to** see YoY changes in age groups  
+- **I want to** see YoY and period-over-period changes in age groups  
 - **So that** I can detect ageing or youth bulges  
 
 **Acceptance criteria:**
 - Age-group rows in the summary and tables include YoY % where two years are available
+- Population Structure timeline shows trends over time with selectable frequency
 
 ---
 
@@ -149,11 +151,12 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 ### US-5.2 – Inspect country details on hover
 
 - **As a** Strategy Lead  
-- **I want to** see a tooltip for each country with its metric value and name  
+- **I want to** see a tooltip for each country with its metric value, name, and flag  
 - **So that** I can answer specific follow-up questions  
 
 **Acceptance criteria:**
-- Tooltip shows country name, flag, value, and effective data year
+- Tooltip shows country name, flag (proportionally on country shape on hover), value, and effective data year
+- Map supports zoom in/out and reset
 - Tooltip stays in sync with hovered country
 
 ---
@@ -244,18 +247,20 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 **Acceptance criteria:**
 - Search filters metrics in real time
-- Filter chips (World Bank, IMF, etc.) filter by data source
+- Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) filter by data source
+- Section "Where metrics and information appear" explains how data is used in Country Dashboard, Global view, PESTEL, Business Analytics, and Analytics Assistant
 
 ---
 
 ### US-7.2 – Understand metric definitions
 
 - **As a** Country Economist  
-- **I want to** see description, formula, and source links for each metric  
+- **I want to** see description, formula, and source links for each metric, including country metadata  
 - **So that** I can trust and cite the data  
 
 **Acceptance criteria:**
 - Each metric card shows label, description, formula (if applicable), unit
+- Categories include Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency)
 - Source links open in new tab with external-link icon
 
 ---
@@ -374,6 +379,7 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 - "–" is shown for missing values; no broken charts or NaN
 - For global metrics, loader falls back to earlier years when a year is completely empty
 - Territories with no WB data use IMF or parent-country fallbacks where applicable
+- Taiwan appears in country list with synthetic entry; metrics use fallback (e.g. parent or regional medians) when WDI has no direct data
 
 ---
 

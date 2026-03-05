@@ -15,7 +15,7 @@ export interface MetricMetadata {
   formula?: string;
   unit: string;
   sources: MetricSource[];
-  category: 'financial' | 'population' | 'health' | 'geography';
+  category: 'financial' | 'population' | 'health' | 'geography' | 'context';
 }
 
 const WORLD_BANK_WDI = 'World Bank WDI';
@@ -236,7 +236,10 @@ export const METRIC_METADATA: MetricMetadata[] = [
       'Maternal mortality ratio = (Number of maternal deaths / Number of live births) × 100,000',
     unit: 'Per 100,000 live births',
     category: 'health',
-    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SH.STA.MMRT` }],
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SH.STA.MMRT` },
+      { name: 'WHO', url: 'https://www.who.int/data/gho/indicator-metadata-registry/imr-details/26' },
+    ],
   },
   {
     id: 'under5MortalityRate',
@@ -247,7 +250,10 @@ export const METRIC_METADATA: MetricMetadata[] = [
       'Under-5 mortality rate = Probability of dying between birth and exact age five, expressed per 1,000 live births',
     unit: 'Per 1,000 live births',
     category: 'health',
-    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SH.DYN.MORT` }],
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SH.DYN.MORT` },
+      { name: 'WHO / UNICEF / UN (child mortality)', url: 'https://childmortality.org/' },
+    ],
   },
   {
     id: 'undernourishmentPrevalence',
@@ -258,7 +264,10 @@ export const METRIC_METADATA: MetricMetadata[] = [
       'Prevalence of undernourishment = Population with insufficient dietary energy intake / Total population × 100',
     unit: '% of population',
     category: 'health',
-    sources: [{ name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SN.ITK.DEFC.ZS` }],
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SN.ITK.DEFC.ZS` },
+      { name: 'FAO', url: 'https://www.fao.org/sustainable-development-goals/indicators/211/en/' },
+    ],
   },
   // Geography
   {
@@ -299,5 +308,90 @@ export const METRIC_METADATA: MetricMetadata[] = [
         url: 'https://www.marineregions.org/',
       },
     ],
+  },
+  // Population – derived (displayed in Population Structure section)
+  {
+    id: 'populationByAgeAbsolute',
+    label: 'Population by age group (absolute count)',
+    description:
+      'Absolute number of people in each age band (0–14, 15–64, 65+). Derived in the dashboard from total population and the age-group share of total. Shown in the Population Structure section alongside the percentage share.',
+    formula: 'Population age group = Total population × (Age-group share % / 100)',
+    unit: 'People',
+    category: 'population',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SP.POP.TOTL` },
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SP.POP.0014.TO.ZS` },
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SP.POP.1564.TO.ZS` },
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SP.POP.65UP.TO.ZS` },
+    ],
+  },
+  // Context – country metadata (used in Summary, Map, Tables, Chat, PESTEL)
+  {
+    id: 'region',
+    label: 'Region',
+    description:
+      'Geographic or economic region of the country. Used for filtering and peer comparison in the dashboard, map, global table, and PESTEL.',
+    formula: 'World Bank regional classification',
+    unit: '—',
+    category: 'context',
+    sources: [
+      { name: WORLD_BANK_WDI, url: 'https://data.worldbank.org/country' },
+      { name: 'REST Countries API', url: 'https://restcountries.com/' },
+    ],
+  },
+  {
+    id: 'incomeLevel',
+    label: 'Income level',
+    description:
+      'World Bank income classification (e.g. High income, Upper middle income). Used in summary cards and analytics.',
+    formula: 'World Bank analytical classification (GNI per capita)',
+    unit: '—',
+    category: 'context',
+    sources: [
+      { name: WORLD_BANK_WDI, url: 'https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups' },
+    ],
+  },
+  {
+    id: 'governmentType',
+    label: 'Government type',
+    description:
+      'Form of government or political system (e.g. Federal republic, Parliamentary democracy). Shown in Summary, Country selector, Map metric, and Global table.',
+    formula: '—',
+    unit: '—',
+    category: 'context',
+    sources: [{ name: 'REST Countries API', url: 'https://restcountries.com/' }],
+  },
+  {
+    id: 'headOfGovernmentType',
+    label: 'Head of government',
+    description:
+      'Title of the chief executive (e.g. President, Prime Minister). Used in country context for chat and PESTEL.',
+    formula: '—',
+    unit: '—',
+    category: 'context',
+    sources: [{ name: 'REST Countries API', url: 'https://restcountries.com/' }],
+  },
+  {
+    id: 'capitalCity',
+    label: 'Capital city',
+    description:
+      'Capital or seat of government. Shown in country metadata and used in context for the Analytics Assistant and PESTEL.',
+    formula: '—',
+    unit: '—',
+    category: 'context',
+    sources: [
+      { name: WORLD_BANK_WDI, url: 'https://data.worldbank.org/indicator/EN.URB.LCTY' },
+      { name: 'REST Countries API', url: 'https://restcountries.com/' },
+    ],
+  },
+  {
+    id: 'currency',
+    label: 'Currency',
+    description:
+      'Official currency code and name. Used in country summary and context.',
+    formula: '—',
+    unit: '—',
+    category: 'context',
+    sources: [{ name: 'REST Countries API', url: 'https://restcountries.com/' }],
   },
 ];

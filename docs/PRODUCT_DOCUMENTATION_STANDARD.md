@@ -138,26 +138,28 @@ For every feature PR that changes user-visible behaviour:
 | PRD Section | Primary Components | API / Utils |
 |-------------|--------------------|-------------|
 | Country dashboard | SummarySection, CountrySelector, YearRangeSelector | worldBank.ts |
-| Time-series & macro | TimeSeriesSection, MacroIndicatorsTimelineSection, LabourUnemploymentTimelineSection | worldBank.ts, timeSeries.ts |
-| Population | PopulationPieSection | worldBank.ts |
+| Time-series & macro | TimeSeriesSection, MacroIndicatorsTimelineSection (variant: economic, health), LabourUnemploymentTimelineSection, PopulationStructureSection | worldBank.ts, timeSeries.ts |
+| Population structure | PopulationStructureSection (age-group shares + absolute over time) | worldBank.ts, timeSeries.ts |
 | Country comparison | CountryTableSection | worldBank.ts |
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
 | PESTEL | PESTELSection | pestelContext.ts (prompt/build), LLM via chat API |
-| Source tab | SourceSection | metricMetadata.ts |
+| Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context) |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts |
 
 ### 6.2 Reading Order
 
 1. README.md → PRD.md → USER_STORIES.md
 2. src/App.tsx (layout, tabs: Country, Global, PESTEL, Business Analytics, Analytics Assistant, Source)
-3. src/hooks/useCountryDashboard.ts (data flow)
-4. src/api/worldBank.ts (data definitions, business rules)
+3. src/hooks/useCountryDashboard.ts (data flow, frequencies for macro economic, macro health, labour, population structure)
+4. src/api/worldBank.ts (data definitions, business rules, territory and Taiwan fallbacks)
 5. src/utils/chatContext.ts, chatFallback.ts (analytics assistant)
 6. src/utils/pestelContext.ts (PESTEL prompt and generation)
 7. src/components/BusinessAnalyticsSection.tsx, CorrelationScatterPlot.tsx, correlationAnalysis.ts (Business Analytics)
-8. vite-plugin-chat-api.ts (chat API flow)
+8. src/components/PopulationStructureSection.tsx, LabourUnemploymentTimelineSection.tsx, MacroIndicatorsTimelineSection.tsx (timelines)
+9. src/components/SourceSection.tsx, src/data/metricMetadata.ts (Source tab, all metrics and context category)
+10. vite-plugin-chat-api.ts (chat API flow)
 
 **Product logic and business/tech guidelines:** See PRD (Sections 4–5, 7–8) and README Section 6.
 

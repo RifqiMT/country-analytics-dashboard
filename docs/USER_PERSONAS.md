@@ -107,12 +107,12 @@ This document describes the target audiences for the Country Analytics Platform,
 
 - Can shortlist 3–5 countries based on GDP, GDP per capita, and demographics
 - Can answer follow-ups during meetings without needing a data team
-- Uses population pie and age breakdown for product portfolio relevance
+- Uses **Population Structure** timeline (age-group shares and absolute counts over time) and comparison table age breakdown for product portfolio relevance
 
 ### Typical Usage
 
 - Uses Country selector to compare 2–3 target markets
-- Focuses on GDP per capita and population age structure
+- Focuses on GDP per capita and **Population Structure** timeline (age-group shares and absolute counts over time)
 - Expands age breakdown in comparison table for detailed view
 - Asks Analytics assistant "Compare Indonesia to Malaysia" for quick side-by-side data
 
@@ -163,5 +163,5 @@ This document describes the target audiences for the Country Analytics Platform,
 |---------|-------------|--------------|
 | Strategy Lead | Country + Global + Business Analytics + Chat | Map, global table sort, correlation scatter (Business Analytics), comparison, Analytics assistant |
 | Economist | Country + Global + PESTEL + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL, metric definitions, methodology questions |
-| Market Manager | Country + Chat | Summary, population pie, age breakdown, quick comparisons |
+| Market Manager | Country + Chat | Summary, Population Structure timeline (age groups + absolute), age breakdown, quick comparisons |
 | BI Analyst | All | Global table, Business Analytics (correlation scatter), PESTEL, Source tab, sorting, Analytics assistant |

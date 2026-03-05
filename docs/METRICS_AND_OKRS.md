@@ -34,7 +34,8 @@ This document defines how we measure the success of the Country Analytics Platfo
 |----|--------|------------|
 | **CD-1** | Year-range interaction rate | % of sessions where the year range is changed from default |
 | **CD-2** | Timeline metric diversity | Average number of distinct metrics enabled on the unified timeline per session |
-| **CD-3** | Age-group breakdown usage | % of sessions where the age-group comparison toggle is turned on at least once |
+| **CD-3** | Age-group breakdown usage | % of sessions where the age-group comparison toggle is turned on at least once, or Population Structure timeline is viewed |
+| **CD-4** | Population Structure usage | % of sessions where the Population Structure section is viewed (chart or table) |
 
 ### 2.2 Global Analytics – Map
 
@@ -56,7 +57,7 @@ This document defines how we measure the success of the Country Analytics Platfo
 | ID | Metric | Definition |
 |----|--------|------------|
 | **SR-1** | Source search usage | % of Source tab sessions that use the search input |
-| **SR-2** | Source filter usage | % of Source tab sessions that use a filter chip |
+| **SR-2** | Source filter usage | % of Source tab sessions that use a filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
 
 ### 2.5 Analytics Assistant
 
@@ -132,6 +133,7 @@ Use a `product_area.action` pattern:
 | `dashboard.year_range_changed` | User changes start or end year |
 | `timeline.frequency_changed` | User switches frequency |
 | `timeline.metric_toggled` | User toggles a metric chip |
+| `dashboard.population_structure_viewed` | User views Population Structure section (chart or table) |
 | `global.map_metric_changed` | User changes map metric |
 | `business_analytics.tab_viewed` | User opens Business Analytics tab |
 | `business_analytics.correlation_axes_changed` | User changes X or Y metric in correlation scatter |
@@ -140,7 +142,7 @@ Use a `product_area.action` pattern:
 | `pestel.tab_viewed` | User opens PESTEL tab |
 | `pestel.generate_clicked` | User triggers PESTEL generate or refresh |
 | `source.search_used` | User enters search query |
-| `source.filter_chip_clicked` | User clicks a source filter chip |
+| `source.filter_chip_clicked` | User clicks a source filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
 | `chat.message_sent` | User sends a chat message |
 | `chat.suggestion_clicked` | User clicks a suggestion chip |
 | `chat.model_changed` | User changes LLM model |

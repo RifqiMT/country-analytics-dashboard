@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.8  
+**Version:** 1.9  
 **Last updated:** March 2026
 
 ---
@@ -40,7 +40,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 - No user authentication, multi-tenant features, or saved workspaces
 - No offline mode or CSV/image export from the UI
 - No in-app ETL merging multiple primary providers beyond World Bank + IMF fallbacks
-- Taiwan excluded (no World Bank WDI coverage)
+- Taiwan is included with synthetic country entry and data fallbacks (e.g. parent or regional medians) when World Bank WDI has no direct coverage; not excluded from the product
 
 ---
 
@@ -97,16 +97,16 @@ Six main tabs:
 
 #### 4.2.4 Macro Indicators Timeline
 
-- Inflation (CPI), Lending interest rate, Government debt (% GDP), Unemployment rate, Poverty headcount ($2.15/day and national line), Under‑5 mortality, Maternal mortality, Prevalence of undernourishment
-- Same frequency and resampling as unified timeline
+- **Economic & financial** (separate section): Inflation (CPI), Lending interest rate, Government debt (% GDP), Unemployment rate, Poverty headcount ($2.15/day and national line). Independent frequency dropdown (weekly, monthly, quarterly, annual); chart/table view; metric chips to show/hide series; growth (WoW/MoM/QoQ/YoY) in tooltip and table.
+- **Health** (separate section): Under‑5 mortality, Maternal mortality, Prevalence of undernourishment. Same behaviour: independent frequency, chart/table view, metric chips, growth in tooltip and table.
 
-#### 4.2.5 Labour / Unemployment Timeline
+#### 4.2.5 Unemployed & Labour Force Timeline
 
-- Labour and unemployment metrics with same frequency and resampling as macro indicators timeline
+- Unemployed (number) and Labour force (total); dual Y-axis. Same UI pattern as Macro Indicators: frequency dropdown, chart/table view, metric chips; no separate legend row (chips act as legend). Growth (WoW/MoM/QoQ/YoY) in tooltip and table.
 
-#### 4.2.6 Population Pie
+#### 4.2.6 Population Structure Timeline
 
-- 0–14, 15–64, 65+ with % and absolute counts for latest snapshot year
+- Population by age group over time: **shares** (0–14, 15–64, 65+ % of total) and **absolute counts** (derived as total population × share / 100, shown in simplified form e.g. 65.2 Mn). Frequency dropdown, chart/table view, metric chips. Tooltip and table show percentage and absolute (e.g. 25.3% · 65.2 Mn). Data: World Bank WDI (SP.POP.TOTL, SP.POP.0014.TO.ZS, SP.POP.1564.TO.ZS, SP.POP.65UP.TO.ZS).
 
 #### 4.2.7 Country Comparison Table
 
@@ -124,8 +124,8 @@ Six main tabs:
 #### 4.3.2 Global Map
 
 - **Metric selector**: 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, Government
-- Choropleth shading; tooltip: country name, flag, metric value, effective year
-- Map does not sync with country dashboard selection
+- Choropleth shading; **zoom** in/out and reset controls; **hover** shows country name, **flag proportionally on country shape**, metric value, effective year
+- Map does not sync selection with country dashboard for highlight; tooltip follows hover
 
 #### 4.3.3 Global Tables
 
@@ -144,11 +144,12 @@ Six main tabs:
 
 ### 4.4 Source Tab
 
+- **Where metrics and information appear**: Section describing how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant
 - **Analytics Assistant flow**: Documents year-based routing (Groq for period ≤ current year − 2, Tavily for recent/current)
 - **Search**: By metric name, description, formula, or source (dynamic filtering)
-- **Filter chips**: World Bank, IMF, Sea Around Us, Marine Regions
+- **Filter chips**: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO
 - **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
-- **Metric cards**: Label, description, formula, unit, source links with external-link icons
+- **Metric cards**: Grouped by category. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Each card: label, description, formula (if applicable), unit, source links with external-link icons
 
 ### 4.5 Analytics Assistant
 
@@ -222,10 +223,10 @@ Queries about religion, culture, leaders, capital, language, independence day, e
 - Countries with no data show "–"; sorting puts nulls at bottom when descending
 - Charts and tables handle null gracefully; no crashes
 
-### 5.4 Country Naming
+### 5.4 Country Naming and Coverage
 
 - Palestine (West Bank and Gaza) for PSE
-- Taiwan excluded (no WDI coverage)
+- **Taiwan**: Included in country list (synthetic entry when not in World Bank list). Metrics use fallback (e.g. parent country or regional/world medians) when World Bank WDI has no direct data. Country metadata from REST Countries where available.
 
 ---
 
@@ -268,7 +269,8 @@ Queries about religion, culture, leaders, capital, language, independence day, e
 - **Transparency**: Analytics Assistant responses show source attribution (Dashboard data, model label, or Web search)
 - **Out-of-scope handling**: Religion, culture, leaders, capital, language queries are routed to LLM/web search – never answered with dashboard metrics
 - **Territory handling**: 30+ territories use parent-country fallback for inflation/interest when World Bank returns empty
-- **Country naming**: Palestine (West Bank and Gaza) for PSE; Taiwan excluded (no WDI coverage)
+- **Taiwan**: Included with synthetic country entry; data fallbacks (parent or regional medians) when WDI has no direct coverage
+- **Country naming**: Palestine (West Bank and Gaza) for PSE
 
 ---
 

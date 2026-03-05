@@ -23,6 +23,8 @@ interface UseCountryDashboardResult {
   setMacroHealthFrequency: (f: Frequency) => void;
   labourFrequency: Frequency;
   setLabourFrequency: (f: Frequency) => void;
+  populationStructureFrequency: Frequency;
+  setPopulationStructureFrequency: (f: Frequency) => void;
   startYear: number;
   endYear: number;
   setStartYear: (year: number) => void;
@@ -36,6 +38,7 @@ interface UseCountryDashboardResult {
   resampledMacro: CountryDashboardData['series'] | undefined;
   resampledMacroHealth: CountryDashboardData['series'] | undefined;
   resampledLabour: CountryDashboardData['series'] | undefined;
+  resampledPopulationStructure: CountryDashboardData['series'] | undefined;
 }
 
 const DEFAULT_COUNTRY = 'ID'; // Indonesia as default
@@ -62,6 +65,8 @@ export function useCountryDashboard(
   const [labourFrequency, setLabourFrequency] = useState<Frequency>(
     options?.initialFrequency ?? 'yearly',
   );
+  const [populationStructureFrequency, setPopulationStructureFrequency] =
+    useState<Frequency>(options?.initialFrequency ?? 'yearly');
   const [startYear, setStartYear] = useState<number>(DEFAULT_START_YEAR);
   const [endYear, setEndYear] = useState<number>(DEFAULT_END_YEAR);
   const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>([
@@ -183,6 +188,20 @@ export function useCountryDashboard(
       }
     : undefined;
 
+  const resampledPopulationStructure = data?.series
+    ? {
+        financial: (data.series.financial ?? []).map((s) =>
+          resampleSeries(s, populationStructureFrequency),
+        ),
+        population: (data.series.population ?? []).map((s) =>
+          resampleSeries(s, populationStructureFrequency),
+        ),
+        health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, populationStructureFrequency),
+        ),
+      }
+    : undefined;
+
   return {
     countryCode,
     setCountryCode,
@@ -194,6 +213,8 @@ export function useCountryDashboard(
     setMacroHealthFrequency,
     labourFrequency,
     setLabourFrequency,
+    populationStructureFrequency,
+    setPopulationStructureFrequency,
     startYear,
     endYear,
     setStartYear,
@@ -207,6 +228,7 @@ export function useCountryDashboard(
     resampledMacro,
     resampledMacroHealth,
     resampledLabour,
+    resampledPopulationStructure,
   };
 }
 

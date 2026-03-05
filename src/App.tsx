@@ -5,6 +5,7 @@ import { SummarySection } from './components/SummarySection';
 import { TimeSeriesSection } from './components/TimeSeriesSection';
 import { MacroIndicatorsTimelineSection } from './components/MacroIndicatorsTimelineSection';
 import { LabourUnemploymentTimelineSection } from './components/LabourUnemploymentTimelineSection';
+import { PopulationStructureSection } from './components/PopulationStructureSection';
 import { CountryTableSection } from './components/CountryTableSection';
 import { WorldMapSection } from './components/WorldMapSection';
 import { CountrySelector } from './components/CountrySelector';
@@ -34,6 +35,8 @@ function App() {
     setMacroHealthFrequency,
     labourFrequency,
     setLabourFrequency,
+    populationStructureFrequency,
+    setPopulationStructureFrequency,
     startYear,
     endYear,
     setStartYear,
@@ -44,6 +47,7 @@ function App() {
     resampledMacro,
     resampledMacroHealth,
     resampledLabour,
+    resampledPopulationStructure,
   } = useCountryDashboard({ refreshTrigger: dataRefreshTrigger });
 
   const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'business' | 'chat'>('country');
@@ -236,6 +240,12 @@ function App() {
                 frequency={labourFrequency}
                 setFrequency={setLabourFrequency}
                 resampledSeries={resampledLabour}
+              />
+              <PopulationStructureSection
+                data={data}
+                frequency={populationStructureFrequency}
+                setFrequency={setPopulationStructureFrequency}
+                resampledSeries={resampledPopulationStructure}
               />
             </section>
 

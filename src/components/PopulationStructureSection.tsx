@@ -14,17 +14,20 @@ import type {
   MetricId,
   MetricSeries,
 } from '../types';
-import { formatCompactNumber } from '../utils/numberFormat';
+import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
-const LABOUR_METRIC_IDS: MetricId[] = ['unemployedTotal', 'labourForceTotal'];
-const LABOUR_RIGHT_AXIS_METRICS: MetricId[] = ['labourForceTotal'];
+const POP_STRUCTURE_METRIC_IDS: MetricId[] = [
+  'pop0_14Share',
+  'pop15_64Share',
+  'pop65PlusShare',
+];
 
 const METRIC_COLORS: Record<string, string> = {
-  // Use clearly distinguishable palette for legend & lines
-  unemployedTotal: '#dc2626', // red for unemployed
-  labourForceTotal: '#0ea5e9', // teal/blue for labour force
+  pop0_14Share: '#c8102e',   // 0–14: red (youth)
+  pop15_64Share: '#0369a1',   // 15–64: blue (working age)
+  pop65PlusShare: '#b45309',  // 65+: gold (senior)
 };
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -41,7 +44,7 @@ interface Props {
   resampledSeries?: CountryDashboardData['series'];
 }
 
-export function LabourUnemploymentTimelineSection({
+export function PopulationStructureSection({
   data,
   frequency,
   setFrequency,
@@ -50,21 +53,22 @@ export function LabourUnemploymentTimelineSection({
   const finalSeries = resampledSeries ?? data?.series;
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
-  const [selectedMetricIds, setSelectedMetricIds] =
-    useState<MetricId[]>(LABOUR_METRIC_IDS);
+  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(
+    POP_STRUCTURE_METRIC_IDS,
+  );
 
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Unemployed (number) & labour force</h2>
+        <h2 className="section-title">Population structure</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
   }
 
   const allSeries: MetricSeries[] = [
-    ...(finalSeries.financial ?? []),
-  ].filter((s) => LABOUR_METRIC_IDS.includes(s.id));
+    ...(finalSeries.health ?? []),
+  ].filter((s) => POP_STRUCTURE_METRIC_IDS.includes(s.id));
 
   const displayStartYear =
     data.range
@@ -74,6 +78,24 @@ export function LabourUnemploymentTimelineSection({
     data.range
       ? Math.min(data.range.endYear, DATA_MAX_YEAR)
       : DATA_MAX_YEAR;
+
+  const populationTotalSeries = (finalSeries.population ?? []).find(
+    (s) => s.id === 'populationTotal',
+  );
+  const totalByDate = new Map<string, number>();
+  if (populationTotalSeries?.points) {
+    for (const p of populationTotalSeries.points) {
+      if (p.year >= displayStartYear && p.year <= displayEndYear && p.value != null) {
+        totalByDate.set(p.date, p.value);
+      }
+    }
+  }
+
+  const shareToAbsoluteId: Record<string, string> = {
+    pop0_14Share: 'pop0_14Abs',
+    pop15_64Share: 'pop15_64Abs',
+    pop65PlusShare: 'pop65PlusAbs',
+  };
 
   const labelByMetricId = allSeries.reduce<Record<string, string>>(
     (acc, series) => {
@@ -100,12 +122,19 @@ export function LabourUnemploymentTimelineSection({
       date: p.date,
       year: p.year,
     };
-    for (const metricId of LABOUR_METRIC_IDS) {
+    const total = totalByDate.get(p.date) ?? null;
+    for (const metricId of POP_STRUCTURE_METRIC_IDS) {
       const seriesForMetric = allSeries.find((s) => s.id === metricId);
-      const value =
+      const share =
         seriesForMetric?.points?.find((sp) => sp.date === p.date)?.value ??
         null;
-      row[metricId] = value;
+      row[metricId] = share;
+      const absId = shareToAbsoluteId[metricId];
+      if (absId && total != null && share != null && Number.isFinite(total) && Number.isFinite(share)) {
+        row[absId] = (total * share) / 100;
+      } else {
+        row[shareToAbsoluteId[metricId]] = null;
+      }
     }
     return row;
   });
@@ -167,6 +196,7 @@ export function LabourUnemploymentTimelineSection({
     const byMetricId = new Map<
       string,
       {
+        id: string;
         name: string;
         value: number;
         color: string;
@@ -177,7 +207,7 @@ export function LabourUnemploymentTimelineSection({
     const index = merged.findIndex((row) => row[xKey] === label);
     const prevRow = index > 0 ? merged[index - 1] : undefined;
 
-    const freqLabel: Record<Frequency, string> = {
+    const freqLabelMap: Record<Frequency, string> = {
       weekly: 'WoW',
       monthly: 'MoM',
       quarterly: 'QoQ',
@@ -198,10 +228,11 @@ export function LabourUnemploymentTimelineSection({
         if (rounded > 0.05) changeDirection = 'up';
         else if (rounded < -0.05) changeDirection = 'down';
         else changeDirection = 'flat';
-        change = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLabel[frequency]}`;
+        change = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLabelMap[frequency]}`;
       }
 
       byMetricId.set(id, {
+        id,
         name: labelByMetricId[id] ?? String(p.name),
         value: current,
         color: p.color ?? '#6b7280',
@@ -210,13 +241,15 @@ export function LabourUnemploymentTimelineSection({
       });
     });
 
-    const rows = LABOUR_METRIC_IDS.filter(
+    const rows = POP_STRUCTURE_METRIC_IDS.filter(
       (id) => selectedMetricIds.includes(id) && byMetricId.has(id),
     )
       .map((id) => byMetricId.get(id)!)
       .filter(Boolean);
 
     if (!rows.length) return null;
+
+    const currentRow = index >= 0 && index < merged.length ? merged[index] : undefined;
 
     return (
       <div className="chart-tooltip">
@@ -226,31 +259,42 @@ export function LabourUnemploymentTimelineSection({
             : String(formatAxisLabel(label as string | number))}
         </div>
         <div className="chart-tooltip-body">
-          {rows.map((row) => (
-            <div key={row.name} className="chart-tooltip-row">
-              <span
-                className="chart-tooltip-dot"
-                style={{ backgroundColor: row.color }}
-              />
-              <div className="chart-tooltip-label">{row.name}</div>
-              <div className="chart-tooltip-value">
-                {formatCompactNumber(row.value)}
-              </div>
-              {row.change && (
-                <div
-                  className={`chart-tooltip-change ${
-                    row.changeDirection === 'up'
-                      ? 'chart-tooltip-change-up'
-                      : row.changeDirection === 'down'
-                        ? 'chart-tooltip-change-down'
-                        : 'chart-tooltip-change-flat'
-                  }`}
-                >
-                  {row.change}
+          {rows.map((row) => {
+            const absVal =
+              currentRow && row.id
+                ? currentRow[shareToAbsoluteId[row.id]]
+                : null;
+            return (
+              <div key={row.id} className="chart-tooltip-row">
+                <span
+                  className="chart-tooltip-dot"
+                  style={{ backgroundColor: row.color }}
+                />
+                <div className="chart-tooltip-label">{row.name}</div>
+                <div className="chart-tooltip-value">
+                  {formatPercentage(row.value)}
+                  {absVal != null && Number.isFinite(Number(absVal)) && (
+                    <span className="chart-tooltip-absolute">
+                      {' · '}{formatCompactNumber(Number(absVal))}
+                    </span>
+                  )}
                 </div>
-              )}
-            </div>
-          ))}
+                {row.change && (
+                  <div
+                    className={`chart-tooltip-change ${
+                      row.changeDirection === 'up'
+                        ? 'chart-tooltip-change-up'
+                        : row.changeDirection === 'down'
+                          ? 'chart-tooltip-change-down'
+                          : 'chart-tooltip-change-flat'
+                    }`}
+                  >
+                    {row.change}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -260,13 +304,10 @@ export function LabourUnemploymentTimelineSection({
     <section className="card timeseries-section dashboard-grid-full">
       <div className="section-header">
         <div>
-          <h2 className="section-title">
-            Unemployed (number) & labour force timeline
-          </h2>
+          <h2 className="section-title">Population structure</h2>
           <p className="muted">
-            Number of people unemployed and total labour force. Same frequency
-            options as the macro indicators (weekly, monthly, quarterly, annual).
-            ILO-modelled estimates via World Bank WDI.
+            Population by age group (0–14, 15–64, 65+) and their share of total
+            population over time. World Bank WDI.
           </p>
         </div>
         <div className="section-header-controls">
@@ -350,30 +391,30 @@ export function LabourUnemploymentTimelineSection({
           <div className="section-header-control-group">
             <div className="section-control-label">View</div>
             <div className="pill-group pill-group-secondary">
-            <button
-              type="button"
-              className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
-              onClick={() => setViewMode('chart')}
-            >
-              <span className="icon-12">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
-                </svg>
-              </span>
-              <span>Chart view</span>
-            </button>
-            <button
-              type="button"
-              className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
-              onClick={() => setViewMode('table')}
-            >
-              <span className="icon-12">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
-                </svg>
-              </span>
-              <span>Table view</span>
-            </button>
+              <button
+                type="button"
+                className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
+                onClick={() => setViewMode('chart')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
+                  </svg>
+                </span>
+                <span>Chart view</span>
+              </button>
+              <button
+                type="button"
+                className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
+                onClick={() => setViewMode('table')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
+                  </svg>
+                </span>
+                <span>Table view</span>
+              </button>
             </div>
           </div>
         </div>
@@ -384,7 +425,7 @@ export function LabourUnemploymentTimelineSection({
         <div className="metric-toggle-hint">Tap to show or hide each series</div>
       </div>
       <div className="metric-toggle-row">
-        {LABOUR_METRIC_IDS.map((id) => (
+        {POP_STRUCTURE_METRIC_IDS.map((id) => (
           <button
             key={id}
             type="button"
@@ -430,19 +471,10 @@ export function LabourUnemploymentTimelineSection({
                 }}
               />
               <YAxis
-                yAxisId="left"
-                tickFormatter={(v) => formatCompactNumber(v as number)}
+                tickFormatter={(v) => formatPercentage(v as number)}
                 tickLine={false}
                 tickMargin={8}
                 stroke="rgba(148,163,184,0.9)"
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tickFormatter={(v) => formatCompactNumber(v as number)}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.6)"
               />
               <Tooltip
                 contentStyle={{
@@ -453,7 +485,7 @@ export function LabourUnemploymentTimelineSection({
                 }}
                 content={<CustomTooltip />}
               />
-              {LABOUR_METRIC_IDS.map((metricId) => (
+              {POP_STRUCTURE_METRIC_IDS.map((metricId) => (
                 <Line
                   key={metricId}
                   type="monotone"
@@ -462,9 +494,6 @@ export function LabourUnemploymentTimelineSection({
                   strokeWidth={2}
                   dot={false}
                   hide={!merged.some((row) => row[metricId] != null)}
-                  yAxisId={
-                    LABOUR_RIGHT_AXIS_METRICS.includes(metricId) ? 'right' : 'left'
-                  }
                 />
               ))}
             </LineChart>
@@ -477,7 +506,7 @@ export function LabourUnemploymentTimelineSection({
               <thead>
                 <tr>
                   <th>{frequency === 'yearly' ? 'Year' : 'Period'}</th>
-                  {LABOUR_METRIC_IDS.map((id) => (
+                  {POP_STRUCTURE_METRIC_IDS.map((id) => (
                     <th key={id}>{labelByMetricId[id] ?? id}</th>
                   ))}
                 </tr>
@@ -486,8 +515,9 @@ export function LabourUnemploymentTimelineSection({
                 {merged.map((row, rowIndex) => (
                   <tr key={String(row[xKey])}>
                     <td>{formatAxisLabel(row[xKey] as string | number)}</td>
-                    {LABOUR_METRIC_IDS.map((id) => {
+                    {POP_STRUCTURE_METRIC_IDS.map((id) => {
                       const v = row[id];
+                      const absVal = row[shareToAbsoluteId[id]];
                       const prevRow = rowIndex > 0 ? merged[rowIndex - 1] : undefined;
                       const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
 
@@ -511,7 +541,12 @@ export function LabourUnemploymentTimelineSection({
                           ) : (
                             <div className="table-metric-cell">
                               <div className="table-metric-value">
-                                {formatCompactNumber(v as number)}
+                                {formatPercentage(v as number)}
+                                {absVal != null && Number.isFinite(absVal) && (
+                                  <div className="table-metric-absolute">
+                                    {formatCompactNumber(absVal as number)}
+                                  </div>
+                                )}
                               </div>
                               {changeText && changeDir && (
                                 <div
