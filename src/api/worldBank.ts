@@ -62,6 +62,7 @@ const TERRITORY_FALLBACK_PARENT: Record<string, string> = {
   GG: 'GB', // Guernsey -> UK
   JE: 'GB', // Jersey -> UK
   IM: 'GB', // Isle of Man -> UK
+  TW: 'CN', // Taiwan -> fallback to China metrics when WDI data is missing
 };
 
 /**
@@ -479,42 +480,56 @@ async function fetchGlobalIndicatorLatestUpToYear(
 }
 
 async function fetchCountryMetadata(countryCode: string): Promise<CountrySummary> {
-  const url = `${WORLD_BANK_BASE}/country/${countryCode}?format=json`;
-  const res = await axios.get<[unknown, any[]]>(url);
-  const data = res.data?.[1] ?? [];
-  const info = data[0];
+  const iso2 = countryCode.toUpperCase();
+  let summary: CountrySummary | null = null;
+  let officialName: string | undefined;
 
-  if (!info || typeof info !== 'object') {
-    return {
-      iso2Code: countryCode.toUpperCase() || 'XX',
-      iso3Code: undefined,
-      name: countryCode || 'Unknown',
-      region: undefined,
-      incomeLevel: undefined,
-      capitalCity: undefined,
-      latitude: null,
-      longitude: null,
-    };
+  try {
+    const url = `${WORLD_BANK_BASE}/country/${iso2}?format=json`;
+    const res = await axios.get<[unknown, any[]]>(url);
+    const data = res.data?.[1] ?? [];
+    const info = data[0];
+
+    if (info && typeof info === 'object') {
+      summary = {
+        iso2Code: info.iso2Code,
+        iso3Code: info.id,
+        name: info.name,
+        region: info.region?.value,
+        incomeLevel: info.incomeLevel?.value,
+        capitalCity: info.capitalCity,
+        latitude: info.latitude ? Number(info.latitude) : null,
+        longitude: info.longitude ? Number(info.longitude) : null,
+      };
+    }
+  } catch {
+    // Ignore WB failure; we'll fall back to REST Countries below.
   }
 
-  const summary: CountrySummary = {
-    iso2Code: info.iso2Code,
-    iso3Code: info.id,
-    name: info.name,
-    region: info.region?.value,
-    incomeLevel: info.incomeLevel?.value,
-    capitalCity: info.capitalCity,
-    latitude: info.latitude ? Number(info.latitude) : null,
-    longitude: info.longitude ? Number(info.longitude) : null,
-  };
-
-  // Enrich with timezone, currency, area, and name from REST Countries.
-  let officialName: string | undefined;
+  // Enrich / fallback with timezone, currency, area, and name from REST Countries.
   try {
-    const restUrl = `https://restcountries.com/v3.1/alpha/${summary.iso2Code}?fields=timezones,currencies,area,government,name`;
+    const restUrl = `https://restcountries.com/v3.1/alpha/${iso2}?fields=cca2,cca3,name,region,capital,latlng,timezones,currencies,government`;
     const restRes = await axios.get<any>(restUrl);
     const restData = Array.isArray(restRes.data) ? restRes.data[0] : restRes.data;
     if (restData) {
+      if (!summary) {
+        summary = {
+          iso2Code: restData.cca2 ?? iso2,
+          iso3Code: restData.cca3,
+          name: restData.name?.common ?? iso2,
+          region: restData.region,
+          incomeLevel: undefined,
+          capitalCity: Array.isArray(restData.capital) ? restData.capital[0] : restData.capital,
+          latitude:
+            Array.isArray(restData.latlng) && restData.latlng.length === 2
+              ? Number(restData.latlng[0])
+              : null,
+          longitude:
+            Array.isArray(restData.latlng) && restData.latlng.length === 2
+              ? Number(restData.latlng[1])
+              : null,
+        };
+      }
       if (Array.isArray(restData.timezones) && restData.timezones.length > 0) {
         summary.timezone = restData.timezones[0];
       }
@@ -533,9 +548,25 @@ async function fetchCountryMetadata(countryCode: string): Promise<CountrySummary
       if (restData.name?.official) {
         officialName = restData.name.official;
       }
+      if (restData.region && !summary.region) {
+        summary.region = restData.region;
+      }
     }
   } catch {
-    // If REST Countries enrichment fails, fall back to World Bank-only metadata.
+    // If REST Countries enrichment fails, fall back to whatever summary we already have.
+  }
+
+  if (!summary) {
+    summary = {
+      iso2Code: iso2 || 'XX',
+      iso3Code: undefined,
+      name: countryCode || 'Unknown',
+      region: undefined,
+      incomeLevel: undefined,
+      capitalCity: undefined,
+      latitude: null,
+      longitude: null,
+    };
   }
 
   // Infer head-of-government type and government type for the General section.
@@ -578,7 +609,7 @@ export async function fetchAllCountries(): Promise<CountrySummary[]> {
 
     // Only individual countries: exclude aggregates and region/income/lending groups.
     // Items with region.id === 'NA' are aggregates; also exclude by known aggregate codes.
-    return data
+    const list = data
       .filter(
         (item) => {
           if (!item.id || !item.iso2Code || typeof item.id !== 'string' || typeof item.iso2Code !== 'string') return false;
@@ -601,8 +632,25 @@ export async function fetchAllCountries(): Promise<CountrySummary[]> {
           latitude: info.latitude ? Number(info.latitude) : null,
           longitude: info.longitude ? Number(info.longitude) : null,
         }),
-      )
-      .sort((a, b) => a.name.localeCompare(b.name));
+      );
+
+    const hasTaiwan = list.some(
+      (c) => c.iso2Code.toUpperCase() === 'TW' || c.iso3Code?.toUpperCase() === 'TWN' || /taiwan/i.test(c.name),
+    );
+    if (!hasTaiwan) {
+      list.push({
+        iso2Code: 'TW',
+        iso3Code: 'TWN',
+        name: 'Taiwan',
+        region: 'East Asia & Pacific',
+        incomeLevel: 'High income',
+        capitalCity: 'Taipei',
+        latitude: 25.03,
+        longitude: 121.56,
+      });
+    }
+
+    return list.sort((a, b) => a.name.localeCompare(b.name));
   })();
   return allCountriesPromise;
 }

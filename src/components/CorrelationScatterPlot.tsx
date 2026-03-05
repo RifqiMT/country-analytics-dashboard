@@ -12,6 +12,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  Line,
 } from 'recharts';
 import type { GlobalCountryMetricsRow } from '../types';
 
@@ -206,32 +207,43 @@ export function CorrelationScatterPlot({
   const highlightPoints = plotData.filter((d) => d.isHighlight);
   const otherPoints = plotData.filter((d) => !d.isHighlight);
 
-  const useLogX =
-    xMetric === 'populationTotal' ||
-    xMetric === 'population0_14' ||
-    xMetric === 'population15_64' ||
-    xMetric === 'population65Plus' ||
-    xMetric === 'landAreaKm2' ||
-    xMetric === 'totalAreaKm2' ||
-    xMetric === 'eezKm2' ||
-    xMetric === 'gdpNominal' ||
-    xMetric === 'gdpPPP' ||
-    xMetric === 'govDebtUSD' ||
-    xMetric === 'gdpNominalPerCapita' ||
-    xMetric === 'gdpPPPPerCapita';
-  const useLogY =
-    yMetric === 'populationTotal' ||
-    yMetric === 'population0_14' ||
-    yMetric === 'population15_64' ||
-    yMetric === 'population65Plus' ||
-    yMetric === 'landAreaKm2' ||
-    yMetric === 'totalAreaKm2' ||
-    yMetric === 'eezKm2' ||
-    yMetric === 'gdpNominal' ||
-    yMetric === 'gdpPPP' ||
-    yMetric === 'govDebtUSD' ||
-    yMetric === 'gdpNominalPerCapita' ||
-    yMetric === 'gdpPPPPerCapita';
+  const highlightSeriesName =
+    highlightPoints.length > 0
+      ? `Selected: ${highlightPoints[0].name}`
+      : highlightCountryIso2
+      ? `Selected: ${highlightCountryIso2}`
+      : 'Highlighted country';
+
+  const regressionLine =
+    plotData.length >= 3
+      ? (() => {
+          const xs = plotData.map((d) => d.x);
+          const ys = plotData.map((d) => d.y);
+          const n = xs.length;
+          const meanX = xs.reduce((a, b) => a + b, 0) / n;
+          const meanY = ys.reduce((a, b) => a + b, 0) / n;
+          let num = 0;
+          let den = 0;
+          for (let i = 0; i < n; i++) {
+            const dx = xs[i] - meanX;
+            const dy = ys[i] - meanY;
+            num += dx * dy;
+            den += dx * dx;
+          }
+          if (den === 0) return null;
+          const slope = num / den;
+          const intercept = meanY - slope * meanX;
+          const minX = Math.min(...xs);
+          const maxX = Math.max(...xs);
+          const y1 = intercept + slope * minX;
+          const y2 = intercept + slope * maxX;
+          if (!Number.isFinite(y1) || !Number.isFinite(y2)) return null;
+          return [
+            { x: minX, y: y1 },
+            { x: maxX, y: y2 },
+          ];
+        })()
+      : null;
 
   if (plotData.length === 0) {
     return (
@@ -250,8 +262,7 @@ export function CorrelationScatterPlot({
             type="number"
             dataKey="x"
             name={xLabel}
-            scale={useLogX ? 'log' : 'linear'}
-            domain={useLogX ? ['auto', 'auto'] : undefined}
+            scale="linear"
             tickFormatter={(v) => formatAxisValue(v, xMetric)}
             stroke="var(--text-muted)"
             fontSize={11}
@@ -260,8 +271,7 @@ export function CorrelationScatterPlot({
             type="number"
             dataKey="y"
             name={yLabel}
-            scale={useLogY ? 'log' : 'linear'}
-            domain={useLogY ? ['auto', 'auto'] : undefined}
+            scale="linear"
             tickFormatter={(v) => formatAxisValue(v, yMetric)}
             stroke="var(--text-muted)"
             fontSize={11}
@@ -295,12 +305,24 @@ export function CorrelationScatterPlot({
           )}
           {highlightPoints.length > 0 && (
             <Scatter
-              name={highlightCountryIso2 ? 'Selected country' : 'Highlighted'}
+              name={highlightSeriesName}
               data={highlightPoints}
               fill="var(--accent-gold)"
               fillOpacity={1}
               stroke="var(--accent-red)"
               strokeWidth={2}
+            />
+          )}
+          {regressionLine && (
+            <Line
+              name="Trend line"
+              type="linear"
+              data={regressionLine}
+              dataKey="y"
+              stroke="var(--border-strong)"
+              strokeWidth={1.5}
+              dot={false}
+              isAnimationActive={false}
             />
           )}
           <Legend />

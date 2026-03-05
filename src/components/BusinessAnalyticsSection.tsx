@@ -95,6 +95,15 @@ export function BusinessAnalyticsSection({
   const xLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === xMetric)?.label ?? xMetric;
   const yLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === yMetric)?.label ?? yMetric;
 
+  const hypothesisDirection = useMemo(() => {
+    if (!correlationResult) return '';
+    const r = correlationResult.r;
+    if (r > 0.05) return 'Countries with higher values on the X-axis tend to also have higher values on the Y-axis.';
+    if (r < -0.05)
+      return 'Countries with higher values on the X-axis tend to have lower values on the Y-axis (and vice versa).';
+    return 'There is no clear monotonic pattern: countries are fairly dispersed around the scatter cloud.';
+  }, [correlationResult]);
+
   return (
     <section className="card business-analytics-section">
       <div className="section-header">
@@ -316,6 +325,39 @@ export function BusinessAnalyticsSection({
                 <p className="correlation-causation-note">{correlationResult.causationNote}</p>
                 <p className="correlation-disclaimer muted small">
                   Cross-sectional correlation does not prove causation. Confounding, reverse causality, and country-specific factors can affect the relationship. Use for hypothesis generation and complement with time-series or experimental evidence where appropriate.
+                </p>
+              </div>
+              <div className="correlation-analysis-block">
+                <h4 className="correlation-analysis-heading">Comprehensive hypothesis for business analysis</h4>
+                <p className="correlation-causation-note">
+                  Working hypothesis for <strong>{xLabel}</strong> (X) vs <strong>{yLabel}</strong> (Y) in {year}:
+                </p>
+                <ul className="correlation-hypothesis-list">
+                  <li>
+                    Based on the scatter and Pearson statistics, {hypothesisDirection}{' '}
+                    This pattern is estimated from {correlationResult.n} countries with valid data.
+                  </li>
+                  <li>
+                    If this relationship holds within your target segment (e.g. region, income group, or portfolio
+                    markets), then shifts in <strong>{xLabel}</strong> may be informative about expected movements in{' '}
+                    <strong>{yLabel}</strong> (and vice versa). Use segmentation to check whether the pattern is stronger
+                    for specific country clusters.
+                  </li>
+                  <li>
+                    Countries that sit far above the main cloud (higher <strong>{yLabel}</strong> than peers with similar{' '}
+                    <strong>{xLabel}</strong>) can be treated as potential out-performers or resilience cases; those far
+                    below may represent structural risk or underperformance.
+                  </li>
+                  <li>
+                    A practical next step is to pick 3–5 countries in each quadrant (high/low X vs high/low Y) and run a
+                    qualitative review: recent policy changes, sector mix, demographic profile, and institutional
+                    factors that might explain why they deviate from the average pattern.
+                  </li>
+                </ul>
+                <p className="correlation-disclaimer muted small">
+                  This hypothesis is intentionally exploratory and should be stress-tested before driving capital
+                  allocation or policy decisions. Re-run the analysis for different years, check robustness to metric
+                  choices (e.g. per-capita vs levels), and complement with time-series or microdata where available.
                 </p>
               </div>
             </div>

@@ -81,10 +81,11 @@ function normalCDF(z: number): number {
 
 function interpretStrength(r: number): string {
   const abs = Math.abs(r);
-  if (abs >= 0.7) return 'Strong';
-  if (abs >= 0.4) return 'Moderate';
-  if (abs >= 0.2) return 'Weak';
-  return 'Very weak or none';
+  if (abs >= 0.8) return 'very strong';
+  if (abs >= 0.6) return 'strong';
+  if (abs >= 0.4) return 'moderate';
+  if (abs >= 0.2) return 'weak';
+  return 'very weak or none';
 }
 
 function interpretDirection(r: number): string {
@@ -122,10 +123,23 @@ function getCausationNote(xKey: ScatterMetricKey, yKey: ScatterMetricKey): strin
       'Unemployment rate and labour force size are conceptually related but need not correlate strongly across countries; labour force participation and demographics matter.',
   };
 
-  if (notes[pair]) return notes[pair];
+  const genericPrefix =
+    'This is a cross-sectional correlation across countries. It is useful for identifying patterns and outliers, ' +
+    'but it does not, on its own, establish causality. The relationship may be driven by omitted variables ' +
+    '(e.g. institutions, education, geography), reverse causality, or country-specific shocks. Treat this as a ' +
+    'starting point for hypotheses, then validate with country case studies, time-series analysis, or experimental evidence.';
 
-  // Generic note
-  return 'Correlation does not imply causation. The relationship may be driven by a third factor (confounder), or the direction of causation may be unclear. Use cross-country comparisons to generate hypotheses; follow up with country-level or time-series analysis for policy or business decisions.';
+  if (notes[pair]) {
+    return `${genericPrefix} ${notes[pair]}`;
+  }
+
+  // Generic note when no pair-specific guidance exists
+  return (
+    genericPrefix +
+    ' In this metric pair, think about whether the drivers are primarily structural (e.g. demographics, institutions), ' +
+    'policy-driven (e.g. fiscal or monetary settings), or cyclical. Check for outliers that may dominate the correlation, ' +
+    'and consider whether normalising (e.g. per capita, % of GDP) would give a more meaningful relationship.'
+  );
 }
 
 /**
@@ -151,10 +165,40 @@ export function computeCorrelationAnalysis(
   const { r, n, pValue } = pearsonCorrelation(xs, ys);
   const strength = interpretStrength(r);
   const direction = interpretDirection(r);
-  const interpretation =
-    direction === 'no clear linear'
-      ? `${strength} linear relationship (r ≈ ${r.toFixed(3)}). No clear positive or negative trend.`
-      : `${strength} ${direction} linear relationship (r = ${r.toFixed(3)}). ${n} countries with valid data.`;
+  let interpretation: string;
+
+  if (direction === 'no clear linear') {
+    interpretation = `There is ${strength} linear relationship between these metrics (r ≈ ${r.toFixed(
+      3,
+    )}). Across ${n} countries with valid data, there is no clear positive or negative trend.`;
+  } else {
+    interpretation = `There is a ${strength} ${direction} linear relationship (r = ${r.toFixed(
+      3,
+    )}) across ${n} countries with valid data: on average, countries with higher values on the X-axis tend to have ${
+      direction === 'positive' ? 'higher' : 'lower'
+    } values on the Y-axis.`;
+  }
+
+  if (Number.isFinite(pValue) && pValue != null) {
+    if (pValue < 0.001) {
+      interpretation +=
+        ' The correlation is statistically significant at well below the 1% level (very strong evidence against the null of no linear relationship).';
+    } else if (pValue < 0.05) {
+      interpretation +=
+        ' The correlation is statistically significant at the 5% level, so it is unlikely to be explained purely by random sampling noise.';
+    } else {
+      interpretation +=
+        ' However, the p-value is relatively large, so this pattern is not statistically distinguishable from zero in this cross-section; treat it as suggestive rather than conclusive.';
+    }
+  }
+
+  if (n < 15) {
+    interpretation +=
+      ' Because the sample includes relatively few countries, correlation estimates may be unstable and sensitive to single-country outliers.';
+  } else if (n > 80 && Math.abs(r) < 0.2 && pValue < 0.05) {
+    interpretation +=
+      ' Note that with many countries even very small correlations can be statistically significant; focus on whether the effect size is meaningful in your context.';
+  }
 
   return {
     r,

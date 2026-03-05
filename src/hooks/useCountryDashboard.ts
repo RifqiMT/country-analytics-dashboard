@@ -19,6 +19,10 @@ interface UseCountryDashboardResult {
   setFrequency: (f: Frequency) => void;
   macroFrequency: Frequency;
   setMacroFrequency: (f: Frequency) => void;
+  macroHealthFrequency: Frequency;
+  setMacroHealthFrequency: (f: Frequency) => void;
+  labourFrequency: Frequency;
+  setLabourFrequency: (f: Frequency) => void;
   startYear: number;
   endYear: number;
   setStartYear: (year: number) => void;
@@ -30,6 +34,8 @@ interface UseCountryDashboardResult {
   error?: string;
   resampled: CountryDashboardData['series'] | undefined;
   resampledMacro: CountryDashboardData['series'] | undefined;
+  resampledMacroHealth: CountryDashboardData['series'] | undefined;
+  resampledLabour: CountryDashboardData['series'] | undefined;
 }
 
 const DEFAULT_COUNTRY = 'ID'; // Indonesia as default
@@ -48,6 +54,12 @@ export function useCountryDashboard(
     options?.initialFrequency ?? 'yearly',
   );
   const [macroFrequency, setMacroFrequency] = useState<Frequency>(
+    options?.initialFrequency ?? 'yearly',
+  );
+  const [macroHealthFrequency, setMacroHealthFrequency] = useState<Frequency>(
+    options?.initialFrequency ?? 'yearly',
+  );
+  const [labourFrequency, setLabourFrequency] = useState<Frequency>(
     options?.initialFrequency ?? 'yearly',
   );
   const [startYear, setStartYear] = useState<number>(DEFAULT_START_YEAR);
@@ -143,6 +155,34 @@ export function useCountryDashboard(
       }
     : undefined;
 
+  const resampledMacroHealth = data?.series
+    ? {
+        financial: (data.series.financial ?? []).map((s) =>
+          resampleSeries(s, macroHealthFrequency),
+        ),
+        population: (data.series.population ?? []).map((s) =>
+          resampleSeries(s, macroHealthFrequency),
+        ),
+        health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, macroHealthFrequency),
+        ),
+      }
+    : undefined;
+
+  const resampledLabour = data?.series
+    ? {
+        financial: (data.series.financial ?? []).map((s) =>
+          resampleSeries(s, labourFrequency),
+        ),
+        population: (data.series.population ?? []).map((s) =>
+          resampleSeries(s, labourFrequency),
+        ),
+        health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, labourFrequency),
+        ),
+      }
+    : undefined;
+
   return {
     countryCode,
     setCountryCode,
@@ -150,6 +190,10 @@ export function useCountryDashboard(
     setFrequency,
     macroFrequency,
     setMacroFrequency,
+    macroHealthFrequency,
+    setMacroHealthFrequency,
+    labourFrequency,
+    setLabourFrequency,
     startYear,
     endYear,
     setStartYear,
@@ -161,6 +205,8 @@ export function useCountryDashboard(
     error,
     resampled,
     resampledMacro,
+    resampledMacroHealth,
+    resampledLabour,
   };
 }
 

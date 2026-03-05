@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps';
 import type {
   CountryDashboardData,
   GlobalCountryMetricsRow,
@@ -219,6 +219,30 @@ interface MapTooltipState {
   metricValue: string;
 }
 
+function getFlagBaseColor(iso2?: string): string {
+  if (!iso2) return '#ffffff';
+  const code = iso2.toUpperCase();
+  switch (code) {
+    case 'US':
+      return '#b22234'; // US red
+    case 'CN':
+      return '#de2910'; // China red
+    case 'ID':
+      return '#d90000'; // Indonesia red
+    case 'GB':
+    case 'UK':
+      return '#00247d'; // UK blue
+    case 'FR':
+      return '#0055a4'; // France blue
+    case 'DE':
+      return '#000000'; // Germany black
+    case 'JP':
+      return '#ffffff'; // Japan white
+    default:
+      return '#ffffff';
+  }
+}
+
 export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger = 0 }: Props) {
   if (!data) {
     return (
@@ -239,6 +263,8 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
     null,
   );
   const { showToast, dismissToast } = useToast();
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState<[number, number]>([0, 20]);
 
   useEffect(() => {
     const targetYear = year;
@@ -434,10 +460,85 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
         )}
       </div>
       <div ref={wrapperRef} className="map-wrapper">
+        <div className="map-zoom-controls">
+          <button
+            type="button"
+            className="map-zoom-btn"
+            onClick={() =>
+              setZoom((z) => Math.min(8, z * 1.5))
+            }
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="map-zoom-btn"
+            onClick={() =>
+              setZoom((z) => Math.max(0.8, z / 1.5))
+            }
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <button
+            type="button"
+            className="map-zoom-btn map-zoom-reset"
+            onClick={() => {
+              setZoom(1);
+              setCenter([0, 20]);
+            }}
+            aria-label="Reset map view"
+          >
+            ⟳
+          </button>
+        </div>
         <ComposableMap projectionConfig={{ scale: 140 }}>
-          <Geographies geography={GEO_URL}>
-            {({ geographies }) =>
-              geographies.map((geo) => {
+          {tooltip?.iso2 && (
+            <defs>
+              <pattern
+                id="country-flag-pattern"
+                patternUnits="objectBoundingBox"
+                patternContentUnits="objectBoundingBox"
+                width={1}
+                height={1}
+              >
+                <rect
+                  x={0}
+                  y={0}
+                  width={1}
+                  height={1}
+                  fill={getFlagBaseColor(tooltip.iso2)}
+                />
+                <image
+                  href={`https://flagcdn.com/w160/${tooltip.iso2.toLowerCase()}.png`}
+                  x={0}
+                  y={0}
+                  width={1}
+                  height={1}
+                  preserveAspectRatio="xMidYMid slice"
+                />
+              </pattern>
+            </defs>
+          )}
+          <ZoomableGroup
+            zoom={zoom}
+            center={center}
+            minZoom={0.8}
+            maxZoom={8}
+            onMoveEnd={(position: any) => {
+              if (!position) return;
+              if (Array.isArray(position.coordinates)) {
+                setCenter(position.coordinates as [number, number]);
+              }
+              if (typeof position.zoom === 'number') {
+                setZoom(position.zoom);
+              }
+            }}
+          >
+            <Geographies geography={GEO_URL}>
+              {({ geographies }: { geographies: any[] }) =>
+                geographies.map((geo: any) => {
                 const numericId =
                   typeof geo.id === 'string'
                     ? geo.id
@@ -452,24 +553,42 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
                 const metricValue = getMetricFromRow(row, selectedMetricId);
                 const metricLabel = getMetricLabel(selectedMetricId);
 
+                const iso2 = mapping?.iso2 || geo.properties.ISO_A2;
+                const normalizedIso2 =
+                  iso2 && iso2 !== '-99' ? String(iso2).toUpperCase() : null;
+
+                const isSelected =
+                  normalizedIso2 &&
+                  tooltip?.iso2 &&
+                  normalizedIso2 === tooltip.iso2.toUpperCase();
+                const baseFill = getFillColor(metricValue);
+                const effectiveFill =
+                  isSelected && tooltip?.iso2
+                    ? 'url(#country-flag-pattern)'
+                    : baseFill;
+
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
                     style={{
                       default: {
-                        fill: getFillColor(metricValue),
+                        fill: effectiveFill,
                         outline: 'none',
-                        stroke: '#111',
-                        strokeWidth: 0.4,
+                        stroke: '#0f172a',
+                        strokeWidth: 0.6,
                       },
                       hover: {
-                        fill: getFillColor(metricValue),
+                        fill: effectiveFill,
                         outline: 'none',
+                        stroke: '#020617',
+                        strokeWidth: 0.9,
                       },
                       pressed: {
-                        fill: '#c8102e',
+                        fill: effectiveFill,
                         outline: 'none',
+                        stroke: '#020617',
+                        strokeWidth: 0.9,
                       },
                     }}
                     onMouseEnter={(evt) => {
@@ -478,7 +597,7 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
                         row?.name ||
                         geo.properties.name ||
                         'Unknown';
-                      const iso2 = mapping?.iso2 || geo.properties.ISO_A2;
+                      const iso2Hover = mapping?.iso2 || geo.properties.ISO_A2;
                       if (!wrapperRef.current) return;
 
                       const margin = 16;
@@ -502,7 +621,7 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
                         x,
                         y,
                         name,
-                        iso2: iso2 && iso2 !== '-99' ? iso2 : undefined,
+                        iso2: iso2Hover && iso2Hover !== '-99' ? iso2Hover : undefined,
                         metricLabel,
                         metricValue: formatMetricValue(
                           selectedMetricId,
@@ -540,7 +659,8 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
                 );
               })
             }
-          </Geographies>
+            </Geographies>
+          </ZoomableGroup>
         </ComposableMap>
         {tooltip && (
           <div

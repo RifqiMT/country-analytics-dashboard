@@ -7,6 +7,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
+import { useState } from 'react';
 import type {
   CountryDashboardData,
   Frequency,
@@ -17,40 +18,23 @@ import { formatCompactNumber } from '../utils/numberFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
-const MACRO_METRIC_IDS: MetricId[] = [
+const ECONOMIC_METRIC_IDS: MetricId[] = [
   'inflationCPI',
   'govDebtPercentGDP',
   'interestRate',
   'unemploymentRate',
   'povertyHeadcount215',
   'povertyHeadcountNational',
+];
+
+const HEALTH_METRIC_IDS: MetricId[] = [
   'maternalMortalityRatio',
   'under5MortalityRate',
   'undernourishmentPrevalence',
+  'lifeExpectancy',
 ];
 
-/** Macro timeline metrics grouped by category for legend and tooltip (excludes unemployed/labour – see LabourUnemploymentTimelineSection). */
-const MACRO_CATEGORIES: { label: string; metricIds: MetricId[] }[] = [
-  {
-    label: 'Economic & financial',
-    metricIds: [
-      'inflationCPI',
-      'govDebtPercentGDP',
-      'interestRate',
-      'unemploymentRate',
-      'povertyHeadcount215',
-      'povertyHeadcountNational',
-    ],
-  },
-  {
-    label: 'Health',
-    metricIds: [
-      'maternalMortalityRatio',
-      'under5MortalityRate',
-      'undernourishmentPrevalence',
-    ],
-  },
-];
+const RIGHT_AXIS_METRICS: MetricId[] = HEALTH_METRIC_IDS;
 
 const METRIC_COLORS: Record<string, string> = {
   inflationCPI: '#f97316',
@@ -62,6 +46,7 @@ const METRIC_COLORS: Record<string, string> = {
   maternalMortalityRatio: '#b91c1c',
   under5MortalityRate: '#fb923c',
   undernourishmentPrevalence: '#16a34a',
+  lifeExpectancy: '#0f766e',
 };
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -71,11 +56,14 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   yearly: 'Annual (observed)',
 };
 
+type MacroVariant = 'economic' | 'health';
+
 interface Props {
   data?: CountryDashboardData;
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
   resampledSeries?: CountryDashboardData['series'];
+  variant: MacroVariant;
 }
 
 export function MacroIndicatorsTimelineSection({
@@ -83,8 +71,15 @@ export function MacroIndicatorsTimelineSection({
   frequency,
   setFrequency,
   resampledSeries,
+  variant,
 }: Props) {
+  const isHealth = variant === 'health';
+  const ACTIVE_METRIC_IDS = isHealth ? HEALTH_METRIC_IDS : ECONOMIC_METRIC_IDS;
+
   const finalSeries = resampledSeries ?? data?.series;
+  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(ACTIVE_METRIC_IDS);
+  const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
 
   if (!data || !finalSeries) {
     return (
@@ -99,7 +94,7 @@ export function MacroIndicatorsTimelineSection({
     ...(finalSeries.financial ?? []),
     ...(finalSeries.population ?? []),
     ...(finalSeries.health ?? []),
-  ].filter((s) => MACRO_METRIC_IDS.includes(s.id));
+  ].filter((s) => ACTIVE_METRIC_IDS.includes(s.id));
 
   const displayStartYear =
     data.range
@@ -131,17 +126,53 @@ export function MacroIndicatorsTimelineSection({
     (a, b) => a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0]),
   );
   const baseData = sortedDates.map(([date, year]) => ({ date, year }));
+
+  const seriesById = new Map<string, MetricSeries>();
+  for (const s of allSeries) {
+    seriesById.set(s.id, s);
+  }
+
+  const forwardFilledCache = new Map<string, Map<string, number | null>>();
+
+  const freqLabel: Record<Frequency, string> = {
+    weekly: 'WoW',
+    monthly: 'MoM',
+    quarterly: 'QoQ',
+    yearly: 'YoY',
+  };
+
+  const getMetricValueAtDate = (metricId: MetricId, date: string): number | null => {
+    const seriesForMetric = seriesById.get(metricId);
+    if (!seriesForMetric) return null;
+
+    if (metricId !== 'lifeExpectancy') {
+      return (
+        seriesForMetric.points?.find((sp) => sp.date === date)?.value ?? null
+      );
+    }
+
+    let filled = forwardFilledCache.get(metricId);
+    if (!filled) {
+      filled = new Map<string, number | null>();
+      let last: number | null = null;
+      for (const p of baseData) {
+        const v =
+          seriesForMetric.points?.find((sp) => sp.date === p.date)?.value ?? null;
+        if (v != null) last = v;
+        filled.set(p.date, last);
+      }
+      forwardFilledCache.set(metricId, filled);
+    }
+    return filled.get(date) ?? null;
+  };
+
   const merged = baseData.map((p) => {
     const row: Record<string, string | number | null> = {
       date: p.date,
       year: p.year,
     };
-    for (const metricId of MACRO_METRIC_IDS) {
-      const seriesForMetric = allSeries.find((s) => s.id === metricId);
-      const value = seriesForMetric?.points?.find(
-        (sp) => sp.date === p.date,
-      )?.value ?? null;
-      row[metricId] = value;
+    for (const metricId of ACTIVE_METRIC_IDS) {
+      row[metricId] = getMetricValueAtDate(metricId, p.date);
     }
     return row;
   });
@@ -181,7 +212,11 @@ export function MacroIndicatorsTimelineSection({
     active,
     label,
     payload,
-  }: TooltipProps<number, string> & { active?: boolean; label?: string; payload?: Array<{ dataKey?: string; value?: number; color?: string; name?: string }> }) => {
+  }: TooltipProps<number, string> & {
+    active?: boolean;
+    label?: string;
+    payload?: Array<{ dataKey?: string; value?: number; color?: string; name?: string }>;
+  }) => {
     if (!active || !payload || !payload.length) return null;
 
     const byMetricId = new Map<
@@ -230,20 +265,22 @@ export function MacroIndicatorsTimelineSection({
       });
     });
 
-    const rows = MACRO_METRIC_IDS
-      .filter((id) => byMetricId.has(id))
+    const rows = ACTIVE_METRIC_IDS
+      .filter((id) => selectedMetricIds.includes(id) && byMetricId.has(id))
       .map((id) => byMetricId.get(id)!)
       .filter(Boolean);
 
     if (!rows.length) return null;
 
-    // Group tooltip rows by category
-    const rowsByCategory = MACRO_CATEGORIES.map((cat) => ({
-      label: cat.label,
-      rows: cat.metricIds
-        .map((id) => byMetricId.get(id))
-        .filter((r): r is NonNullable<typeof r> => r != null),
-    })).filter((g) => g.rows.length > 0);
+    // Show a single flat group of metrics in the tooltip (no category labels)
+    const rowsByCategory = [
+      {
+        label: '',
+        rows: ACTIVE_METRIC_IDS.filter((id) => selectedMetricIds.includes(id))
+          .map((id) => byMetricId.get(id))
+          .filter((r): r is NonNullable<typeof r> => r != null),
+      },
+    ].filter((g) => g.rows.length > 0);
 
     return (
       <div className="chart-tooltip">
@@ -254,8 +291,10 @@ export function MacroIndicatorsTimelineSection({
         </div>
         <div className="chart-tooltip-body">
           {rowsByCategory.map((group) => (
-            <div key={group.label} className="chart-tooltip-category">
-              <div className="chart-tooltip-category-label">{group.label}</div>
+            <div key={group.label || 'metrics'} className="chart-tooltip-category">
+              {group.label ? (
+                <div className="chart-tooltip-category-label">{group.label}</div>
+              ) : null}
               {group.rows.map((row) => (
                 <div key={row.name} className="chart-tooltip-row">
                   <span
@@ -264,7 +303,9 @@ export function MacroIndicatorsTimelineSection({
                   />
                   <div className="chart-tooltip-label">{row.name}</div>
                   <div className="chart-tooltip-value">
-                    {formatCompactNumber(row.value)}
+                    {row.name.toLowerCase().includes('life expectancy')
+                      ? `${row.value.toFixed(1)}`
+                      : formatCompactNumber(row.value)}
                   </div>
                   {row.change && (
                     <div
@@ -293,118 +334,290 @@ export function MacroIndicatorsTimelineSection({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            Macro indicators timeline
+            {isHealth
+              ? 'Macro indicators timeline – health'
+              : 'Macro indicators timeline – economic & financial'}
           </h2>
-          <p className="muted">
-            Switch between weekly, monthly, quarterly, and annual views.
-            Sub-annual views are smoothly interpolated from annual observations.
-            Includes inflation, government debt, lending rate, unemployment rate, poverty, and health burden metrics.
-            Unemployed (number) and labour force (total) are in a separate chart below.
-          </p>
+          {isHealth ? (
+            <p className="muted">
+              Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
+              interpolated from annual observations. Includes maternal mortality, under-5 mortality,
+              undernourishment prevalence, and life expectancy.
+            </p>
+          ) : (
+            <p className="muted">
+              Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
+              interpolated from annual observations. Includes inflation, government debt, lending rate,
+              unemployment rate, and poverty metrics. Unemployed (number) and labour force (total) are in a
+              separate chart below.
+            </p>
+          )}
         </div>
-        <div className="pill-group">
-          {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+        <div className="section-header-controls">
+          <div className="section-header-control-group">
+            <div className="section-control-label">Frequency</div>
+            <div
+              className="frequency-toolbar"
+              tabIndex={-1}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setIsFrequencyOpen(false);
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="map-metric-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={isFrequencyOpen}
+                onClick={() => setIsFrequencyOpen((open) => !open)}
+              >
+                <span className="map-metric-trigger-icon">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" />
+                  </svg>
+                </span>
+                <span className="map-metric-trigger-label">
+                  {FREQUENCY_LABELS[frequency]}
+                </span>
+                <span
+                  className={`map-metric-trigger-chevron ${isFrequencyOpen ? 'open' : ''}`}
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+                  </svg>
+                </span>
+              </button>
+              {isFrequencyOpen && (
+                <div className="map-metric-dropdown" role="listbox">
+                  <div className="map-metric-category">
+                    <div className="map-metric-category-header">
+                      <span className="map-metric-category-icon">
+                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z" />
+                        </svg>
+                      </span>
+                      <span>Sampling cadence</span>
+                    </div>
+                    <div className="map-metric-category-items">
+                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          className={`map-metric-option ${frequency === f ? 'selected' : ''}`}
+                          onClick={() => {
+                            setFrequency(f);
+                            setIsFrequencyOpen(false);
+                          }}
+                        >
+                          <span className="map-metric-option-icon">
+                            {frequency === f && (
+                              <svg
+                                viewBox="0 0 16 16"
+                                aria-hidden="true"
+                                focusable="false"
+                              >
+                                <path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" />
+                              </svg>
+                            )}
+                          </span>
+                          <span>{FREQUENCY_LABELS[f]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">View</div>
+            <div className="pill-group pill-group-secondary">
             <button
-              key={f}
               type="button"
-              className={`pill ${frequency === f ? 'pill-active' : ''}`}
-              onClick={() => setFrequency(f)}
+              className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
+              onClick={() => setViewMode('chart')}
             >
               <span className="icon-12">
                 <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  {f === 'yearly' && (
-                    <path d="M5 1.75a.75.75 0 0 1 .75.75V3h4.5V2.5a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v7.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-7.5A1.75 1.75 0 0 1 3.75 3h.5V2.5A.75.75 0 0 1 5 1.75ZM4 6.5a.5.5 0 0 0-.5.5v5.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5H4Z" />
-                  )}
-                  {f === 'quarterly' && (
-                    <path d="M3.25 3A.75.75 0 0 1 4 2.25h8A.75.75 0 0 1 12.75 3v10a.75.75 0 0 1-1.2.6L8 11.5l-3.55 2.1A.75.75 0 0 1 3.25 13V3Zm1.5.75v7.53L8 9.92l3.25 1.36V3.75h-6.5Z" />
-                  )}
-                  {f === 'monthly' && (
-                    <path d="M4 2.75A1.75 1.75 0 0 1 5.75 1h4.5A1.75 1.75 0 0 1 12 2.75V13a.75.75 0 0 1-1.2.6L8 11.25l-2.8 2.35A.75.75 0 0 1 4 13V2.75Zm1.5 0v8.03l2-1.68 2 1.68V2.75a.25.25 0 0 0-.25-.25h-3.5a.25.25 0 0 0-.25.25Z" />
-                  )}
-                  {f === 'weekly' && (
-                    <path d="M3.25 4A.75.75 0 0 1 4 3.25h8A.75.75 0 0 1 12.75 4v1.5A2.75 2.75 0 0 1 10 8.25H9.06l1.72 2.22a.75.75 0 1 1-1.2.9L7.5 9.25 5.92 11.4a.75.75 0 1 1-1.2-.9L6.44 8.25H6A2.75 2.75 0 0 1 3.25 5.5V4Zm1.5.75V5.5c0 .69.56 1.25 1.25 1.25h4A1.25 1.25 0 0 0 11.25 5.5V4.75h-6.5Z" />
-                  )}
+                  <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
                 </svg>
               </span>
-              <span>{FREQUENCY_LABELS[f]}</span>
+              <span>Chart view</span>
             </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="chart-wrapper">
-        <ResponsiveContainer width="100%" height={320}>
-          <LineChart
-            data={merged}
-            margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
-          >
-            <CartesianGrid
-              stroke="rgba(148,163,184,0.25)"
-              vertical={false}
-            />
-            <XAxis
-              dataKey={xKey}
-              ticks={xTicks}
-              tickFormatter={formatAxisLabel}
-              tickLine={false}
-              tickMargin={8}
-              stroke="rgba(148,163,184,0.9)"
-              tick={{
-                fontSize: 10,
-                fill: 'rgba(55,65,81,0.9)',
-              }}
-            />
-            <YAxis
-              tickFormatter={(v) => formatCompactNumber(v as number)}
-              tickLine={false}
-              tickMargin={8}
-              stroke="rgba(148,163,184,0.9)"
-            />
-            <Tooltip
-              contentStyle={{
-                background: '#ffffff',
-                border: '1px solid rgba(148,163,184,0.6)',
-                borderRadius: 8,
-                boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
-              }}
-              content={<CustomTooltip />}
-            />
-            {MACRO_METRIC_IDS.map((metricId) => (
-              <Line
-                key={metricId}
-                type="monotone"
-                dataKey={metricId}
-                stroke={METRIC_COLORS[metricId]}
-                strokeWidth={2}
-                dot={false}
-                hide={!merged.some((row) => row[metricId] != null)}
-              />
-            ))}
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="chart-legend-row chart-legend-categorized">
-        {MACRO_CATEGORIES.map((category) => (
-          <div key={category.label} className="chart-legend-group">
-            <div className="chart-legend-category-label">
-              {category.label}
-            </div>
-            <div className="chart-legend-items">
-              {category.metricIds.map((metricId) => (
-                <div key={metricId} className="chart-legend-item">
-                  <span
-                    className="chart-legend-swatch"
-                    style={{ backgroundColor: METRIC_COLORS[metricId] }}
-                  />
-                  <span className="chart-legend-label">
-                    {labelByMetricId[metricId] ?? metricId}
-                  </span>
-                </div>
-              ))}
+            <button
+              type="button"
+              className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
+              onClick={() => setViewMode('table')}
+            >
+              <span className="icon-12">
+                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                  <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
+                </svg>
+              </span>
+              <span>Table view</span>
+            </button>
             </div>
           </div>
+        </div>
+      </div>
+      <div className="metric-toggle-row-header">
+        <div className="metric-toggle-title">Metrics displayed</div>
+        <div className="metric-toggle-hint">Tap to show or hide indicators</div>
+      </div>
+      <div className="metric-toggle-row">
+        {ACTIVE_METRIC_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={`tag ${selectedMetricIds.includes(id) ? 'tag-active' : ''}`}
+            onClick={() => {
+              if (selectedMetricIds.includes(id)) {
+                setSelectedMetricIds(selectedMetricIds.filter((m) => m !== id));
+              } else {
+                setSelectedMetricIds([...selectedMetricIds, id]);
+              }
+            }}
+          >
+            <span
+              className="tag-swatch"
+              style={{ backgroundColor: METRIC_COLORS[id] }}
+            />
+            {labelByMetricId[id] ?? id}
+          </button>
         ))}
       </div>
+
+      {viewMode === 'chart' ? (
+        <div className="chart-wrapper">
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart
+              data={merged}
+              margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
+            >
+              <CartesianGrid
+                stroke="rgba(148,163,184,0.25)"
+                vertical={false}
+              />
+              <XAxis
+                dataKey={xKey}
+                ticks={xTicks}
+                tickFormatter={formatAxisLabel}
+                tickLine={false}
+                tickMargin={8}
+                stroke="rgba(148,163,184,0.9)"
+                tick={{
+                  fontSize: 10,
+                  fill: 'rgba(55,65,81,0.9)',
+                }}
+              />
+              <YAxis
+                yAxisId="left"
+                tickFormatter={(v) => formatCompactNumber(v as number)}
+                tickLine={false}
+                tickMargin={8}
+                stroke="rgba(148,163,184,0.9)"
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tickFormatter={(v) => formatCompactNumber(v as number)}
+                tickLine={false}
+                tickMargin={8}
+                stroke="rgba(148,163,184,0.6)"
+              />
+              <Tooltip
+                contentStyle={{
+                  background: '#ffffff',
+                  border: '1px solid rgba(148,163,184,0.6)',
+                  borderRadius: 8,
+                  boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
+                }}
+                content={<CustomTooltip />}
+              />
+              {ACTIVE_METRIC_IDS.map((metricId) => (
+                <Line
+                  key={metricId}
+                  type="monotone"
+                  dataKey={metricId}
+                  stroke={METRIC_COLORS[metricId]}
+                  strokeWidth={2}
+                  dot={false}
+                  hide={
+                    !selectedMetricIds.includes(metricId) ||
+                    !merged.some((row) => row[metricId] != null)
+                  }
+                  yAxisId={RIGHT_AXIS_METRICS.includes(metricId) ? 'right' : 'left'}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="chart-table-wrapper">
+          <div className="chart-table-scroll">
+            <table className="chart-table">
+              <thead>
+                <tr>
+                  <th>{frequency === 'yearly' ? 'Year' : 'Period'}</th>
+                  {selectedMetricIds.map((id) => (
+                    <th key={id}>{labelByMetricId[id] ?? id}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {merged.map((row, rowIndex) => (
+                  <tr key={String(row[xKey])}>
+                    <td>{formatAxisLabel(row[xKey] as string | number)}</td>
+                    {selectedMetricIds.map((id) => {
+                      const v = row[id];
+                      const prevRow = rowIndex > 0 ? merged[rowIndex - 1] : undefined;
+                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
+
+                      let changeText: string | null = null;
+                      let changeDir: 'up' | 'down' | 'flat' | null = null;
+                      if (prev != null && prev !== 0 && v != null) {
+                        const pct = (((v as number) - prev) / Math.abs(prev)) * 100;
+                        const rounded = Number.isFinite(pct) ? pct : 0;
+                        if (rounded > 0.05) changeDir = 'up';
+                        else if (rounded < -0.05) changeDir = 'down';
+                        else changeDir = 'flat';
+                        changeText = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${
+                          freqLabel[frequency]
+                        }`;
+                      }
+
+                      return (
+                        <td key={id}>
+                          {v == null ? (
+                            '–'
+                          ) : (
+                            <div className="table-metric-cell">
+                              <div className="table-metric-value">
+                                {id === 'lifeExpectancy'
+                                  ? (v as number).toFixed(1)
+                                  : formatCompactNumber(v as number)}
+                              </div>
+                              {changeText && changeDir && (
+                                <div
+                                  className={`table-metric-change table-metric-change-${changeDir}`}
+                                >
+                                  {changeText}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

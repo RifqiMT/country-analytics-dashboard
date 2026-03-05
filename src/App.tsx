@@ -5,7 +5,6 @@ import { SummarySection } from './components/SummarySection';
 import { TimeSeriesSection } from './components/TimeSeriesSection';
 import { MacroIndicatorsTimelineSection } from './components/MacroIndicatorsTimelineSection';
 import { LabourUnemploymentTimelineSection } from './components/LabourUnemploymentTimelineSection';
-import { PopulationPieSection } from './components/PopulationPieSection';
 import { CountryTableSection } from './components/CountryTableSection';
 import { WorldMapSection } from './components/WorldMapSection';
 import { CountrySelector } from './components/CountrySelector';
@@ -31,6 +30,10 @@ function App() {
     setFrequency,
     macroFrequency,
     setMacroFrequency,
+    macroHealthFrequency,
+    setMacroHealthFrequency,
+    labourFrequency,
+    setLabourFrequency,
     startYear,
     endYear,
     setStartYear,
@@ -39,6 +42,8 @@ function App() {
     setSelectedMetricIds,
     resampled,
     resampledMacro,
+    resampledMacroHealth,
+    resampledLabour,
   } = useCountryDashboard({ refreshTrigger: dataRefreshTrigger });
 
   const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'business' | 'chat'>('country');
@@ -172,7 +177,12 @@ function App() {
         {mainTab === 'source' ? (
           <SourceSection />
         ) : mainTab === 'pestel' ? (
-          <PESTELSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
+          <PESTELSection
+            dashboardData={data}
+            refreshTrigger={dataRefreshTrigger}
+            countryCode={countryCode}
+            setCountryCode={setCountryCode}
+          />
         ) : mainTab === 'business' ? (
           <BusinessAnalyticsSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
         ) : mainTab === 'chat' ? (
@@ -207,18 +217,25 @@ function App() {
                 setSelectedMetricIds={setSelectedMetricIds}
                 resampledSeries={resampled}
               />
-              <PopulationPieSection data={data} />
               <MacroIndicatorsTimelineSection
+                variant="economic"
                 data={data}
                 frequency={macroFrequency}
                 setFrequency={setMacroFrequency}
                 resampledSeries={resampledMacro}
               />
+              <MacroIndicatorsTimelineSection
+                variant="health"
+                data={data}
+                frequency={macroHealthFrequency}
+                setFrequency={setMacroHealthFrequency}
+                resampledSeries={resampledMacroHealth}
+              />
               <LabourUnemploymentTimelineSection
                 data={data}
-                frequency={macroFrequency}
-                setFrequency={setMacroFrequency}
-                resampledSeries={resampledMacro}
+                frequency={labourFrequency}
+                setFrequency={setLabourFrequency}
+                resampledSeries={resampledLabour}
               />
             </section>
 

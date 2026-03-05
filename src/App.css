@@ -414,12 +414,51 @@
   margin-bottom: var(--space-4);
 }
 
+.section-header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: flex-end;
+}
+
+/* For timeline cards, keep controls on the left under the title */
+.timeseries-section .section-header {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+.timeseries-section .section-header-controls {
+  justify-content: flex-start;
+}
+
+.section-header-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.section-control-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.frequency-toolbar {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+}
+
 .section-title {
   margin: 0 0 var(--space-1);
   font-size: 1.05rem;
   font-weight: 600;
   color: var(--text-primary);
-  letter-spacing: 0.01em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .muted {
@@ -1032,7 +1071,11 @@
 }
 
 .timeseries-section {
-  background: var(--bg-elevated);
+  background: linear-gradient(
+    135deg,
+    var(--bg-elevated) 0%,
+    var(--bg-card-hover) 100%
+  );
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   padding: var(--space-5);
@@ -1243,9 +1286,34 @@
 
 .metric-toggle-row {
   display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  margin: 10px 0 12px;
+  padding-bottom: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.metric-toggle-row-header {
+  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin: 8px 0 10px;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+  margin-top: 4px;
+}
+
+.metric-toggle-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.metric-toggle-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
 }
 
 .tag {
@@ -1254,13 +1322,13 @@
   background: var(--bg-elevated);
   color: var(--text-muted);
   font-size: 0.75rem;
-  padding: var(--space-1) var(--space-3);
+  padding: calc(var(--space-1) + 1px) var(--space-3);
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   cursor: pointer;
   transition: background-color 0.16s ease, border-color 0.16s ease,
-    color 0.16s ease, transform 0.12s ease;
+    color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
 }
 
 .tag-active {
@@ -1268,6 +1336,7 @@
   border-color: var(--accent-red);
   color: var(--text-primary);
   font-weight: 600;
+  box-shadow: 0 4px 10px rgba(200, 16, 46, 0.12);
 }
 
 .tag:hover {
@@ -1278,6 +1347,19 @@
 .tag-swatch {
   width: 9px;
   height: 9px;
+  border-radius: 999px;
+}
+
+.metric-toggle-row::-webkit-scrollbar {
+  height: 5px;
+}
+
+.metric-toggle-row::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.metric-toggle-row::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.7);
   border-radius: 999px;
 }
 
@@ -1480,6 +1562,54 @@
   background: var(--bg-elevated);
 }
 
+.chart-table-wrapper {
+  margin-top: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.chart-table-scroll {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.chart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.table-metric-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.table-metric-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.table-metric-change {
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.table-metric-change-up {
+  color: var(--accent-positive);
+}
+
+.table-metric-change-down {
+  color: var(--accent-negative);
+}
+
+.table-metric-change-flat {
+  color: var(--text-muted);
+}
+
 .table-wrapper.tall {
   max-height: 420px;
   overflow: auto;
@@ -1610,6 +1740,7 @@ tbody tr:hover {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-5);
   background: var(--bg-elevated);
@@ -1619,13 +1750,12 @@ tbody tr:hover {
 }
 
 .pestel-country-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  background: var(--bg-input);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-subtle);
+  display: none;
+}
+
+.pestel-country-selector {
+  flex: 1 1 260px;
+  min-width: 240px;
 }
 
 .pestel-country-label {
@@ -2074,8 +2204,8 @@ tbody tr:hover {
 }
 
 .pestel-chart-grid {
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   list-style: none;
   margin: 0;
@@ -2083,8 +2213,9 @@ tbody tr:hover {
 }
 
 .pestel-chart-col {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
   min-width: 0;
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -2092,32 +2223,35 @@ tbody tr:hover {
 }
 
 .pestel-chart-header {
-  padding: var(--space-3) var(--space-2);
-  text-align: center;
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 2px;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 4px;
+  min-width: 80px;
 }
 
 .pestel-chart-header-letter {
-  font-size: 1.75rem;
+  font-size: 1.6rem;
   font-weight: 800;
   line-height: 1;
   display: block;
 }
 
 .pestel-chart-header-name {
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  opacity: 0.95;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0.98;
 }
 
 .pestel-chart-body {
-  padding: var(--space-3) var(--space-2);
-  min-height: 140px;
-  flex: 1;
+  padding: var(--space-3) var(--space-4);
+  min-height: 88px;
+  display: flex;
+  align-items: center;
 }
 
 .pestel-chart-list {
@@ -2142,22 +2276,24 @@ tbody tr:hover {
   font-size: 0.8rem;
   font-style: italic;
 }
+@media (max-width: 640px) {
+  .pestel-chart-col {
+    grid-template-columns: minmax(0, 1fr);
+  }
 
-@media (max-width: 1024px) {
-  .pestel-chart-grid {
-    grid-template-columns: repeat(3, 1fr);
+  .pestel-chart-header {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    min-width: 0;
   }
-}
 
-@media (max-width: 600px) {
-  .pestel-chart-grid {
-    grid-template-columns: 1fr 1fr;
+  .pestel-chart-header-letter {
+    font-size: 1.5rem;
   }
-  .pestel-chart-header-name {
-    font-size: 0.6rem;
-  }
+
   .pestel-chart-body {
-    min-height: 100px;
+    padding-top: 0;
   }
 }
 
@@ -2764,6 +2900,44 @@ tbody tr:hover {
   border: 1px solid var(--border-subtle);
   padding: 8px;
   overflow: hidden;
+}
+
+.map-zoom-controls {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 5;
+}
+
+.map-zoom-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.15);
+  transition: background 0.15s ease, border-color 0.15s ease,
+    transform 0.1s ease;
+}
+
+.map-zoom-btn:hover {
+  background: #f9fafb;
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.map-zoom-reset {
+  font-size: 0.8rem;
 }
 
 .map-legend {
