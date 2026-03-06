@@ -34,6 +34,8 @@ const SUGGESTIONS = [
   'Give me an overview of the selected country',
   'Compare Indonesia to Malaysia',
   'Top 10 countries by GDP',
+  'Where is Indonesia located?',
+  'Which continent is Ukraine in?',
   'Indonesia and Ukraine from 2023',
   'Summary of key metrics',
 ];
@@ -226,7 +228,10 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
               }
             : null;
 
-        const wantsYearlyTimeSeries = /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|to\s*latest|each\s*year|monthly|quarterly|weekly/i.test(trimmed);
+        const wantsYearlyTimeSeries =
+          /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|since\s*20[0-2][0-9]|between\s*20[0-2][0-9]\s+(?:and|-|to)\s*(?:20[0-2][0-9]|latest|now|current|the latest)|to\s*latest|each\s*year|monthly|quarterly|weekly/i.test(
+            trimmed,
+          );
         // Use enough rows for rule-based fallback rankings (top N by metric). Groq prompt stays compact via buildChatSystemPrompt options.
         const globalLimit = wantsYearlyTimeSeries ? 250 : 999;
         const globalDataPayload =
@@ -268,12 +273,16 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
         const yearMatch = trimmed.match(/\b(20[0-2][0-9])\b/);
         const requestedYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
         const hasRequestedYear = requestedYear && globalDataByYear[requestedYear];
+        const allYears = Object.keys(globalDataByYear).map(Number).filter((y) => !Number.isNaN(y));
+        const latestYearInData = allYears.length > 0 ? Math.max(...allYears) : year;
         const globalDataByYearEntries = wantsYearlyTimeSeries
           ? Object.entries(globalDataByYear)
           : isGroq
             ? hasRequestedYear
               ? [[String(requestedYear), globalDataByYear[requestedYear]], ...Object.entries(globalDataByYear).filter(([y]) => Number(y) !== requestedYear)]
-              : Object.entries(globalDataByYear).slice(0, 1)
+              : latestYearInData in globalDataByYear
+                ? [[String(latestYearInData), globalDataByYear[latestYearInData]]]
+                : Object.entries(globalDataByYear).slice(0, 1)
             : Object.entries(globalDataByYear);
         const yearEntryLimit = wantsYearlyTimeSeries ? 999 : isGroq ? 1 : 999;
         const requestedCountryNames = wantsYearlyTimeSeries
@@ -427,8 +436,8 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
         <div>
           <h2 className="section-title">Analytics assistant</h2>
           <p className="muted">
-            Ask questions about the metrics, data sources, and methodology used
-            in this dashboard. Powered by LLM.
+            Ask about metrics, data sources, methodology, or general knowledge (e.g. where a
+            country is located, which continent). Powered by LLM.
           </p>
         </div>
         <div className="chatbot-controls">
@@ -539,10 +548,10 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
                 </svg>
               </div>
               <p className="chatbot-welcome-text">
-                Ask anything about the data and sources in this platform.
+                Ask about dashboard data, metrics, and sources — or general knowledge such as a country&apos;s location.
               </p>
               <p className="chatbot-welcome-hint muted">
-                Try one of these questions or type your own:
+                Try one of these (metrics, comparisons, or location) or type your own:
               </p>
               <div className="chatbot-suggestions">
                 {SUGGESTIONS.map((s) => (
@@ -654,7 +663,7 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
             ref={inputRef}
             type="text"
             className="chatbot-input"
-            placeholder="Ask about metrics, sources, or methodology…"
+            placeholder="Ask about metrics, sources, methodology, or location…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isLoading}

@@ -31,7 +31,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
 - **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
 - **Understand** data methodology via the Source tab with descriptions, formulas, and source links
-- **Ask** natural-language questions via the Analytics Assistant (year-based routing: Groq for period ≤ current year − 2, Tavily for recent/current)
+- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data → Groq (period ≤ current year − 2) → Tavily (latest / “now”) → other LLMs**
 
 ### 1.2 Target Audience
 
@@ -62,7 +62,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Credible data** – World Bank WDI, IMF WEO, REST Countries, Sea Around Us; fallbacks for territories
 - **Intuitive UX** – Searchable country selector, year presets, frequency toggles
 - **Transparent methodology** – Source tab documents every metric with formulas and source links
-- **AI-assisted analysis** – Analytics assistant with year-based routing: Groq for period ≤ current year − 2, Tavily (web search) for recent/current; Tavily also selectable as a model
+- **AI-assisted analysis** – Analytics assistant with **cascading logic**: Dashboard data first, then Groq for questions about period ≤ current year − 2, then Tavily (web search) for latest/current, then other LLMs; Tavily Web Search also selectable as a model
 - **Source attribution** – Each chat response shows its source (Dashboard data, model name, or Web search)
 - **No login required** – Public data, no authentication or workspace setup
 
@@ -160,7 +160,7 @@ axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
 
 ### Custom Infrastructure
 
-- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; year-based Groq vs Tavily routing
+- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; cascading routing (Dashboard data → Groq → Tavily → other LLMs) with year-based rules
 
 ---
 
@@ -263,12 +263,12 @@ Open the URL printed by Vite (typically `http://localhost:5173`).
 
 ### Analytics Assistant
 
-The **Analytics assistant** tab uses year-based routing:
+The **Analytics assistant** tab uses cascading, year-based routing:
 
-1. **Dashboard data** – Rule-based answers for rankings, comparisons, methodology (no keys required)
-2. **Tavily (web search)** – General-knowledge about period after current year − 2 (e.g. "now", "2026")
-3. **Groq** – General-knowledge about period ≤ current year − 2 (e.g. "in 2023"); or when web search fails
-4. **Other LLMs** – User-selected models (OpenAI, Anthropic, etc.); **Tavily Web Search** is also selectable
+1. **Dashboard data** – Rule-based answers for rankings, comparisons, time-series summaries, and methodology (no keys required)
+2. **Groq (Llama 3.3 70B)** – General-knowledge questions about period ≤ current year − 2 (e.g. "in 2023"), or when dashboard data cannot answer
+3. **Tavily (web search)** – Latest or current-period questions (e.g. "now", explicit near-current years) and general-knowledge not covered by Groq or dashboard data
+4. **Other LLMs** – User-selected models (OpenAI, Anthropic, Google, OpenRouter, etc.); **Tavily Web Search** is also available as a direct model
 
 **To enable LLM and web search:**
 

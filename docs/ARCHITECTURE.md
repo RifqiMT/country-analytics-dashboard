@@ -135,7 +135,7 @@ WorldMapSection / AllCountriesTableSection
 
 ### 2.3 Analytics Assistant Data Flow
 
-The assistant uses a cascading flow. Each response includes a **source** label (e.g. "Dashboard data", "Llama 3.3 70B (Groq)", "Web search").
+The assistant uses a **cascading, year-based flow**. Each response includes a **source** label (e.g. "Dashboard data", "Llama 3.3 70B (Groq)", "Web search").
 
 ```
 User sends message
@@ -149,24 +149,24 @@ ChatbotSection POST /api/chat
 vite-plugin-chat-api.ts middleware
          │
          ├─► Step 1: getFallbackResponse(chatFallback.ts)
-         │         └─► Rule-based: rankings, comparisons, single-metric, methodology, regions
+         │         └─► Rule-based: rankings, comparisons, single-metric lookups, yearly time-series summaries, methodology, regions
          │         └─► If answer found → return { content, source: "Dashboard data" }
-         │         └─► If generic help or out-of-scope (leaders, religion, culture, etc.) → continue
+         │         └─► If generic help or out-of-scope (leaders, religion, culture, **location/geography**, etc.) → continue
          │
          ├─► Step 2: Year-based routing – implied year from query
-         │         └─► Period > current year − 2 (or "now") → Web search (Tavily/Serper) first
-         │         └─► Period ≤ current year − 2 → Groq first
+         │         └─► Period ≤ current year − 2 → Groq (Llama 3.3 70B) first
+         │         └─► Period > current year − 2 or "now" → Tavily / Serper (web search) first
          │         └─► If Tavily Web Search selected as model → always web search first
-         │         └─► If success → return { content, source: "Web search" or "Llama 3.3 70B (Groq)" }
+         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" or "Web search" }
          │
-         ├─► Step 3: Groq (Llama 3.3 70B) – when web search not used or fails
-         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" }
+         ├─► Step 3: Groq (Llama 3.3 70B) or Web search – whichever was not tried in Step 2
+         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" or "Web search" }
          │
-         ├─► Step 4: User-selected LLM (OpenAI, Anthropic, Google, OpenRouter)
+         ├─► Step 4: User-selected LLM (OpenAI, Anthropic, Google, OpenRouter, etc.)
          │         └─► Uses client apiKey or server env key
          │         └─► If success → return { content, source: model label }
          │
-         └─► Fallback: Rule-based again with setup hint
+         └─► Fallback: Rule-based again with setup hint, except for pure location/geography questions where a safe guidance message is returned instead of metrics
          │
          ▼
 ChatbotSection renders message + source line

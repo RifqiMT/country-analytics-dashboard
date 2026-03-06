@@ -123,23 +123,26 @@ export function SourceSection() {
 
           <h4 className="source-feature-name">Analytics Assistant – answer sources</h4>
           <p className="muted">
-            Each response shows its source (e.g. &quot;Dashboard data&quot;, &quot;Llama 3.3 70B (Groq)&quot;, &quot;Web search&quot;). Cascading flow:
+            Each response shows its source (e.g. &quot;Dashboard data&quot;, &quot;Llama 3.3 70B (Groq)&quot;, &quot;Web search&quot;). The assistant answers both <strong>dashboard metrics</strong> (rankings, comparisons, methodology) and <strong>general knowledge</strong> (e.g. <strong>location/geography</strong> — where a country is located, which continent — plus leaders, culture, current events). Cascading flow:
           </p>
         </div>
         <ol className="source-assistant-steps">
           <li>
-            <strong>Dashboard data</strong> – Rule-based answers from World Bank WDI, IMF, and Sea Around Us / Marine Regions for rankings, comparisons, single-metric lookups, and methodology questions. Uses all metrics in this tab plus region, income level, government type from World Bank and REST Countries.
+            <strong>Dashboard data</strong> – Rule-based answers from World Bank WDI, IMF, and Sea Around Us / Marine Regions for rankings, comparisons, single-metric lookups, and methodology questions. Uses all metrics in this tab plus region, income level, government type from World Bank and REST Countries. <strong>Location/geography questions</strong> (e.g. &quot;where is Indonesia located?&quot;) are not answered from dashboard data; they use the fallback below.
           </li>
           <li>
-            <strong>Web search (Tavily)</strong> – For general-knowledge questions about the current period or after current year minus 2 (e.g. &quot;who is the president now&quot;, &quot;in 2026&quot;).
+            <strong>Groq (Llama 3.3 70B)</strong> – For general-knowledge questions (including <strong>location</strong>, leaders, history) when the period is up to current year minus 2.
           </li>
           <li>
-            <strong>Groq (Llama 3.3 70B)</strong> – For questions about the period up to current year minus 2 (e.g. &quot;in 2023&quot;), or when web search fails.
+            <strong>Web search (Tavily)</strong> – For general-knowledge questions about the current period or latest data (e.g. &quot;who is the president now&quot;, &quot;in 2026&quot;), or when Groq is not used.
           </li>
           <li>
             <strong>Other LLMs + Tavily Web Search</strong> – OpenAI, Anthropic, Google, OpenRouter, or Tavily Web Search (selectable in the model dropdown) when a user API key or server key is set.
           </li>
         </ol>
+        <p className="source-assistant-intro muted" style={{ marginTop: '0.75rem' }}>
+          <strong>Potential questions</strong> — Metrics: &quot;Compare Indonesia to Malaysia&quot;, &quot;Top 10 countries by GDP&quot;, &quot;Summary of key metrics&quot;. General knowledge (fallback): &quot;Where is Indonesia located?&quot;, &quot;Which continent is Ukraine in?&quot;, &quot;Who is the president of France?&quot;
+        </p>
         <p className="source-assistant-intro muted">
           All metrics below (Financial, Population, Health, Geography, Country metadata &amp; context) are searchable and linked to their primary sources.
         </p>

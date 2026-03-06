@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { buildPestelSystemPrompt } from '../utils/pestelContext';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
@@ -548,6 +549,9 @@ export function PESTELSection({
   const [error, setError] = useState<string | null>(null);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
 
+  const pestelChartRef = useRef<HTMLDivElement>(null);
+  const swotChartRef = useRef<HTMLDivElement>(null);
+
   const strategicImplicationsBlock = useMemo(() => (analysis ? getStrategicImplicationsBlock(analysis) : ''), [analysis]);
 
   const newMarketAnalysisBlock = useMemo(() => (analysis ? getNewMarketAnalysisBlock(analysis) : ''), [analysis]);
@@ -555,6 +559,36 @@ export function PESTELSection({
   const keyTakeawaysBlock = useMemo(() => (analysis ? getKeyTakeawaysBlock(analysis) : ''), [analysis]);
 
   const recommendationsBlock = useMemo(() => (analysis ? getRecommendationsBlock(analysis) : ''), [analysis]);
+
+  const downloadChartAsImage = useCallback(async (ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
+    const el = ref.current;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error('Chart export failed:', err);
+    }
+  }, []);
+
+  const handleDownloadPestelChart = useCallback(() => {
+    const name = dashboardData?.summary?.name ?? 'Country';
+    downloadChartAsImage(pestelChartRef, `PESTEL-Analysis-${name.replace(/\s+/g, '-')}.png`);
+  }, [dashboardData?.summary?.name, downloadChartAsImage]);
+
+  const handleDownloadSwotChart = useCallback(() => {
+    const name = dashboardData?.summary?.name ?? 'Country';
+    downloadChartAsImage(swotChartRef, `SWOT-Analysis-${name.replace(/\s+/g, '-')}.png`);
+  }, [dashboardData?.summary?.name, downloadChartAsImage]);
 
   const year =
     dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? 2022;
@@ -692,12 +726,36 @@ export function PESTELSection({
         <>
           {/* PESTEL chart: separate section */}
           <div className="pestel-chart-section" role="region" aria-label="PESTEL factors chart">
-            <PestelChart analysis={analysis} />
+            <div className="pestel-chart-section-toolbar">
+              <button
+                type="button"
+                className="pestel-chart-download-btn"
+                onClick={handleDownloadPestelChart}
+                aria-label="Download PESTEL chart as high-resolution image"
+              >
+                Download chart as PNG
+              </button>
+            </div>
+            <div ref={pestelChartRef} className="pestel-chart-capture-area">
+              <PestelChart analysis={analysis} />
+            </div>
           </div>
 
           {/* SWOT Analysis: 2x2 grid with summarized bullet points */}
           <div className="swot-chart-section" role="region" aria-label="SWOT Analysis">
-            <SwotChart analysis={analysis} />
+            <div className="swot-chart-section-toolbar">
+              <button
+                type="button"
+                className="pestel-chart-download-btn"
+                onClick={handleDownloadSwotChart}
+                aria-label="Download SWOT chart as high-resolution image"
+              >
+                Download chart as PNG
+              </button>
+            </div>
+            <div ref={swotChartRef} className="swot-chart-capture-area">
+              <SwotChart analysis={analysis} />
+            </div>
           </div>
 
           {/* Comprehensive Analysis: full report (excluding extracted sections above), source */}

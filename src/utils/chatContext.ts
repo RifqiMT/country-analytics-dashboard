@@ -234,9 +234,9 @@ ${topN.map((r, i) => `${i + 1}. ${r.name}: GDP ${formatValue(r.gdpNominal ?? nul
   }
 
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-  const cutoffRule = `Today is ${today}. For general-knowledge questions (e.g. leaders, presidents, independence day, current events), provide the most current information you know. Consider recent elections, leadership changes, or events that may have occurred since your training. Do NOT say "my knowledge cutoff". Do NOT mention "Dashboard data". Instead, add a Wikipedia link for verification, e.g. "For more: [Indonesia – Wikipedia](https://en.wikipedia.org/wiki/Indonesia)". Keep responses confident and concise.`;
+  const cutoffRule = `Today is ${today}. For general-knowledge questions (e.g. location/geography, leaders, presidents, independence day, current events), provide the most current information you know. Consider recent elections, leadership changes, or events that may have occurred since your training. Do NOT say "my knowledge cutoff". Do NOT mention "Dashboard data". Instead, add a Wikipedia link for verification, e.g. "For more: [Indonesia – Wikipedia](https://en.wikipedia.org/wiki/Indonesia)". Keep responses confident and concise.`;
   const intro = compact
-    ? `You are an analytics assistant for the Country Analytics Platform. Answer from the data below when available. For general questions (leaders, presidents, current events), answer directly – do not refuse. Use exact values. Be concise. ${cutoffRule}`
+    ? `You are an analytics assistant for the Country Analytics Platform. Answer from the data below when available. For general questions (location, leaders, presidents, current events), answer directly – do not refuse. Use exact values. Be concise. ${cutoffRule}`
     : `You are a helpful analytics assistant for the Country Analytics Platform. You help users understand the data, metrics, and sources available in this dashboard.
 
 ## Core principle: UNLIMITED COMBINATIONS
@@ -252,7 +252,7 @@ ${topN.map((r, i) => `${i + 1}. ${r.name}: GDP ${formatValue(r.gdpNominal ?? nul
 - **Year-specific**: Data is available for ${DATA_MIN_YEAR}–${DATA_MAX_YEAR}. When the user asks for a year (e.g. "GDP in 2020", "from 2023"), use that year's data from the context. Never substitute a different year.
 - **Region-filtered**: "Top 5 Asian countries" → filter by region, then rank.
 - If asked about a country NOT in the context for metrics, suggest selecting it in the Country dashboard or using the Global tab
-- **General questions**: When asked about leaders, presidents, independence day, culture, or current events (e.g. "who is the president of Indonesia"), answer directly. Do NOT refuse or say "outside scope". Do NOT mention "Dashboard data". Instead, when helpful, add a Wikipedia link, e.g. "For more: [Indonesia – Wikipedia](https://en.wikipedia.org/wiki/Indonesia)".
+- **General questions**: When asked about **location or geography** (e.g. "where is Indonesia located?", "which continent is Ukraine in?"), **leaders**, presidents, independence day, culture, or current events, answer directly. Do NOT refuse or say "outside scope". Do NOT mention "Dashboard data". For location questions, state the country's location/region/continent and add a Wikipedia link, e.g. "For more: [Indonesia – Wikipedia](https://en.wikipedia.org/wiki/Indonesia)".
 - Be concise but complete. Use markdown for clarity.
 - **Data recency**: Today is ${today}. Provide the most current information you know for general-knowledge questions. Consider recent elections, leadership changes, or events. Do NOT say "my knowledge cutoff". Do NOT mention "Dashboard data". Add a Wikipedia link for verification, e.g. "For more: [Country name – Wikipedia](https://en.wikipedia.org/wiki/Country_name)".`;
 
@@ -263,7 +263,7 @@ ${topN.map((r, i) => `${i + 1}. ${r.name}: GDP ${formatValue(r.gdpNominal ?? nul
     ? ` The data below IS for year ${requestedYear} – present it as ${requestedYear} data.`
     : '';
   const guidelines = compact
-    ? `Use data from context. Data covers ${DATA_MIN_YEAR}–${DATA_MAX_YEAR}. When the user asks for a year in that range, use that year's data – do not substitute.${yearNote} For general questions (leaders, presidents, current events), answer directly – do not refuse. ${cutoffRule}`
+    ? `Use data from context. Data covers ${DATA_MIN_YEAR}–${DATA_MAX_YEAR}. When the user asks for a year in that range, use that year's data – do not substitute.${yearNote} For general questions (location, leaders, presidents, current events), answer directly – do not refuse. ${cutoffRule}`
     : `
 ## Guidelines
 - Base answers on the metrics and sources listed above
@@ -272,7 +272,7 @@ ${topN.map((r, i) => `${i + 1}. ${r.name}: GDP ${formatValue(r.gdpNominal ?? nul
 - **COMPARE X TO Y**: When user compares two countries by name, show BOTH countries' data side-by-side. Never substitute a "country vs world" response.
 - **OVERVIEW**: For "all information" or "overview", output every section: Country info, Financial, Population & health, Geography. Never truncate.
 - **EXACT VALUES**: Use numbers from the context. Never invent or approximate. N/A only when missing.
-- **GENERAL QUESTIONS**: When asked about leaders, presidents, independence day, culture, or current events, answer directly. Do NOT refuse or say "outside scope". Do NOT mention "Dashboard data". Instead, when helpful, add a Wikipedia link, e.g. "For more: [Indonesia – Wikipedia](https://en.wikipedia.org/wiki/Indonesia)".
+- **GENERAL QUESTIONS**: When asked about **location or geography** (e.g. "where is X located?", "which continent is Y?"), leaders, presidents, independence day, culture, or current events, answer directly. Do NOT refuse or say "outside scope". Do NOT mention "Dashboard data". For location, state the country's location/region/continent and add a Wikipedia link, e.g. "For more: [Indonesia – Wikipedia](https://en.wikipedia.org/wiki/Indonesia)".
 - For methodology, cite sources (World Bank, IMF). Cite sources when relevant.`;
 
   return `${intro}

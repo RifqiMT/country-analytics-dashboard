@@ -2176,6 +2176,7 @@ tbody tr:hover {
 
 /* PESTEL – chart section (separate from Comprehensive Analysis) */
 .pestel-chart-section {
+  --pestel-label-width: 10.5rem; /* fits longest label (TECHNOLOGICAL) on one line */
   padding: var(--space-6) var(--space-8);
   margin-bottom: var(--space-5);
   background: var(--bg-elevated);
@@ -2185,6 +2186,37 @@ tbody tr:hover {
 }
 .pestel-chart-section:empty {
   display: none;
+}
+
+.pestel-chart-section-toolbar,
+.swot-chart-section-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+}
+
+.pestel-chart-download-btn {
+  padding: var(--space-2) var(--space-4);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.pestel-chart-download-btn:hover {
+  background: var(--bg-hover, rgba(0, 0, 0, 0.05));
+  border-color: var(--border-strong, rgba(0, 0, 0, 0.2));
+}
+
+.pestel-chart-capture-area,
+.swot-chart-capture-area {
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
 }
 
 /* PESTEL – comprehensive analysis output */
@@ -2200,6 +2232,12 @@ tbody tr:hover {
   margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
+}
+
+@media (min-width: 900px) {
+  .pestel-chart-section {
+    --pestel-label-width: 11rem;
+  }
 }
 
 .pestel-chart-title {
@@ -2226,7 +2264,7 @@ tbody tr:hover {
 
 .pestel-chart-col {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: var(--pestel-label-width, 10.5rem) minmax(0, 1fr);
   align-items: stretch;
   min-width: 0;
   border-radius: var(--radius-md);
@@ -2235,14 +2273,18 @@ tbody tr:hover {
 }
 
 .pestel-chart-header {
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
+  padding: var(--space-3) var(--space-3);
+  text-align: center;
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   gap: 4px;
-  min-width: 80px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .pestel-chart-header-letter {
@@ -2250,13 +2292,16 @@ tbody tr:hover {
   font-weight: 800;
   line-height: 1;
   display: block;
+  flex-shrink: 0;
 }
 
 .pestel-chart-header-name {
-  font-size: 0.9rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   opacity: 0.98;
+  line-height: 1.25;
+  max-width: 100%;
 }
 
 .pestel-chart-body {
@@ -2296,12 +2341,20 @@ tbody tr:hover {
   .pestel-chart-header {
     flex-direction: row;
     align-items: center;
+    justify-content: flex-start;
     gap: var(--space-3);
     min-width: 0;
+    text-align: left;
+    padding: var(--space-3) var(--space-4);
   }
 
   .pestel-chart-header-letter {
     font-size: 1.5rem;
+  }
+
+  .pestel-chart-header-name {
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
   }
 
   .pestel-chart-body {

@@ -119,14 +119,62 @@ function parseRequestedYear(q: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
-/** Parse year range from query: "from 2020 to latest" -> { fromYear: 2020, toYear: DATA_MAX_YEAR } */
+/** Parse year range from query.
+ * Supports:
+ * - "from 2020 to 2024"
+ * - "from 2020 to latest/now/current"
+ * - "between 2020 and 2024"
+ * - "between 2020 and the latest"
+ * - "since 2020" / "from 2020 onwards"
+ */
 function parseRequestedYearRange(q: string): { fromYear: number; toYear: number } | null {
-  const fromMatch = q.match(/from\s+(20[0-2][0-9])/i);
-  const toYearMatch = q.match(/to\s+(20[0-2][0-9])/i);
-  if (!fromMatch) return null;
-  const fromYear = parseInt(fromMatch[1], 10);
-  const toYear = toYearMatch ? parseInt(toYearMatch[1], 10) : DATA_MAX_YEAR;
-  return { fromYear, toYear };
+  const fromToExplicit = q.match(/from\s+(20[0-2][0-9])\s+(?:to|until|through|till)\s+(20[0-2][0-9])/i);
+  if (fromToExplicit) {
+    const fromYear = parseInt(fromToExplicit[1], 10);
+    const toYear = parseInt(fromToExplicit[2], 10);
+    return { fromYear, toYear };
+  }
+
+  const fromToLatest = q.match(
+    /from\s+(20[0-2][0-9])\s+(?:to|until|through|till)\s+(?:latest|now|current|present|the latest)/i,
+  );
+  if (fromToLatest) {
+    const fromYear = parseInt(fromToLatest[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  const betweenExplicit = q.match(
+    /between\s+(20[0-2][0-9])\s+(?:and|-|to)\s+(20[0-2][0-9])/i,
+  );
+  if (betweenExplicit) {
+    const fromYear = parseInt(betweenExplicit[1], 10);
+    const toYear = parseInt(betweenExplicit[2], 10);
+    return { fromYear, toYear };
+  }
+
+  const betweenLatest = q.match(
+    /between\s+(20[0-2][0-9])\s+(?:and|-|to)\s+(?:latest|now|current|present|the latest)/i,
+  );
+  if (betweenLatest) {
+    const fromYear = parseInt(betweenLatest[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  const sinceMatch = q.match(
+    /(?:since|from)\s+(20[0-2][0-9])\b(?:\s+(?:onwards|forward|until\s+now|until\s+current|until\s+latest))?/i,
+  );
+  if (sinceMatch) {
+    const fromYear = parseInt(sinceMatch[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  const fromOnly = q.match(/from\s+(20[0-2][0-9])/i);
+  if (fromOnly) {
+    const fromYear = parseInt(fromOnly[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  return null;
 }
 
 /** Map user region terms to World Bank region substrings for filtering */
@@ -393,7 +441,34 @@ function formatCountryOverview(
   return lines;
 }
 
-const OUT_OF_SCOPE_FALLBACK = /\b(?:religion|religions|relgiions)\b|(?:religion|religions)\s+(?:in|of)\s+|(?:culture|cultural)\s+(?:of|in)\s+|(?:language|languages)\s+(?:of|in)\s+|(?:president|prime\s+minister|leader|capital)\s+(?:of|in)\s+|(?:independence|national)\s+day|who\s+is\s+(?:the\s+)?(?:president|leader)/i;
+const OUT_OF_SCOPE_FALLBACK =
+  /\b(?:religion|religions|relgiions)\b|(?:religion|religions)\s+(?:in|of)\s+|(?:culture|cultural)\s+(?:of|in)\s+|(?:language|languages)\s+(?:of|in)\s+|(?:president|prime\s+minister|leader|capital)\s+(?:of|in)\s+|(?:independence|national)\s+day|who\s+is\s+(?:the\s+)?(?:president|leader)|where\s+(?:is\s+)?\w+\s+(?:is\s+)?located|(?:where\s+is|location\s+of)\s+\w+|(?:in\s+)?which\s+continent|which\s+continent\s+is|neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i;
+
+/** True if the query is asking about location/geography (not dashboard metrics). */
+function isLocationOrGeographyQuery(normalizedQ: string): boolean {
+  const s = normalizedQ.trim();
+  if (
+    /where\s+.+\s+located|location\s+of\s+.+|(?:in\s+)?which\s+continent|which\s+continent\s+is/i.test(
+      s,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i.test(
+      s,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /where\s+is\s+\w+|where\s+\w+\s+is\b/i.test(s) &&
+    (s.includes('located') || s.includes('location') || s.length < 35)
+  ) {
+    return true;
+  }
+  return false;
+}
 
 export function getFallbackResponse(
   userMessage: string,
@@ -403,8 +478,13 @@ export function getFallbackResponse(
 ): string {
   const q = normalizeQuery(userMessage);
 
+  // Fallback 1: Location/geography questions first – never return dashboard metrics for these
+  if (isLocationOrGeographyQuery(q)) {
+    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent, who its neighbouring countries are), use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+  }
+
   if (OUT_OF_SCOPE_FALLBACK.test(q)) {
-    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about religion, culture, or current leaders, use the LLM. For full conversational answers, add your API key in Settings.`;
+    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about religion, culture, **location or geography** (e.g. where a country is located, which continent, neighbouring countries), or current leaders, use the LLM or web search. For full conversational answers, add your API key in Settings.`;
   }
 
   const isSummary = matchesQuery(q, ['summary', 'summarize', 'brief', 'overview in brief']);
@@ -412,12 +492,13 @@ export function getFallbackResponse(
   const isAllCountries = matchesQuery(q, ['all countries', 'every country', 'global', 'worldwide', 'list countries', 'top countries']);
 
   const requestedYear = parseRequestedYear(q);
-  const dataByYear = globalDataByYear ?? (globalData ? { [dashboardSnapshot?.year ?? new Date().getFullYear() - 2]: globalData } : null);
+  const dataByYear = globalDataByYear ?? (globalData ? { [dashboardSnapshot?.year ?? DATA_MAX_YEAR]: globalData } : null);
   const effectiveYear = requestedYear && dataByYear?.[requestedYear]
     ? requestedYear
     : Object.keys(dataByYear ?? {})
         .map(Number)
-        .sort((a, b) => b - a)[0] ?? null;
+        .filter((y) => !Number.isNaN(y))
+        .sort((a, b) => b - a)[0] ?? DATA_MAX_YEAR;
   const effectiveData = effectiveYear && dataByYear ? dataByYear[effectiveYear] : globalData;
 
   const isMultiCountry = matchesQuery(q, [' and ', ' & ', ' both ', ' countries', ' to ', ' vs ', ' versus ']);
@@ -431,7 +512,8 @@ export function getFallbackResponse(
 
   const singleMetricIntent = parseSingleMetricIntent(q);
 
-  const yearlyDataPattern = /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|to\s*latest|all\s*data|each\s*year|monthly|quarterly|weekly/i;
+  const yearlyDataPattern =
+    /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|since\s*20[0-2][0-9]|between\s*20[0-2][0-9]\s+(?:and|-|to)\s*(?:20[0-2][0-9]|latest|now|current|the latest)|to\s*latest|all\s*data|each\s*year|monthly|quarterly|weekly/i;
   const subAnnualPattern = /weekly|monthly|quarterly/i;
   const wantsYearlyTimeSeries =
     yearlyDataPattern.test(q) &&
@@ -445,9 +527,27 @@ export function getFallbackResponse(
       .filter((y) => !Number.isNaN(y))
       .sort((a, b) => a - b);
     const yearRange = parseRequestedYearRange(userMessage);
-    const years = yearRange
+    let years = yearRange
       ? allYears.filter((y) => y >= yearRange.fromYear && y <= yearRange.toYear)
       : allYears;
+
+    const requestedSpanLabel = yearRange ? `${yearRange.fromYear}–${yearRange.toYear}` : null;
+    const availableSpanLabel =
+      allYears.length > 0 ? `${allYears[0]}–${allYears[allYears.length - 1]}` : null;
+    let coverageNote: string | null = null;
+
+    if (yearRange) {
+      if (years.length === 0 && allYears.length > 0) {
+        years = allYears;
+        coverageNote = `_Note: data for your requested range (${requestedSpanLabel}) is **not available** in the global dataset currently loaded. Showing the closest available years instead (${availableSpanLabel})._`;
+      } else if (years.length > 0 && availableSpanLabel && requestedSpanLabel) {
+        const coversFrom = years[0] === yearRange.fromYear;
+        const coversTo = years[years.length - 1] === yearRange.toYear;
+        if (!coversFrom || !coversTo) {
+          coverageNote = `_Note: data for your requested range (${requestedSpanLabel}) is **partially available**. Data is loaded for ${availableSpanLabel} and the overlapping years are shown._`;
+        }
+      }
+  }
     const countriesToShow =
       requestedCountries.length >= 1
         ? requestedCountries
@@ -501,6 +601,10 @@ export function getFallbackResponse(
       }
       lines.push('');
     }
+    if (coverageNote) {
+      lines.push(coverageNote);
+      lines.push('');
+    }
     if (lines.length > 2) return lines.join('\n');
   }
   const requestedMetrics = parseAllRequestedMetrics(q);
@@ -541,6 +645,9 @@ export function getFallbackResponse(
   }
 
   if (requestedCountries.length === 1 && effectiveData && effectiveData.length > 0 && !isSelectedCountry) {
+    if (isLocationOrGeographyQuery(q)) {
+      return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent), use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+    }
     const countryName = requestedCountries[0];
     const r = effectiveData.find((x) => x.name.toLowerCase() === countryName.toLowerCase());
     if (r) {
@@ -609,6 +716,9 @@ export function getFallbackResponse(
   }
 
   if (dashboardSnapshot && countryMatchesQuery(q, dashboardSnapshot.countryName)) {
+    if (isLocationOrGeographyQuery(q)) {
+      return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent), use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+    }
     if (wantsSpecificMetrics && requestedMetrics.length > 0) {
       const r = effectiveData?.find((x) => x.name.toLowerCase() === dashboardSnapshot.countryName.toLowerCase());
       if (r) {

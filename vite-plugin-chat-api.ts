@@ -18,6 +18,7 @@ import {
   type DashboardSnapshotForFallback,
   type GlobalCountryRowForFallback,
 } from './src/utils/chatFallback';
+import { DATA_MAX_YEAR } from './src/config';
 import {
   LLM_MODELS,
   DEFAULT_LLM_MODEL,
@@ -55,7 +56,15 @@ const OUT_OF_SCOPE_PATTERNS = [
   /president\s+of|prime\s+minister\s+of|leader\s+of|capital\s+of/i,
   /current\s+(?:president|leader|prime\s+minister)/i,
   /government\s+of\s+\w+|history\s+of/i,
-  // Geography & place (non-metric)
+  // Geography & place (non-metric) – avoid returning dashboard metrics for location or neighbours questions
+  /where\s+is\s+.+\s+located/i,
+  /where\s+\w+\s+is\s+located/i,
+  /where\s+is\s+.+$/i,
+  /location\s+of\s+/i,
+  /(?:in\s+)?which\s+continent|which\s+continent\s+is/i,
+  /neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+/i,
+  /which\s+countries\s+border\s+\w+/i,
+  /borders?\s+(?:with|of)\s+\w+/i,
   /what\s+is\s+(?:the\s+)?(?:capital|currency)\s+of/i,
   /when\s+did\s+|when\s+was\s+|when\s+is\s+/i,
   // Independence & founding
@@ -85,6 +94,13 @@ const OUT_OF_SCOPE_PATTERNS = [
   /(?:healthcare|health\s+system)\s+in/i,
   /(?:economy|economic)\s+overview|economic\s+situation/i,
 ];
+
+// Location / geography queries that should NEVER be answered with dashboard metrics
+const LOCATION_QUERY_PATTERN =
+  /\bwhere\s+.+\s+located\b|location\s+of\s+|which\s+continent\b|where\s+is\b|neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i;
+
+const LOCATION_FALLBACK_MESSAGE =
+  'I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent, who its neighbouring countries are), use the LLM or web search. For full conversational answers, add your API key in Settings.';
 
 /** In-scope terms – if query is ONLY about these, use fallback. If mixed or absent, check out-of-scope. */
 const IN_SCOPE_TERMS = /\b(gdp|population|inflation|debt|life\s+expectancy|area|eez|ranking|compare|top\s+\d+|metric|data\s+source|methodology|how\s+is\s+\w+\s+calculated|world\s+bank|imf)\b/i;
@@ -541,8 +557,7 @@ async function handleChatRequest(
               ]),
             );
           if ((!globalDataByYear || Object.keys(globalDataByYear).length === 0) && Array.isArray(globalData) && globalData.length > 0) {
-            const year = new Date().getFullYear() - 2;
-            globalDataByYear = { [String(year)]: globalData };
+            globalDataByYear = { [String(DATA_MAX_YEAR)]: globalData };
           }
 
           const provider = getProviderForModel(model) ?? 'openai';
@@ -550,8 +565,9 @@ async function handleChatRequest(
 
           const lastUserMessage = [...messages].reverse().find((m) => m.role === 'user');
           const userQuery = lastUserMessage?.content ?? '';
+          const isLocationQuestion = LOCATION_QUERY_PATTERN.test((userQuery ?? '').trim());
 
-          // Step 1: Fallback – rule-based first for all queries (skip for PESTEL – always use LLM)
+          // Step 1: Global/dashboard data first – rule-based answers from rankings, comparisons, metrics, methodology
           const isPestelRequest = supplementWithWebSearch && systemPrompt?.includes('PESTEL');
           const fallbackContent = isPestelRequest
             ? FALLBACK_GENERIC_HELP_MARKER
@@ -562,12 +578,28 @@ async function handleChatRequest(
                 globalDataByYear ?? undefined,
               );
           const isGeneralKnowledge = isGeneralKnowledgeQuery(userQuery);
-          if (!fallbackContent.includes(FALLBACK_GENERIC_HELP_MARKER) && !isGeneralKnowledge) {
+          // Fallback safeguard: if rule-based returned a country metrics/overview card but the query is location/geography (including neighbours), use LLM instead
+          const looksLikeCountryMetricsCard = /\*\*[^*]+ – (?:Key metrics|Full overview)\s*\(/.test(
+            fallbackContent,
+          );
+          const queryLooksLikeLocation = isLocationQuestion;
+          const shouldIgnoreFallbackForLocation = looksLikeCountryMetricsCard && queryLooksLikeLocation;
+          if (
+            !fallbackContent.includes(FALLBACK_GENERIC_HELP_MARKER) &&
+            !isGeneralKnowledge &&
+            !shouldIgnoreFallbackForLocation
+          ) {
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ content: fallbackContent, source: SOURCE_FALLBACK }));
             return;
           }
+
+          // Step 2: Groq for questions within period until current year minus 2 (when global data couldn't answer)
+          // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
+          // Step 4: Other LLMs (user-selected or fallback list)
+          const queryPeriodAfterCutoff = isQueryAfterCutoffYear(userQuery); // true = "now" or year > cutoff → use Tavily
+          const tryGroqFirst = isGeneralKnowledge && !queryPeriodAfterCutoff; // period ≤ cutoff → try Groq second (after global data)
 
           // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data
           if (supplementWithWebSearch && dashboardSnapshot?.countryName) {
@@ -599,12 +631,27 @@ async function handleChatRequest(
           let usedModelId: string | null = null;
           let usedWebSearch = false;
 
-          // Step 2: Period <= current year minus 2 → Groq. Period after (or "now") → Tavily (web search first)
-          // Step 3: When Tavily selected, always prefer web search
-          const preferWebSearch =
-            model === 'tavily-web-search' ||
-            (isGeneralKnowledge && isQueryAfterCutoffYear(userQuery));
-          if (preferWebSearch) {
+          // PESTEL: use latest information first (Tavily web search), then fall back to historical (Groq / global data)
+          if (isPestelRequest && !isValidLlmResponse(content) && dashboardSnapshot?.countryName) {
+            const pestelQuery = `${dashboardSnapshot.countryName} PESTEL analysis latest current`.trim();
+            const webResult = await fetchWebSearch(pestelQuery);
+            if (webResult?.directAnswer) {
+              content = webResult.directAnswer;
+              usedWebSearch = true;
+            } else if (webResult?.context) {
+              const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
+              if (snippetMatch) {
+                const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
+                const text = snippetMatch[2] ?? snippetMatch[1];
+                content = url ? `Based on latest web search: ${text}\n\nSource: [${url}](${url})` : `Based on latest web search: ${text}`;
+                usedWebSearch = true;
+              }
+            }
+          }
+
+          // Step 2: Groq for questions within period until current year minus 2 (when global data couldn't answer)
+          // When user selected Tavily as model, try Tavily first (so they get web search right after global data)
+          if (model === 'tavily-web-search' && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
               const country = extractCountryForWiki(userQuery);
@@ -625,20 +672,7 @@ async function handleChatRequest(
             }
           }
 
-          // PESTEL: prefer user's model first if they have a key (saves Groq free-tier tokens)
-          const userHasNonGroqKey = isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
-          if (userHasNonGroqKey) {
-            try {
-              content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
-              if (isValidLlmResponse(content)) usedModelId = model;
-            } catch (err) {
-              llmError = err instanceof Error ? err.message : String(err);
-              content = '';
-            }
-          }
-
-          // If web search not used – try Groq (70b first, then 8b on rate limit)
-          if (!isValidLlmResponse(content)) {
+          if (!isValidLlmResponse(content) && tryGroqFirst) {
             const groqKey = getServerApiKey('groq');
             if (groqKey) {
               try {
@@ -662,8 +696,13 @@ async function handleChatRequest(
             }
           }
 
-          // If still no content (non–general-knowledge or Groq failed) – try web search
-          if (!isValidLlmResponse(content)) {
+          // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
+          // Also try Tavily when user selected Tavily as model, or when period > cutoff
+          const tryTavilyNow =
+            model === 'tavily-web-search' ||
+            (isGeneralKnowledge && queryPeriodAfterCutoff) ||
+            !isValidLlmResponse(content);
+          if (tryTavilyNow && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
               const country = extractCountryForWiki(userQuery);
@@ -684,7 +723,19 @@ async function handleChatRequest(
             }
           }
 
-          if (!isValidLlmResponse(content)) {
+          // PESTEL: prefer user's model first if they have a key (saves Groq free-tier tokens)
+          const userHasNonGroqKey = isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
+          if (userHasNonGroqKey && !isValidLlmResponse(content)) {
+            try {
+              content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+              if (isValidLlmResponse(content)) usedModelId = model;
+            } catch (err) {
+              llmError = err instanceof Error ? err.message : String(err);
+              content = '';
+            }
+          }
+
+          // Step 4: Other LLMs (user-selected or fallback list) when still no content
             const prov = getProviderForModel(model);
             if (apiKey && prov !== 'groq' && prov !== 'tavily') {
               try {
@@ -715,18 +766,25 @@ async function handleChatRequest(
 
           let source = usedModelId ? getModelLabel(usedModelId) : usedWebSearch ? 'Web search' : SOURCE_FALLBACK;
           if (!isValidLlmResponse(content)) {
-            const finalFallback = getRuleBasedFallback(
-              messages,
-              dashboardSnapshot,
-              globalData,
-              globalDataByYear ?? undefined,
-            );
-            const hint = finalFallback.includes(FALLBACK_GENERIC_HELP_MARKER) ? SETUP_HINT : '';
-            const errorNote = llmError
-              ? `\n\n---\n**Note:** ${formatUserFriendlyError(llmError)}`
-              : '';
-            content = finalFallback + hint + errorNote;
-            source = SOURCE_FALLBACK;
+            if (isLocationQuestion) {
+              // For location / geography questions, never fall back to dashboard metrics.
+              // If LLMs or web search are unavailable, return a safe guidance message instead.
+              content = LOCATION_FALLBACK_MESSAGE;
+              source = 'Assistant guidance';
+            } else {
+              const finalFallback = getRuleBasedFallback(
+                messages,
+                dashboardSnapshot,
+                globalData,
+                globalDataByYear ?? undefined,
+              );
+              const hint = finalFallback.includes(FALLBACK_GENERIC_HELP_MARKER) ? SETUP_HINT : '';
+              const errorNote = llmError
+                ? `\n\n---\n**Note:** ${formatUserFriendlyError(llmError)}`
+                : '';
+              content = finalFallback + hint + errorNote;
+              source = SOURCE_FALLBACK;
+            }
           }
 
           res.statusCode = 200;

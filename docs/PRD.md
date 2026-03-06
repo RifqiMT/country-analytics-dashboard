@@ -155,13 +155,13 @@ Six main tabs:
 
 #### 4.5.1 Cascading Flow (Year-Based Routing)
 
-**Cutoff:** current year − 2. Questions about period ≤ cutoff use Groq; period after (or "now") use Tavily first.
+**Cutoff:** current year − 2. Questions about period ≤ cutoff favour Groq; questions about the latest period or "now" favour Tavily. All flows start from dashboard data where possible.
 
 | Step | Source | When Used |
 |------|--------|-----------|
-| 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, methodology; or when rule-based returns generic help for out-of-scope questions |
-| 2 | **Web search (Tavily/Serper)** | General-knowledge about period **after** current year − 2 (e.g. "now", "2026"); or when **Tavily Web Search** is selected as model |
-| 3 | **Groq (Llama 3.3 70B)** | General-knowledge about period ≤ current year − 2 (e.g. "in 2023"); or when web search fails |
+| 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, yearly time-series summaries, and methodology (no API keys required) |
+| 2 | **Groq (Llama 3.3 70B)** | General-knowledge about period ≤ current year − 2 (e.g. "in 2023"), or when dashboard data cannot answer the question |
+| 3 | **Web search (Tavily/Serper)** | Latest / current-period general-knowledge questions (e.g. "now", explicit near-current years) and questions not covered by Groq or dashboard data; also used when **Tavily Web Search** is selected as model |
 | 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter, **Tavily Web Search**) when user or server key is set |
 
 #### 4.5.2 Source Attribution
