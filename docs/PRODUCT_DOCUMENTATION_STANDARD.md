@@ -54,7 +54,12 @@ Must include: **Product overview** (value proposition, target audience, key view
   - Data fallbacks (e.g. "use latest non-null up to selected year")
   - Edge cases (countries without data, territory fallbacks, Palestine naming)
   - Analytics Assistant cascading flow and source attribution
-  - PESTEL output structure: PESTEL Analysis chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations; at least 5 bullet points each for New Market Analysis, Key Takeaways, and Recommendations
+  - **Out-of-scope handling**: location/geography and neighbour questions (e.g. "Where is X located?", "Which continent is Y in?", "Neighbouring countries of Z") must **never** return dashboard metrics; return a safe guidance response and route to LLM/web search
+  - PESTEL output structure:
+    - PESTEL Analysis chart (summarised bullets per pillar; **downloadable as PNG**)
+    - SWOT Analysis (sentence-level bullets; **at least 5 bullets per quadrant** where the generated content allows)
+    - Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations
+    - At least 5 bullet points each for New Market Analysis, Key Takeaways, and Recommendations
 - Reference primary components and API modules
 
 ### 3.3 User Personas
@@ -144,9 +149,9 @@ For every feature PR that changes user-visible behaviour:
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
-| PESTEL | PESTELSection | pestelContext.ts (prompt/build), LLM via chat API |
+| PESTEL | PESTELSection | pestelContext.ts (prompt/build), LLM via chat API; PESTEL/SWOT charts export via html2canvas |
 | Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context) |
-| Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts |
+| Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts (location/geography → safe guidance, not metrics) |
 
 ### 6.2 Reading Order
 

@@ -343,6 +343,19 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
+### US-8.7 – Ask location / geography / neighbours questions safely
+
+- **As any** analyst persona  
+- **I want to** ask general knowledge questions such as "Where is Indonesia located?", "Which continent is Ukraine in?", or "What are the neighbouring countries of Indonesia?"  
+- **So that** I can add geographic context without the app returning unrelated macro metrics  
+
+**Acceptance criteria:**
+- The assistant does **not** respond with dashboard metric cards for location/geography/neighbour questions
+- The assistant routes to LLM and/or web search and provides a general-knowledge answer (optionally with reputable links)
+- The assistant displays a correct source label (e.g. Web search / model label), not "Dashboard data"
+
+---
+
 ## 9. PESTEL
 
 ### US-9.1 – Generate PESTEL analysis for selected country
@@ -365,6 +378,18 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 **Acceptance criteria:**
 - Changing the country in the Country dashboard updates the context for PESTEL; user can refresh to regenerate for the new country
+
+---
+
+### US-9.3 – Download PESTEL and SWOT charts as images
+
+- **As a** Strategy Lead or Market Expansion Manager  
+- **I want to** download the PESTEL chart and SWOT chart as high-resolution PNG images  
+- **So that** I can paste them into slides and reports quickly  
+
+**Acceptance criteria:**
+- PESTEL tab shows "Download chart as PNG" buttons for both the PESTEL chart and SWOT chart
+- Exported images are readable (high resolution) and include chart titles and bullet points
 
 ---
 

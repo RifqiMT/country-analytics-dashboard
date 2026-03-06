@@ -73,6 +73,8 @@ This document defines how we measure the success of the Country Analytics Platfo
 |----|--------|------------|
 | **PE-1** | PESTEL tab view rate | % of sessions that open the PESTEL tab |
 | **PE-2** | PESTEL generate/refresh rate | % of PESTEL tab sessions where user triggers generate or refresh at least once |
+| **PE-3** | PESTEL chart export rate | % of PESTEL tab sessions where user downloads the PESTEL chart PNG |
+| **PE-4** | SWOT chart export rate | % of PESTEL tab sessions where user downloads the SWOT chart PNG |
 
 ### 2.7 Business Analytics
 
@@ -141,6 +143,8 @@ Use a `product_area.action` pattern:
 | `global.table_view_changed` | User switches General/Financial/Health |
 | `pestel.tab_viewed` | User opens PESTEL tab |
 | `pestel.generate_clicked` | User triggers PESTEL generate or refresh |
+| `pestel.chart_downloaded` | User downloads PESTEL chart as PNG |
+| `swot.chart_downloaded` | User downloads SWOT chart as PNG |
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
 | `chat.message_sent` | User sends a chat message |

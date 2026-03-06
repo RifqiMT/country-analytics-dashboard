@@ -52,7 +52,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations (at least 5 bullet points each for New Market, Key Takeaways, Recommendations) |
 | **Business Analytics** | Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation) |
 | **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
-| **Analytics assistant** | Chat for questions about metrics, methodology, and general knowledge |
+| **Analytics assistant** | Chat for questions about metrics, methodology, location/geography, and general knowledge |
 
 ---
 
@@ -96,7 +96,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **PESTEL tab** | Dedicated view for PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis of the selected country |
+| **PESTEL tab** | Dedicated view for PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis of the selected country; **download PESTEL and SWOT charts as PNG** |
 | **Section order** | PESTEL Analysis (chart), SWOT Analysis (one bullet per sentence), Comprehensive Analysis (full report), Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations |
 | **Bullet minimums** | New Market Analysis, Key Takeaways, and Recommendations each have at least 5 bullet points (enforced via prompt) |
 | **Generate / refresh** | Trigger generation with current country context; responses include sources and hyperlinks where applicable |
@@ -129,7 +129,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Model selection** | Multiple providers (OpenAI, Groq, Anthropic, Google, OpenRouter, **Tavily Web Search**); tiers: Best, Balanced, Fast |
 | **Source attribution** | Each response shows source: "Dashboard data", model label, or "Web search" |
 | **Context-aware** | Uses metric metadata, selected country context, and global data |
-| **Out-of-scope handling** | Religion, culture, leaders, capital, language routed to LLM/web search; no dashboard metrics |
+| **Out-of-scope handling** | Religion, culture, leaders, capital, language, **location/geography** (e.g. "Where is X?", "Which continent?", "Neighbouring countries") routed to LLM/web search; never answered with dashboard metrics |
 | **Suggestions** | Quick-start prompts for common questions |
 
 ### 3.7 Data Fallbacks
@@ -155,7 +155,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 ### Key Dependencies
 
 ```
-axios, d3-geo, d3-scale, react, react-dom, react-simple-maps, recharts
+axios, d3-geo, d3-scale, html2canvas, react, react-dom, react-simple-maps, recharts
 ```
 
 ### Custom Infrastructure
@@ -227,7 +227,7 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 - **Taiwan**: Included in country list (synthetic entry); metrics use fallback (e.g. parent or regional medians) when WDI has no direct data; metadata from REST Countries
 - **Country naming**: Palestine (West Bank and Gaza) for PSE
 - **Source attribution**: Analytics Assistant responses show source (Dashboard data, model label, or Web search)
-- **Out-of-scope**: Religion, culture, leaders, capital, language routed to LLM/web search – never answered with dashboard metrics
+- **Out-of-scope**: Religion, culture, leaders, capital, language, **location/geography** (e.g. "Where is X located?", "Which continent is Y in?", "Neighbouring countries of Z") routed to LLM/web search – never answered with dashboard metrics
 
 ### 6.4 Business Guidelines
 

@@ -38,6 +38,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Switches to Global analytics map to compare regions
 - Sorts global table by GDP or population for rankings
 - Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
+- Uses Analytics assistant for quick **location/geography** and neighbour questions (e.g. "Which continent is Ukraine in?", "Neighbouring countries of Indonesia?") with up-to-date web search
 
 ---
 
@@ -78,6 +79,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis with sources
 - Checks Source tab for government debt formula and IMF fallback
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, Groq, Web search) and year-based routing (Groq for older period, Tavily for recent) to assess answer provenance
+- Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)
 
 ---
 
@@ -115,6 +117,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Focuses on GDP per capita and **Population Structure** timeline (age-group shares and absolute counts over time)
 - Expands age breakdown in comparison table for detailed view
 - Asks Analytics assistant "Compare Indonesia to Malaysia" for quick side-by-side data
+- Asks Analytics assistant **neighbour and regional context** questions (e.g. bordering countries, continent) when preparing market entry notes
 
 ---
 
@@ -154,6 +157,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Uses **PESTEL** tab for structured country-level PESTEL analysis with sources before building reports
 - References Source tab for data definitions and API links
 - Uses Analytics assistant for rankings and methodology questions
+- Uses Analytics assistant for **out-of-scope checks** (location/geography, leaders) while verifying that metric answers remain sourced from dashboard data
 
 ---
 

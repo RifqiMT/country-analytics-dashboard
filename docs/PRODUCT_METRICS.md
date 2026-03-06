@@ -41,6 +41,8 @@ The same data metrics are used across the product in different ways:
 | `inflationCPI` | Inflation (CPI, %) | % | ((CPI_t − CPI_{t−1}) / CPI_{t−1}) × 100 | Parent country (territories) |
 | `interestRate` | Lending interest rate (%) | % | Bank lending rate | Parent country (territories) |
 | `unemploymentRate` | Unemployment rate (% of labour force) | % of labour force | (Number of unemployed / Labour force) × 100 | — (modelled ILO estimate via WDI) |
+| `unemployedTotal` | Unemployed (number of people) | People | Unemployed = Labour force × (Unemployment rate / 100); or directly from ILO-modelled estimates | — (modelled ILO estimate via WDI) |
+| `labourForceTotal` | Labour force (total) | People | Labour force = Employed + Unemployed (seeking work) | — (ILO/UN estimates via WDI) |
 | `povertyHeadcount215` | Poverty headcount ($2.15/day, %) | % of population | Share of population with consumption or income below $2.15/day (2017 PPP) | — |
 | `povertyHeadcountNational` | Poverty headcount (national line, %) | % of population | Share of population below country-specific national poverty line | — |
 
@@ -107,6 +109,8 @@ These are documented in the Source tab under **Country metadata & context** and 
 | Central government debt (% of GDP) | GC.DOD.TOTL.GD.ZS |
 | Lending interest rate | FR.INR.LEND |
 | Unemployment, total (% of total labour force) | SL.UEM.TOTL.ZS |
+| Unemployed, total | SL.UEM.TOTL |
+| Labor force, total | SL.TLF.TOTL.IN |
 | Poverty headcount ratio at $2.15 a day (2017 PPP) (% of population) | SI.POV.DDAY |
 | Poverty headcount ratio at national poverty lines (% of population) | SI.POV.NAHC |
 | Population, total | SP.POP.TOTL |

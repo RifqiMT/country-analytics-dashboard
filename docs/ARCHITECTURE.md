@@ -233,6 +233,7 @@ App
     └── Country context (from useCountryDashboard)
     └── Generate / Refresh button
     └── Rendered output in section order: PESTEL Analysis (chart), SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis (≥5 bullets), Key Takeaways (≥5 bullets), Recommendations (≥5 bullets)
+    └── Chart export: Download PESTEL chart and SWOT chart as high-resolution PNG (html2canvas)
     └── Sources and hyperlinks (where applicable)
 ```
 

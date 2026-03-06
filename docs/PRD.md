@@ -1,6 +1,6 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
-**Version:** 1.9  
+**Version:** 2.0  
 **Last updated:** March 2026
 
 ---
@@ -174,7 +174,12 @@ Each response displays a source label:
 
 #### 4.5.3 Out-of-Scope Handling
 
-Queries about religion, culture, leaders, capital, language, independence day, etc. are **not** answered with dashboard metrics. They are routed to Groq or web search. Rule-based fallback returns generic help with setup instructions.
+Queries about religion, culture, leaders, capital, language, independence day, **and location/geography** (e.g. "Where is Indonesia located?", "Which continent is Ukraine in?", "Neighbouring countries of Indonesia?") are **not** answered with dashboard metrics.
+
+**Required behaviour:**
+- Return a **safe guidance** response and route to Groq and/or web search (Tavily) as appropriate
+- Never return rule-based metric cards for these queries (avoid misleading "dashboard data" answers)
+- Responses should cite general-knowledge sources where possible (e.g. Wikipedia / reputable references)
 
 #### 4.5.4 Context and Behaviour
 
@@ -195,6 +200,7 @@ Queries about religion, culture, leaders, capital, language, independence day, e
   5. **New Market Analysis** – **At least 5 bullet points** (market attractiveness, peer comparison, strategic implications)
   6. **Key Takeaways** – **At least 5 bullet points** summarising opportunities and threats
   7. **Recommendations** – **At least 5 bullet points** (investors, businesses, policymakers, risk mitigation, priority actions)
+- **Exports**: Users can download the **PESTEL chart** and **SWOT chart** as high-resolution PNG images
 - **Context**: Uses country context and dashboard data; generation via LLM (same infrastructure as Analytics assistant)
 - **Behaviour**: User triggers generate/refresh; response rendered in tab with clear sectioning and attribution
 - **Bullet minimums**: Prompt and guidelines require New Market Analysis, Key Takeaways, and Recommendations each to have at least 5 bullet points
