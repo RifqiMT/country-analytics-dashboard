@@ -116,11 +116,11 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Where metrics and information appear** | Explains how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant |
+| **Where metrics and information appear** | Collapsible (minimisable) section describing how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, Business Analytics, and Analytics Assistant; users can expand or minimise via the section header |
 | **Search** | By metric name, description, formula, or source |
 | **Filter chips** | World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO |
 | **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
-| **Metric cards** | Grouped by category: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Each card: label, description, formula, unit, source links with external-link icons |
+| **Metric cards** | Grouped by category: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context). Each card: label, description, formula, unit, source links with external-link icons |
 
 ### 3.6 Analytics Assistant (Chat)
 
@@ -239,7 +239,7 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 ### 6.5 Product Logic & Guidelines
 
 - **Product logic** (what the product does, why, and how features behave) is defined in `docs/PRD.md` (scope, features, data rules, business guidelines).
-- **Documentation and change policy** (how we structure docs, ownership, feature→code mapping) are in `docs/PRODUCT_DOCUMENTATION_STANDARD.md`.
+- **Documentation standard**: All product and technical documentation is structured according to `docs/PRODUCT_DOCUMENTATION_STANDARD.md`, which covers document ownership, content guidelines (README, PRD, personas, user stories, metrics, variables, architecture), feature→code mapping, and security.
 - **Security**: Do not publish API keys or key-provisioning URLs in docs or code; use `.env` and `.env.example` placeholders only.
 
 ---
@@ -330,7 +330,7 @@ npm run preview
 | [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories by feature area |
 | [docs/METRICS_AND_OKRS.md](docs/METRICS_AND_OKRS.md) | Engagement metrics, OKRs, instrumentation |
 | [docs/PRODUCT_METRICS.md](docs/PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) with formulas and sources |
-| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: name, definition, formula, example |
+| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: name, definition, formula, **location in the app**, and example |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow and component architecture |
 
 ---

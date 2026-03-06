@@ -1,6 +1,6 @@
 # Variables Documentation – Country Analytics Platform
 
-This document lists **all variables** used in the application: **data metrics** (displayed in the UI), **configuration constants**, and **environment variables**. Each entry includes variable name, definition, formula (where applicable), and example.
+This document provides a single reference for **all variables** used in the application: **data metrics** (displayed in the UI), **configuration constants**, and **environment variables**. Each entry includes a clear **definition**, **formula** (where applicable), **location in the app** (where the variable appears or is used), and a concrete **example** to support consistent interpretation by product, analytics, and engineering teams. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`).
 
 **Related:** Per-metric metadata for the Source tab is defined in `src/data/metricMetadata.ts`. For engagement and OKR metrics, see `METRICS_AND_OKRS.md`. For product data metrics overview, see `PRODUCT_METRICS.md`.
 
@@ -8,74 +8,76 @@ This document lists **all variables** used in the application: **data metrics** 
 
 ## 1. Data Metrics (UI Variables)
 
-These variables correspond to metrics shown in the Country Dashboard, Global view (map, table, charts), Business Analytics, PESTEL context, and Analytics Assistant. IDs match `MetricId` and related types in `src/types.ts`.
+These variables correspond to metrics shown in the Country Dashboard, Global view (map, table, Global Charts), Business Analytics, PESTEL context, and Analytics Assistant. IDs align with `MetricId` and related types in `src/types.ts`.
 
 ### 1.1 Financial
 
-| Variable name | Definition | Formula | Example |
-|---------------|------------|---------|---------|
-| `gdpNominal` | Gross domestic product at market prices, current US$ | GDP = C + I + G + (X − M); converted at official exchange rates | 1.4T USD (Indonesia 2023) |
-| `gdpPPP` | GDP in international dollars (PPP) | GDP (PPP) = GDP × PPP conversion factor | 4.2T Intl$ |
-| `gdpNominalPerCapita` | GDP per person, current US$ | GDP / Population | 5,100 USD |
-| `gdpPPPPerCapita` | GDP per person, PPP | GDP (PPP) / Population | 15,200 Intl$ |
-| `inflationCPI` | Annual % change in consumer price index | ((CPI_t − CPI_{t−1}) / CPI_{t−1}) × 100 | 3.5% |
-| `interestRate` | Bank lending rate (annual average) | Reported as annual average of bank lending rates | 8.2% |
-| `govDebtPercentGDP` | General government gross debt as % of GDP | (Total government debt / GDP) × 100 | 39.2% |
-| `govDebtUSD` | Government gross debt in current US$ | GDP × (Gov. debt % GDP / 100) | 548B USD |
-| `unemploymentRate` | Unemployed as % of labour force | (Unemployed / Labour force) × 100 | 5.4% |
-| `unemployedTotal` | Number of people unemployed, seeking work | Labour force × (Unemployment rate / 100) or ILO-modelled | 7.2M people |
-| `labourForceTotal` | Total labour force (employed + unemployed seeking work) | Employed + Unemployed (seeking work) | 134M people |
-| `povertyHeadcount215` | % of population below $2.15/day (2017 PPP) | Share with consumption/income below $2.15/day | 2.5% |
-| `povertyHeadcountNational` | % of population below national poverty line | Share below country-specific poverty line | 9.4% |
+| Variable name | Definition | Formula | Location in app | Example |
+|---------------|------------|---------|-----------------|---------|
+| `gdpNominal` | Gross domestic product at market prices in current US dollars. | GDP = C + I + G + (X − M); converted at official exchange rates. | Summary (Financial), Unified Timeline, Country Comparison, Global map/table/charts, Business Analytics scatter, Source tab. | 1.4T USD (Indonesia 2023). |
+| `gdpPPP` | GDP in international dollars adjusted for purchasing power parity. | GDP (PPP) = GDP × PPP conversion factor. | Summary (Financial), Unified Timeline, Country Comparison, Global map/table/charts, Business Analytics, Source tab. | 4.2T Intl$. |
+| `gdpNominalPerCapita` | GDP per person in current US dollars. | GDP / Population. | Summary (Financial), Unified Timeline, Country Comparison, Global map/table/charts, Business Analytics scatter, Source tab. | 5,100 USD. |
+| `gdpPPPPerCapita` | GDP per person in PPP terms. | GDP (PPP) / Population. | Summary (Financial), Unified Timeline, Country Comparison, Global map/table/charts, Business Analytics, Source tab. | 15,200 Intl$. |
+| `inflationCPI` | Annual percentage change in the consumer price index. | ((CPI_t − CPI_{t−1}) / CPI_{t−1}) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 3.5%. |
+| `interestRate` | Bank lending rate (annual average). | Reported as annual average of bank lending rates. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 8.2%. |
+| `govDebtPercentGDP` | General government gross debt as a percentage of GDP. | (Total government debt / GDP) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 39.2%. |
+| `govDebtUSD` | Government gross debt in current US dollars. | GDP × (Gov. debt % GDP / 100). | Summary (Financial), Country Comparison, Global map/table/charts, Source tab. | 548B USD. |
+| `unemploymentRate` | Unemployed as a percentage of the labour force. | (Unemployed / Labour force) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Labour timeline, Global map/table/charts, Source tab. | 5.4%. |
+| `unemployedTotal` | Number of people unemployed and seeking work. | Labour force × (Unemployment rate / 100) or ILO-modelled estimate. | Unemployed & Labour Force Timeline, Global table/charts, Source tab. | 7.2M people. |
+| `labourForceTotal` | Total labour force (employed plus unemployed seeking work). | Employed + Unemployed (seeking work). | Unemployed & Labour Force Timeline, Global table/charts, Source tab. | 134M people. |
+| `povertyHeadcount215` | Share of population below the $2.15/day (2017 PPP) poverty line. | Share with consumption or income below $2.15/day. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 2.5%. |
+| `povertyHeadcountNational` | Share of population below the national poverty line. | Share below the country-specific national poverty line. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 9.4%. |
 
 ### 1.2 Population
 
-| Variable name | Definition | Formula | Example |
-|---------------|------------|---------|---------|
-| `populationTotal` | Total population (de facto) | Census and intercensal estimates; UN projections | 277M people |
-| `pop0_14Share` | Population aged 0–14 as % of total | (Pop 0–14 / Total population) × 100 | 24.1% |
-| `pop15_64Share` | Population aged 15–64 as % of total | (Pop 15–64 / Total population) × 100 | 68.2% |
-| `pop65PlusShare` | Population aged 65+ as % of total | (Pop 65+ / Total population) × 100 | 7.7% |
-| `populationByAgeAbsolute` | Absolute count per age band (0–14, 15–64, 65+) | Total population × (Age-group share % / 100) | 66.8M (0–14) |
+| Variable name | Definition | Formula | Location in app | Example |
+|---------------|------------|---------|-----------------|---------|
+| `populationTotal` | Total de facto population. | Census and intercensal estimates; UN projections. | Summary (Health & demographics), Unified Timeline, Population Structure, Country Comparison, Global map/table/charts, Source tab. | 277M people. |
+| `pop0_14Share` | Population aged 0–14 as a percentage of total. | (Pop 0–14 / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 24.1%. |
+| `pop15_64Share` | Population aged 15–64 as a percentage of total. | (Pop 15–64 / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 68.2%. |
+| `pop65PlusShare` | Population aged 65 and over as a percentage of total. | (Pop 65+ / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 7.7%. |
+| `populationByAgeAbsolute` | Absolute count per age band (0–14, 15–64, 65+). | Total population × (Age-group share % / 100). | Population Structure timeline (tooltip and table show % and absolute, e.g. 25.3% · 65.2 Mn), Source tab. | 66.8M (0–14). |
 
 ### 1.3 Health
 
-| Variable name | Definition | Formula | Example |
-|---------------|------------|---------|---------|
-| `lifeExpectancy` | Life expectancy at birth (years) | Period life expectancy from mortality tables | 69.2 years |
-| `maternalMortalityRatio` | Maternal deaths per 100,000 live births | (Maternal deaths / Live births) × 100,000 | 173 per 100k |
-| `under5MortalityRate` | Under-5 deaths per 1,000 live births | Probability of dying before age 5, per 1,000 | 22 per 1,000 |
-| `undernourishmentPrevalence` | % of population with insufficient dietary energy | (Insufficient energy intake population / Total) × 100 | 8.4% |
+| Variable name | Definition | Formula | Location in app | Example |
+|---------------|------------|---------|-----------------|---------|
+| `lifeExpectancy` | Life expectancy at birth in years. | Period life expectancy from mortality tables. | Summary (Health & demographics), Unified Timeline, Global map/table/charts, Business Analytics, Source tab. | 69.2 years. |
+| `maternalMortalityRatio` | Maternal deaths per 100,000 live births. | (Maternal deaths / Live births) × 100,000. | Summary (Health & demographics), Macro Indicators Timeline (health), Global map/table/charts, Source tab. | 173 per 100k. |
+| `under5MortalityRate` | Under-5 deaths per 1,000 live births. | Probability of dying before age 5, per 1,000. | Summary (Health & demographics), Macro Indicators Timeline (health), Global map/table/charts, Source tab. | 22 per 1,000. |
+| `undernourishmentPrevalence` | Share of population with insufficient dietary energy intake. | (Insufficient energy intake population / Total) × 100. | Summary (Health & demographics), Macro Indicators Timeline (health), Global map/table/charts, Source tab. | 8.4%. |
 
 ### 1.4 Geography
 
-| Variable name | Definition | Formula | Example |
-|---------------|------------|---------|---------|
-| `landAreaKm2` | Land area (excluding water bodies, EEZ) | Sum of land surface areas | 1,811,570 km² |
-| `totalAreaKm2` | Total surface area (land + inland water) | Land area + inland water bodies | 1,916,907 km² |
-| `eezKm2` | Exclusive Economic Zone area | Defined by UN Convention on the Law of the Sea | 6,159,032 km² |
+| Variable name | Definition | Formula | Location in app | Example |
+|---------------|------------|---------|-----------------|---------|
+| `landAreaKm2` | Land area excluding water bodies and EEZ (km²). | Sum of land surface areas. | Summary (General – geography), Global map/table (General), Source tab. | 1,811,570 km². |
+| `totalAreaKm2` | Total surface area (land plus inland water) in km². | Land area + inland water bodies. | Summary (General), Global map/table (General), Source tab. | 1,916,907 km². |
+| `eezKm2` | Exclusive Economic Zone area in km². | Defined by UN Convention on the Law of the Sea. | Summary (General – geography), Global map/table (General), Source tab. | 6,159,032 km². |
 
 ### 1.5 Context / Country Metadata
 
-| Variable name | Definition | Formula | Example |
-|---------------|------------|---------|---------|
-| `region` | Geographic or economic region | World Bank regional classification | East Asia & Pacific |
-| `incomeLevel` | World Bank income classification | Based on GNI per capita | Upper middle income |
-| `governmentType` | Form of government | — | Presidential republic |
-| `headOfGovernmentType` | Title of chief executive | — | President |
-| `capitalCity` | Capital or seat of government | — | Jakarta |
-| `currency` | Official currency (code, name, symbol) | — | Indonesian rupiah (IDR) |
+| Variable name | Definition | Formula | Location in app | Example |
+|---------------|------------|---------|-----------------|---------|
+| `region` | Geographic or economic region of the country. | World Bank regional classification. | Summary (General), Global table (General), Map metric selector, PESTEL/Assistant context, Source tab. | East Asia & Pacific. |
+| `incomeLevel` | World Bank income classification. | Based on GNI per capita (updated annually). | Summary (General), Global table, PESTEL/Assistant context, Source tab. | Upper middle income. |
+| `governmentType` | Form of government or political system. | — | Summary (General), Global table (General), Map metric selector, PESTEL/Assistant context, Source tab. | Presidential republic. |
+| `headOfGovernmentType` | Title of the chief executive. | — | Summary (General), Global table (General), Assistant context, Source tab. | President. |
+| `capitalCity` | Capital or seat of government. | — | Summary (General), PESTEL/Assistant context, Source tab. | Jakarta. |
+| `currency` | Official currency: name, ISO code, and symbol where available. | — | Summary (General – Economy), Assistant context, Source tab. | Indonesian rupiah (IDR), symbol Rp. |
+| `timezone` | Primary timezone of the country (IANA). | — | Summary (General), Assistant context, Source tab. | Asia/Jakarta. |
+| `locationAndGeography` | Where the country is located, continent, and neighbouring countries. Not a stored metric; answered by the Analytics Assistant via LLM and web search. | — | Analytics Assistant only (e.g. “Where is Indonesia located?”, “Neighbouring countries of France”); documented in Source tab under Country metadata & context. | “Indonesia is in Southeast Asia; neighbours: Malaysia, Papua New Guinea, Timor-Leste.” |
 
 ---
 
 ## 2. Configuration Constants
 
-Defined in `src/config.ts` and used for year bounds and data coverage.
+Defined in `src/config.ts` and used for year bounds and data coverage across the app.
 
-| Variable name | Definition | Formula / Rule | Example |
-|---------------|------------|----------------|---------|
-| `DATA_MIN_YEAR` | Earliest year for data and filters | Fixed constant | 2000 |
-| `DATA_MAX_YEAR` | Latest year considered “available” | currentYear − 2 (data lag assumption) | 2023 (when current year is 2025) |
+| Variable name | Definition | Formula / Rule | Location in app | Example |
+|---------------|------------|----------------|-----------------|---------|
+| `DATA_MIN_YEAR` | Earliest year allowed for data and filters. | Fixed constant. | Year range selector (Country Dashboard and Business Analytics), global data fetches. | 2000. |
+| `DATA_MAX_YEAR` | Latest year considered “available” (data lag assumption). | currentYear − 2. | Year range selector, global data, PESTEL peer comparison year. | 2023 when current year is 2025. |
 
 ---
 
@@ -83,26 +85,26 @@ Defined in `src/config.ts` and used for year bounds and data coverage.
 
 Used for API keys and optional server/client configuration. Template: `.env.example`. **Never commit real keys.**
 
-| Variable name | Definition | Formula / Use | Example (placeholder) |
-|---------------|------------|---------------|------------------------|
-| `GROQ_API_KEY` | Groq API key (server-side) | Used for free-tier LLM when no user key | your-key-here |
-| `VITE_GROQ_API_KEY` | Groq API key (client-side, optional) | Baked into build for public/demo | your-key-here |
-| `TAVILY_API_KEY` | Tavily API key for web search | Used for real-time and PESTEL supplemental search | your-key-here |
-| `SERPER_API_KEY` | Serper API key (alternative web search) | Used when Tavily not set | your-key-here |
-| `OPENAI_API_KEY` | OpenAI API key (server-side) | Used when user selects OpenAI model | your-key-here |
-| `VITE_OPENAI_API_KEY` | OpenAI API key (client-side, optional) | Baked into build | your-key-here |
-| `ANTHROPIC_API_KEY` | Anthropic API key (server-side) | Used for Claude models | your-key-here |
-| `VITE_ANTHROPIC_API_KEY` | Anthropic API key (client-side, optional) | Baked into build | your-key-here |
-| `GOOGLE_AI_API_KEY` | Google AI API key (server-side) | Used for Gemini models | your-key-here |
-| `VITE_GOOGLE_AI_API_KEY` | Google AI API key (client-side, optional) | Baked into build | your-key-here |
-| `OPENROUTER_API_KEY` | OpenRouter API key (server-side) | Used for OpenRouter models | your-key-here |
-| `VITE_OPENROUTER_API_KEY` | OpenRouter API key (client-side, optional) | Baked into build | your-key-here |
+| Variable name | Definition | Use | Location in app | Example (placeholder) |
+|---------------|------------|-----|-----------------|------------------------|
+| `GROQ_API_KEY` | Groq API key (server-side). | Free-tier LLM when no user key. | Vite plugin `/api/chat`. | your-key-here |
+| `VITE_GROQ_API_KEY` | Groq API key (client-side, optional). | Baked into build for public/demo. | Chat tab when no server key. | your-key-here |
+| `TAVILY_API_KEY` | Tavily API key for web search. | Real-time answers; PESTEL supplemental search. | Vite plugin `/api/chat`. | your-key-here |
+| `SERPER_API_KEY` | Serper API key (alternative web search). | Used when Tavily not set. | Vite plugin `/api/chat`. | your-key-here |
+| `OPENAI_API_KEY` | OpenAI API key (server-side). | When user selects OpenAI model. | Vite plugin `/api/chat`. | your-key-here |
+| `VITE_OPENAI_API_KEY` | OpenAI API key (client-side, optional). | Baked into build. | Chat tab settings. | your-key-here |
+| `ANTHROPIC_API_KEY` | Anthropic API key (server-side). | For Claude models. | Vite plugin `/api/chat`. | your-key-here |
+| `VITE_ANTHROPIC_API_KEY` | Anthropic API key (client-side, optional). | Baked into build. | Chat tab settings. | your-key-here |
+| `GOOGLE_AI_API_KEY` | Google AI API key (server-side). | For Gemini models. | Vite plugin `/api/chat`. | your-key-here |
+| `VITE_GOOGLE_AI_API_KEY` | Google AI API key (client-side, optional). | Baked into build. | Chat tab settings. | your-key-here |
+| `OPENROUTER_API_KEY` | OpenRouter API key (server-side). | For OpenRouter models. | Vite plugin `/api/chat`. | your-key-here |
+| `VITE_OPENROUTER_API_KEY` | OpenRouter API key (client-side, optional). | Baked into build. | Chat tab settings. | your-key-here |
 
 ---
 
 ## 4. World Bank Indicator Codes (WDI)
 
-Used by `src/api/worldBank.ts` when calling the World Bank API.
+Used by `src/api/worldBank.ts` when calling the World Bank API. These codes map to the data metrics above.
 
 | Variable (metric) | WDI Code |
 |-------------------|----------|
@@ -135,24 +137,24 @@ Used by `src/api/worldBank.ts` when calling the World Bank API.
 
 From `src/types.ts`; these type names represent structured data used across the app.
 
-| Type / interface | Definition | Example use |
-|------------------|------------|-------------|
-| `Frequency` | Time-series frequency | `'weekly' \| 'monthly' \| 'quarterly' \| 'yearly'` |
-| `MetricId` | Union of all numeric metric IDs | `'gdpNominal' \| 'populationTotal' \| ...` |
-| `TimePoint` | Single point in a time series | `{ date, year, value }` |
-| `MetricSeries` | Time series for one metric | `{ id, label, unit, points }` |
-| `CountrySummary` | Country metadata | iso2, name, region, currency, governmentType, etc. |
-| `CountryDashboardData` | Full dashboard payload | summary, range, series, latestSnapshot |
-| `GlobalCountryMetricsRow` | One row of global metrics for one year | All metric columns + region, governmentType |
-| `CountryYearSnapshot` | Snapshot of all metrics for one country-year | country, year, metrics { financial, population, health, geography } |
+| Type / interface | Definition | Location in app |
+|------------------|------------|-----------------|
+| `Frequency` | Time-series frequency. | Timeline sections (Unified, Macro economic/health, Labour, Population Structure), Global Charts. |
+| `MetricId` | Union of all numeric metric IDs. | Map metric toolbar, Business Analytics X/Y selectors, metric metadata. |
+| `TimePoint` | Single point in a time series. | All timeline and chart components. |
+| `MetricSeries` | Time series for one metric. | TimeSeriesSection, MacroIndicatorsTimelineSection, LabourUnemploymentTimelineSection, PopulationStructureSection, GlobalChartsSection. |
+| `CountrySummary` | Country metadata and latest snapshot. | SummarySection, chatContext, pestelContext, ChatbotSection, PESTELSection. |
+| `CountryDashboardData` | Full dashboard payload for one country. | useCountryDashboard, SummarySection, all Country tab sections. |
+| `GlobalCountryMetricsRow` | One row of global metrics for one country-year. | WorldMapSection, AllCountriesTableSection, GlobalChartsSection, BusinessAnalyticsSection, correlationAnalysis. |
+| `CountryYearSnapshot` | Snapshot of all metrics for one country-year. | chatFallback, chatContext, PESTEL context. |
 
 ---
 
 ## 6. Data Quality and Fallbacks
 
-- **Latest non-null:** Dashboard uses latest non-null value up to selected end year.
-- **Year fallback:** Global loader steps backwards when a year has no data.
-- **Territory fallback:** 30+ territories use parent country for inflation and interest rate (see `TERRITORY_FALLBACK_PARENT` in `worldBank.ts`).
+- **Latest non-null:** The dashboard uses the latest non-null value up to the selected end year.
+- **Year fallback:** The global loader steps backwards when a chosen year has no data.
+- **Territory fallback:** 30+ territories use the parent country for inflation and interest rate (see `TERRITORY_FALLBACK_PARENT` in `worldBank.ts`).
 - **IMF fallback:** Government debt (% GDP) and GDP (nominal) when World Bank returns empty.
 - **Missing display:** "–" for null; no NaN or broken charts.
 

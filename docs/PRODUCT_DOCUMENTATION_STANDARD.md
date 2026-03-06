@@ -1,6 +1,6 @@
 # Product Documentation Standard
 
-This document defines how we structure and maintain product and technical documentation for the **Country Analytics Platform**. All documentation should cover product overview, product benefits, features, logic, business guidelines, tech guidelines, tech stacks, and other elements needed for product and engineering alignment.
+This document defines the **professional product documentation standard** for the **Country Analytics Platform**. All documentation must cover **product overview**, **product benefits**, **features**, **logics**, **business guidelines**, **tech guidelines**, **tech stacks**, and other elements required for product and engineering alignment. The standard ensures a single source of truth and consistent structure across core and supporting documents.
 
 ---
 
@@ -95,7 +95,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 
 - How metrics feed the UI (Country, Global map/table/charts, Source, Chat, PESTEL, Business Analytics)
 - Per-metric: ID, label, unit, formula, fallback; WDI codes and data quality rules
-- **Variables documentation**: `docs/VARIABLES.md` lists every variable (data metrics, config, env) with name, definition, formula, and example.
+- **Variables documentation**: `docs/VARIABLES.md` lists every variable (data metrics, config, env) with name, definition, formula, **location in the app**, and **example**
 
 ---
 
@@ -154,7 +154,7 @@ For every feature PR that changes user-visible behaviour:
 | Global charts | GlobalChartsSection (unified, economic, health, population structure aggregates) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
 | PESTEL | PESTELSection (DATA_MAX_YEAR for global data; current year for web supplement) | pestelContext.ts, LLM via chat API; PESTEL/SWOT charts export via html2canvas |
-| Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context) |
+| Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context). **Where metrics and information appear** is a collapsible (minimisable) section; search, filter chips, suggestions, metric cards |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts (location/geography → safe guidance, not metrics) |
 
 ### 6.2 Reading Order

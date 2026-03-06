@@ -1,6 +1,7 @@
 /**
- * Metadata for all metrics displayed in the dashboard.
- * Used by the Source tab to show description, formula, and data source.
+ * Metadata for all metrics and variables displayed or used across the platform.
+ * Used by the Source tab to show description, formula, unit, and links to credible data sources.
+ * Kept up to date with current definitions and official indicator/source URLs.
  */
 
 export interface MetricSource {
@@ -20,8 +21,11 @@ export interface MetricMetadata {
 
 const WORLD_BANK_WDI = 'World Bank WDI';
 const WORLD_BANK_WDI_BASE = 'https://data.worldbank.org/indicator';
+const WORLD_BANK_COUNTRY = 'https://data.worldbank.org/country';
 const IMF_WEO = 'IMF World Economic Outlook';
 const IMF_DATAMAPPER = 'https://www.imf.org/external/datamapper';
+const REST_COUNTRIES = 'https://restcountries.com';
+const REST_COUNTRIES_DOCS = 'https://restcountries.com/#api-endpoints';
 
 export const METRIC_METADATA: MetricMetadata[] = [
   // Financial – GDP
@@ -330,68 +334,98 @@ export const METRIC_METADATA: MetricMetadata[] = [
     id: 'region',
     label: 'Region',
     description:
-      'Geographic or economic region of the country. Used for filtering and peer comparison in the dashboard, map, global table, and PESTEL.',
+      'Geographic or economic region of the country (e.g. East Asia & Pacific, Sub-Saharan Africa). Used for filtering, peer comparison, and PESTEL. World Bank regional classification; REST Countries provides complementary region data.',
     formula: 'World Bank regional classification',
     unit: '—',
     category: 'context',
     sources: [
-      { name: WORLD_BANK_WDI, url: 'https://data.worldbank.org/country' },
-      { name: 'REST Countries API', url: 'https://restcountries.com/' },
+      { name: 'World Bank – country data', url: WORLD_BANK_COUNTRY },
+      { name: 'REST Countries API', url: REST_COUNTRIES },
     ],
   },
   {
     id: 'incomeLevel',
     label: 'Income level',
     description:
-      'World Bank income classification (e.g. High income, Upper middle income). Used in summary cards and analytics.',
+      'World Bank income classification (e.g. High income, Upper middle income, Low income). Based on GNI per capita; updated annually. Used in summary cards and analytics.',
     formula: 'World Bank analytical classification (GNI per capita)',
     unit: '—',
     category: 'context',
     sources: [
-      { name: WORLD_BANK_WDI, url: 'https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups' },
+      { name: 'World Bank – country and lending groups', url: 'https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups' },
+      { name: 'World Bank – country data', url: WORLD_BANK_COUNTRY },
     ],
   },
   {
     id: 'governmentType',
     label: 'Government type',
     description:
-      'Form of government or political system (e.g. Federal republic, Parliamentary democracy). Shown in Summary, Country selector, Map metric, and Global table.',
+      'Form of government or political system (e.g. Federal republic, Parliamentary democracy). Shown in Summary, Map metric selector, and Global table. Sourced from REST Countries API.',
     formula: '—',
     unit: '—',
     category: 'context',
-    sources: [{ name: 'REST Countries API', url: 'https://restcountries.com/' }],
+    sources: [{ name: 'REST Countries API', url: REST_COUNTRIES }],
   },
   {
     id: 'headOfGovernmentType',
     label: 'Head of government',
     description:
-      'Title of the chief executive (e.g. President, Prime Minister). Used in country context for chat and PESTEL.',
+      'Title of the chief executive (e.g. President, Prime Minister, Monarch). Used in country context for the Analytics Assistant and PESTEL. Sourced from REST Countries API.',
     formula: '—',
     unit: '—',
     category: 'context',
-    sources: [{ name: 'REST Countries API', url: 'https://restcountries.com/' }],
+    sources: [{ name: 'REST Countries API', url: REST_COUNTRIES }],
   },
   {
     id: 'capitalCity',
     label: 'Capital city',
     description:
-      'Capital or seat of government. Shown in country metadata and used in context for the Analytics Assistant and PESTEL.',
+      'Capital or seat of government. Shown in country metadata and used in context for the Analytics Assistant and PESTEL. World Bank and REST Countries both provide capital data.',
     formula: '—',
     unit: '—',
     category: 'context',
     sources: [
-      { name: WORLD_BANK_WDI, url: 'https://data.worldbank.org/indicator/EN.URB.LCTY' },
-      { name: 'REST Countries API', url: 'https://restcountries.com/' },
+      { name: 'World Bank – urban population', url: `${WORLD_BANK_WDI_BASE}/EN.URB.LCTY` },
+      { name: 'REST Countries API', url: REST_COUNTRIES },
     ],
   },
   {
     id: 'currency',
     label: 'Currency',
     description:
-      'Official currency code and name. Used in country summary and context.',
+      'Official currency: name, ISO code (e.g. IDR, USD), and symbol where available. Shown in country summary and used in context for the Analytics Assistant and PESTEL. Sourced from REST Countries API.',
     formula: '—',
     unit: '—',
     category: 'context',
-    sources: [{ name: 'REST Countries API', url: 'https://restcountries.com/' }],
+    sources: [
+      { name: 'REST Countries API', url: REST_COUNTRIES },
+      { name: 'REST Countries – currencies', url: 'https://restcountries.com/v3.1/field/currencies' },
+    ],
+  },
+  {
+    id: 'timezone',
+    label: 'Timezone',
+    description:
+      'Primary timezone of the country (e.g. Asia/Jakarta, Europe/Paris). Used in country summary and context. Sourced from REST Countries API (IANA timezone database).',
+    formula: '—',
+    unit: '—',
+    category: 'context',
+    sources: [
+      { name: 'REST Countries API', url: REST_COUNTRIES },
+      { name: 'IANA Time Zone Database', url: 'https://www.iana.org/time-zones' },
+    ],
+  },
+  {
+    id: 'locationAndGeography',
+    label: 'Location & geographic context',
+    description:
+      'Where a country is located, which continent or region it belongs to, and its neighbouring or bordering countries. Not stored as a dashboard metric; answered by the Analytics Assistant using the LLM and web search (e.g. Wikipedia, CIA World Factbook) when users ask questions like "Where is Indonesia located?" or "Which countries border France?".',
+    formula: '—',
+    unit: '—',
+    category: 'context',
+    sources: [
+      { name: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Main_Page' },
+      { name: 'CIA World Factbook', url: 'https://www.cia.gov/the-world-factbook/' },
+    ],
   },
 ];

@@ -41,6 +41,7 @@ function matchesSearch(metric: MetricMetadata, query: string): boolean {
 export function SourceSection() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
+  const [isWhereMetricsExpanded, setIsWhereMetricsExpanded] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const metricRefs = useRef<Map<string, HTMLElement>>(new Map());
 
@@ -89,15 +90,44 @@ export function SourceSection() {
         <div>
           <h2 className="section-title">Data sources & methodology</h2>
           <p className="muted">
-            All metrics and information used across the platform: Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant. Each metric includes description, formula, unit, and links to the original data sources.
+            Up-to-date definitions, formulas, and units for every metric and variable used in the app. Each entry links to credible primary sources (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO). Coverage: Country Dashboard, Global view (map &amp; table), Global Charts, PESTEL, Business Analytics, and Analytics Assistant.
+          </p>
+          <p className="muted" style={{ marginTop: '0.5rem' }}>
+            Time series and indicator data generally span from 2000 to the latest available year; definitions reflect current methodology where documented by the source.
           </p>
         </div>
       </div>
 
       <div className="source-assistant-flow">
-        <h3 className="source-category-title">Where metrics and information appear</h3>
+        <button
+          type="button"
+          className="source-assistant-flow-header"
+          onClick={() => setIsWhereMetricsExpanded((v) => !v)}
+          aria-expanded={isWhereMetricsExpanded}
+          aria-controls="source-where-metrics-content"
+          id="source-where-metrics-heading"
+        >
+          <h3 className="source-category-title source-assistant-flow-title">
+            Where metrics and information appear
+          </h3>
+          <span
+            className={`source-assistant-flow-chevron ${isWhereMetricsExpanded ? 'source-assistant-flow-chevron--expanded' : ''}`}
+            aria-hidden
+          >
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </span>
+        </button>
+        <div
+          id="source-where-metrics-content"
+          role="region"
+          aria-labelledby="source-where-metrics-heading"
+          className="source-assistant-flow-content"
+          hidden={!isWhereMetricsExpanded}
+        >
         <p className="source-assistant-intro muted">
-          The platform uses the same metrics and sources across Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and the Analytics Assistant. Below is how each feature uses data.
+          The same metrics and sources are used across Country Dashboard, Global view (map &amp; table), Global Charts, PESTEL, Business Analytics, and the Analytics Assistant. Location and geography (where a country is, continent, neighbouring countries) are answered by the Analytics Assistant via LLM and web search, using credible sources such as Wikipedia and CIA World Factbook (linked in the &quot;Location &amp; geographic context&quot; metric below).
         </p>
 
         <div className="source-feature-list">
@@ -109,6 +139,11 @@ export function SourceSection() {
           <h4 className="source-feature-name">Global view (Map &amp; Table)</h4>
           <p className="muted">
             Choropleth map: any metric from the list (GDP, population, life expectancy, inflation, debt, unemployment, labour force, poverty, age-group shares, land/area/EEZ, region, government type). Global table: all countries and years with sortable columns and YoY growth. Sources: World Bank WDI, IMF, Sea Around Us, Marine Regions, REST Countries (region, government type). Country list: World Bank with synthetic entries for territories (e.g. Taiwan) when needed.
+          </p>
+
+          <h4 className="source-feature-name">Global Charts</h4>
+          <p className="muted">
+            Aggregated global time-series and cross-country comparisons (e.g. GDP, population, health, labour). Same underlying data as Country Dashboard and Global view: World Bank WDI, IMF WEO, REST Countries, Sea Around Us, Marine Regions. Definitions and formulas for each series are listed in the metric cards below.
           </p>
 
           <h4 className="source-feature-name">PESTEL analysis</h4>
@@ -146,6 +181,7 @@ export function SourceSection() {
         <p className="source-assistant-intro muted">
           All metrics below (Financial, Population, Health, Geography, Country metadata &amp; context) are searchable and linked to their primary sources.
         </p>
+        </div>
       </div>
 
       <div className="source-search-wrapper">

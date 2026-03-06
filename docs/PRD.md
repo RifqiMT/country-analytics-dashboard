@@ -3,6 +3,8 @@
 **Version:** 2.0  
 **Last updated:** March 2026
 
+This document is the **single source of truth** for product requirements. It is maintained according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`) and covers problem statement, goals, scope, features (Country Dashboard, Global analytics, PESTEL, Business Analytics, Source, Analytics Assistant), data rules, non-functional requirements, and business and tech guidelines.
+
 ---
 
 ## 1. Problem Statement
@@ -150,12 +152,12 @@ Six main tabs:
 
 ### 4.4 Source Tab
 
-- **Where metrics and information appear**: Section describing how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant
-- **Analytics Assistant flow**: Documents cascading routing: Dashboard/global data first, then Groq, then Tavily (web search), then other LLMs (Tavily Web Search selectable as a model)
-- **Search**: By metric name, description, formula, or source (dynamic filtering)
-- **Filter chips**: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO
-- **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
-- **Metric cards**: Grouped by category. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Each card: label, description, formula (if applicable), unit, source links with external-link icons
+- **Where metrics and information appear**: A **collapsible (minimisable) section** describing how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, Business Analytics, and Analytics Assistant. Users can expand or minimise this section via the section header. Location and geography are answered by the Analytics Assistant via LLM and web search; credible sources are linked in the "Location & geographic context" metric card.
+- **Analytics Assistant flow**: Documents cascading routing: Dashboard/global data first, then Groq, then Tavily (web search), then other LLMs (Tavily Web Search selectable as a model).
+- **Search**: By metric name, description, formula, or source (dynamic filtering).
+- **Filter chips**: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO.
+- **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric.
+- **Metric cards**: Grouped by category. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context). Each card: label, description, formula (if applicable), unit, source links with external-link icons.
 
 ### 4.5 Analytics Assistant
 

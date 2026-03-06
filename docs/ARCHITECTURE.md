@@ -1,6 +1,6 @@
 # Architecture – Country Analytics Platform
 
-This document describes the data flow, component boundaries, and technical architecture of the Country Analytics Platform.
+This document describes the **data flow**, **component boundaries**, and **technical architecture** of the Country Analytics Platform. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and supports engineering onboarding and feature→code mapping.
 
 ---
 
@@ -244,7 +244,7 @@ App
 ```
 App
 └── SourceSection
-    └── Where metrics and information appear (Country Dashboard, Global, PESTEL, Business Analytics, Analytics Assistant)
+    └── Where metrics and information appear (collapsible: minimise/expand via header; Country Dashboard, Global, Global Charts, PESTEL, Business Analytics, Analytics Assistant)
     └── Analytics Assistant flow (year-based: Groq for period ≤ current year − 2, Tavily for recent)
     └── Search input
     └── Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO)

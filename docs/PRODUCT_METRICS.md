@@ -1,6 +1,6 @@
 # Product Metrics Documentation
 
-This document provides a comprehensive reference for all **data metrics** displayed in the Country Analytics Platform. For engagement metrics and OKRs, see `METRICS_AND_OKRS.md`. For **all variables** (data metrics, config constants, environment variables) with name, definition, formula, and example, see `VARIABLES.md`.
+This document provides a **comprehensive reference** for all **data metrics** displayed in the Country Analytics Platform. It is maintained according to the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). For engagement metrics and OKRs, see `METRICS_AND_OKRS.md`. For **all variables** (data metrics, config constants, environment variables) with name, definition, formula, **location in the app**, and **example**, see `VARIABLES.md`.
 
 ---
 
@@ -91,9 +91,11 @@ The same data metrics are used across the product in different ways:
 | `region` | Region | Categorical | World Bank, REST Countries |
 | `incomeLevel` | Income level | Categorical | World Bank |
 | `capitalCity` | Capital city | Categorical | World Bank, REST Countries |
-| `currency` | Currency | Categorical | REST Countries |
+| `currency` | Currency (name, code, symbol) | Categorical | REST Countries |
+| `timezone` | Timezone | Categorical | REST Countries (IANA) |
+| `locationAndGeography` | Location & geographic context | Not stored; answered by Analytics Assistant | LLM + web search (e.g. Wikipedia, CIA World Factbook) |
 
-These are documented in the Source tab under **Country metadata & context** and in `src/data/metricMetadata.ts`.
+These are documented in the Source tab under **Country metadata & context** and in `src/data/metricMetadata.ts`. **Location and geography** (where a country is, continent, neighbouring countries) are not dashboard metrics; the Analytics Assistant answers such questions via LLM and web search, with credible source links listed in the Source tab.
 
 ---
 
@@ -140,9 +142,9 @@ These are documented in the Source tab under **Country metadata & context** and 
 
 The **Source** tab provides:
 
-- **Where metrics and information appear** – Describes how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant
-- **Analytics Assistant flow** – Documents cascading routing: Dashboard/global data first for metrics, then Groq, then Tavily (web search), then other LLMs; Tavily Web Search selectable
-- **Per-metric documentation** – Full description, formula, unit, data source links. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency)
-- **Search and filter** – By metric name, description, formula, or source; filter chips: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO
+- **Where metrics and information appear** – A collapsible section (minimisable by the user) describing how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, Business Analytics, and Analytics Assistant. Location and geography are answered by the Analytics Assistant via LLM and web search; credible sources are linked in the "Location & geographic context" metric card.
+- **Analytics Assistant flow** – Documents cascading routing: Dashboard/global data first for metrics, then Groq, then Tavily (web search), then other LLMs; Tavily Web Search is selectable as a model.
+- **Per-metric documentation** – Full description, formula, unit, and data source links. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context).
+- **Search and filter** – By metric name, description, formula, or source; filter chips: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO.
 
 Metadata is defined in `src/data/metricMetadata.ts`. All metrics above (including context) are in `metricMetadata.ts` for the Source tab.

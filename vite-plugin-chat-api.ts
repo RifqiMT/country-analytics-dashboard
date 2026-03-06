@@ -49,22 +49,13 @@ const SETUP_HINT = `
 ---
 _To answer general questions (e.g. "who is the president of X"), add the required server env key to your \`.env\` file. Obtain keys from each provider's developer console. Then restart the dev server._`;
 
-/** Queries the rule-based fallback cannot answer – use free LLM instead. */
+/** Queries the rule-based fallback cannot answer – use free LLM instead. Geography, location, neighbour (and typos) are excluded so the LLM answers them. */
 const OUT_OF_SCOPE_PATTERNS = [
   // Leaders & government
   /who\s+is\s+(?:the\s+)?(?:president|prime\s+minister|leader|king|queen|head\s+of\s+state|ruler)/i,
   /president\s+of|prime\s+minister\s+of|leader\s+of|capital\s+of/i,
   /current\s+(?:president|leader|prime\s+minister)/i,
   /government\s+of\s+\w+|history\s+of/i,
-  // Geography & place (non-metric) – avoid returning dashboard metrics for location or neighbours questions
-  /where\s+is\s+.+\s+located/i,
-  /where\s+\w+\s+is\s+located/i,
-  /where\s+is\s+.+$/i,
-  /location\s+of\s+/i,
-  /(?:in\s+)?which\s+continent|which\s+continent\s+is/i,
-  /neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+/i,
-  /which\s+countries\s+border\s+\w+/i,
-  /borders?\s+(?:with|of)\s+\w+/i,
   /what\s+is\s+(?:the\s+)?(?:capital|currency)\s+of/i,
   /when\s+did\s+|when\s+was\s+|when\s+is\s+/i,
   // Independence & founding
@@ -95,9 +86,9 @@ const OUT_OF_SCOPE_PATTERNS = [
   /(?:economy|economic)\s+overview|economic\s+situation/i,
 ];
 
-// Location / geography queries that should NEVER be answered with dashboard metrics
+// Geography, location, neighbour (and common typos) – excluded from out-of-scope; LLM answers these.
 const LOCATION_QUERY_PATTERN =
-  /\bwhere\s+.+\s+located\b|location\s+of\s+|which\s+continent\b|where\s+is\b|neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i;
+  /\b(?:where|location|locaton|locaiton|geography|geogrpahy|geograpy)\b.*\b(?:located|continent)\b|(?:where\s+is|location\s+of|locaton\s+of|locaiton\s+of)\s+\w+|(?:in\s+)?which\s+continent|which\s+continent\s+is|(?:neighbor(?:ing)?|neighbour(?:ing)?|neigbor(?:ing)?|nieghbor(?:ing)?|neighboor(?:ing)?|neigbour(?:ing)?|neughbour(?:ing)?)\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i;
 
 const LOCATION_FALLBACK_MESSAGE =
   'I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent, who its neighbouring countries are), use the LLM or web search. For full conversational answers, add your API key in Settings.';

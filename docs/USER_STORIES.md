@@ -1,6 +1,6 @@
 # User Stories – Country Analytics Platform
 
-Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.md`.
+User stories are grouped by feature area and mapped to personas in `USER_PERSONAS.md`. They reflect the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and the requirements in `PRD.md`. Each story is independently testable and includes clear acceptance criteria.
 
 ---
 
@@ -264,19 +264,33 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 **Acceptance criteria:**
 - Search filters metrics in real time
 - Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) filter by data source
-- Section "Where metrics and information appear" explains how data is used in Country Dashboard, Global view, PESTEL, Business Analytics, and Analytics Assistant
+- Section "Where metrics and information appear" explains how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, Business Analytics, and Analytics Assistant
 
 ---
 
-### US-7.2 – Understand metric definitions
+### US-7.2 – Minimise or expand "Where metrics and information appear"
+
+- **As a** Data/BI Analyst or Country Economist  
+- **I want to** minimise or expand the "Where metrics and information appear" section in the Source tab  
+- **So that** I can focus on the metric cards or quickly re-read the overview without scrolling  
+
+**Acceptance criteria:**
+- The section has a clickable header with a chevron icon indicating expanded or collapsed state
+- Clicking the header toggles the section content (expanded by default)
+- When collapsed, the section body is hidden; when expanded, the full text and feature list are visible
+- Keyboard and screen-reader users can toggle the section (aria-expanded, aria-controls)
+
+---
+
+### US-7.3 – Understand metric definitions
 
 - **As a** Country Economist  
-- **I want to** see description, formula, and source links for each metric, including country metadata  
+- **I want to** see description, formula, and source links for each metric, including country metadata (region, income, government, capital, currency, timezone, location & geography)  
 - **So that** I can trust and cite the data  
 
 **Acceptance criteria:**
 - Each metric card shows label, description, formula (if applicable), unit
-- Categories include Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency)
+- Categories include Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context)
 - Source links open in new tab with external-link icon
 
 ---

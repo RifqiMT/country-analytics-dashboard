@@ -442,31 +442,31 @@ function formatCountryOverview(
 }
 
 const OUT_OF_SCOPE_FALLBACK =
-  /\b(?:religion|religions|relgiions)\b|(?:religion|religions)\s+(?:in|of)\s+|(?:culture|cultural)\s+(?:of|in)\s+|(?:language|languages)\s+(?:of|in)\s+|(?:president|prime\s+minister|leader|capital)\s+(?:of|in)\s+|(?:independence|national)\s+day|who\s+is\s+(?:the\s+)?(?:president|leader)|where\s+(?:is\s+)?\w+\s+(?:is\s+)?located|(?:where\s+is|location\s+of)\s+\w+|(?:in\s+)?which\s+continent|which\s+continent\s+is|neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i;
+  /\b(?:religion|religions|relgiions)\b|(?:religion|religions)\s+(?:in|of)\s+|(?:culture|cultural)\s+(?:of|in)\s+|(?:language|languages)\s+(?:of|in)\s+|(?:president|prime\s+minister|leader|capital)\s+(?:of|in)\s+|(?:independence|national)\s+day|who\s+is\s+(?:the\s+)?(?:president|leader)/i;
 
-/** True if the query is asking about location/geography (not dashboard metrics). */
+/** True if the query is asking about location/geography (not dashboard metrics). Used only to bypass rule-based so the LLM answers these. */
 function isLocationOrGeographyQuery(normalizedQ: string): boolean {
   const s = normalizedQ.trim();
 
   // If the user mentions "where", "location", "continent", "neighbour", or "border"
-  // and does NOT mention any explicit metric keyword, treat as pure location/geography.
+  // (including common typos) and does NOT mention any explicit metric keyword, treat as location/geography → LLM answers.
   const hasMetricKeyword = /\b(gdp|population|inflation|debt|unemployment|life expectancy|poverty|per capita|growth|rate|metric|data)\b/i.test(
     s,
   );
-  const hasGeoCue = /\bwhere\b|\blocation\b|\bcontinent\b|neighbor(?:ing)?\b|neighbour(?:ing)?\b|border(?:s)?\b/i.test(
+  const hasGeoCue = /\b(?:where|location|locaton|locaiton|geography|geogrpahy|geograpy|continent|neighbor(?:ing)?|neighbour(?:ing)?|neigbor(?:ing)?|nieghbor(?:ing)?|neighboor(?:ing)?|neigbour(?:ing)?|neughbour(?:ing)?|border(?:s)?)\b/i.test(
     s,
   );
   if (hasGeoCue && !hasMetricKeyword) return true;
 
   if (
-    /where\s+.+\s+located|location\s+of\s+.+|(?:in\s+)?which\s+continent|which\s+continent\s+is/i.test(
+    /where\s+.+\s+located|(?:location|locaton|locaiton)\s+of\s+.+|(?:in\s+)?which\s+continent|which\s+continent\s+is/i.test(
       s,
     )
   ) {
     return true;
   }
   if (
-    /neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i.test(
+    /(?:neighbor(?:ing)?|neighbour(?:ing)?|neigbor(?:ing)?|nieghbor(?:ing)?|neighboor(?:ing)?|neigbour(?:ing)?)\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i.test(
       s,
     )
   ) {
@@ -474,7 +474,7 @@ function isLocationOrGeographyQuery(normalizedQ: string): boolean {
   }
   if (
     /where\s+is\s+\w+|where\s+\w+\s+is\b/i.test(s) &&
-    (s.includes('located') || s.includes('location') || s.length < 35)
+    (s.includes('located') || s.includes('location') || s.includes('locaton') || s.length < 35)
   ) {
     return true;
   }
@@ -489,13 +489,13 @@ export function getFallbackResponse(
 ): string {
   const q = normalizeQuery(userMessage);
 
-  // Fallback 1: Location/geography questions first – never return dashboard metrics for these
+  // Location/geography/neighbor questions are answered by the LLM – do not return guidance here; let the API route to LLM.
   if (isLocationOrGeographyQuery(q)) {
-    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent, who its neighbouring countries are), use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+    return FALLBACK_GENERIC_HELP_MARKER;
   }
 
   if (OUT_OF_SCOPE_FALLBACK.test(q)) {
-    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about religion, culture, **location or geography** (e.g. where a country is located, which continent, neighbouring countries), or current leaders, use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about religion, culture, or current leaders, use the LLM or web search. For full conversational answers, add your API key in Settings.`;
   }
 
   const isSummary = matchesQuery(q, ['summary', 'summarize', 'brief', 'overview in brief']);
@@ -657,7 +657,7 @@ export function getFallbackResponse(
 
   if (requestedCountries.length === 1 && effectiveData && effectiveData.length > 0 && !isSelectedCountry) {
     if (isLocationOrGeographyQuery(q)) {
-      return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent), use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+      return FALLBACK_GENERIC_HELP_MARKER;
     }
     const countryName = requestedCountries[0];
     const r = effectiveData.find((x) => x.name.toLowerCase() === countryName.toLowerCase());
@@ -728,7 +728,7 @@ export function getFallbackResponse(
 
   if (dashboardSnapshot && countryMatchesQuery(q, dashboardSnapshot.countryName)) {
     if (isLocationOrGeographyQuery(q)) {
-      return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent), use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+      return FALLBACK_GENERIC_HELP_MARKER;
     }
     if (wantsSpecificMetrics && requestedMetrics.length > 0) {
       const r = effectiveData?.find((x) => x.name.toLowerCase() === dashboardSnapshot.countryName.toLowerCase());
