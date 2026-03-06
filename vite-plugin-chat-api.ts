@@ -568,8 +568,10 @@ async function handleChatRequest(
           const isLocationQuestion = LOCATION_QUERY_PATTERN.test((userQuery ?? '').trim());
 
           // Step 1: Global/dashboard data first – rule-based answers from rankings, comparisons, metrics, methodology
+          // IMPORTANT: For pure location / geography questions, **never** use rule-based metrics at all.
           const isPestelRequest = supplementWithWebSearch && systemPrompt?.includes('PESTEL');
-          const fallbackContent = isPestelRequest
+          const shouldBypassRuleBasedForLocation = isLocationQuestion && !isPestelRequest;
+          const fallbackContent = isPestelRequest || shouldBypassRuleBasedForLocation
             ? FALLBACK_GENERIC_HELP_MARKER
             : getRuleBasedFallback(
                 messages,
@@ -577,7 +579,7 @@ async function handleChatRequest(
                 globalData,
                 globalDataByYear ?? undefined,
               );
-          const isGeneralKnowledge = isGeneralKnowledgeQuery(userQuery);
+          const isGeneralKnowledge = isLocationQuestion || isGeneralKnowledgeQuery(userQuery);
           // Fallback safeguard: if rule-based returned a country metrics/overview card but the query is location/geography (including neighbours), use LLM instead
           const looksLikeCountryMetricsCard = /\*\*[^*]+ – (?:Key metrics|Full overview)\s*\(/.test(
             fallbackContent,
