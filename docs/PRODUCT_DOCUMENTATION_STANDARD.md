@@ -35,7 +35,7 @@ The documentation standard ensures:
 | **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
 | **docs/PRODUCT_METRICS.md** | Data metrics (GDP, population, etc.) with formulas, WDI codes, and source references |
-| **docs/VARIABLES.md** | All variables: data metrics, config constants, env variables – name, definition, formula, example |
+| **docs/VARIABLES.md** | All variables: data metrics, config constants, env – variable name, friendly name, definition, formula, location in the app, example; relationship chart (derivation and app flow) |
 | **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs) |
 
 ---
@@ -95,7 +95,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 
 - How metrics feed the UI (Country, Global map/table/charts, Source, Chat, PESTEL, Business Analytics)
 - Per-metric: ID, label, unit, formula, fallback; WDI codes and data quality rules
-- **Variables documentation**: `docs/VARIABLES.md` lists every variable (data metrics, config, env) with name, definition, formula, **location in the app**, and **example**
+- **Variables documentation**: `docs/VARIABLES.md` lists every variable (data metrics, config, env) with variable name, friendly name, definition, formula, location in the app, and example; it includes a variable relationship and usage section (derived variables and diagrams showing how variables connect and flow through the app)
 
 ---
 

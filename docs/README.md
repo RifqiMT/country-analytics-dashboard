@@ -21,7 +21,7 @@ This folder contains product and technical documentation for the **Country Analy
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Data flow, component hierarchy (Country Dashboard timelines, PESTEL with PNG exports, Global charts, Business Analytics, Source, Analytics Assistant), API layer, fallbacks (territory, Taiwan) |
 | [METRICS_AND_OKRS.md](METRICS_AND_OKRS.md) | **Engagement metrics and OKRs** – north-star, feature-level metrics (Country, Global, Source, PESTEL incl. chart exports, Business Analytics), instrumentation guidelines, product team cadence |
 | [PRODUCT_METRICS.md](PRODUCT_METRICS.md) | **Data metrics** – GDP, population, health, geography, context/metadata (incl. timezone, location & geography); formulas, WDI codes, sources; how metrics feed the UI; Source tab reference (incl. collapsible “Where metrics appear”) |
-| [VARIABLES.md](VARIABLES.md) | **Variables** – every variable (data metrics, config constants, env): name, definition, formula, **location in the app**, and **example** |
+| [VARIABLES.md](VARIABLES.md) | **Variables** – every variable (data metrics, config constants, env): **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derived variables and flow through the app) |
 | [PRODUCT_DOCUMENTATION_STANDARD.md](PRODUCT_DOCUMENTATION_STANDARD.md) | Doc structure, ownership, change policy, feature→code mapping, security |
 
 ---

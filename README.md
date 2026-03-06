@@ -330,7 +330,7 @@ npm run preview
 | [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories by feature area |
 | [docs/METRICS_AND_OKRS.md](docs/METRICS_AND_OKRS.md) | Engagement metrics, OKRs, instrumentation |
 | [docs/PRODUCT_METRICS.md](docs/PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) with formulas and sources |
-| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: name, definition, formula, **location in the app**, and example |
+| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derivation and app flow) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow and component architecture |
 
 ---
