@@ -153,14 +153,10 @@ vite-plugin-chat-api.ts middleware
          │         └─► If answer found → return { content, source: "Dashboard data" }
          │         └─► If generic help or out-of-scope (leaders, religion, culture, **location/geography**, etc.) → continue
          │
-         ├─► Step 2: Year-based routing – implied year from query
-         │         └─► Period ≤ current year − 2 → Groq (Llama 3.3 70B) first
-         │         └─► Period > current year − 2 or "now" → Tavily / Serper (web search) first
-         │         └─► If Tavily Web Search selected as model → always web search first
-         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" or "Web search" }
-         │
-         ├─► Step 3: Groq (Llama 3.3 70B) or Web search – whichever was not tried in Step 2
-         │         └─► If success → return { content, source: "Llama 3.3 70B (Groq)" or "Web search" }
+        ├─► Step 2: LLM cascade for questions outside global data
+        │         └─► Groq (Llama 3.3 70B) first for general knowledge and key facts when dashboard/global data cannot answer
+        │         └─► Tavily / Serper (web search) second when Groq is unavailable or cannot produce a good answer (or when Tavily Web Search is explicitly selected)
+        │         └─► If success → return { content, source: model label or "Web search" }
          │
          ├─► Step 4: User-selected LLM (OpenAI, Anthropic, Google, OpenRouter, etc.)
          │         └─► Uses client apiKey or server env key

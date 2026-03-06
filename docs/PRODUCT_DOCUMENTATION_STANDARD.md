@@ -87,7 +87,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 - High-level data flow diagram (text or Mermaid)
 - Component hierarchy and responsibilities (including **Business Analytics**, PESTEL section structure)
 - API layer and external integrations
-- Analytics Assistant flow (year-based routing: Groq for period ≤ current year − 2, Tavily for recent; Tavily Web Search selectable)
+- Analytics Assistant flow (cascading routing: Dashboard/global data first for metrics, then Groq, then Tavily (web search), then other LLMs; Tavily Web Search selectable)
 
 ### 3.7 Product Metrics (Data)
 

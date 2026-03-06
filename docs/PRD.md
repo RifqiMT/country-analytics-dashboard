@@ -33,7 +33,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 | **G2** | Intuitive global comparison | Sorting, ranking, map and tables with consistent definitions |
 | **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and source links |
 | **G4** | Analyst-friendly UX | Smooth time navigation, frequency toggles, search, filter chips |
-| **G5** | AI-assisted analysis | Analytics assistant with year-based routing (Groq for period ≤ current year − 2, Tavily for recent/current), Tavily as selectable model, and source attribution |
+| **G5** | AI-assisted analysis | Analytics assistant that always prefers dashboard/global data for metrics, and for anything outside that (or when dashboard/global data cannot answer) uses Groq first, then Tavily (web search), then other LLMs (with source attribution) |
 
 ### 2.2 Non-Goals (Current Version)
 
@@ -145,7 +145,7 @@ Six main tabs:
 ### 4.4 Source Tab
 
 - **Where metrics and information appear**: Section describing how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant
-- **Analytics Assistant flow**: Documents year-based routing (Groq for period ≤ current year − 2, Tavily for recent/current)
+- **Analytics Assistant flow**: Documents cascading routing: Dashboard/global data first, then Groq, then Tavily (web search), then other LLMs (Tavily Web Search selectable as a model)
 - **Search**: By metric name, description, formula, or source (dynamic filtering)
 - **Filter chips**: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO
 - **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric
@@ -153,15 +153,15 @@ Six main tabs:
 
 ### 4.5 Analytics Assistant
 
-#### 4.5.1 Cascading Flow (Year-Based Routing)
+#### 4.5.1 Cascading Flow
 
-**Cutoff:** current year − 2. Questions about period ≤ cutoff favour Groq; questions about the latest period or "now" favour Tavily. All flows start from dashboard data where possible.
+All flows start from **dashboard/global data** where possible. Whenever the question is outside what the global data can answer (or there is no data), the assistant uses LLMs in a fixed order: **Groq → Tavily (web search) → other LLMs**.
 
 | Step | Source | When Used |
 |------|--------|-----------|
 | 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, yearly time-series summaries, and methodology (no API keys required) |
-| 2 | **Groq (Llama 3.3 70B)** | General-knowledge about period ≤ current year − 2 (e.g. "in 2023"), or when dashboard data cannot answer the question |
-| 3 | **Web search (Tavily/Serper)** | Latest / current-period general-knowledge questions (e.g. "now", explicit near-current years) and questions not covered by Groq or dashboard data; also used when **Tavily Web Search** is selected as model |
+| 2 | **Groq (Llama 3.3 70B)** | First LLM used when dashboard/global data cannot answer or when the question is outside global data (general knowledge, key facts, location/geography, leaders, history) |
+| 3 | **Web search (Tavily/Serper)** | Second step when Groq is unavailable or cannot produce a good answer; also used when **Tavily Web Search** is selected as model for direct web-search based answers |
 | 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter, **Tavily Web Search**) when user or server key is set |
 
 #### 4.5.2 Source Attribution

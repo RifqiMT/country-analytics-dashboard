@@ -141,7 +141,7 @@ These are documented in the Source tab under **Country metadata & context** and 
 The **Source** tab provides:
 
 - **Where metrics and information appear** – Describes how data is used in Country Dashboard, Global view (map & table), PESTEL, Business Analytics, and Analytics Assistant
-- **Analytics Assistant flow** – Documents year-based routing: Groq for period ≤ current year − 2, Tavily for recent/current; Tavily Web Search selectable
+- **Analytics Assistant flow** – Documents cascading routing: Dashboard/global data first for metrics, then Groq, then Tavily (web search), then other LLMs; Tavily Web Search selectable
 - **Per-metric documentation** – Full description, formula, unit, data source links. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency)
 - **Search and filter** – By metric name, description, formula, or source; filter chips: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO
 

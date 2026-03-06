@@ -447,6 +447,17 @@ const OUT_OF_SCOPE_FALLBACK =
 /** True if the query is asking about location/geography (not dashboard metrics). */
 function isLocationOrGeographyQuery(normalizedQ: string): boolean {
   const s = normalizedQ.trim();
+
+  // If the user mentions "where", "location", "continent", "neighbour", or "border"
+  // and does NOT mention any explicit metric keyword, treat as pure location/geography.
+  const hasMetricKeyword = /\b(gdp|population|inflation|debt|unemployment|life expectancy|poverty|per capita|growth|rate|metric|data)\b/i.test(
+    s,
+  );
+  const hasGeoCue = /\bwhere\b|\blocation\b|\bcontinent\b|neighbor(?:ing)?\b|neighbour(?:ing)?\b|border(?:s)?\b/i.test(
+    s,
+  );
+  if (hasGeoCue && !hasMetricKeyword) return true;
+
   if (
     /where\s+.+\s+located|location\s+of\s+.+|(?:in\s+)?which\s+continent|which\s+continent\s+is/i.test(
       s,

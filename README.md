@@ -31,7 +31,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
 - **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
 - **Understand** data methodology via the Source tab with descriptions, formulas, and source links
-- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data → Groq (period ≤ current year − 2) → Tavily (latest / “now”) → other LLMs**
+- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data → Groq → Tavily (web search) → other LLMs**
 
 ### 1.2 Target Audience
 
@@ -62,7 +62,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Credible data** – World Bank WDI, IMF WEO, REST Countries, Sea Around Us; fallbacks for territories
 - **Intuitive UX** – Searchable country selector, year presets, frequency toggles
 - **Transparent methodology** – Source tab documents every metric with formulas and source links
-- **AI-assisted analysis** – Analytics assistant with **cascading logic**: Dashboard data first, then Groq for questions about period ≤ current year − 2, then Tavily (web search) for latest/current, then other LLMs; Tavily Web Search also selectable as a model
+- **AI-assisted analysis** – Analytics assistant with **cascading logic**: Dashboard data first for all metrics the dashboards/tables cover; for anything outside that or when global data cannot answer, use **Groq** first, then **Tavily (web search)**, then other LLMs. Tavily Web Search is also selectable as a model.
 - **Source attribution** – Each chat response shows its source (Dashboard data, model name, or Web search)
 - **No login required** – Public data, no authentication or workspace setup
 

@@ -597,11 +597,11 @@ async function handleChatRequest(
             return;
           }
 
-          // Step 2: Groq for questions within period until current year minus 2 (when global data couldn't answer)
-          // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
-          // Step 4: Other LLMs (user-selected or fallback list)
-          const queryPeriodAfterCutoff = isQueryAfterCutoffYear(userQuery); // true = "now" or year > cutoff → use Tavily
-          const tryGroqFirst = isGeneralKnowledge && !queryPeriodAfterCutoff; // period ≤ cutoff → try Groq second (after global data)
+          // Step 2: Groq (first LLM) when global data can't answer or for any non-metric / key-fact question
+          // Step 3: Tavily / web search (second) when Groq is unavailable or cannot produce a valid answer
+          // Step 4: Other LLMs (user-selected or fallback list) as a final resort
+          // NOTE: We intentionally try Groq **before** Tavily for all general-knowledge and out-of-scope questions.
+          const tryGroqFirst = true;
 
           // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data
           if (supplementWithWebSearch && dashboardSnapshot?.countryName) {
@@ -699,10 +699,9 @@ async function handleChatRequest(
           }
 
           // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
-          // Also try Tavily when user selected Tavily as model, or when period > cutoff
+          // Also try Tavily when user explicitly selected Tavily as the model.
           const tryTavilyNow =
             model === 'tavily-web-search' ||
-            (isGeneralKnowledge && queryPeriodAfterCutoff) ||
             !isValidLlmResponse(content);
           if (tryTavilyNow && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);

@@ -131,10 +131,10 @@ export function SourceSection() {
             <strong>Dashboard data</strong> – Rule-based answers from World Bank WDI, IMF, and Sea Around Us / Marine Regions for rankings, comparisons, single-metric lookups, and methodology questions. Uses all metrics in this tab plus region, income level, government type from World Bank and REST Countries. <strong>Location/geography questions</strong> (e.g. &quot;where is Indonesia located?&quot;) are not answered from dashboard data; they use the fallback below.
           </li>
           <li>
-            <strong>Groq (Llama 3.3 70B)</strong> – For general-knowledge questions (including <strong>location</strong>, leaders, history) when the period is up to current year minus 2.
+            <strong>Groq (Llama 3.3 70B)</strong> – First LLM used when dashboard/global data cannot answer or when the question is outside global data (general knowledge, key facts, location/geography, leaders, history).
           </li>
           <li>
-            <strong>Web search (Tavily)</strong> – For general-knowledge questions about the current period or latest data (e.g. &quot;who is the president now&quot;, &quot;in 2026&quot;), or when Groq is not used.
+            <strong>Web search (Tavily)</strong> – Second step when Groq is unavailable or cannot produce a good answer, or when Tavily Web Search is selected as the model for direct web-search based answers.
           </li>
           <li>
             <strong>Other LLMs + Tavily Web Search</strong> – OpenAI, Anthropic, Google, OpenRouter, or Tavily Web Search (selectable in the model dropdown) when a user API key or server key is set.

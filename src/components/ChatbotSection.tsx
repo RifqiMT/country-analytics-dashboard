@@ -386,11 +386,32 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
           );
         }
 
+        // Guardrail: if the backend accidentally answers a pure location/geography question
+        // with dashboard metrics (Key metrics / Full overview), override it with guidance
+        // so we never show misleading metric cards for "Where is X located?" type queries.
+        let content = data.content ?? 'No response.';
+        let source = data.source;
+        const userText = trimmed;
+        const looksLikeLocation = isLocationQuestionClient(userText);
+        const looksLikeMetricsCard =
+          source === 'Dashboard data' &&
+          /\*\*[^*]+ – (?:Key metrics|Full overview)\s*\(/.test(content);
+        const hasMetricKeyword = /\b(gdp|population|inflation|debt|unemployment|life expectancy|poverty|per capita|growth|rate|metric|data)\b/i.test(
+          userText,
+        );
+        if (
+          source === 'Dashboard data' &&
+          (looksLikeLocation || (looksLikeMetricsCard && !hasMetricKeyword))
+        ) {
+          content = LOCATION_UI_FALLBACK_MESSAGE;
+          source = 'Assistant guidance';
+        }
+
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-          content: data.content ?? 'No response.',
-          source: data.source,
+          content,
+          source,
         };
         setMessages((prev) => [...prev, assistantMessage]);
       } catch (err) {
@@ -766,4 +787,42 @@ function formatMessage(text: string): string {
   }
   flushList();
   return blocks.join('');
+}
+
+const LOCATION_UI_FALLBACK_MESSAGE =
+  'I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent, neighbouring countries), use the LLM or web search. For full conversational answers, add your API key in Settings.';
+
+function isLocationQuestionClient(q: string): boolean {
+  const s = q.trim().toLowerCase();
+  if (!s) return false;
+
+  const hasMetricKeyword = /\b(gdp|population|inflation|debt|unemployment|life expectancy|poverty|per capita|growth|rate|metric|data)\b/i.test(
+    s,
+  );
+  const hasGeoCue = /\bwhere\b|\blocation\b|\bcontinent\b|neighbor(?:ing)?\b|neighbour(?:ing)?\b|border(?:s)?\b/i.test(
+    s,
+  );
+  if (hasGeoCue && !hasMetricKeyword) return true;
+
+  if (
+    /where\s+.+\s+located|location\s+of\s+.+|(?:in\s+)?which\s+continent|which\s+continent\s+is/i.test(
+      s,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /neighbor(?:ing)?\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i.test(
+      s,
+    )
+  ) {
+    return true;
+  }
+  if (
+    /where\s+is\s+\w+|where\s+\w+\s+is\b/i.test(s) &&
+    (s.includes('located') || s.includes('location') || s.length < 40)
+  ) {
+    return true;
+  }
+  return false;
 }
