@@ -116,31 +116,6 @@ function isGeneralKnowledgeQuery(content: string): boolean {
   return false;
 }
 
-/** Cutoff year: questions about this year or earlier use Groq; after this use Tavily. */
-const DATA_CUTOFF_YEAR = new Date().getFullYear() - 2;
-
-/**
- * Extract implied year from query. Returns null if no year detected.
- * "now", "current", "today" → current year.
- * Explicit years like "2026", "in 2024" → that year.
- */
-function getImpliedYearFromQuery(content: string): number | null {
-  const q = (content ?? '').trim();
-  if (/\b(?:now|current|today)\b/i.test(q)) return new Date().getFullYear();
-  const yearMatch = q.match(/\b(20[0-2][0-9])\b/);
-  return yearMatch ? parseInt(yearMatch[1], 10) : null;
-}
-
-/**
- * True if query implies a period after current year minus 2 → use Tavily (real-time).
- * False if year <= cutoff or explicit old year → use Groq.
- */
-function isQueryAfterCutoffYear(content: string): boolean {
-  const year = getImpliedYearFromQuery(content);
-  if (year === null) return true; // no year → assume "now" → Tavily
-  return year > DATA_CUTOFF_YEAR;
-}
-
 type ChatMessage = { role: string; content: string };
 
 function readJsonBody(req: import('http').IncomingMessage): Promise<unknown> {
@@ -503,15 +478,6 @@ const FREE_LLM_FALLBACK_PRIORITY: Array<{ provider: LlmProvider; model: string }
   { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct' },
 ];
 
-/** Get first available API key from free-tier providers (server env only). */
-function getFreeLlmFallbackKey(): { provider: LlmProvider; model: string; apiKey: string } | null {
-  for (const { provider, model } of FREE_LLM_FALLBACK_PRIORITY) {
-    const key = getServerApiKey(provider);
-    if (key) return { provider, model, apiKey: key };
-  }
-  return null;
-}
-
 async function handleChatRequest(
   req: import('http').IncomingMessage,
   res: import('http').ServerResponse,
@@ -603,9 +569,12 @@ async function handleChatRequest(
           // NOTE: We intentionally try Groq **before** Tavily for all general-knowledge and out-of-scope questions.
           const tryGroqFirst = true;
 
-          // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data
+          // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data.
+          // Use current year for PESTEL so supplemental results are the most up-to-date (as of today).
           if (supplementWithWebSearch && dashboardSnapshot?.countryName) {
-            const year = typeof dashboardSnapshot.year === 'number' ? dashboardSnapshot.year : new Date().getFullYear() - 2;
+            const year = isPestelRequest
+              ? new Date().getFullYear()
+              : (typeof dashboardSnapshot.year === 'number' ? dashboardSnapshot.year : new Date().getFullYear() - 2);
             const supplement = await fetchPestelSupplementWebSearch(dashboardSnapshot.countryName, year);
             if (supplement) {
               systemPrompt = systemPrompt + '\n\n' + supplement;
@@ -633,27 +602,25 @@ async function handleChatRequest(
           let usedModelId: string | null = null;
           let usedWebSearch = false;
 
-          // PESTEL: use latest information first (Tavily web search), then fall back to historical (Groq / global data)
-          if (isPestelRequest && !isValidLlmResponse(content) && dashboardSnapshot?.countryName) {
-            const pestelQuery = `${dashboardSnapshot.countryName} PESTEL analysis latest current`.trim();
-            const webResult = await fetchWebSearch(pestelQuery);
-            if (webResult?.directAnswer) {
-              content = webResult.directAnswer;
-              usedWebSearch = true;
-            } else if (webResult?.context) {
-              const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
-              if (snippetMatch) {
-                const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
-                const text = snippetMatch[2] ?? snippetMatch[1];
-                content = url ? `Based on latest web search: ${text}\n\nSource: [${url}](${url})` : `Based on latest web search: ${text}`;
-                usedWebSearch = true;
-              }
+          // PESTEL must use the LLM with the full system prompt (supplement already added above).
+          // Do not fill content from a standalone web search here — that would skip the LLM and return only a snippet.
+
+          // PESTEL: try user's chosen model first when they have an API key (saves Groq free-tier tokens).
+          const pestelUserKey = isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
+          if (pestelUserKey && !isValidLlmResponse(content)) {
+            try {
+              content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+              if (isValidLlmResponse(content)) usedModelId = model;
+            } catch (err) {
+              llmError = err instanceof Error ? err.message : String(err);
+              content = '';
             }
           }
 
           // Step 2: Groq for questions within period until current year minus 2 (when global data couldn't answer)
-          // When user selected Tavily as model, try Tavily first (so they get web search right after global data)
-          if (model === 'tavily-web-search' && !isValidLlmResponse(content)) {
+          // When user selected Tavily as model, try Tavily first (so they get web search right after global data).
+          // Skip for PESTEL: PESTEL requires the LLM to produce the structured report from the system prompt.
+          if (model === 'tavily-web-search' && !isPestelRequest && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
               const country = extractCountryForWiki(userQuery);
@@ -700,9 +667,9 @@ async function handleChatRequest(
 
           // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
           // Also try Tavily when user explicitly selected Tavily as the model.
+          // Skip for PESTEL: only the LLM should produce the structured PESTEL analysis.
           const tryTavilyNow =
-            model === 'tavily-web-search' ||
-            !isValidLlmResponse(content);
+            (model === 'tavily-web-search' || !isValidLlmResponse(content)) && !isPestelRequest;
           if (tryTavilyNow && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
@@ -725,7 +692,8 @@ async function handleChatRequest(
           }
 
           // PESTEL: prefer user's model first if they have a key (saves Groq free-tier tokens)
-          const userHasNonGroqKey = isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
+          // (Already tried above for PESTEL; for non-PESTEL this tries user's model when Groq/Tavily didn't answer.)
+          const userHasNonGroqKey = !isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
           if (userHasNonGroqKey && !isValidLlmResponse(content)) {
             try {
               content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
@@ -737,30 +705,29 @@ async function handleChatRequest(
           }
 
           // Step 4: Other LLMs (user-selected or fallback list) when still no content
-            const prov = getProviderForModel(model);
-            if (apiKey && prov !== 'groq' && prov !== 'tavily') {
+          const prov = getProviderForModel(model);
+          if (apiKey && prov !== 'groq' && prov !== 'tavily') {
+            try {
+              content = await tryLlm(apiKey, prov ?? 'openai', model, openaiFormatMessages);
+              if (isValidLlmResponse(content)) usedModelId = model;
+            } catch (err) {
+              llmError = err instanceof Error ? err.message : String(err);
+            }
+          }
+          if (!isValidLlmResponse(content)) {
+            for (const { provider: p, model: m } of FREE_LLM_FALLBACK_PRIORITY) {
+              if (p === 'groq') continue;
+              const key = getServerApiKey(p);
+              if (!key) continue;
               try {
-                content = await tryLlm(apiKey, prov ?? 'openai', model, openaiFormatMessages);
-                if (isValidLlmResponse(content)) usedModelId = model;
+                content = await tryLlm(key, p, m, openaiFormatMessages);
+                if (isValidLlmResponse(content)) {
+                  llmError = null;
+                  usedModelId = m;
+                  break;
+                }
               } catch (err) {
                 llmError = err instanceof Error ? err.message : String(err);
-              }
-            }
-            if (!isValidLlmResponse(content)) {
-              for (const { provider: p, model: m } of FREE_LLM_FALLBACK_PRIORITY) {
-                if (p === 'groq') continue;
-                const key = getServerApiKey(p);
-                if (!key) continue;
-                try {
-                  content = await tryLlm(key, p, m, openaiFormatMessages);
-                  if (isValidLlmResponse(content)) {
-                    llmError = null;
-                    usedModelId = m;
-                    break;
-                  }
-                } catch (err) {
-                  llmError = err instanceof Error ? err.message : String(err);
-                }
               }
             }
           }
@@ -772,6 +739,26 @@ async function handleChatRequest(
               // If LLMs or web search are unavailable, return a safe guidance message instead.
               content = LOCATION_FALLBACK_MESSAGE;
               source = 'Assistant guidance';
+            } else if (isPestelRequest && dashboardSnapshot?.countryName) {
+              // PESTEL fallback: when no LLM succeeded, try one web search so the user gets at least something.
+              const pestelQuery = `${dashboardSnapshot.countryName} PESTEL analysis latest current`.trim();
+              const webResult = await fetchWebSearch(pestelQuery);
+              if (webResult?.directAnswer && webResult.directAnswer.length > 50) {
+                content = webResult.directAnswer;
+                source = 'Web search';
+              } else if (webResult?.context) {
+                const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
+                if (snippetMatch) {
+                  const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
+                  const text = snippetMatch[2] ?? snippetMatch[1];
+                  content = url ? `Based on latest web search: ${text}\n\nSource: [${url}](${url})` : `Based on latest web search: ${text}`;
+                  source = 'Web search';
+                }
+              }
+              if (!isValidLlmResponse(content)) {
+                content = `PESTEL analysis could not be generated. ${llmError ? formatUserFriendlyError(llmError) : 'Add an API key (e.g. GROQ_API_KEY in .env) for the free tier, or use Settings to add another provider.'}`;
+                source = 'Assistant guidance';
+              }
             } else {
               const finalFallback = getRuleBasedFallback(
                 messages,

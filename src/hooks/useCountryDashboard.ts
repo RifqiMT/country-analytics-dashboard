@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { CountryDashboardData, Frequency, MetricId } from '../types';
+import type { CountryDashboardData, Frequency } from '../types';
 import { fetchCountryDashboardData } from '../api/worldBank';
 import { resampleSeries } from '../utils/timeSeries';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
@@ -29,8 +29,6 @@ interface UseCountryDashboardResult {
   endYear: number;
   setStartYear: (year: number) => void;
   setEndYear: (year: number) => void;
-  selectedMetricIds: MetricId[];
-  setSelectedMetricIds: (ids: MetricId[]) => void;
   data?: CountryDashboardData;
   loading: boolean;
   error?: string;
@@ -69,10 +67,6 @@ export function useCountryDashboard(
     useState<Frequency>(options?.initialFrequency ?? 'yearly');
   const [startYear, setStartYear] = useState<number>(DEFAULT_START_YEAR);
   const [endYear, setEndYear] = useState<number>(DEFAULT_END_YEAR);
-  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>([
-    'gdpNominal',
-    'populationTotal',
-  ]);
   const [data, setData] = useState<CountryDashboardData>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
@@ -219,8 +213,6 @@ export function useCountryDashboard(
     endYear,
     setStartYear,
     setEndYear,
-    selectedMetricIds,
-    setSelectedMetricIds,
     data,
     loading,
     error,

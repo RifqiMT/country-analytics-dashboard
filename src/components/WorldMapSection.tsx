@@ -7,7 +7,6 @@ import type {
 } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
-import { DATA_MAX_YEAR } from '../config';
 import { getNumericCountryCodeMap, type CountryCodeInfo } from '../api/countryCodes';
 import { useToast } from './ToastProvider';
 
@@ -591,7 +590,7 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
                         strokeWidth: 0.9,
                       },
                     }}
-                    onMouseEnter={(evt) => {
+                    onMouseEnter={(evt: React.MouseEvent<SVGPathElement>) => {
                       const name =
                         mapping?.name ||
                         row?.name ||
@@ -629,7 +628,7 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
                         ),
                       });
                     }}
-                    onMouseMove={(evt) => {
+                    onMouseMove={(evt: React.MouseEvent<SVGPathElement>) => {
                       if (!wrapperRef.current) return;
 
                       const margin = 16;

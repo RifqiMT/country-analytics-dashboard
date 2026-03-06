@@ -9,7 +9,6 @@ import type {
   MetricSeries,
   TimePoint,
 } from '../types';
-import { getNumericCountryCodeMap } from './countryCodes';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import {
   fetchGDPFromIMF,
@@ -1465,8 +1464,8 @@ export async function fetchGlobalCountryMetricsForYear(
       fetchGlobalIndicatorLatestUpToYear('povertyHeadcount215', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('povertyHeadcountNational', year, 1990),
       fetchGlobalIndicatorForYear('populationTotal', year),
-      // Life expectancy changes slowly; use latest non-null value.
-      fetchGlobalStaticIndicator('lifeExpectancy'),
+      // Life expectancy: use latest non-null up to this year so time series has no gaps.
+      fetchGlobalIndicatorLatestUpToYear('lifeExpectancy', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('maternalMortalityRatio', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('under5MortalityRate', year, 1990),
       fetchGlobalIndicatorLatestUpToYear('undernourishmentPrevalence', year, 1990),

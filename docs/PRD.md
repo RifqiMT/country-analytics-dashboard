@@ -64,8 +64,8 @@ See `USER_PERSONAS.md` for full detail.
 Six main tabs:
 
 - **Country dashboard** – Single-country deep dive
-- **Global analytics** – Map and global tables (no correlation scatter in this tab)
-- **PESTEL** – Generate and view PESTEL analysis for the selected country with structured sections and sources
+- **Global analytics** – Map, global tables, and **global macro charts** (unified, economic, health, population structure aggregates)
+- **PESTEL** – Generate and view PESTEL analysis for the selected country with structured sections and sources; uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement
 - **Business Analytics** – Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation)
 - **Source** – Metric definitions, formulas, data source links, Analytics Assistant flow
 - **Analytics assistant** – Chat for questions about metrics, methodology, and general knowledge
@@ -135,7 +135,13 @@ Six main tabs:
 - All numeric columns sortable asc/desc
 - Code column hidden in Financial and Health views
 
-#### 4.3.4 Business Analytics (Dedicated Tab)
+#### 4.3.4 Global Charts
+
+- **Location**: Global analytics tab, sub-tab "Global Charts"
+- **Content**: Aggregated global time-series for unified metrics (GDP, GDP per capita, population, life expectancy), economic indicators (inflation, debt, interest, unemployment, poverty), health indicators (under‑5 mortality, maternal mortality, undernourishment), and population structure (age-group shares). Built from `fetchGlobalCountryMetricsForYear` and `globalAggregates.ts`; frequency (weekly/monthly/quarterly/yearly) and chart/table view supported.
+- **Use case**: Cross-country aggregate trends without selecting a single country.
+
+#### 4.3.5 Business Analytics (Dedicated Tab)
 
 - **Correlation scatter**: X and Y metric selectors; choose any two numeric metrics from the global dataset (e.g. GDP per capita vs life expectancy). Plot all countries as points; selected country (from Country dashboard) highlighted.
 - **Year selector**: Data year for scatter and correlation (defaults to dashboard end year).
@@ -192,6 +198,7 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 
 - **Tab**: Dedicated PESTEL tab in main navigation
 - **Input**: Selected country (from Country dashboard); optional refresh
+- **Data recency**: Uses **most up-to-date** information: global metrics and peer comparison are fetched for **DATA_MAX_YEAR** (latest available in dataset); supplemental web search uses **current year**; system prompt instructs the model to frame the analysis as of today.
 - **Output**: Structured analysis with the following **section order**:
   1. **PESTEL Analysis** – Chart with bullet points per PESTEL factor (Political, Economic, Social, Technological, Environmental, Legal)
   2. **SWOT Analysis** – 2×2 grid with **one bullet per sentence** for Strengths, Weaknesses, Opportunities, Threats

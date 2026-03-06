@@ -85,10 +85,12 @@ function buildPeerComparisonContext(
 /**
  * Build a system prompt for comprehensive PESTEL analysis.
  * PESTEL = Political, Economic, Social, Technological, Environmental, Legal.
+ * @param globalMetricsYear - Year for peer comparison when using global metrics; use latest (e.g. DATA_MAX_YEAR) for most up-to-date.
  */
 export function buildPestelSystemPrompt(
   dashboardData?: CountryDashboardData | null,
   globalMetrics?: GlobalCountryMetricsRow[] | null,
+  globalMetricsYear?: number,
 ): string {
   const today = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -208,7 +210,7 @@ Use Markdown links: [Source Name](URL) when referencing data in your text.
 
   if (globalMetrics?.length && dashboardData?.summary?.iso2Code) {
     const year =
-      dashboardData.latestSnapshot?.year ?? dashboardData.range.endYear;
+      globalMetricsYear ?? dashboardData.latestSnapshot?.year ?? dashboardData.range?.endYear;
     peerContext = buildPeerComparisonContext(
       globalMetrics,
       dashboardData.summary.iso2Code,
@@ -241,6 +243,8 @@ Use Markdown links: [Source Name](URL) when referencing data in your text.
   const instructions = `
 ## Your task
 Produce a **comprehensive PESTEL analysis** for the country above. Today is ${today}.
+
+**Most up-to-date information**: Your analysis must reflect the most up-to-date information as of today. The point-in-time metrics below use the most recent year available in the dataset (${DATA_MAX_YEAR}). The peer comparison and any global metrics are for the latest available year. Use supplemental web search results when provided to enrich dimensions (e.g. Technological, Legal, Political, Environmental) with the latest real-world context. Treat all data in this context as the best available up-to-date information.
 
 Your analysis MUST be thorough, professional, and suitable for strategic decision-making (e.g. market entry, investment, policy review). Use ALL data provided, including time-series trends. Follow the reference format below for structure, depth, and style.
 ${referenceFormat}
@@ -314,6 +318,7 @@ Write 2 paragraphs on external risks and challenges (e.g. regulatory complexity,
 
 ## Guidelines
 - **Use exact numbers** from the data; never invent figures
+- **Recency**: Frame your analysis as of today; use the most recent data in the context. When global or peer comparison data is provided, it is for the latest available year (${DATA_MAX_YEAR})—use it as the most up-to-date reference.
 - **Supplemental web data**: If a "Supplemental web data for PESTEL" section is provided, use it to enrich Technological, Legal, Political, and Environmental dimensions. Prioritise this real-time data over inference. Cite or reference it where relevant.
 - **Cite trends** from the time-series when available (e.g. "GDP grew by X% over the period")
 - **Be concise**: Each PESTEL dimension must have at most 2 summarized paragraphs

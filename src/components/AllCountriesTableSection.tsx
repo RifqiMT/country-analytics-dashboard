@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import type { GlobalCountryMetricsRow } from '../types';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
-import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import { useToast } from './ToastProvider';
 
 interface Props {
@@ -22,7 +21,7 @@ function getFlagEmoji(iso2: string): string {
     .join('');
 }
 
-export function AllCountriesTableSection({ year, setYear, refreshTrigger = 0 }: Props) {
+export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
   const { showToast, dismissToast } = useToast();
   const [rows, setRows] = useState<GlobalCountryMetricsRow[]>([]);
   const [rowsPrev, setRowsPrev] = useState<GlobalCountryMetricsRow[]>([]);

@@ -15,14 +15,23 @@ import type {
   MetricSeries,
 } from '../types';
 import { formatCompactNumber } from '../utils/numberFormat';
+import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
+
 interface Props {
   data?: CountryDashboardData;
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
-  selectedMetricIds: MetricId[];
-  setSelectedMetricIds: (ids: MetricId[]) => void;
   resampledSeries?: CountryDashboardData['series'];
 }
+
+const UNIFIED_TIMELINE_METRIC_IDS: MetricId[] = [
+  'gdpNominal',
+  'gdpPPP',
+  'gdpNominalPerCapita',
+  'gdpPPPPerCapita',
+  'govDebtUSD',
+  'populationTotal',
+];
 
 const METRIC_COLORS: Record<MetricId, string> = {
   gdpNominal: '#c8102e', // Indonesian red
@@ -62,18 +71,19 @@ export function TimeSeriesSection({
   data,
   frequency,
   setFrequency,
-  selectedMetricIds,
-  setSelectedMetricIds,
   resampledSeries,
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
+  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(
+    UNIFIED_TIMELINE_METRIC_IDS,
+  );
 
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Financial & population trends</h2>
+        <h2 className="section-title">Unified financial & population timeline</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
@@ -82,27 +92,14 @@ export function TimeSeriesSection({
   const allSeries: MetricSeries[] = [
     ...(finalSeries.financial ?? []),
     ...(finalSeries.population ?? []),
-    ...(finalSeries.health ?? []).filter(
-      (s) =>
-        s.id !== 'pop0_14Share' &&
-        s.id !== 'pop15_64Share' &&
-        s.id !== 'pop65PlusShare',
-    ),
-  ].filter(
-    (s) =>
-      s.id !== 'inflationCPI' &&
-      s.id !== 'govDebtPercentGDP' &&
-      s.id !== 'interestRate' &&
-      s.id !== 'unemploymentRate' &&
-      s.id !== 'unemployedTotal' &&
-      s.id !== 'labourForceTotal' &&
-      s.id !== 'povertyHeadcount215' &&
-      s.id !== 'povertyHeadcountNational' &&
-      s.id !== 'maternalMortalityRatio' &&
-      s.id !== 'under5MortalityRate' &&
-      s.id !== 'undernourishmentPrevalence' &&
-      s.id !== 'lifeExpectancy',
-  );
+  ].filter((s) => UNIFIED_TIMELINE_METRIC_IDS.includes(s.id));
+
+  const displayStartYear = data.range
+    ? Math.max(data.range.startYear, DATA_MIN_YEAR)
+    : DATA_MIN_YEAR;
+  const displayEndYear = data.range
+    ? Math.min(data.range.endYear, DATA_MAX_YEAR)
+    : DATA_MAX_YEAR;
 
   const labelByMetricId = allSeries.reduce<Record<MetricId, string>>(
     (acc, series) => {
@@ -112,20 +109,32 @@ export function TimeSeriesSection({
     {} as Record<MetricId, string>,
   );
 
-  const baseData = allSeries[0]?.points ?? [];
+  const dateSet = new Map<string, number>();
+  for (const s of allSeries) {
+    const points = s.points ?? [];
+    for (const p of points) {
+      if (p.year < displayStartYear || p.year > displayEndYear) continue;
+      dateSet.set(p.date, p.year);
+    }
+  }
+  const sortedDates = [...dateSet.entries()].sort(
+    (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
+  );
+  const baseData = sortedDates.map(([date, year]) => ({ date, year }));
   const merged = baseData.map((p) => {
-    const row: any = { date: p.date, year: p.year };
-    for (const metricId of selectedMetricIds) {
+    const row: Record<string, string | number | null> = {
+      date: p.date,
+      year: p.year,
+    };
+    for (const metricId of UNIFIED_TIMELINE_METRIC_IDS) {
       const seriesForMetric = allSeries.find((s) => s.id === metricId);
-      const value = seriesForMetric?.points?.find(
-        (sp) => sp.date === p.date,
-      )?.value;
+      const value =
+        seriesForMetric?.points?.find((sp) => sp.date === p.date)?.value ??
+        null;
       row[metricId] = value ?? null;
     }
     return row;
   });
-
-  const availableMetricIds = allSeries.map((s) => s.id);
 
   const xKey = frequency === 'yearly' ? 'year' : 'date';
 
@@ -235,15 +244,7 @@ export function TimeSeriesSection({
       });
     });
 
-    const METRIC_DISPLAY_ORDER: MetricId[] = [
-      'gdpNominal',
-      'gdpPPP',
-      'gdpNominalPerCapita',
-      'gdpPPPPerCapita',
-      'govDebtUSD',
-      'populationTotal',
-    ];
-
+    const METRIC_DISPLAY_ORDER: MetricId[] = UNIFIED_TIMELINE_METRIC_IDS;
     const rows = METRIC_DISPLAY_ORDER
       .filter((id) => selectedMetricIds.includes(id) && byMetricId.has(id))
       .map((id) => {
@@ -301,8 +302,8 @@ export function TimeSeriesSection({
         <div>
           <h2 className="section-title">Unified financial & population timeline</h2>
           <p className="muted">
-            Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
-            interpolated from annual observations.
+            GDP, GDP per capita, government debt, and population over time. Switch between
+            weekly, monthly, quarterly, and annual views; sub-annual views are interpolated from annual observations.
           </p>
         </div>
         <div className="section-header-controls">
@@ -419,7 +420,7 @@ export function TimeSeriesSection({
         <div className="metric-toggle-hint">Tap to show or hide each series</div>
       </div>
       <div className="metric-toggle-row">
-        {availableMetricIds.map((id) => (
+        {UNIFIED_TIMELINE_METRIC_IDS.map((id) => (
           <button
             key={id}
             type="button"
@@ -436,7 +437,7 @@ export function TimeSeriesSection({
               className="tag-swatch"
               style={{ backgroundColor: METRIC_COLORS[id] }}
             />
-            {allSeries.find((s) => s.id === id)?.label ?? id}
+            {labelByMetricId[id] ?? id}
           </button>
         ))}
       </div>
@@ -488,7 +489,7 @@ export function TimeSeriesSection({
                 }}
                 content={<CustomTooltip />}
               />
-              {selectedMetricIds.map((metricId) => (
+              {UNIFIED_TIMELINE_METRIC_IDS.map((metricId) => (
                 <Line
                   key={metricId}
                   type="monotone"
@@ -510,7 +511,7 @@ export function TimeSeriesSection({
               <thead>
                 <tr>
                   <th>{frequency === 'yearly' ? 'Year' : 'Period'}</th>
-                  {selectedMetricIds.map((id) => (
+                  {UNIFIED_TIMELINE_METRIC_IDS.map((id) => (
                     <th key={id}>{labelByMetricId[id] ?? id}</th>
                   ))}
                 </tr>
@@ -518,8 +519,8 @@ export function TimeSeriesSection({
               <tbody>
                 {merged.map((row, rowIndex) => (
                   <tr key={String(row[xKey])}>
-                    <td>{formatAxisLabel(row[xKey])}</td>
-                    {selectedMetricIds.map((id) => {
+                    <td>{formatAxisLabel(row[xKey] as string | number)}</td>
+                    {UNIFIED_TIMELINE_METRIC_IDS.map((id) => {
                       const v = row[id];
                       const prevRow = rowIndex > 0 ? merged[rowIndex - 1] : undefined;
                       const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;

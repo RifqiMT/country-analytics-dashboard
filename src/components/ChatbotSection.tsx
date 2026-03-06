@@ -302,7 +302,7 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
             ? Object.fromEntries(
                 globalDataByYearEntries.slice(0, yearEntryLimit).map(([y, rows]) => [
                   y,
-                  pickRows(rows).map((r) => ({
+                  pickRows(Array.isArray(rows) ? rows : []).map((r) => ({
                     name: r.name,
                     iso2Code: r.iso2Code,
                     gdpNominal: r.gdpNominal,

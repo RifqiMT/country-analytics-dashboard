@@ -1,6 +1,6 @@
 # Product Metrics & OKRs – Country Analytics Platform
 
-This document defines how we measure the success of the Country Analytics Platform and how those metrics map to product and engineering work. For **data metrics** (GDP, population, etc.), see `PRODUCT_METRICS.md`.
+This document defines how we measure the success of the Country Analytics Platform and how those metrics map to product and engineering work. For **data metrics** (GDP, population, etc.), see `PRODUCT_METRICS.md`. For **all variables** (data metrics, config, env) with name, definition, formula, and example, see `VARIABLES.md`.
 
 ---
 
@@ -43,6 +43,13 @@ This document defines how we measure the success of the Country Analytics Platfo
 |----|--------|------------|
 | **GM-1** | Map engagement rate | % of sessions that open the Global view and stay on the map for at least 10 seconds |
 | **GM-2** | Metric diversity (map) | Number of unique metrics selected on the map per session |
+
+### 2.2b Global Analytics – Global Charts
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **GC-1** | Global Charts view rate | % of sessions that open the Global Charts sub-tab |
+| **GC-2** | Global Charts frequency change | % of Global Charts sessions where user changes frequency or view (chart/table) |
 
 ### 2.3 Global Analytics – Tables
 
@@ -147,6 +154,7 @@ Use a `product_area.action` pattern:
 | `swot.chart_downloaded` | User downloads SWOT chart as PNG |
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
+| `global.charts_viewed` | User opens Global Charts sub-tab |
 | `chat.message_sent` | User sends a chat message |
 | `chat.suggestion_clicked` | User clicks a suggestion chip |
 | `chat.model_changed` | User changes LLM model |

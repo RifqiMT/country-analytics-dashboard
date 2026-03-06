@@ -35,7 +35,7 @@ This document describes the target audiences for the Country Analytics Platform,
 ### Typical Usage
 
 - Starts with Country dashboard for a key market
-- Switches to Global analytics map to compare regions
+- Switches to Global analytics (map, table, or **global charts**) to compare regions and aggregates
 - Sorts global table by GDP or population for rankings
 - Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
 - Uses Analytics assistant for quick **location/geography** and neighbour questions (e.g. "Which continent is Ukraine in?", "Neighbouring countries of Indonesia?") with up-to-date web search
@@ -76,7 +76,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Uses unified timeline with multiple metrics for correlation
 - Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
 - Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
-- Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis with sources
+- Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
 - Checks Source tab for government debt formula and IMF fallback
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, Groq, Web search) and year-based routing (Groq for older period, Tavily for recent) to assess answer provenance
 - Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)
@@ -154,7 +154,7 @@ This document describes the target audiences for the Country Analytics Platform,
 - Explores multiple countries and year ranges
 - Uses Global table with sorting for quick rankings
 - Uses **Business Analytics** tab to explore relationships between metrics (e.g. GDP per capita vs under‑5 mortality) and highlight selected country; reviews Pearson correlation and causation note
-- Uses **PESTEL** tab for structured country-level PESTEL analysis with sources before building reports
+- Uses **PESTEL** tab for structured country-level PESTEL analysis with **most up-to-date** information (global data for latest year, current-year web supplement) and sources before building reports
 - References Source tab for data definitions and API links
 - Uses Analytics assistant for rankings and methodology questions
 - Uses Analytics assistant for **out-of-scope checks** (location/geography, leaders) while verifying that metric answers remain sourced from dashboard data
@@ -166,6 +166,6 @@ This document describes the target audiences for the Country Analytics Platform,
 | Persona | Primary Tab | Key Features |
 |---------|-------------|--------------|
 | Strategy Lead | Country + Global + Business Analytics + Chat | Map, global table sort, correlation scatter (Business Analytics), comparison, Analytics assistant |
-| Economist | Country + Global + PESTEL + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL, metric definitions, methodology questions |
+| Economist | Country + Global + PESTEL + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL (latest data), metric definitions, methodology questions |
 | Market Manager | Country + Chat | Summary, Population Structure timeline (age groups + absolute), age breakdown, quick comparisons |
-| BI Analyst | All | Global table, Business Analytics (correlation scatter), PESTEL, Source tab, sorting, Analytics assistant |
+| BI Analyst | All | Global table, Global charts, Business Analytics (correlation scatter), PESTEL, Source tab, sorting, Analytics assistant |

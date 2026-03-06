@@ -35,6 +35,7 @@ The documentation standard ensures:
 | **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
 | **docs/PRODUCT_METRICS.md** | Data metrics (GDP, population, etc.) with formulas, WDI codes, and source references |
+| **docs/VARIABLES.md** | All variables: data metrics, config constants, env variables – name, definition, formula, example |
 | **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs) |
 
 ---
@@ -55,11 +56,12 @@ Must include: **Product overview** (value proposition, target audience, key view
   - Edge cases (countries without data, territory fallbacks, Palestine naming)
   - Analytics Assistant cascading flow and source attribution
   - **Out-of-scope handling**: location/geography and neighbour questions (e.g. "Where is X located?", "Which continent is Y in?", "Neighbouring countries of Z") must **never** return dashboard metrics; return a safe guidance response and route to LLM/web search
-  - PESTEL output structure:
-    - PESTEL Analysis chart (summarised bullets per pillar; **downloadable as PNG**)
-    - SWOT Analysis (sentence-level bullets; **at least 5 bullets per quadrant** where the generated content allows)
-    - Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations
-    - At least 5 bullet points each for New Market Analysis, Key Takeaways, and Recommendations
+- **PESTEL output structure**:
+  - PESTEL Analysis chart (summarised bullets per pillar; **downloadable as PNG**)
+  - SWOT Analysis (sentence-level bullets; **at least 5 bullets per quadrant** where the generated content allows)
+  - Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations
+  - At least 5 bullet points each for New Market Analysis, Key Takeaways, and Recommendations
+- **PESTEL data recency**: PESTEL uses the most up-to-date information: global metrics and peer comparison use **DATA_MAX_YEAR**; supplemental web search uses **current year**; prompt instructs the model to frame analysis as of today.
 - Reference primary components and API modules
 
 ### 3.3 User Personas
@@ -91,8 +93,9 @@ Must include: **Product overview** (value proposition, target audience, key view
 
 ### 3.7 Product Metrics (Data)
 
-- How metrics feed the UI (Country, Global, Source, Chat, PESTEL)
+- How metrics feed the UI (Country, Global map/table/charts, Source, Chat, PESTEL, Business Analytics)
 - Per-metric: ID, label, unit, formula, fallback; WDI codes and data quality rules
+- **Variables documentation**: `docs/VARIABLES.md` lists every variable (data metrics, config, env) with name, definition, formula, and example.
 
 ---
 
@@ -148,8 +151,9 @@ For every feature PR that changes user-visible behaviour:
 | Country comparison | CountryTableSection | worldBank.ts |
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
+| Global charts | GlobalChartsSection (unified, economic, health, population structure aggregates) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
-| PESTEL | PESTELSection | pestelContext.ts (prompt/build), LLM via chat API; PESTEL/SWOT charts export via html2canvas |
+| PESTEL | PESTELSection (DATA_MAX_YEAR for global data; current year for web supplement) | pestelContext.ts, LLM via chat API; PESTEL/SWOT charts export via html2canvas |
 | Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context) |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts (location/geography → safe guidance, not metrics) |
 

@@ -89,7 +89,7 @@ export function BusinessAnalyticsSection({
   }, [year, refreshTrigger]);
 
   const correlationResult = globalMetrics.length > 0
-    ? computeCorrelationAnalysis(globalMetrics, xMetric, yMetric)
+    ? computeCorrelationAnalysis(globalMetrics as unknown as Record<string, unknown>[], xMetric, yMetric)
     : null;
 
   const xLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === xMetric)?.label ?? xMetric;

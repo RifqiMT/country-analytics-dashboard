@@ -161,6 +161,22 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 ---
 
+## 5b. Global Analytics – Global Charts
+
+### US-5b.1 – View global aggregate trends
+
+- **As a** Policy Analyst or Strategy Lead  
+- **I want to** open the Global Charts sub-tab and see aggregated global time-series (unified, economic, health, population structure)  
+- **So that** I can understand worldwide trends without selecting a single country  
+
+**Acceptance criteria:**
+- Global analytics tab includes Map, Global table, and Global Charts sub-tabs
+- Global Charts show aggregated series for unified metrics, economic indicators, health indicators, and population structure (age-group shares)
+- Frequency (weekly/monthly/quarterly/yearly) and chart/table view are available
+- Data is built from the same global dataset as the map and table for the selected year
+
+---
+
 ## 5a. Business Analytics – Correlation Scatter & Causation
 
 ### US-5a.1 – Compare two metrics across countries
@@ -365,6 +381,7 @@ Stories are grouped by feature area and mapped to personas from `USER_PERSONAS.m
 
 **Acceptance criteria:**
 - PESTEL tab shows current country; user can trigger generate/refresh
+- Output uses **most up-to-date** global data (DATA_MAX_YEAR for peer comparison) and current-year web supplement where applicable
 - Output is structured in this order: PESTEL Analysis (chart), SWOT Analysis (one bullet per sentence), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations
 - New Market Analysis, Key Takeaways, and Recommendations each contain at least 5 bullet points
 - Where applicable, responses include sources and hyperlinks

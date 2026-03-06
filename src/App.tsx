@@ -16,6 +16,7 @@ import { PESTELSection } from './components/PESTELSection';
 import { BusinessAnalyticsSection } from './components/BusinessAnalyticsSection';
 import { YearRangeSelector } from './components/YearRangeSelector';
 import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
+import { GlobalChartsSection } from './components/GlobalChartsSection';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
 import { clearGlobalCountryMetricsCache } from './api/worldBank';
 
@@ -41,8 +42,6 @@ function App() {
     endYear,
     setStartYear,
     setEndYear,
-    selectedMetricIds,
-    setSelectedMetricIds,
     resampled,
     resampledMacro,
     resampledMacroHealth,
@@ -51,7 +50,7 @@ function App() {
   } = useCountryDashboard({ refreshTrigger: dataRefreshTrigger });
 
   const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'business' | 'chat'>('country');
-  const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table'>('map');
+  const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table' | 'charts'>('map');
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
   const [globalYearInput, setGlobalYearInput] = useState<number>(DATA_MAX_YEAR);
@@ -213,14 +212,12 @@ function App() {
             <SummarySection data={data} loading={loading} countryCode={countryCode} />
 
             <section className="dashboard-grid">
-              <TimeSeriesSection
-                data={data}
-                frequency={frequency}
-                setFrequency={setFrequency}
-                selectedMetricIds={selectedMetricIds}
-                setSelectedMetricIds={setSelectedMetricIds}
-                resampledSeries={resampled}
-              />
+            <TimeSeriesSection
+              data={data}
+              frequency={frequency}
+              setFrequency={setFrequency}
+              resampledSeries={resampled}
+            />
               <MacroIndicatorsTimelineSection
                 variant="economic"
                 data={data}
@@ -257,7 +254,7 @@ function App() {
               <div>
                 <h2 className="section-title">Global view</h2>
                 <p className="muted">
-                  Switch between an interactive world map and a full global country table for cross-country
+                  Switch between an interactive world map, a full global country table, and global macro charts for cross-country
                   comparison.
                 </p>
               </div>
@@ -335,6 +332,18 @@ function App() {
                     </span>
                     <span>Global table</span>
                   </button>
+                  <button
+                    type="button"
+                    className={`tab ${globalViewTab === 'charts' ? 'tab-active' : ''}`}
+                    onClick={() => setGlobalViewTab('charts')}
+                  >
+                    <span className="icon-16">
+                      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                        <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
+                      </svg>
+                    </span>
+                    <span>Global Charts</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -355,10 +364,15 @@ function App() {
                   refreshTrigger={dataRefreshTrigger}
                 />
               </>
-            ) : (
+            ) : globalViewTab === 'table' ? (
               <AllCountriesTableSection
                 year={globalYear}
                 setYear={setGlobalYear}
+                refreshTrigger={dataRefreshTrigger}
+              />
+            ) : (
+              <GlobalChartsSection
+                maxYear={globalYear}
                 refreshTrigger={dataRefreshTrigger}
               />
             )}

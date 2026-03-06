@@ -10,6 +10,7 @@ This document describes the data flow, component boundaries, and technical archi
 ┌─────────────────────────────────────────────────────────────────┐
 │                         App.tsx (Root)                            │
 │  - Main tabs (Country | Global | PESTEL | Business Analytics | Chat | Source)         │
+│  - Global view sub-tabs: Map | Global table | Global Charts                          │
 │  - Global state: mainTab, globalViewTab, mapMetricId, year       │
 └─────────────────────────────────────────────────────────────────┘
                                     │
@@ -207,6 +208,9 @@ App
     └── Geographies (flag on hover)
 └── AllCountriesTableSection
     └── Table (General | Financial | Health)
+└── GlobalChartsSection
+    └── Unified, economic, health, population-structure aggregates (globalAggregates.ts)
+    └── Frequency + chart/table view
 ```
 
 ### 3.3 Business Analytics
@@ -227,6 +231,8 @@ App
 App
 └── PESTELSection
     └── Country context (from useCountryDashboard)
+    └── Global metrics for DATA_MAX_YEAR (most up-to-date peer comparison)
+    └── Supplemental web search (current year) via vite-plugin-chat-api
     └── Generate / Refresh button
     └── Rendered output in section order: PESTEL Analysis (chart), SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis (≥5 bullets), Key Takeaways (≥5 bullets), Recommendations (≥5 bullets)
     └── Chart export: Download PESTEL chart and SWOT chart as high-resolution PNG (html2canvas)
@@ -286,8 +292,8 @@ App
 |--------|---------|
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
 | `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
-| `pestelContext.ts` | PESTEL prompt building and generation context for selected country (used by PESTEL tab) |
-| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing (Groq vs Tavily by implied year); source attribution; PESTEL generation |
+| `pestelContext.ts` | PESTEL prompt building; uses DATA_MAX_YEAR for peer comparison year; used by PESTEL tab |
+| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing; source attribution; PESTEL generation (current year for web supplement) |
 
 ### 4.4 Business Analytics
 
@@ -312,6 +318,7 @@ App
 |--------|---------|
 | `timeSeries.ts` | Resample annual series to weekly/monthly/quarterly |
 | `numberFormat.ts` | formatCompactNumber, formatPercentage, formatYearRange |
+| `globalAggregates.ts` | Compute global aggregates for GlobalChartsSection (unified, economic, health, population structure) from global metrics |
 
 ---
 

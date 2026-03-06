@@ -325,7 +325,7 @@ interface Props {
   countryCode?: string;
 }
 
-export function SummarySection({ data, loading = false, countryCode }: Props) {
+export function SummarySection({ data, countryCode }: Props) {
   if (!data) {
     const noCountry = !countryCode?.trim();
     return (

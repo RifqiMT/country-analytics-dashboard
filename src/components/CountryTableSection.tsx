@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
+import { computeGlobalValue, toGlobalAggregateOption } from '../utils/globalAggregates';
 
 interface Props {
   data?: CountryDashboardData;
@@ -22,7 +23,6 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   }
 
   const { latestSnapshot: snapshot } = data;
-  const { metrics } = snapshot;
 
   const [globalRowsCurr, setGlobalRowsCurr] = useState<
     GlobalCountryMetricsRow[]
@@ -30,8 +30,7 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   const [globalRowsPrev, setGlobalRowsPrev] = useState<
     GlobalCountryMetricsRow[]
   >([]);
-  const [loading, setLoading] = useState(false);
-  const [showAgeBreakdown, setShowAgeBreakdown] = useState(true);
+  const [, setLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,17 +55,44 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     };
   }, [snapshot.year, refreshTrigger]);
 
+  const latestNonNullUpToYear = (
+    points: Array<{ year: number; value: number | null | undefined }> | undefined,
+    year: number,
+  ): number | null => {
+    if (!points || !points.length) return null;
+    const candidates = points
+      .filter((p) => p.year <= year && p.value != null)
+      .sort((a, b) => a.year - b.year);
+    if (!candidates.length) return null;
+    const last = candidates[candidates.length - 1];
+    return last.value != null ? last.value : null;
+  };
+
   const computeAggregates = (
     key: keyof GlobalCountryMetricsRow,
     seriesId: string,
-    options?: { globalAsAverage?: boolean },
+    options?: {
+      globalAsAverage?: boolean;
+      selectedOverride?: number | null;
+      /** Global = sum(numerator)/sum(denominator). Use for ratio-of-totals (e.g. GDP per capita, unemployment %, gov debt %). */
+      globalFromRatio?: {
+        numeratorKey: keyof GlobalCountryMetricsRow;
+        denominatorKey: keyof GlobalCountryMetricsRow;
+        /** Optional multiplier for display (e.g. 100 for percentages). */
+        scale?: number;
+      };
+      /** Global = sum(value * weight) / sum(weight). Use for rates that should be weighted (e.g. inflation GDP-weighted, age share pop-weighted). */
+      globalFromWeightedAverage?: {
+        weightKey: keyof GlobalCountryMetricsRow;
+      };
+    },
   ) => {
     const valuesCurr = globalRowsCurr
       .map((r) => r[key])
       .filter((v): v is number => v != null && !Number.isNaN(v));
     if (!valuesCurr.length) {
       return {
-        selected: null as number | null,
+        selected: (options?.selectedOverride !== undefined ? options.selectedOverride : null) as number | null,
         avgCountry: null as number | null,
         global: null as number | null,
         yoySelected: null as string | null,
@@ -81,6 +107,16 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
       .map((r) => r[key])
       .filter((v): v is number => v != null && !Number.isNaN(v));
 
+    let globalValue: number | null = null;
+    let ratioCurr: number | null = null;
+    let ratioPrev: number | null = null;
+    const globalOption = toGlobalAggregateOption(options);
+    if (globalOption) {
+      ratioCurr = computeGlobalValue(globalRowsCurr, key, globalOption);
+      ratioPrev = computeGlobalValue(globalRowsPrev, key, globalOption);
+      globalValue = ratioCurr;
+    }
+
     let yoySelected: string | null = null;
     let yoyAvg: string | null = null;
     let yoyGlobal: string | null = null;
@@ -90,7 +126,7 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
       if (health) return health;
       return (data.series?.financial ?? []).find((s) => s.id === seriesId);
     })();
-    if (series) {
+    if (series && options?.selectedOverride === undefined) {
       const points = series.points ?? [];
       const curr = points.find((p) => p.year === snapshot.year)?.value;
       const prev = points.find((p) => p.year === snapshot.year - 1)
@@ -133,18 +169,41 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
         }
       }
     }
+    if (ratioCurr != null && ratioPrev != null && ratioPrev !== 0) {
+      const pct = ((ratioCurr - ratioPrev) / Math.abs(ratioPrev)) * 100;
+      if (Number.isFinite(pct)) {
+        const sign = pct > 0 ? '+' : '';
+        yoyGlobal = `${sign}${pct.toFixed(1)}%`;
+      }
+    }
 
     const useAverageForGlobal = options?.globalAsAverage === true;
-    const globalValue = useAverageForGlobal ? avgCurr : sumCurr;
+    if (globalValue == null && !options?.globalFromRatio && !options?.globalFromWeightedAverage) {
+      globalValue = useAverageForGlobal ? avgCurr : sumCurr;
+    }
+
+    const selected =
+      options?.selectedOverride !== undefined
+        ? options.selectedOverride
+        : series
+          ? latestNonNullUpToYear(series.points, snapshot.year)
+          : null;
+
+    const useRatioOrWeightedForAvg =
+      options?.globalFromRatio != null || options?.globalFromWeightedAverage != null;
+    const avgCountryValue =
+      useRatioOrWeightedForAvg && globalValue != null
+        ? globalValue
+        : avgCurr;
+    const avgCountryYoy =
+      useRatioOrWeightedForAvg && yoyGlobal != null ? yoyGlobal : yoyAvg;
 
     return {
-      selected: series
-        ? (series.points ?? []).find((p) => p.year === snapshot.year)?.value ?? null
-        : null,
-      avgCountry: avgCurr,
+      selected,
+      avgCountry: avgCountryValue,
       global: globalValue,
       yoySelected,
-      yoyAvg,
+      yoyAvg: avgCountryYoy,
       yoyGlobal,
     };
   };
@@ -160,20 +219,38 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   const gdpNominalPerCapitaAgg = computeAggregates(
     'gdpNominalPerCapita',
     'gdpNominalPerCapita',
+    {
+      globalFromRatio: {
+        numeratorKey: 'gdpNominal',
+        denominatorKey: 'populationTotal',
+      },
+    },
   );
   const gdpPPPPerCapitaAgg = computeAggregates(
     'gdpPPPPerCapita',
     'gdpPPPPerCapita',
+    {
+      globalFromRatio: {
+        numeratorKey: 'gdpPPP',
+        denominatorKey: 'populationTotal',
+      },
+    },
   );
   const inflationCPIAgg = computeAggregates(
     'inflationCPI',
     'inflationCPI',
-    { globalAsAverage: true },
+    { globalFromWeightedAverage: { weightKey: 'gdpNominal' } },
   );
   const govDebtPercentGDPAgg = computeAggregates(
     'govDebtPercentGDP',
     'govDebtPercentGDP',
-    { globalAsAverage: true },
+    {
+      globalFromRatio: {
+        numeratorKey: 'govDebtUSD',
+        denominatorKey: 'gdpNominal',
+        scale: 100,
+      },
+    },
   );
   const govDebtUSDAgg = computeAggregates(
     'govDebtUSD',
@@ -182,12 +259,18 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   const interestRateAgg = computeAggregates(
     'interestRate',
     'interestRate',
-    { globalAsAverage: true },
+    { globalFromWeightedAverage: { weightKey: 'gdpNominal' } },
   );
   const unemploymentRateAgg = computeAggregates(
     'unemploymentRate',
     'unemploymentRate',
-    { globalAsAverage: true },
+    {
+      globalFromRatio: {
+        numeratorKey: 'unemployedTotal',
+        denominatorKey: 'labourForceTotal',
+        scale: 100,
+      },
+    },
   );
   const unemployedTotalAgg = computeAggregates(
     'unemployedTotal',
@@ -202,20 +285,103 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     'populationTotal',
   );
 
-  const pop0_14Agg = computeAggregates(
-    'population0_14',
-    'pop0_14Share',
+  const geography = snapshot.metrics.geography;
+  const landAreaAgg = computeAggregates('landAreaKm2', 'landArea', {
+    selectedOverride: geography?.landAreaKm2 ?? null,
+  });
+  const totalAreaAgg = computeAggregates('totalAreaKm2', 'surfaceArea', {
+    selectedOverride: geography?.totalAreaKm2 ?? null,
+  });
+  const eezAgg = computeAggregates('eezKm2', 'eez', {
+    selectedOverride: geography?.eezKm2 ?? null,
+  });
+
+  const poverty215Agg = computeAggregates(
+    'povertyHeadcount215',
+    'povertyHeadcount215',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
-  const pop15_64Agg = computeAggregates(
-    'population15_64',
-    'pop15_64Share',
-  );
-  const pop65PlusAgg = computeAggregates(
-    'population65Plus',
-    'pop65PlusShare',
+  const povertyNationalAgg = computeAggregates(
+    'povertyHeadcountNational',
+    'povertyHeadcountNational',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
 
-  const ageGroups = snapshot.metrics?.population?.ageBreakdown?.groups ?? [];
+  const lifeExpectancyAgg = computeAggregates(
+    'lifeExpectancy',
+    'lifeExpectancy',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const maternalMortalityAgg = computeAggregates(
+    'maternalMortalityRatio',
+    'maternalMortalityRatio',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const under5MortalityAgg = computeAggregates(
+    'under5MortalityRate',
+    'under5MortalityRate',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const undernourishmentAgg = computeAggregates(
+    'undernourishmentPrevalence',
+    'undernourishmentPrevalence',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const pop0_14Agg = computeAggregates('pop0_14Pct', 'pop0_14Share', {
+    globalFromWeightedAverage: { weightKey: 'populationTotal' },
+  });
+  const pop15_64Agg = computeAggregates('pop15_64Pct', 'pop15_64Share', {
+    globalFromWeightedAverage: { weightKey: 'populationTotal' },
+  });
+  const pop65PlusAgg = computeAggregates('pop65PlusPct', 'pop65PlusShare', {
+    globalFromWeightedAverage: { weightKey: 'populationTotal' },
+  });
+
+  const [expandedGroups, setExpandedGroups] = useState({
+    general: true,
+    financial: true,
+    health: true,
+  });
+
+  const toggleGroup = (group: 'general' | 'financial' | 'health') => {
+    setExpandedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
+  };
+
+  type Agg = ReturnType<typeof computeAggregates>;
+  const renderRow = (
+    label: string,
+    agg: Agg,
+    format: 'compact' | 'percentage' | 'area',
+  ) => {
+    const fmt = (v: number | null) => {
+      if (v == null) return '–';
+      if (format === 'percentage') return formatPercentage(v);
+      if (format === 'area') return `${formatCompactNumber(v)} km²`;
+      return formatCompactNumber(v);
+    };
+    const yoyClass = agg.yoySelected?.startsWith('-') ? ' table-cell-yoy--negative' : '';
+    return (
+      <tr key={label}>
+        <td>{label}</td>
+        <td className="numeric-cell">
+          <div className="table-cell-main">{fmt(agg.selected)}</div>
+          {agg.yoySelected && (
+            <div className={`table-cell-yoy${yoyClass}`}>{agg.yoySelected}</div>
+          )}
+        </td>
+        <td className="numeric-cell">
+          <div className="table-cell-main">{fmt(agg.avgCountry)}</div>
+          {agg.yoyAvg && <div className="table-cell-yoy">{agg.yoyAvg}</div>}
+        </td>
+        <td className="numeric-cell">
+          <div className="table-cell-main">{fmt(agg.global)}</div>
+          {agg.yoyGlobal && (
+            <div className="table-cell-yoy">{agg.yoyGlobal}</div>
+          )}
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <section className="card table-section">
@@ -225,24 +391,8 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
             Country comparison (year {snapshot.year})
           </h2>
           <p className="muted small">
-            Selected country versus simple average across all countries and global totals.
+            Selected country versus world average (ratio- or weighted where applicable) and global totals.
           </p>
-        </div>
-        <div className="pill-group">
-          <button
-            type="button"
-            className={`pill ${!showAgeBreakdown ? 'pill-active' : ''}`}
-            onClick={() => setShowAgeBreakdown(false)}
-          >
-            Core metrics
-          </button>
-          <button
-            type="button"
-            className={`pill ${showAgeBreakdown ? 'pill-active' : ''}`}
-            onClick={() => setShowAgeBreakdown(true)}
-          >
-            + Population age breakdown
-          </button>
         </div>
       </div>
       <div className="table-wrapper">
@@ -251,528 +401,86 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
             <tr>
               <th>Metric</th>
               <th>{snapshot.country.name}</th>
-              <th>YoY ({snapshot.country.iso2Code})</th>
               <th>Avg country</th>
               <th>Global</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>GDP (Nominal, US$)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpNominalAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {gdpNominalAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpNominalAgg.avgCountry)}
-                </div>
-                {gdpNominalAgg.yoyAvg && (
-                  <div className="table-cell-yoy">{gdpNominalAgg.yoyAvg}</div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpNominalAgg.global)}
-                </div>
-                {gdpNominalAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {gdpNominalAgg.yoyGlobal}
-                  </div>
-                )}
+            <tr
+              className="table-group-header table-group-header-clickable"
+              onClick={() => toggleGroup('general')}
+            >
+              <td colSpan={4}>
+                <span className="table-group-header-inner">
+                  <span className="table-group-chevron">
+                    {expandedGroups.general ? '▾' : '▸'}
+                  </span>
+                  <span>General</span>
+                </span>
               </td>
             </tr>
-            <tr>
-              <td>GDP (PPP, Intl$)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpPPPAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {gdpPPPAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpPPPAgg.avgCountry)}
-                </div>
-                {gdpPPPAgg.yoyAvg && (
-                  <div className="table-cell-yoy">{gdpPPPAgg.yoyAvg}</div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpPPPAgg.global)}
-                </div>
-                {gdpPPPAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {gdpPPPAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>GDP per capita (Nominal, US$)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpNominalPerCapitaAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {gdpNominalPerCapitaAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpNominalPerCapitaAgg.avgCountry)}
-                </div>
-                {gdpNominalPerCapitaAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {gdpNominalPerCapitaAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpNominalPerCapitaAgg.global)}
-                </div>
-                {gdpNominalPerCapitaAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {gdpNominalPerCapitaAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>GDP per capita (PPP, Intl$)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpPPPPerCapitaAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {gdpPPPPerCapitaAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpPPPPerCapitaAgg.avgCountry)}
-                </div>
-                {gdpPPPPerCapitaAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {gdpPPPPerCapitaAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(gdpPPPPerCapitaAgg.global)}
-                </div>
-                {gdpPPPPerCapitaAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {gdpPPPPerCapitaAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Government debt (USD)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(govDebtUSDAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {govDebtUSDAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(govDebtUSDAgg.avgCountry)}
-                </div>
-                {govDebtUSDAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {govDebtUSDAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(govDebtUSDAgg.global)}
-                </div>
-                {govDebtUSDAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {govDebtUSDAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Inflation (CPI, %)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(inflationCPIAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {inflationCPIAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(inflationCPIAgg.avgCountry)}
-                </div>
-                {inflationCPIAgg.yoyAvg && (
-                  <div className="table-cell-yoy">{inflationCPIAgg.yoyAvg}</div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(inflationCPIAgg.global)}
-                </div>
-                {inflationCPIAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {inflationCPIAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Government debt (% of GDP)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(govDebtPercentGDPAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {govDebtPercentGDPAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(govDebtPercentGDPAgg.avgCountry)}
-                </div>
-                {govDebtPercentGDPAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {govDebtPercentGDPAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(govDebtPercentGDPAgg.global)}
-                </div>
-                {govDebtPercentGDPAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {govDebtPercentGDPAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Lending interest rate (%)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(interestRateAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {interestRateAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(interestRateAgg.avgCountry)}
-                </div>
-                {interestRateAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {interestRateAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(interestRateAgg.global)}
-                </div>
-                {interestRateAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {interestRateAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Unemployment rate (% of labour force)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(unemploymentRateAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {unemploymentRateAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(unemploymentRateAgg.avgCountry)}
-                </div>
-                {unemploymentRateAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {unemploymentRateAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatPercentage(unemploymentRateAgg.global)}
-                </div>
-                {unemploymentRateAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {unemploymentRateAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Unemployed (number of people)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(unemployedTotalAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {unemployedTotalAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(unemployedTotalAgg.avgCountry)}
-                </div>
-                {unemployedTotalAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {unemployedTotalAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(unemployedTotalAgg.global)}
-                </div>
-                {unemployedTotalAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {unemployedTotalAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Labour force (total)</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(labourForceTotalAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {labourForceTotalAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(labourForceTotalAgg.avgCountry)}
-                </div>
-                {labourForceTotalAgg.yoyAvg && (
-                  <div className="table-cell-yoy">
-                    {labourForceTotalAgg.yoyAvg}
-                  </div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(labourForceTotalAgg.global)}
-                </div>
-                {labourForceTotalAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {labourForceTotalAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            <tr>
-              <td>Total population</td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(populationAgg.selected)}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {populationAgg.yoySelected ?? '–'}
-                </div>
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(populationAgg.avgCountry)}
-                </div>
-                {populationAgg.yoyAvg && (
-                  <div className="table-cell-yoy">{populationAgg.yoyAvg}</div>
-                )}
-              </td>
-              <td className="numeric-cell">
-                <div className="table-cell-main">
-                  {formatCompactNumber(populationAgg.global)}
-                </div>
-                {populationAgg.yoyGlobal && (
-                  <div className="table-cell-yoy">
-                    {populationAgg.yoyGlobal}
-                  </div>
-                )}
-              </td>
-            </tr>
-            {showAgeBreakdown && (
+            {expandedGroups.general && (
               <>
-                <tr>
-                  <td>Population 0–14</td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {ageGroups[0]?.absolute != null
-                        ? formatCompactNumber(ageGroups[0].absolute)
-                        : '–'}
-                    </div>
-                    {ageGroups[0]?.percentageOfPopulation != null && (
-                      <div className="table-cell-yoy">
-                        {formatPercentage(
-                          ageGroups[0].percentageOfPopulation,
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {pop0_14Agg.yoySelected ?? '–'}
-                    </div>
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {formatCompactNumber(pop0_14Agg.avgCountry)}
-                    </div>
-                    {pop0_14Agg.yoyAvg && (
-                      <div className="table-cell-yoy">
-                        {pop0_14Agg.yoyAvg}
-                      </div>
-                    )}
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {formatCompactNumber(pop0_14Agg.global)}
-                    </div>
-                    {pop0_14Agg.yoyGlobal && (
-                      <div className="table-cell-yoy">
-                        {pop0_14Agg.yoyGlobal}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-                <tr>
-                  <td>Population 15–64</td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {ageGroups[1]?.absolute != null
-                        ? formatCompactNumber(ageGroups[1].absolute)
-                        : '–'}
-                    </div>
-                    {ageGroups[1]?.percentageOfPopulation != null && (
-                      <div className="table-cell-yoy">
-                        {formatPercentage(
-                          ageGroups[1].percentageOfPopulation,
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {pop15_64Agg.yoySelected ?? '–'}
-                    </div>
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {formatCompactNumber(pop15_64Agg.avgCountry)}
-                    </div>
-                    {pop15_64Agg.yoyAvg && (
-                      <div className="table-cell-yoy">
-                        {pop15_64Agg.yoyAvg}
-                      </div>
-                    )}
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {formatCompactNumber(pop15_64Agg.global)}
-                    </div>
-                    {pop15_64Agg.yoyGlobal && (
-                      <div className="table-cell-yoy">
-                        {pop15_64Agg.yoyGlobal}
-                      </div>
-                    )}
-                  </td>
-                </tr>
-                <tr>
-                  <td>Population 65+</td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {ageGroups[2]?.absolute != null
-                        ? formatCompactNumber(ageGroups[2].absolute)
-                        : '–'}
-                    </div>
-                    {ageGroups[2]?.percentageOfPopulation != null && (
-                      <div className="table-cell-yoy">
-                        {formatPercentage(
-                          ageGroups[2].percentageOfPopulation,
-                        )}
-                      </div>
-                    )}
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {pop65PlusAgg.yoySelected ?? '–'}
-                    </div>
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {formatCompactNumber(pop65PlusAgg.avgCountry)}
-                    </div>
-                    {pop65PlusAgg.yoyAvg && (
-                      <div className="table-cell-yoy">
-                        {pop65PlusAgg.yoyAvg}
-                      </div>
-                    )}
-                  </td>
-                  <td className="numeric-cell">
-                    <div className="table-cell-main">
-                      {formatCompactNumber(pop65PlusAgg.global)}
-                    </div>
-                    {pop65PlusAgg.yoyGlobal && (
-                      <div className="table-cell-yoy">
-                        {pop65PlusAgg.yoyGlobal}
-                      </div>
-                    )}
-                  </td>
-                </tr>
+                {renderRow('Total population', populationAgg, 'compact')}
+                {renderRow('Land area (km²)', landAreaAgg, 'area')}
+                {renderRow('Total area (km²)', totalAreaAgg, 'area')}
+                {renderRow('EEZ (km²)', eezAgg, 'area')}
+              </>
+            )}
+
+            <tr
+              className="table-group-header table-group-header-clickable"
+              onClick={() => toggleGroup('financial')}
+            >
+              <td colSpan={4}>
+                <span className="table-group-header-inner">
+                  <span className="table-group-chevron">
+                    {expandedGroups.financial ? '▾' : '▸'}
+                  </span>
+                  <span>Financial metrics</span>
+                </span>
+              </td>
+            </tr>
+            {expandedGroups.financial && (
+              <>
+                {renderRow('GDP (Nominal, US$)', gdpNominalAgg, 'compact')}
+                {renderRow('GDP (PPP, Intl$)', gdpPPPAgg, 'compact')}
+                {renderRow('GDP per capita (Nominal, US$)', gdpNominalPerCapitaAgg, 'compact')}
+                {renderRow('GDP per capita (PPP, Intl$)', gdpPPPPerCapitaAgg, 'compact')}
+                {renderRow('Government debt (USD)', govDebtUSDAgg, 'compact')}
+                {renderRow('Inflation (CPI, %)', inflationCPIAgg, 'percentage')}
+                {renderRow('Government debt (% of GDP)', govDebtPercentGDPAgg, 'percentage')}
+                {renderRow('Lending interest rate (%)', interestRateAgg, 'percentage')}
+                {renderRow('Unemployment rate (% of labour force)', unemploymentRateAgg, 'percentage')}
+                {renderRow('Unemployed (number of people)', unemployedTotalAgg, 'compact')}
+                {renderRow('Labour force (total)', labourForceTotalAgg, 'compact')}
+                {renderRow('Poverty headcount ($2.15/day, %)', poverty215Agg, 'percentage')}
+                {renderRow('Poverty headcount (national line, %)', povertyNationalAgg, 'percentage')}
+              </>
+            )}
+
+            <tr
+              className="table-group-header table-group-header-clickable"
+              onClick={() => toggleGroup('health')}
+            >
+              <td colSpan={4}>
+                <span className="table-group-header-inner">
+                  <span className="table-group-chevron">
+                    {expandedGroups.health ? '▾' : '▸'}
+                  </span>
+                  <span>Health &amp; demographics</span>
+                </span>
+              </td>
+            </tr>
+            {expandedGroups.health && (
+              <>
+                {renderRow('Life expectancy at birth (years)', lifeExpectancyAgg, 'compact')}
+                {renderRow('Maternal mortality ratio (per 100,000 live births)', maternalMortalityAgg, 'compact')}
+                {renderRow('Under-5 mortality rate (per 1,000 live births)', under5MortalityAgg, 'compact')}
+                {renderRow('Prevalence of undernourishment (% of population)', undernourishmentAgg, 'percentage')}
+                {renderRow('Population 0–14 (% of total)', pop0_14Agg, 'percentage')}
+                {renderRow('Population 15–64 (% of total)', pop15_64Agg, 'percentage')}
+                {renderRow('Population 65+ (% of total)', pop65PlusAgg, 'percentage')}
               </>
             )}
           </tbody>

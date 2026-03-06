@@ -48,8 +48,8 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | View | Description |
 |------|-------------|
 | **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, labour/unemployment, and comparison |
-| **Global analytics** | Interactive choropleth map and multi-view tables for all countries |
-| **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations (at least 5 bullet points each for New Market, Key Takeaways, Recommendations) |
+| **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, population structure aggregates) for cross-country comparison |
+| **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications (PESTEL–SWOT), New Market Analysis, Key Takeaways, Recommendations (≥5 bullets each). Uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement; **download PESTEL and SWOT charts as PNG** |
 | **Business Analytics** | Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation) |
 | **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
 | **Analytics assistant** | Chat for questions about metrics, methodology, location/geography, and general knowledge |
@@ -90,6 +90,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, and Government. **Zoom** in/out and reset; **hover** shows country name, flag (proportionally on shape), metric value, effective year. |
 | **Year selector** | Independent of country dashboard |
 | **Global table** | General (area, region, government type, head of government), Financial (GDP, debt, inflation, lending rate, unemployment, poverty + YoY), Health & demographics (population, age groups, life expectancy, under‑5 mortality, maternal mortality, undernourishment + YoY) |
+| **Global charts** | Aggregated global time-series: unified (GDP, GDP per capita, population, life expectancy), economic (inflation, debt, interest, unemployment, poverty), health (under‑5, maternal mortality, undernourishment), population structure (age-group shares). Frequency and chart/table view. |
 | **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
 
 ### 3.3 PESTEL
@@ -100,7 +101,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Section order** | PESTEL Analysis (chart), SWOT Analysis (one bullet per sentence), Comprehensive Analysis (full report), Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations |
 | **Bullet minimums** | New Market Analysis, Key Takeaways, and Recommendations each have at least 5 bullet points (enforced via prompt) |
 | **Generate / refresh** | Trigger generation with current country context; responses include sources and hyperlinks where applicable |
-| **Context-aware** | Uses selected country and dashboard data to produce structured analysis |
+| **Context-aware** | Uses selected country and dashboard data; global metrics and peer comparison use **DATA_MAX_YEAR** (most up-to-date); supplemental web search uses **current year** |
 
 ### 3.4 Business Analytics
 
@@ -329,6 +330,7 @@ npm run preview
 | [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories by feature area |
 | [docs/METRICS_AND_OKRS.md](docs/METRICS_AND_OKRS.md) | Engagement metrics, OKRs, instrumentation |
 | [docs/PRODUCT_METRICS.md](docs/PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) with formulas and sources |
+| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: name, definition, formula, example |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow and component architecture |
 
 ---

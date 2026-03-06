@@ -8,7 +8,7 @@ interface Props {
   data?: CountryDashboardData;
 }
 
-export function CountrySelector({ countryCode, setCountryCode, data }: Props) {
+export function CountrySelector({ setCountryCode, data }: Props) {
   const [countries, setCountries] = useState<CountrySummary[]>([]);
   const [search, setSearch] = useState('');
   const [isOpen, setIsOpen] = useState(false);

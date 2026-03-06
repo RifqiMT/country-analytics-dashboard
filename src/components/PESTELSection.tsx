@@ -4,6 +4,7 @@ import { buildPestelSystemPrompt } from '../utils/pestelContext';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { getStoredModel, getEffectiveApiKey } from '../config/llm';
+import { DATA_MAX_YEAR } from '../config';
 import { CountrySelector } from './CountrySelector';
 
 /** Parsed bullet points per PESTEL pillar for the chart view */
@@ -590,19 +591,19 @@ export function PESTELSection({
     downloadChartAsImage(swotChartRef, `SWOT-Analysis-${name.replace(/\s+/g, '-')}.png`);
   }, [dashboardData?.summary?.name, downloadChartAsImage]);
 
-  const year =
-    dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? 2022;
+  // Always use the most up-to-date global data for PESTEL (peer comparison, etc.).
+  const globalDataYear = DATA_MAX_YEAR;
 
   useEffect(() => {
     if (!dashboardData) return;
     let cancelled = false;
-    fetchGlobalCountryMetricsForYear(year).then((rows) => {
+    fetchGlobalCountryMetricsForYear(globalDataYear).then((rows) => {
       if (!cancelled) setGlobalMetrics(rows);
     });
     return () => {
       cancelled = true;
     };
-  }, [dashboardData, year, refreshTrigger]);
+  }, [dashboardData, globalDataYear, refreshTrigger]);
 
   const generateAnalysis = useCallback(async () => {
     if (!dashboardData) {
@@ -617,7 +618,7 @@ export function PESTELSection({
 
     const model = getStoredModel();
     const apiKey = getEffectiveApiKey(model);
-    const systemPrompt = buildPestelSystemPrompt(dashboardData, globalMetrics);
+    const systemPrompt = buildPestelSystemPrompt(dashboardData, globalMetrics, globalDataYear);
     const userMessage = `Generate a comprehensive PESTEL analysis for ${dashboardData.summary.name} based on the data provided. Follow the required structure: Executive summary, all six PESTEL factors (Political, Economic, Social, Technological, Environmental, Legal) with up to 2 summarized paragraphs each, Strategic implications for business (PESTEL–SWOT matrix: Strengths, Weaknesses, Opportunities, and Risks and challenges — write 2 paragraphs per element, no bullet lists), New market analysis (at least 5 bullet points), Key takeaways (at least 5 bullet points), and Recommendations (at least 5 bullet points). Use the exact numbers and time-series trends from the context. Keep each PESTEL element concise (max 2 paragraphs).`;
 
     try {
@@ -656,8 +657,6 @@ export function PESTELSection({
     }
   }, [dashboardData, globalMetrics]);
 
-  const countryName = dashboardData?.summary?.name ?? 'No country selected';
-
   return (
     <section className="card pestel-section">
       <div className="section-header">
@@ -666,7 +665,7 @@ export function PESTELSection({
           <p className="muted">
             Comprehensive macro-environmental analysis (Political, Economic, Social, Technological, Environmental, Legal)
             with PESTEL–SWOT matrix (Opportunities and Risks), new market analysis, key takeaways, and actionable recommendations.
-            Uses World Bank, IMF, and related data; supplements with web search for dimensions with limited dashboard data.
+            Uses the most up-to-date global data (year {DATA_MAX_YEAR}) and supplements with web search for dimensions with limited dashboard data.
           </p>
         </div>
       </div>

@@ -1,6 +1,6 @@
 # Product Metrics Documentation
 
-This document provides a comprehensive reference for all **data metrics** displayed in the Country Analytics Platform. For engagement metrics and OKRs, see `METRICS_AND_OKRS.md`.
+This document provides a comprehensive reference for all **data metrics** displayed in the Country Analytics Platform. For engagement metrics and OKRs, see `METRICS_AND_OKRS.md`. For **all variables** (data metrics, config constants, environment variables) with name, definition, formula, and example, see `VARIABLES.md`.
 
 ---
 
@@ -9,10 +9,10 @@ This document provides a comprehensive reference for all **data metrics** displa
 The same data metrics are used across the product in different ways:
 
 - **Country dashboard**: Summary cards (latest values + YoY), unified time-series (core structural metrics), macro indicators timeline (economic & financial and health, separate sections), unemployed & labour force timeline, **Population Structure** timeline (age-group shares and absolute counts over time), and country comparison table.
-- **Global analytics**: Choropleth map (one metric per view; zoom; hover with flag on shape), global tables (General, Financial, Health & demographics with YoY). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
+- **Global analytics**: Choropleth map (one metric per view; zoom; hover with flag on shape), global tables (General, Financial, Health & demographics with YoY), and **Global Charts** (aggregated global time-series: unified, economic, health, population structure). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
 - **Business Analytics**: Correlation scatter uses two metrics from the global dataset; correlation & causation analysis (Pearson r, p-value) is computed from the same metrics.
 - **Source tab**: Each metric is documented with label, description, formula, unit, and source links; metadata comes from `src/data/metricMetadata.ts`. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Section "Where metrics and information appear" describes usage across Country Dashboard, Global view, PESTEL, Business Analytics, and Analytics Assistant.
-- **Analytics assistant & PESTEL**: Use country context and global data (including these metrics) for answers and PESTEL generation.
+- **Analytics assistant & PESTEL**: Use country context and global data (including these metrics). PESTEL uses **DATA_MAX_YEAR** for global/peer data and **current year** for supplemental web search to ensure most up-to-date information.
 
 ---
 

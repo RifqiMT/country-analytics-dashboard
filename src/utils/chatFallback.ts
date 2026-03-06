@@ -1189,14 +1189,17 @@ export function getFallbackResponse(
     const totalGdp = rows.reduce((s, r) => s + (r.gdpNominal ?? 0), 0);
     const totalPop = rows.reduce((s, r) => s + (r.populationTotal ?? 0), 0);
     const worldGdpPc = totalPop > 0 ? totalGdp / totalPop : 0;
-    const avgLifeExp = rows.filter((r) => (r.lifeExpectancy ?? 0) > 0).reduce((s, r) => s + (r.lifeExpectancy ?? 0), 0) / Math.max(1, rows.filter((r) => (r.lifeExpectancy ?? 0) > 0).length);
+    const lifeExpRows = rows.filter((r) => (r.lifeExpectancy ?? 0) > 0 && (r.populationTotal ?? 0) > 0);
+    const lifeExpWeightedSum = lifeExpRows.reduce((s, r) => s + (r.lifeExpectancy ?? 0) * (r.populationTotal ?? 0), 0);
+    const lifeExpWeight = lifeExpRows.reduce((s, r) => s + (r.populationTotal ?? 0), 0);
+    const avgLifeExp = lifeExpWeight > 0 ? lifeExpWeightedSum / lifeExpWeight : 0;
     const lines = [
       `**World averages** (${effectiveYear}, ${rows.length} countries)`,
       '',
       `- **GDP per capita**: ${formatVal(worldGdpPc, '')} USD`,
       `- **Total GDP**: ${formatVal(totalGdp, '')} USD`,
       `- **Total population**: ${formatVal(totalPop, '')} people`,
-      `- **Life expectancy (avg)**: ${formatVal(avgLifeExp, '')} years`,
+      `- **Life expectancy (population-weighted)**: ${formatVal(avgLifeExp, '')} years`,
     ];
     return lines.join('\n');
   }
