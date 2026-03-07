@@ -1,6 +1,6 @@
 # Product Documentation Standard
 
-This document defines the **professional product documentation standard** for the **Country Analytics Platform**. All documentation must cover **product overview**, **product benefits**, **features**, **logics**, **business guidelines**, **tech guidelines**, **tech stacks**, and other elements required for product and engineering alignment. The standard ensures a single source of truth and consistent structure across core and supporting documents.
+This document defines the **professional product documentation standard** for the **Country Analytics Platform**. All documentation must cover **product overview**, **product benefits**, **features**, **logics**, **business guidelines**, **tech guidelines**, **tech stacks**, and other elements required for product and engineering alignment. The standard ensures a single source of truth and consistent structure across core and supporting documents. **Professional wording** is used throughout to ease reading and stakeholder alignment.
 
 ---
 
@@ -8,10 +8,10 @@ This document defines the **professional product documentation standard** for th
 
 The documentation standard ensures:
 
-- **Product managers and business stakeholders** can understand scope, features, success metrics, and business rules
-- **Designers and analysts** can align on personas and user stories
-- **Engineers** can onboard quickly and understand architecture, data flow, and tech guidelines
-- **Single source of truth** for product overview, benefits, feature behaviour, data logic, and non-functional expectations
+- **Product managers and business stakeholders** can understand scope, features, success metrics, and business rules without reading code.
+- **Designers and analysts** can align on personas, user stories, and feature behaviour.
+- **Engineers** can onboard quickly and understand architecture, data flow, tech stack, and tech guidelines.
+- **Single source of truth** for product overview, benefits, feature behaviour, data logic, and non-functional expectations. Wording is kept professional and scannable.
 
 ---
 
@@ -22,9 +22,9 @@ The documentation standard ensures:
 | Document | Owner | Purpose |
 |----------|-------|---------|
 | **README.md** | Engineering | High-level intro, **product overview**, **product benefits**, **features**, quickstart, **tech stack**, data sources, links to deeper docs |
-| **docs/PRD.md** | Product | Single source of truth: problem, goals, scope, **features** (Country, Global, PESTEL, Business Analytics, Source, Analytics Assistant), **data rules and logic**, NFRs, **business and tech guidelines** |
-| **docs/USER_PERSONAS.md** | Product | Target audiences, goals, pain points, success criteria |
-| **docs/USER_STORIES.md** | Product | Functional requirements as user stories, grouped by feature |
+| **docs/PRD.md** | Product | Single source of truth: problem, goals, scope, **features** (Country, Global, PESTEL, **Porter 5 Forces**, Business Analytics, Source, Analytics Assistant), **data rules and logic**, NFRs, **business and tech guidelines** |
+| **docs/USER_PERSONAS.md** | Product | Target audiences, goals, pain points, success criteria, typical usage |
+| **docs/USER_STORIES.md** | Product | Functional requirements as user stories, grouped by feature; acceptance criteria |
 | **docs/METRICS_AND_OKRS.md** | Product | **Product metrics**, **OKR metrics** for the product team, instrumentation guidelines |
 | **docs/ARCHITECTURE.md** | Engineering | Data flow, component boundaries, API layer, **tech stack** details |
 
@@ -35,8 +35,8 @@ The documentation standard ensures:
 | **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
 | **docs/PRODUCT_METRICS.md** | **Data metrics** (GDP, population, etc.) with formulas, WDI codes, and source references; how metrics feed the UI |
-| **docs/VARIABLES.md** | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derived variables, data lineage, and flow through the app) |
-| **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs) |
+| **docs/VARIABLES.md** | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, **example**; **relationship chart** (derivation, data lineage, flow from sources to UI; how variables connect and are used in the app). Porter 5 parsed outputs documented as named variables. |
+| **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs for Source tab) |
 
 ---
 

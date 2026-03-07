@@ -25,7 +25,6 @@ const WORLD_BANK_COUNTRY = 'https://data.worldbank.org/country';
 const IMF_WEO = 'IMF World Economic Outlook';
 const IMF_DATAMAPPER = 'https://www.imf.org/external/datamapper';
 const REST_COUNTRIES = 'https://restcountries.com';
-const REST_COUNTRIES_DOCS = 'https://restcountries.com/#api-endpoints';
 
 export const METRIC_METADATA: MetricMetadata[] = [
   // Financial – GDP

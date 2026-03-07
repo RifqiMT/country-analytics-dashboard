@@ -1,6 +1,6 @@
 # User Stories – Country Analytics Platform
 
-User stories are grouped by feature area and mapped to personas in `USER_PERSONAS.md`. They reflect the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and the requirements in `PRD.md`. Each story is independently testable and includes clear acceptance criteria. They cover **product logic** (what the product does and how features behave) in a format that supports design and QA.
+User stories are grouped by feature area and mapped to personas in `USER_PERSONAS.md`. They reflect the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and the requirements in `PRD.md`. Each story is independently testable and includes clear acceptance criteria. They cover **product logic** (what the product does and how features behave) in a format that supports design and QA. Professional wording is used throughout for ease of reading.
 
 ---
 

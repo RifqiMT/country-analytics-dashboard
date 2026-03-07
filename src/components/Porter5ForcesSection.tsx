@@ -323,7 +323,6 @@ function Porter5Chart({ data }: { data: Porter5ChartData }) {
 interface Porter5ForcesSectionProps {
   dashboardData?: CountryDashboardData | null;
   refreshTrigger?: number;
-  countryCode: string;
   setCountryCode: (code: string) => void;
 }
 
@@ -413,7 +412,6 @@ function formatInlineMarkdown(text: string): React.ReactNode {
 export function Porter5ForcesSection({
   dashboardData,
   refreshTrigger = 0,
-  countryCode,
   setCountryCode,
 }: Porter5ForcesSectionProps) {
   const [analysis, setAnalysis] = useState<string | null>(null);
@@ -513,7 +511,6 @@ export function Porter5ForcesSection({
       <div className="porter5-controls">
         <div className="porter5-country-selector">
           <CountrySelector
-            countryCode={countryCode}
             setCountryCode={setCountryCode}
             data={dashboardData ?? undefined}
           />

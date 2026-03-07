@@ -196,14 +196,12 @@ function App() {
           <PESTELSection
             dashboardData={data}
             refreshTrigger={dataRefreshTrigger}
-            countryCode={countryCode}
             setCountryCode={setCountryCode}
           />
         ) : mainTab === 'porter5' ? (
           <Porter5ForcesSection
             dashboardData={data}
             refreshTrigger={dataRefreshTrigger}
-            countryCode={countryCode}
             setCountryCode={setCountryCode}
           />
         ) : mainTab === 'business' ? (
@@ -214,7 +212,6 @@ function App() {
           <>
             <div className="top-filters">
               <CountrySelector
-                countryCode={countryCode}
                 setCountryCode={setCountryCode}
                 data={data}
               />

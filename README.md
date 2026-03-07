@@ -250,7 +250,7 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 - **Transparency**: Each chat response displays its source
 - **No login required**: Public data, no authentication or workspace setup
 
-All documentation is structured according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`), which defines required content (product overview, benefits, features, logics, business and tech guidelines, tech stack) and links to PRD, personas, user stories, metrics, variables, and architecture.
+All documentation is structured according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`), which defines required content (product overview, benefits, features, logics, business and tech guidelines, tech stack) and links to PRD, personas, user stories, metrics, **variables** (including relationship chart), and architecture.
 
 ---
 
@@ -340,7 +340,7 @@ npm run preview
 | [docs/USER_STORIES.md](docs/USER_STORIES.md) | User stories by feature area |
 | [docs/METRICS_AND_OKRS.md](docs/METRICS_AND_OKRS.md) | Engagement metrics, OKRs, instrumentation |
 | [docs/PRODUCT_METRICS.md](docs/PRODUCT_METRICS.md) | Data metrics (GDP, population, etc.) with formulas and sources |
-| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derivation and app flow) |
+| [docs/VARIABLES.md](docs/VARIABLES.md) | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, **example**; **relationship chart** (how variables connect and flow through the app) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Data flow and component architecture |
 
 ---

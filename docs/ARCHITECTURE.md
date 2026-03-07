@@ -1,6 +1,6 @@
 # Architecture – Country Analytics Platform
 
-This document describes the **data flow**, **component boundaries**, and **technical architecture** of the Country Analytics Platform. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and supports engineering onboarding and feature→code mapping. It complements the **tech stack** and **tech guidelines** described in the README and PRD.
+This document describes the **data flow**, **component boundaries**, and **technical architecture** of the Country Analytics Platform. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and supports engineering onboarding and feature→code mapping. It complements the **tech stack** and **tech guidelines** described in the README and PRD. Professional wording is used throughout for ease of reading.
 
 ---
 

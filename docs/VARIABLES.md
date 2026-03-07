@@ -2,6 +2,8 @@
 
 This document is the **single reference** for all variables used in the Country Analytics Platform. It follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and provides **variable name**, **friendly name** (human-readable label), **definition**, **formula** (where applicable), **location in the app**, and a concrete **example** for each entry. A **variable relationship and usage** section describes how variables connect (e.g. derived metrics, data lineage) and flow through the application from sources to UI. Professional wording is used throughout to support product, design, and engineering alignment.
 
+**How to read this document:** Use **Section 1** for a quick lookup of any data metric or context variable by name; **Section 2–3** for configuration and environment variables; **Section 5** for key TypeScript types. **Section 7** contains the **relationship chart** and **usage flow**: it shows which variables are derived from others and where each variable is used in the app (Summary, Timelines, Global map/table/charts, Business Analytics, PESTEL, Porter 5 Forces, Source tab, Analytics Assistant).
+
 **Related:** Per-metric metadata for the Source tab is defined in `src/data/metricMetadata.ts`. For engagement and OKR metrics, see `METRICS_AND_OKRS.md`. For product data metrics overview, see `PRODUCT_METRICS.md`.
 
 ---
@@ -181,7 +183,7 @@ For full business rules and edge cases, see `docs/PRD.md` (Section 5) and `docs/
 
 ## 7. Variable Relationships and Usage in the App
 
-This section describes how variables **connect to each other** (e.g. derived metrics) and how they **flow through the application** from data sources to the UI.
+This section describes how variables **connect to each other** (e.g. derived metrics, data lineage) and how they **flow through the application** from data sources to UI areas. Use the **relationship chart** (Section 7.2) to see which variables are derived from which inputs; use the **usage flow** (Section 7.3) and **quick reference** (Section 7.4) to see where each variable is used in the app (Summary, Timelines, Global map/table/charts, Business Analytics, PESTEL, Porter 5 Forces, Source tab, Analytics Assistant).
 
 ### 7.1 Derived Variables
 
@@ -198,7 +200,7 @@ All other data metrics in Section 1 are **primary** (sourced directly from World
 
 ### 7.2 Variable Relationship Chart (Derivation and Data Lineage)
 
-The following diagram shows how **derived variables** depend on **primary variables**. Arrows indicate data flow from inputs to the derived metric. Use this chart to trace data lineage and understand where each variable is computed or sourced.
+The following diagram shows how **derived variables** depend on **primary variables**. Arrows indicate data flow from inputs to the derived metric. Use this chart to trace data lineage and to see how each variable is connected to others and where it is computed or sourced in the app.
 
 ```mermaid
 flowchart LR
@@ -231,7 +233,7 @@ flowchart LR
 
 ### 7.3 Variable Usage Flow in the Application
 
-The following diagram shows how variables **flow from data sources** into **data structures** and then into **app areas** (screens and features). Use it to locate where each variable is consumed in the product.
+The following diagram shows how variables **flow from data sources** into **data structures** and then into **app areas** (screens and features). Use it to see where each variable is connected and used in the product—from sources (World Bank, IMF, REST Countries, Sea Around Us) through the data layer to Country Dashboard, Global analytics, Business Analytics, PESTEL, Porter 5 Forces, Source tab, and Analytics Assistant.
 
 ```mermaid
 flowchart TB

@@ -1,8 +1,6 @@
 # Product Metrics & OKRs – Country Analytics Platform
 
-This document defines how the **Country Analytics Platform** measures success and how those metrics align with product and engineering work. It is intended for the **product team** and follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). It covers **product metrics** (engagement and feature-level indicators) and **OKR metrics** (objectives and key results) for the product team. Wording is kept professional and scannable for stakeholders.
-
-**Related:** For **data metrics** (GDP, population, health, etc.) displayed in the app, see `PRODUCT_METRICS.md`. For **all variables** (data metrics, config, env) with variable name, friendly name, definition, formula, location in the app, example, and relationship chart, see `VARIABLES.md`.
+This document defines how the **Country Analytics Platform** measures success and how those metrics align with product and engineering work. It is intended for the **product team** and follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). It covers **product metrics** (engagement and feature-level indicators) and **OKR metrics** (objectives and key results) for the product team. Wording is kept professional and scannable for stakeholders. For **data metrics** (GDP, population, health, etc.) displayed in the app, see `PRODUCT_METRICS.md`. For **all variables** (data metrics, config, env) with variable name, friendly name, definition, formula, location in the app, example, and relationship chart, see `VARIABLES.md`.
 
 ---
 

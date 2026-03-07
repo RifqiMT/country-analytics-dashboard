@@ -3,7 +3,6 @@ import type { CountryDashboardData, CountrySummary } from '../types';
 import { fetchAllCountries } from '../api/worldBank';
 
 interface Props {
-  countryCode: string;
   setCountryCode: (code: string) => void;
   data?: CountryDashboardData;
 }

@@ -31,7 +31,6 @@ function buildPeerComparisonContext(
   if (!target) return '';
 
   const region = target.region ?? 'Unknown';
-  const targetGdpPc = target.gdpNominalPerCapita ?? target.gdpPPPPerCapita ?? 0;
 
   const regionPeers = globalMetrics
     .filter(
@@ -76,7 +75,6 @@ export function buildPorter5ForcesSystemPrompt(
   });
 
   const industryLabel = industrySectorId ? getIndustryDivisionLabelShort(industrySectorId) : 'general industry';
-  const year = globalMetricsYear ?? dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? DATA_MAX_YEAR;
 
   const dataSourceNote = `
 ## Data sources (use for inline citations – merge with text)

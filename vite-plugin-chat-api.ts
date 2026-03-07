@@ -191,7 +191,7 @@ async function fetchPorter5ForcesSupplementWebSearch(
   ];
   const results = await Promise.all(queries.map((q) => fetchWebSearch(q)));
   const parts: string[] = [];
-  results.forEach((result, i) => {
+  results.forEach((result) => {
     if (result?.context) {
       parts.push(`### Porter Five Forces context (web supplement)\n${result.context}`);
     }

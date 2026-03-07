@@ -1,9 +1,10 @@
 # Product Requirements Document (PRD) – Country Analytics Platform
 
 **Version:** 2.0  
-**Last updated:** March 2026
+**Last updated:** March 2026  
+**Status:** Living document; aligned with Product Documentation Standard.
 
-This document is the **single source of truth** for product requirements. It is maintained according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`) and covers **product overview** (problem statement, goals), **scope**, **features** (Country Dashboard, Global analytics, PESTEL, Business Analytics, Source, Analytics Assistant), **data rules and logic**, non-functional requirements, and **business and tech guidelines**.
+This document is the **single source of truth** for product requirements. It is maintained according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`) and covers **product overview** (problem statement, goals), **scope**, **features** (Country Dashboard, Global analytics, PESTEL, Porter 5 Forces, Business Analytics, Source, Analytics Assistant), **data rules and logic**, non-functional requirements, and **business and tech guidelines**. Professional wording is used throughout for stakeholder alignment.
 
 ---
 

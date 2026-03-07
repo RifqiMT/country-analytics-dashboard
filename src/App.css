@@ -2797,6 +2797,9 @@ tbody tr:hover {
   border-radius: var(--radius-lg);
   border: 1px solid var(--border-subtle);
   box-shadow: var(--shadow-subtle);
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
 }
 
 .pestel-chart {
@@ -3053,6 +3056,9 @@ tbody tr:hover {
   margin-top: var(--space-5);
   padding-top: var(--space-5);
   border-top: 1px solid var(--border-subtle);
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 .pestel-content-heading {
@@ -3068,7 +3074,11 @@ tbody tr:hover {
   font-size: 1rem;
   line-height: 1.8;
   color: var(--text-secondary);
-  max-width: var(--pestel-prose-max);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .pestel-content-inner .pestel-h2 {

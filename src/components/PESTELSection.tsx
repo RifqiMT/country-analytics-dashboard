@@ -308,7 +308,6 @@ interface PESTELSectionProps {
   dashboardData?: CountryDashboardData | null;
   /** Increment to force refetch of global data used for PESTEL (e.g. after "Refresh all data"). */
   refreshTrigger?: number;
-  countryCode: string;
   setCountryCode: (code: string) => void;
 }
 
@@ -546,7 +545,6 @@ function SwotChart({ analysis }: { analysis: string }) {
 export function PESTELSection({
   dashboardData,
   refreshTrigger = 0,
-  countryCode,
   setCountryCode,
 }: PESTELSectionProps) {
   const [analysis, setAnalysis] = useState<string | null>(null);
@@ -681,11 +679,10 @@ export function PESTELSection({
 
       <div className="pestel-controls">
         <div className="pestel-country-selector">
-          <CountrySelector
-            countryCode={countryCode}
-            setCountryCode={setCountryCode}
-            data={dashboardData ?? undefined}
-          />
+            <CountrySelector
+              setCountryCode={setCountryCode}
+              data={dashboardData ?? undefined}
+            />
         </div>
         <button
           type="button"
