@@ -144,7 +144,7 @@ Use the **most up-to-date** information: the metrics below use the latest availa
 
 **Required structure – follow exactly:**
 
-You must start your response with the **Porter 5 Forces Chart Summary** block below. This block is used to render a visual chart. Then add a horizontal rule (\`---\`) on its own line, followed by the Executive Summary and the full analysis.
+You must start your response with the **Porter 5 Forces Chart Summary** block below. This block is used to render a visual chart. Then continue directly with the Executive Summary and the full analysis (do not add a horizontal rule or \`---\`).
 
 ### Step 1: Porter 5 Forces Chart Summary (must appear first)
 
@@ -187,14 +187,8 @@ For the chart, provide **exactly 5 bullet points** per force. Each bullet must b
 - [Bullet 4]
 - [Bullet 5]
 
----
-
-After the --- line, continue with:
-
 ### Executive Summary (1 paragraph)
 Write **exactly one paragraph** (4–6 sentences) that summarises the overall competitive intensity and attractiveness of the **${industryLabel}** sector in **${dashboardData?.summary?.name ?? 'the country'}**. Synthesise the five forces into a single, coherent overview. Do not use bullet points in this paragraph. **Include at least one inline citation** with a hyperlink (e.g. [World Bank WDI](https://data.worldbank.org/indicator)) where you cite a metric or fact.
-
----
 
 ### 1. Threat of new entrants
 Write **exactly two paragraphs**. Cover: barriers to entry (capital, regulation, economies of scale, branding); threat from new competitors; ease of entry/exit in this country and sector. Use full sentences; no bullet lists. **Where you cite data or external sources, use inline Markdown links** like [Source Name](URL) merged into the sentence.
@@ -211,8 +205,44 @@ Write **exactly two paragraphs**. Cover: availability of substitute products or 
 ### 5. Competitive rivalry (industry competition)
 Write **exactly two paragraphs**. Cover: number and size of competitors; rate of industry growth; differentiation; exit barriers; intensity of rivalry in this country and sector. Use full sentences; no bullet lists. **Include hyperlinked citations** in the narrative where you reference data or supplemental web results.
 
+### Step 2: New Market Analysis (after the five forces above)
+
+After the five forces sections, add a **New Market Analysis** section. This section must synthesise the Porter five forces into a **comprehensive new market analysis**. Provide **exactly 5 summarized, concise bullet points**. Each bullet must be one short sentence that captures a key implication for entering or operating in this market (e.g. attractiveness, risks, opportunities, or strategic takeaways derived from the five forces). Use this exact heading and format. **Do not add any narrative paragraphs before or after the bullet list**—only the heading and the 5 bullets.
+
+## New Market Analysis
+- [Bullet 1 – one concise sentence]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+### Step 3: Key Takeaways (immediately after New Market Analysis)
+
+**Immediately after** the New Market Analysis section (with **no** narrative paragraphs in between), add a **Key Takeaways** section. Do not insert any text between the two sections—only the two headings and their bullet lists. This section must provide a **comprehensive takeaways analysis** based on the Porter five forces. Provide **exactly 5 summarized, concise bullet points**. Each bullet must be one short sentence that captures a key strategic takeaway or conclusion from the five forces analysis (e.g. overall attractiveness, main risks, critical success factors, or recommendations). Use this exact heading and format:
+
+## Key Takeaways
+- [Bullet 1 – one concise sentence]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+### Step 4: Recommendations (immediately after Key Takeaways)
+
+**Immediately after** the Key Takeaways section (with **no** narrative paragraphs in between), add a **Recommendations** section. Do not insert any text between Key Takeaways and Recommendations—only the two headings and their bullet lists. This section must provide a **recommendations analysis** based on the Porter five forces. Provide **exactly 5 summarized, concise bullet points**. Each bullet must be one short sentence that gives a clear, actionable recommendation derived from the five forces (e.g. how to strengthen position, mitigate threats, or capture opportunities). Use this exact heading and format:
+
+## Recommendations
+- [Bullet 1 – one concise sentence]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
 ## Guidelines
-- **Chart summary**: You must output the "Porter 5 Forces Chart Summary" block first, with exactly 5 bullet points under each of the 5 force headings. Use short, summarised sentences suitable for a chart. Then type \`---\` on a new line before the Executive Summary.
+- **Recommendations**: Immediately after "Key Takeaways" (with no paragraphs in between), output the "## Recommendations" heading followed by exactly 5 bullet points. Each bullet must be one concise, actionable recommendation based on your five forces analysis. Do not add any narrative text between Key Takeaways and Recommendations.
+- **Key Takeaways**: Immediately after "New Market Analysis" (with no paragraphs in between), output the "## Key Takeaways" heading followed by exactly 5 bullet points. Do not add any narrative text between the two sections.
+- **New Market Analysis**: After the five forces (each with two paragraphs), output the "## New Market Analysis" heading followed by exactly 5 bullet points—no extra paragraphs before or after the list.
+- **Chart summary**: You must output the "Porter 5 Forces Chart Summary" block first, with exactly 5 bullet points under each of the 5 force headings. Use short, summarised sentences suitable for a chart. Then continue directly with the Executive Summary (do not type \`---\` or a horizontal rule).
 - Use exact numbers from the data when relevant; never invent figures.
 - **Citations and sources**: Put **all** citations and sources **inline** in the narrative using hyperlinks: [Source Name](URL). Do **not** add a separate "Sources" section, bullet list, or reference list at the end—every source must be merged into the text where it is cited (e.g. "Unemployment is 5.4% ([World Bank WDI](https://data.worldbank.org/indicator)).").
 - Each of the five forces must have **exactly two paragraphs**.

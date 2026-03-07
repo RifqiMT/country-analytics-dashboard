@@ -60,7 +60,7 @@ All product and technical documentation should cover the following where applica
 - Country Dashboard (summary, year range, unified timeline, macro indicators, labour timeline, population structure, comparison table)
 - Global Analytics (map, global table, Global Charts)
 - PESTEL (generate, section order, chart exports, data recency)
-- **Porter 5 Forces** (country + ILO/ISIC industry division, generate, **chart with 5 bullets per force** (standard cross layout), Executive Summary + 2 paras per force, **inline citations only**, TAVILY → GROQ → others)
+- **Porter 5 Forces** (country + ILO/ISIC industry division, generate, **chart with 5 bullets per force** (standard cross layout), **Comprehensive Analysis**, **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets), inline citations only, TAVILY → GROQ → others)
 - Business Analytics (correlation scatter, X/Y metrics, Pearson r, causation note)
 - Source tab (where metrics appear, search, filter chips, metric cards)
 - Analytics Assistant (cascading flow, source attribution, model selection, out-of-scope handling)
@@ -144,7 +144,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 ### 4.7 Product Metrics (Data) and Variables
 
 - **PRODUCT_METRICS.md**: How metrics feed the UI; per-metric ID, label, unit, formula, fallback; WDI codes and data quality rules
-- **VARIABLES.md**: Every variable (data metrics, config, env) with **variable name**, **friendly name**, definition, formula (where applicable), **location in the app**, **example**; and a **relationship chart** showing how variables connect (derived from primary inputs) and flow through the app from data sources to UI areas.
+- **VARIABLES.md**: Every variable (data metrics, config, env) with **variable name**, **friendly name**, definition, formula (where applicable), **location in the app**, **example**; and a **relationship chart** showing how variables connect (derived from primary inputs) and flow through the app from data sources to UI areas. Porter 5 parsed outputs (chart summary, New Market Analysis, Key Takeaways, Recommendations bullets) are documented where they represent named variables or structures used in the app.
 
 ---
 
@@ -202,7 +202,7 @@ For every feature PR that changes user-visible behaviour:
 | Global tables | AllCountriesTableSection | worldBank.ts |
 | Global charts | GlobalChartsSection (unified, economic, health, population structure) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
-| **Porter 5 Forces** | **Porter5ForcesSection** (country + industry selector, **Porter5Chart** with standard cross layout, generate, inline citations) | **porter5ForcesContext.ts**, **iloIndustrySectors.ts**, LLM via chat API (TAVILY supplement, then GROQ); chart parsing and rendering in section |
+| **Porter 5 Forces** | **Porter5ForcesSection** (country + industry selector, **Porter5Chart** with standard cross layout, generate; **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, **Recommendations** in separate cards; inline citations) | **porter5ForcesContext.ts**, **iloIndustrySectors.ts**, LLM via chat API (TAVILY supplement, then GROQ); chart and block parsing (`parsePorter5ChartSummary`, `parseNewMarketAnalysis`, `parseKeyTakeaways`, `parseRecommendations`) and rendering in section |
 | PESTEL | PESTELSection (DATA_MAX_YEAR for global data; current year for web supplement) | pestelContext.ts, LLM via chat API; PESTEL/SWOT charts export via html2canvas |
 | Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context). Collapsible "Where metrics and information appear"; search, filter chips, suggestions, metric cards |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts (location/geography → safe guidance, not metrics) |

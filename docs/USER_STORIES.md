@@ -434,20 +434,24 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 **Acceptance criteria:**
 - Porter 5 Forces tab shows current country from Country dashboard; industry dropdown is grouped by ILO section (A–U) with division-level options (code + label)
 - Default industry is division 10 (Manufacture of food products)
-- User can trigger Generate to produce: Executive Summary (1 paragraph), then five forces with exactly two paragraphs each (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry)
+- User can trigger Generate to produce output displayed in this order: **Porter's Five Forces Analysis** (chart), **Comprehensive Analysis** (Executive Summary + five forces, two paragraphs each), **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets)
 - Analysis uses latest global data (DATA_MAX_YEAR) and supplemental web search (TAVILY first, then GROQ)
+- No "---" or horizontal rules appear in the output
 
-### US-9b.2 – See Porter 5 Forces as a chart with five bullet points per force
+### US-9b.2 – See Porter 5 Forces output in ordered sections with chart and bullet blocks
 
 - **As a** Strategy Lead or Country Economist  
-- **I want to** see the Porter Five Forces analysis visualised in a **standard framework chart** (centre = Competitive Rivalry; top / left / right / bottom = the other four forces) with **five bullet points** of summarised analysis per force  
+- **I want to** see the Porter Five Forces analysis in a clear order: chart first, then Comprehensive Analysis, then **New Market Analysis**, **Key Takeaways**, and **Recommendations** each in its own card with exactly **five bullet points**  
 - **So that** I can quickly grasp the key drivers and share the view in presentations  
 
 **Acceptance criteria:**
-- When the generated analysis includes a "Porter 5 Forces Chart Summary" block, the app displays a **Porter's Five Forces chart** above the Comprehensive Analysis.
-- Chart uses **standard cross layout**: centre hub (Competitive Rivalry), top (Threat of New Entry), left (Supplier Power), right (Buyer Power), bottom (Threat of Substitution), with thin connectors toward the centre.
-- Each force card shows up to **five bullet points** (short, concise sentences) parsed from the LLM output.
-- If the chart block is missing or cannot be parsed, only the Comprehensive Analysis is shown (no broken chart).
+- When the generated analysis includes a "Porter 5 Forces Chart Summary" block, the app displays **Porter's Five Forces chart** first (standard cross layout: centre = Competitive Rivalry; top/left/right/bottom = other four forces; 5 bullets per force; connectors)
+- **Comprehensive Analysis** card shows Executive Summary and five forces narrative (two paragraphs per force)
+- **New Market Analysis** card shows exactly 5 summarized bullet points (new market implications)
+- **Key Takeaways** card shows exactly 5 summarized bullet points (strategic takeaways)
+- **Recommendations** card shows exactly 5 summarized, actionable bullet points
+- Each of these sections is in a separate, visually distinct card; no "---" in the content
+- If the chart block is missing or cannot be parsed, the chart is omitted but other sections still display
 
 ### US-9b.3 – See citations and sources inline
 

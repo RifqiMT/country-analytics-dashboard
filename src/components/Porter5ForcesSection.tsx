@@ -23,6 +23,153 @@ export interface Porter5ChartData {
 const CHART_START = '## Porter 5 Forces Chart Summary';
 const CHART_END_MARKERS = ['\n---\n', '\n### Executive Summary', '\n## Executive Summary'];
 
+const NEW_MARKET_ANALYSIS_HEADING = '## New Market Analysis';
+const NEW_MARKET_ANALYSIS_HEADING_ALT = '### New Market Analysis';
+
+/** Find start index of New Market Analysis block (## or ###) */
+function findNewMarketAnalysisStart(text: string): number {
+  const i = text.indexOf(NEW_MARKET_ANALYSIS_HEADING);
+  const j = text.indexOf(NEW_MARKET_ANALYSIS_HEADING_ALT);
+  if (i === -1) return j;
+  if (j === -1) return i;
+  return Math.min(i, j);
+}
+
+/** Extract "New Market Analysis" block: exactly 5 bullet points; return bullets and text without block. Skips optional intro paragraph(s) before bullets. */
+function parseNewMarketAnalysis(text: string): { bullets: string[]; textWithoutBlock: string } {
+  const idx = findNewMarketAnalysisStart(text);
+  if (idx === -1) return { bullets: [], textWithoutBlock: text };
+
+  const headingLength = text.slice(idx).startsWith('## ')
+    ? NEW_MARKET_ANALYSIS_HEADING.length
+    : NEW_MARKET_ANALYSIS_HEADING_ALT.length;
+  const afterHeading = text.slice(idx + headingLength);
+  const lines = afterHeading.split('\n');
+  const bullets: string[] = [];
+  let lineIndex = 0;
+  while (lineIndex < lines.length && !/^[-*]\s+/.test(lines[lineIndex]?.trim() ?? '')) {
+    lineIndex++;
+  }
+  while (lineIndex < lines.length && bullets.length < 5) {
+    const trimmed = (lines[lineIndex] ?? '').trim();
+    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      bullets.push(bulletMatch[1].trim());
+    }
+    lineIndex++;
+  }
+  const consumedLines = lines.slice(0, lineIndex);
+  const blockEndOffset = consumedLines.join('\n').length;
+  const blockStart = idx;
+  const blockEnd = idx + headingLength + blockEndOffset;
+  const before = text.slice(0, blockStart).trimEnd();
+  const after = text.slice(blockEnd).trimStart();
+  const textWithoutBlock = [before, after].filter(Boolean).join('\n\n');
+  return { bullets, textWithoutBlock };
+}
+
+const KEY_TAKEAWAYS_HEADING = '## Key Takeaways';
+const KEY_TAKEAWAYS_HEADING_ALT = '### Key Takeaways';
+
+/** Find start index of Key Takeaways block (## or ###) */
+function findKeyTakeawaysStart(text: string): number {
+  const i = text.indexOf(KEY_TAKEAWAYS_HEADING);
+  const j = text.indexOf(KEY_TAKEAWAYS_HEADING_ALT);
+  if (i === -1) return j;
+  if (j === -1) return i;
+  return Math.min(i, j);
+}
+
+/** Extract "Key Takeaways" block: exactly 5 bullet points; return bullets and text without block. Skips optional intro paragraph(s) before bullets. */
+function parseKeyTakeaways(text: string): { bullets: string[]; textWithoutBlock: string } {
+  const idx = findKeyTakeawaysStart(text);
+  if (idx === -1) return { bullets: [], textWithoutBlock: text };
+
+  const headingLength = text.slice(idx).startsWith('## ')
+    ? KEY_TAKEAWAYS_HEADING.length
+    : KEY_TAKEAWAYS_HEADING_ALT.length;
+  const afterHeading = text.slice(idx + headingLength);
+  const lines = afterHeading.split('\n');
+  const bullets: string[] = [];
+  let lineIndex = 0;
+  while (lineIndex < lines.length && !/^[-*]\s+/.test(lines[lineIndex]?.trim() ?? '')) {
+    lineIndex++;
+  }
+  while (lineIndex < lines.length && bullets.length < 5) {
+    const trimmed = (lines[lineIndex] ?? '').trim();
+    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      bullets.push(bulletMatch[1].trim());
+    }
+    lineIndex++;
+  }
+  const consumedLines = lines.slice(0, lineIndex);
+  const blockEndOffset = consumedLines.join('\n').length;
+  const blockStart = idx;
+  const blockEnd = idx + headingLength + blockEndOffset;
+  const before = text.slice(0, blockStart).trimEnd();
+  const after = text.slice(blockEnd).trimStart();
+  const textWithoutBlock = [before, after].filter(Boolean).join('\n\n');
+  return { bullets, textWithoutBlock };
+}
+
+const RECOMMENDATIONS_HEADING = '## Recommendations';
+const RECOMMENDATIONS_HEADING_ALT = '### Recommendations';
+
+/** Find start index of Recommendations block (## or ###) */
+function findRecommendationsStart(text: string): number {
+  const i = text.indexOf(RECOMMENDATIONS_HEADING);
+  const j = text.indexOf(RECOMMENDATIONS_HEADING_ALT);
+  if (i === -1) return j;
+  if (j === -1) return i;
+  return Math.min(i, j);
+}
+
+/** Extract "Recommendations" block: exactly 5 bullet points; return bullets and text without block. Skips optional intro paragraph(s) before bullets. */
+function parseRecommendations(text: string): { bullets: string[]; textWithoutBlock: string } {
+  const idx = findRecommendationsStart(text);
+  if (idx === -1) return { bullets: [], textWithoutBlock: text };
+
+  const headingLength = text.slice(idx).startsWith('## ')
+    ? RECOMMENDATIONS_HEADING.length
+    : RECOMMENDATIONS_HEADING_ALT.length;
+  const afterHeading = text.slice(idx + headingLength);
+  const lines = afterHeading.split('\n');
+  const bullets: string[] = [];
+  let lineIndex = 0;
+  while (lineIndex < lines.length && !/^[-*]\s+/.test(lines[lineIndex]?.trim() ?? '')) {
+    lineIndex++;
+  }
+  while (lineIndex < lines.length && bullets.length < 5) {
+    const trimmed = (lines[lineIndex] ?? '').trim();
+    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      bullets.push(bulletMatch[1].trim());
+    }
+    lineIndex++;
+  }
+  const consumedLines = lines.slice(0, lineIndex);
+  const blockEndOffset = consumedLines.join('\n').length;
+  const blockStart = idx;
+  const blockEnd = idx + headingLength + blockEndOffset;
+  const before = text.slice(0, blockStart).trimEnd();
+  const after = text.slice(blockEnd).trimStart();
+  const textWithoutBlock = [before, after].filter(Boolean).join('\n\n');
+  return { bullets, textWithoutBlock };
+}
+
+/** Remove a single trailing paragraph (no ## heading) that appears after the main analysis – avoids showing stray text between sections */
+function stripTrailingOrphanParagraph(text: string): string {
+  const parts = text.split(/\n\n+/);
+  if (parts.length <= 1) return text;
+  const last = parts[parts.length - 1]?.trim() ?? '';
+  if (!last) return text;
+  if (/^#{2,3}\s/m.test(last)) return text;
+  if (last.length > 600) return text;
+  parts.pop();
+  return parts.join('\n\n').trimEnd();
+}
+
 /** Extract chart summary block and parsed bullets; returns null if block not found or malformed */
 function parsePorter5ChartSummary(analysis: string): {
   chartData: Porter5ChartData | null;
@@ -202,6 +349,7 @@ function formatPorterContent(text: string): React.ReactNode {
       elements.push(<br key={key++} />);
       continue;
     }
+    if (line.trim() === '---') continue;
     if (line.startsWith('### ')) {
       elements.push(
         <h4 key={key++} className="porter-h4">
@@ -308,7 +456,7 @@ export function Porter5ForcesSection({
       industrySectorId,
     );
     const industryLabel = getIndustryDivisionLabelShort(industrySectorId);
-    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Start with the "Porter 5 Forces Chart Summary" block: exactly 5 bullet points (short sentences) under each of the five force headings, then --- on a new line, then one paragraph Executive Summary, then exactly two paragraphs for each force (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry). Use the data and context provided.`;
+    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Start with the "Porter 5 Forces Chart Summary" block: exactly 5 bullet points (short sentences) under each of the five force headings, then one paragraph Executive Summary, then exactly two paragraphs for each force (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry). Then add "New Market Analysis": ## New Market Analysis followed by exactly 5 concise bullet points for the new market. Then add "Key Takeaways": ## Key Takeaways followed by exactly 5 concise bullet points that summarise strategic takeaways. Then add "Recommendations": ## Recommendations followed by exactly 5 concise, actionable bullet points based on the five forces analysis. Use the data and context provided. Do not include "---" or horizontal rules in your response.`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -439,6 +587,13 @@ export function Porter5ForcesSection({
         <>
           {(() => {
             const { chartData, textWithoutChart } = parsePorter5ChartSummary(analysis);
+            const { bullets: newMarketBullets, textWithoutBlock: textAfterNewMarket } =
+              parseNewMarketAnalysis(textWithoutChart);
+            const { bullets: keyTakeawaysBullets, textWithoutBlock: textAfterKeyTakeaways } =
+              parseKeyTakeaways(textAfterNewMarket);
+            const { bullets: recommendationsBullets, textWithoutBlock: textBeforeComprehensive } =
+              parseRecommendations(textAfterKeyTakeaways);
+            const comprehensiveText = stripTrailingOrphanParagraph(textBeforeComprehensive);
             return (
               <>
                 {chartData && (
@@ -446,14 +601,46 @@ export function Porter5ForcesSection({
                     <Porter5Chart data={chartData} />
                   </div>
                 )}
-                <div className="porter5-output" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
+                <div className="porter5-sections">
+                <div className="porter5-output porter5-comprehensive" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
                   <h3 className="porter5-output-title">Comprehensive Analysis</h3>
-                  <div className="porter5-content">{formatPorterContent(textWithoutChart)}</div>
+                  <div className="porter5-content">{formatPorterContent(comprehensiveText)}</div>
                   {source && (
                     <p className="porter5-source muted">
                       Source: {source}
                     </p>
                   )}
+                </div>
+                {newMarketBullets.length > 0 && (
+                  <div className="porter5-output porter5-new-market" role="article" aria-label="New Market Analysis">
+                    <h3 className="porter5-output-title">New Market Analysis</h3>
+                    <ul className="porter5-new-market-list">
+                      {newMarketBullets.map((b, i) => (
+                        <li key={i}>{formatInlineMarkdown(b)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {keyTakeawaysBullets.length > 0 && (
+                  <div className="porter5-output porter5-key-takeaways" role="article" aria-label="Key Takeaways">
+                    <h3 className="porter5-output-title">Key Takeaways</h3>
+                    <ul className="porter5-key-takeaways-list">
+                      {keyTakeawaysBullets.map((b, i) => (
+                        <li key={i}>{formatInlineMarkdown(b)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {recommendationsBullets.length > 0 && (
+                  <div className="porter5-output porter5-recommendations" role="article" aria-label="Recommendations">
+                    <h3 className="porter5-output-title">Recommendations</h3>
+                    <ul className="porter5-recommendations-list">
+                      {recommendationsBullets.map((b, i) => (
+                        <li key={i}>{formatInlineMarkdown(b)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 </div>
               </>
             );

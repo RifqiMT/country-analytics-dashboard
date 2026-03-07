@@ -101,6 +101,7 @@ This document defines how the **Country Analytics Platform** measures success an
 | **PF-2** | Porter 5 Forces generate/refresh rate | Percentage of Porter 5 Forces tab sessions where user triggers generate or refresh at least once |
 | **PF-3** | Porter 5 Forces industry diversity | Number of distinct industry divisions selected per session (when Porter 5 Forces is used) |
 | **PF-4** | Porter 5 chart display rate | Percentage of Porter 5 Forces generations where the chart (five bullets per force) is successfully parsed and displayed |
+| **PF-5** | Porter 5 bullet sections usage | Percentage of Porter 5 Forces generations where at least one of New Market Analysis, Key Takeaways, or Recommendations is parsed and displayed (5 bullets each) |
 
 ---
 

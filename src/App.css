@@ -1976,6 +1976,30 @@ tbody tr:hover {
   border: 1px solid var(--border-subtle);
 }
 
+.porter5-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.porter5-sections .porter5-output {
+  margin-top: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.porter5-sections .porter5-output + .porter5-output {
+  border-top: none;
+  padding-top: var(--space-5);
+}
+
+.porter5-sections .porter5-new-market,
+.porter5-sections .porter5-key-takeaways,
+.porter5-sections .porter5-recommendations,
+.porter5-sections .porter5-comprehensive {
+  border: 1px solid var(--border-subtle);
+}
+
 .porter5-output-title {
   margin: 0 0 var(--space-4);
   font-size: 1.25rem;
@@ -2024,6 +2048,54 @@ tbody tr:hover {
   margin-top: var(--space-4);
   font-size: 0.85rem;
   color: var(--text-muted);
+}
+
+.porter5-new-market .porter5-new-market-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  line-height: 1.6;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.porter5-new-market .porter5-new-market-list li {
+  margin-bottom: var(--space-2);
+}
+
+.porter5-new-market .porter5-new-market-list li:last-child {
+  margin-bottom: 0;
+}
+
+.porter5-key-takeaways .porter5-key-takeaways-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  line-height: 1.6;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.porter5-key-takeaways .porter5-key-takeaways-list li {
+  margin-bottom: var(--space-2);
+}
+
+.porter5-key-takeaways .porter5-key-takeaways-list li:last-child {
+  margin-bottom: 0;
+}
+
+.porter5-recommendations .porter5-recommendations-list {
+  margin: 0;
+  padding-left: var(--space-5);
+  line-height: 1.6;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.porter5-recommendations .porter5-recommendations-list li {
+  margin-bottom: var(--space-2);
+}
+
+.porter5-recommendations .porter5-recommendations-list li:last-child {
+  margin-bottom: 0;
 }
 
 /* Porter 5 Forces chart – standard framework layout (cross with center hub) */

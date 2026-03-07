@@ -299,6 +299,11 @@ function stripLeadingH3(block: string): string {
   return block.replace(/^###\s+[^\n]+\n+/i, '').trim();
 }
 
+/** Strip leading "Comprehensive PESTEL Analysis for [Country]" line from report content (LLM often adds this title). */
+function stripLeadingComprehensivePestelTitle(text: string): string {
+  return text.replace(/^(?:#+\s*)?Comprehensive\s+PESTEL\s+Analysis\s+for\s+[^\n]+\s*\n*/i, '').trimStart();
+}
+
 interface PESTELSectionProps {
   dashboardData?: CountryDashboardData | null;
   /** Increment to force refetch of global data used for PESTEL (e.g. after "Refresh all data"). */
@@ -766,8 +771,7 @@ export function PESTELSection({
             <h3 className="pestel-output-title">Comprehensive Analysis</h3>
 
             <div className="pestel-content">
-              <h3 className="pestel-content-heading">Full report</h3>
-              {formatPestelContent(getReportWithoutRecommendations(getReportWithoutKeyTakeaways(getReportWithoutNewMarketAnalysis(getReportWithoutStrategicImplications(analysis)))))}
+              {formatPestelContent(stripLeadingComprehensivePestelTitle(getReportWithoutRecommendations(getReportWithoutKeyTakeaways(getReportWithoutNewMarketAnalysis(getReportWithoutStrategicImplications(analysis))))))}
             </div>
             {source && (
               <p className="pestel-source muted">

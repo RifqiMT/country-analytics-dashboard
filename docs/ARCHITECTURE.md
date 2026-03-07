@@ -184,14 +184,18 @@ POST /api/chat with porter5ForcesRequest: true, industrySector: "<division label
          │
          ├─► fetchPorter5ForcesSupplementWebSearch(countryName, industrySector, year) [TAVILY]
          ├─► Inject supplement into system prompt
-         ├─► GROQ (Llama) generates analysis (Chart Summary block with 5 bullets per force, then --- then Executive Summary + 2 paras per force; inline citations only)
+         ├─► GROQ (Llama) generates analysis (Chart Summary block with 5 bullets per force, then Executive Summary + 2 paras per force, then ## New Market Analysis, ## Key Takeaways, ## Recommendations each with 5 bullets; inline citations only; no ---)
          └─► Return { content, source: model label }
          │
          ▼
 Porter5ForcesSection: parsePorter5ChartSummary(analysis) → { chartData, textWithoutChart }
-         ├─► If chartData present → Porter5Chart (standard cross layout: centre = Competitive Rivalry; top/left/right/bottom = other four forces; 5 bullets per force; connectors)
-         ├─► stripOptionalSourcesSection(); formatPorterContent(textWithoutChart) for Comprehensive Analysis
-         └─► Source attribution (model label)
+         ├─► parseNewMarketAnalysis(textWithoutChart) → { newMarketBullets, textAfterNewMarket }
+         ├─► parseKeyTakeaways(textAfterNewMarket) → { keyTakeawaysBullets, textAfterKeyTakeaways }
+         ├─► parseRecommendations(textAfterKeyTakeaways) → { recommendationsBullets, textForComprehensive }
+         ├─► stripTrailingOrphanParagraph(textForComprehensive) → comprehensiveText
+         │
+         ▼
+Display order: Porter5Chart (when chartData present) → Comprehensive Analysis card → New Market Analysis card (5 bullets) → Key Takeaways card (5 bullets) → Recommendations card (5 bullets) → Source attribution (model label)
 ```
 
 ---
@@ -259,9 +263,16 @@ App
     └── Industry dropdown (ILO/ISIC divisions, grouped by section; iloIndustrySectors.ts)
     └── Generate / Refresh button
     └── parsePorter5ChartSummary(analysis) → chartData + textWithoutChart
-    └── Porter5Chart (when chartData present): standard cross layout (centre = Competitive Rivalry; top/left/right/bottom = Threat of New Entry, Supplier Power, Buyer Power, Threat of Substitution); 5 bullets per force; thin connectors to centre
-    └── Comprehensive Analysis: formatPorterContent(textWithoutChart); inline citations only (stripOptionalSourcesSection)
-    └── Source attribution (model label)
+    └── parseNewMarketAnalysis(textWithoutChart) → newMarketBullets + textAfterNewMarket
+    └── parseKeyTakeaways(textAfterNewMarket) → keyTakeawaysBullets + textAfterKeyTakeaways
+    └── parseRecommendations(textAfterKeyTakeaways) → recommendationsBullets + textForComprehensive
+    └── stripTrailingOrphanParagraph(textForComprehensive) → comprehensiveText
+    └── Display order (porter5-sections wrapper):
+        ├── Porter5Chart (when chartData present): standard cross layout (centre = Competitive Rivalry; top/left/right/bottom = Threat of New Entry, Supplier Power, Buyer Power, Threat of Substitution); 5 bullets per force; thin connectors to centre
+        ├── Comprehensive Analysis card: formatPorterContent(comprehensiveText); inline citations only (stripOptionalSourcesSection); source attribution
+        ├── New Market Analysis card: 5 bullets (newMarketBullets)
+        ├── Key Takeaways card: 5 bullets (keyTakeawaysBullets)
+        └── Recommendations card: 5 bullets (recommendationsBullets)
 ```
 
 ### 3.5 PESTEL Tab
@@ -332,7 +343,7 @@ App
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
 | `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
 | `pestelContext.ts` | PESTEL prompt building; uses DATA_MAX_YEAR for peer comparison; **TAVILY** supplement (current year) fetched first, then **GROQ** to generate report; used by PESTEL tab |
-| **porter5ForcesContext.ts** | **Porter 5 Forces prompt building** – country, ILO/ISIC industry division, global data (DATA_MAX_YEAR), Executive Summary + 2 paras per force; **inline citations only** (no separate Sources section) |
+| **porter5ForcesContext.ts** | **Porter 5 Forces prompt building** – country, ILO/ISIC industry division, global data (DATA_MAX_YEAR), Chart Summary + Executive Summary + 2 paras per force + **New Market Analysis** (5 bullets) + **Key Takeaways** (5 bullets) + **Recommendations** (5 bullets); **inline citations only** (no separate Sources section); no --- in output |
 | `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing; source attribution; PESTEL and **Porter 5 Forces** generation; **fetchPorter5ForcesSupplementWebSearch()** (TAVILY) then GROQ for Porter 5 Forces |
 
 ### 4.4 Business Analytics

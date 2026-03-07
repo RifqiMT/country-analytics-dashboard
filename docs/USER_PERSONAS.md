@@ -36,7 +36,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 - Starts with Country dashboard for a key market
 - Switches to Global analytics (map, table, or **global charts**) to compare regions and aggregates
-- Uses **Porter 5 Forces** tab to generate competitive analysis for a specific country and industry (e.g. Indonesia food manufacturing) for strategy or board materials
+- Uses **Porter 5 Forces** tab to generate competitive analysis for a specific country and industry (e.g. Indonesia food manufacturing) for strategy or board materials; reviews **chart**, **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each with 5 bullets) in separate cards
 - Sorts global table by GDP or population for rankings
 - Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
 - Uses Analytics assistant for quick **location/geography** and neighbour questions (e.g. "Which continent is Ukraine in?", "Neighbouring countries of Indonesia?") with up-to-date web search
@@ -78,7 +78,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 - Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
 - Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
-- Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with **chart visualization** (five bullet points per force) and inline citations
+- Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with **chart** (five bullet points per force), **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each 5 bullets) and inline citations
 - Checks Source tab for government debt formula and IMF fallback
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, TAVILY/Web search, GROQ, other LLMs) to assess answer provenance
 - Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)

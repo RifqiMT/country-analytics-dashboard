@@ -50,7 +50,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, labour/unemployment, and comparison |
 | **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, population structure aggregates) for cross-country comparison |
 | **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications (PESTEL–SWOT), New Market Analysis, Key Takeaways, Recommendations (≥5 bullets each). Uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement; **download PESTEL and SWOT charts as PNG** |
-| **Porter 5 Forces** | Generate Porter Five Forces analysis by country and ILO/ISIC industry division; **Porter's Five Forces chart** (standard cross layout with five bullet points per force) and Comprehensive Analysis; inline citations only; TAVILY → GROQ → others |
+| **Porter 5 Forces** | Generate Porter Five Forces analysis by country and ILO/ISIC industry division; **Porter's Five Forces chart** (standard cross layout with five bullet points per force); **Comprehensive Analysis**; **New Market Analysis** (5 bullets); **Key Takeaways** (5 bullets); **Recommendations** (5 bullets); inline citations only; TAVILY → GROQ → others |
 | **Business Analytics** | Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation) |
 | **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
 | **Analytics assistant** | Chat for questions about metrics, methodology, location/geography, and general knowledge |
@@ -109,11 +109,12 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | Feature | Description |
 |---------|-------------|
 | **Porter 5 Forces tab** | Dedicated view for Porter Five Forces analysis of the selected country in a chosen **ILO/ISIC industry division** (e.g. Manufacture of food products, Construction). Uses **latest global data** (DATA_MAX_YEAR) and **TAVILY → GROQ → others** for generation. |
-| **Porter's Five Forces chart** | **Standard framework layout**: centre hub = Competitive Rivalry; top / left / right / bottom = Threat of New Entry, Supplier Power, Buyer Power, Threat of Substitution. Each force displays **five bullet points** of summarised analysis. Thin connectors point toward the centre. Chart appears above the Comprehensive Analysis when the model outputs the chart summary block. |
+| **Section order** | Output is displayed in this order: **Porter's Five Forces Analysis** (chart), **Comprehensive Analysis** (Executive Summary + five forces narrative), **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets). Each bullet section is in its own card. |
+| **Porter's Five Forces chart** | **Standard framework layout**: centre hub = Competitive Rivalry; top / left / right / bottom = Threat of New Entry, Supplier Power, Buyer Power, Threat of Substitution. Each force displays **five bullet points** of summarised analysis. Thin connectors point toward the centre. Chart appears first when the model outputs the chart summary block. |
 | **Country + industry selector** | Same country as Country dashboard; **industry dropdown** grouped by ILO section (A–U) with division-level options (2-digit division code + label). Default division: 10 (Manufacture of food products). |
-| **Output structure** | **Chart summary** (5 bullets per force, parsed for the chart) then **Executive Summary** (1 paragraph) and **five forces**, each with exactly two paragraphs. |
+| **Narrative structure** | **Chart summary** (5 bullets per force, parsed for the chart) then **Executive Summary** (1 paragraph) and **five forces**, each with exactly two paragraphs; then **New Market Analysis**, **Key Takeaways**, and **Recommendations**, each with exactly 5 summarized bullet points. No horizontal rule (---) in output. |
 | **Citations** | **All citations and sources are inline** (merged into the narrative with Markdown hyperlinks). No separate "Sources" section or bullet list at the end. |
-| **Generate / refresh** | User triggers generation; response shows the chart (if parsed), Comprehensive Analysis, and source attribution (e.g. Llama 3.1 8B (Groq)). |
+| **Generate / refresh** | User triggers generation; response shows the chart (if parsed), then Comprehensive Analysis, New Market Analysis, Key Takeaways, and Recommendations in separate cards, plus source attribution (e.g. Llama 3.1 8B (Groq)). |
 
 ### 3.5 Business Analytics
 
