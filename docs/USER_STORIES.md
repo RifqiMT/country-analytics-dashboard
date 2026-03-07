@@ -423,6 +423,42 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ---
 
+## 9b. Porter 5 Forces
+
+### US-9b.1 – Generate Porter 5 Forces analysis for country and industry
+
+- **As a** Strategy Lead or Country Economist  
+- **I want to** open the Porter 5 Forces tab, select an industry (e.g. Manufacture of food products), and generate a Porter Five Forces analysis for the selected country  
+- **So that** I can assess industry attractiveness and competitive intensity for strategy or investment decisions  
+
+**Acceptance criteria:**
+- Porter 5 Forces tab shows current country from Country dashboard; industry dropdown is grouped by ILO section (A–U) with division-level options (code + label)
+- Default industry is division 10 (Manufacture of food products)
+- User can trigger Generate to produce: Executive Summary (1 paragraph), then five forces with exactly two paragraphs each (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry)
+- Analysis uses latest global data (DATA_MAX_YEAR) and supplemental web search (TAVILY first, then GROQ)
+
+### US-9b.2 – See citations and sources inline
+
+- **As a** Country Economist  
+- **I want to** see citations and hyperlinked sources merged into the analysis text  
+- **So that** I can verify claims and follow sources without a separate reference list  
+
+**Acceptance criteria:**
+- Output does not include a separate "Sources" section or bullet list at the end
+- Where data or facts are cited, inline Markdown links appear (e.g. [World Bank WDI](URL)) in the narrative
+- If the model outputs a trailing Sources block, the UI strips it so only inline citations are shown
+
+### US-9b.3 – Use Porter 5 Forces with country context
+
+- **As a** BI Analyst  
+- **I want to** have Porter 5 Forces use the same country as the Country dashboard  
+- **So that** I can switch country once and regenerate for the new market  
+
+**Acceptance criteria:**
+- Changing the country in the Country dashboard updates the context for Porter 5 Forces; user can click Generate to regenerate for the new country and (optionally) same or different industry
+
+---
+
 ## 10. Reliability and Data Quality
 
 ### US-10.1 – Handle missing data gracefully

@@ -48,7 +48,7 @@ All product and technical documentation should cover the following where applica
 
 - **Value proposition**: What the product does and for whom
 - **Target audience**: Strategy leads, economists, market managers, BI analysts (see USER_PERSONAS.md)
-- **Key views**: Country Dashboard, Global Analytics (map, table, Global Charts), PESTEL, Business Analytics, Source, Analytics Assistant
+- **Key views**: Country Dashboard, Global Analytics (map, table, Global Charts), PESTEL, **Porter 5 Forces**, Business Analytics, Source, Analytics Assistant
 
 ### 3.2 Product Benefits
 
@@ -60,6 +60,7 @@ All product and technical documentation should cover the following where applica
 - Country Dashboard (summary, year range, unified timeline, macro indicators, labour timeline, population structure, comparison table)
 - Global Analytics (map, global table, Global Charts)
 - PESTEL (generate, section order, chart exports, data recency)
+- **Porter 5 Forces** (country + ILO/ISIC industry division, generate, Executive Summary + 2 paras per force, **inline citations only**, TAVILY → GROQ → others)
 - Business Analytics (correlation scatter, X/Y metrics, Pearson r, causation note)
 - Source tab (where metrics appear, search, filter chips, metric cards)
 - Analytics Assistant (cascading flow, source attribution, model selection, out-of-scope handling)
@@ -110,7 +111,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 ### 4.2 PRD (Product Requirements Document)
 
 - Focus on **what** and **why**, not low-level implementation
-- Capture: exact behaviour of filters, ranges, default values; all main tabs and sub-features (including Business Analytics and PESTEL section order and bullet requirements); data fallbacks; edge cases; Analytics Assistant cascading flow and source attribution; **out-of-scope handling** (location/geography, neighbours – never return dashboard metrics; safe guidance and route to LLM/web search)
+- Capture: exact behaviour of filters, ranges, default values; all main tabs and sub-features (including **Porter 5 Forces** (country + industry, inline citations only), Business Analytics and PESTEL section order and bullet requirements); data fallbacks; edge cases; Analytics Assistant cascading flow and source attribution; **out-of-scope handling** (location/geography, neighbours – never return dashboard metrics; safe guidance and route to LLM/web search)
 - **PESTEL output structure**: PESTEL Analysis chart (downloadable as PNG), SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications, New Market Analysis (≥5 bullets), Key Takeaways (≥5 bullets), Recommendations (≥5 bullets)
 - **PESTEL data recency**: DATA_MAX_YEAR for global/peer data; **TAVILY (web search)** for current-year supplemental information; **GROQ** used as the first LLM to generate the report after the supplement is injected into the system prompt.
 - Reference primary components and API modules
@@ -201,6 +202,7 @@ For every feature PR that changes user-visible behaviour:
 | Global tables | AllCountriesTableSection | worldBank.ts |
 | Global charts | GlobalChartsSection (unified, economic, health, population structure) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
+| **Porter 5 Forces** | **Porter5ForcesSection** (country + industry selector, generate, inline citations) | **porter5ForcesContext.ts**, **iloIndustrySectors.ts**, LLM via chat API (TAVILY supplement, then GROQ) |
 | PESTEL | PESTELSection (DATA_MAX_YEAR for global data; current year for web supplement) | pestelContext.ts, LLM via chat API; PESTEL/SWOT charts export via html2canvas |
 | Source tab | SourceSection | metricMetadata.ts (Financial, Population, Health, Geography, Context). Collapsible "Where metrics and information appear"; search, filter chips, suggestions, metric cards |
 | Analytics assistant | ChatbotSection | chatContext.ts, chatFallback.ts, vite-plugin-chat-api.ts, llm.ts (location/geography → safe guidance, not metrics) |
@@ -208,14 +210,15 @@ For every feature PR that changes user-visible behaviour:
 ### 7.2 Reading Order
 
 1. README.md → PRD.md → USER_STORIES.md
-2. src/App.tsx (layout, tabs: Country, Global, PESTEL, Business Analytics, Analytics Assistant, Source)
+2. src/App.tsx (layout, tabs: Country, Global, PESTEL, **Porter 5 Forces**, Business Analytics, Analytics Assistant, Source)
 3. src/hooks/useCountryDashboard.ts (data flow, frequencies)
 4. src/api/worldBank.ts (data definitions, business rules, fallbacks)
 5. src/utils/chatContext.ts, chatFallback.ts (analytics assistant)
-6. src/utils/pestelContext.ts (PESTEL prompt and generation)
-7. src/components/BusinessAnalyticsSection.tsx, CorrelationScatterPlot.tsx, correlationAnalysis.ts (Business Analytics)
-8. src/components/SourceSection.tsx, src/data/metricMetadata.ts (Source tab)
-9. vite-plugin-chat-api.ts (chat API flow)
+6. src/utils/porter5ForcesContext.ts, src/data/iloIndustrySectors.ts (Porter 5 Forces)
+7. src/utils/pestelContext.ts (PESTEL prompt and generation)
+8. src/components/BusinessAnalyticsSection.tsx, CorrelationScatterPlot.tsx, correlationAnalysis.ts (Business Analytics)
+9. src/components/SourceSection.tsx, src/data/metricMetadata.ts (Source tab)
+10. vite-plugin-chat-api.ts (chat API flow, PESTEL and Porter 5 Forces supplements)
 
 **Product logic and business/tech guidelines:** See PRD (Sections 4–5, 7–8) and README Section 6.
 

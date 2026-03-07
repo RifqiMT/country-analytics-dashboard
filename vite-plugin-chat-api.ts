@@ -175,6 +175,31 @@ async function fetchPestelSupplementWebSearch(
   return `## Supplemental web data for PESTEL (use to enrich dimensions with limited dashboard data)\n\nUse the following real-time web search results to enrich your analysis for Technological, Legal, Political, and Environmental dimensions. Prioritise this data over inference when available.\n\n${parts.join('\n\n')}\n\n---`;
 }
 
+/**
+ * Fetch supplemental web data for Porter Five Forces analysis (country + industry/sector).
+ * Uses TAVILY first, then Serper. Runs targeted searches for industry and competitive context.
+ */
+async function fetchPorter5ForcesSupplementWebSearch(
+  countryName: string,
+  industrySector: string,
+  year: number,
+): Promise<string | null> {
+  const queries: string[] = [
+    `${countryName} ${industrySector} industry competition market ${year}`,
+    `${countryName} ${industrySector} barriers to entry suppliers buyers ${year}`,
+    `${countryName} ${industrySector} substitutes competitive rivalry ${year}`,
+  ];
+  const results = await Promise.all(queries.map((q) => fetchWebSearch(q)));
+  const parts: string[] = [];
+  results.forEach((result, i) => {
+    if (result?.context) {
+      parts.push(`### Porter Five Forces context (web supplement)\n${result.context}`);
+    }
+  });
+  if (parts.length === 0) return null;
+  return `## Supplemental web data for Porter Five Forces (country + industry)\n\nUse the following real-time web search results to enrich your Porter Five Forces analysis for **${countryName}** in the **${industrySector}** sector. Prioritise this data when available.\n\n${parts.join('\n\n')}\n\n---`;
+}
+
 /** Fetch latest info from web search. Tries Tavily first, then Serper. Returns { context, directAnswer } or null. */
 async function fetchWebSearch(query: string): Promise<{ context: string; directAnswer?: string } | null> {
   const tavilyKey = process.env.TAVILY_API_KEY?.trim();
@@ -493,6 +518,8 @@ async function handleChatRequest(
             model?: string;
             apiKey?: string;
             supplementWithWebSearch?: boolean;
+            porter5ForcesRequest?: boolean;
+            industrySector?: string;
             dashboardSnapshot?: { countryName: string; year: number; metrics: unknown } | null;
             globalData?: Array<Record<string, unknown>> | null;
             globalDataByYear?: Record<string, Array<Record<string, unknown>>> | null;
@@ -529,8 +556,11 @@ async function handleChatRequest(
           // Step 1: Global/dashboard data first – rule-based answers from rankings, comparisons, metrics, methodology
           // IMPORTANT: For pure location / geography questions, **never** use rule-based metrics at all.
           const isPestelRequest = supplementWithWebSearch && systemPrompt?.includes('PESTEL');
-          const shouldBypassRuleBasedForLocation = isLocationQuestion && !isPestelRequest;
-          const fallbackContent = isPestelRequest || shouldBypassRuleBasedForLocation
+          const isPorter5ForcesRequest =
+            supplementWithWebSearch &&
+            (body.porter5ForcesRequest === true || systemPrompt?.includes('Porter Five Forces'));
+          const shouldBypassRuleBasedForLocation = isLocationQuestion && !isPestelRequest && !isPorter5ForcesRequest;
+          const fallbackContent = isPestelRequest || isPorter5ForcesRequest || shouldBypassRuleBasedForLocation
             ? FALLBACK_GENERIC_HELP_MARKER
             : getRuleBasedFallback(
                 messages,
@@ -563,15 +593,28 @@ async function handleChatRequest(
           const tryGroqFirst = true;
 
           // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data.
-          // Order for PESTEL: (1) TAVILY first – latest supplementary info via web search, (2) GROQ second – LLM to generate report, (3) other LLMs last.
-          // Use current year for PESTEL so supplemental results are the most up-to-date (as of today).
+          // Porter 5 Forces: supplement with web search for country + industry/sector.
+          // Order: (1) TAVILY first – latest supplementary info via web search, (2) GROQ second – LLM to generate report, (3) other LLMs last.
+          // Use current year for supplemental results so they are the most up-to-date.
           if (supplementWithWebSearch && dashboardSnapshot?.countryName) {
-            const year = isPestelRequest
+            const year = isPestelRequest || isPorter5ForcesRequest
               ? new Date().getFullYear()
               : (typeof dashboardSnapshot.year === 'number' ? dashboardSnapshot.year : new Date().getFullYear() - 2);
-            const supplement = await fetchPestelSupplementWebSearch(dashboardSnapshot.countryName, year);
-            if (supplement) {
-              systemPrompt = systemPrompt + '\n\n' + supplement;
+            if (isPestelRequest) {
+              const supplement = await fetchPestelSupplementWebSearch(dashboardSnapshot.countryName, year);
+              if (supplement) {
+                systemPrompt = systemPrompt + '\n\n' + supplement;
+              }
+            } else if (isPorter5ForcesRequest) {
+              const industrySector = (body.industrySector ?? '').trim() || 'general industry';
+              const supplement = await fetchPorter5ForcesSupplementWebSearch(
+                dashboardSnapshot.countryName,
+                industrySector,
+                year,
+              );
+              if (supplement) {
+                systemPrompt = systemPrompt + '\n\n' + supplement;
+              }
             }
           }
 
@@ -596,10 +639,10 @@ async function handleChatRequest(
           let usedModelId: string | null = null;
           let usedWebSearch = false;
 
-          // PESTEL must use the LLM with the full system prompt (supplement already added above).
-          // LLM order for PESTEL: TAVILY (web supplement) first – done above; GROQ second; other LLMs last.
-          // Do not try user's model before GROQ for PESTEL so we consistently use GROQ second after TAVILY.
-          if (!isPestelRequest) {
+          // PESTEL and Porter 5 Forces must use the LLM with the full system prompt (supplement already added above).
+          // LLM order: TAVILY (web supplement) first – done above; GROQ second; other LLMs last.
+          // Do not try user's model before GROQ for PESTEL or Porter 5 Forces.
+          if (!isPestelRequest && !isPorter5ForcesRequest) {
             // Non-PESTEL: try user's chosen model first when they have an API key (saves Groq free-tier tokens).
             const pestelUserKey = apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
             if (pestelUserKey && !isValidLlmResponse(content)) {
@@ -615,8 +658,8 @@ async function handleChatRequest(
 
           // Step 2: Groq for questions within period until current year minus 2 (when global data couldn't answer)
           // When user selected Tavily as model, try Tavily first (so they get web search right after global data).
-          // Skip for PESTEL: PESTEL requires the LLM to produce the structured report from the system prompt.
-          if (model === 'tavily-web-search' && !isPestelRequest && !isValidLlmResponse(content)) {
+          // Skip for PESTEL and Porter 5 Forces: they require the LLM to produce the structured report from the system prompt.
+          if (model === 'tavily-web-search' && !isPestelRequest && !isPorter5ForcesRequest && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
               const country = extractCountryForWiki(userQuery);
@@ -663,10 +706,9 @@ async function handleChatRequest(
           }
 
           // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
-          // Also try Tavily when user explicitly selected Tavily as the model.
-          // Skip for PESTEL: only the LLM should produce the structured PESTEL analysis.
+          // Skip for PESTEL and Porter 5 Forces: only the LLM should produce the structured analysis.
           const tryTavilyNow =
-            (model === 'tavily-web-search' || !isValidLlmResponse(content)) && !isPestelRequest;
+            (model === 'tavily-web-search' || !isValidLlmResponse(content)) && !isPestelRequest && !isPorter5ForcesRequest;
           if (tryTavilyNow && !isValidLlmResponse(content)) {
             const webResult = await fetchWebSearch(userQuery);
             if (webResult?.directAnswer) {
@@ -688,9 +730,8 @@ async function handleChatRequest(
             }
           }
 
-          // PESTEL: prefer user's model first if they have a key (saves Groq free-tier tokens)
-          // (Already tried above for PESTEL; for non-PESTEL this tries user's model when Groq/Tavily didn't answer.)
-          const userHasNonGroqKey = !isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
+          // PESTEL / Porter 5 Forces: user's model is not tried before GROQ (already handled above).
+          const userHasNonGroqKey = !isPestelRequest && !isPorter5ForcesRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
           if (userHasNonGroqKey && !isValidLlmResponse(content)) {
             try {
               content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
@@ -736,6 +777,26 @@ async function handleChatRequest(
               // If LLMs or web search are unavailable, return a safe guidance message instead.
               content = LOCATION_FALLBACK_MESSAGE;
               source = 'Assistant guidance';
+            } else if (isPorter5ForcesRequest && dashboardSnapshot?.countryName) {
+              const industrySector = (body.industrySector ?? '').trim() || 'industry';
+              const porterQuery = `${dashboardSnapshot.countryName} ${industrySector} Porter Five Forces analysis latest`.trim();
+              const webResult = await fetchWebSearch(porterQuery);
+              if (webResult?.directAnswer && webResult.directAnswer.length > 50) {
+                content = webResult.directAnswer;
+                source = 'Web search';
+              } else if (webResult?.context) {
+                const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
+                if (snippetMatch) {
+                  const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
+                  const text = snippetMatch[2] ?? snippetMatch[1];
+                  content = url ? `Based on latest web search: ${text}\n\nSource: [${url}](${url})` : `Based on latest web search: ${text}`;
+                  source = 'Web search';
+                }
+              }
+              if (!isValidLlmResponse(content)) {
+                content = `Porter Five Forces analysis could not be generated. ${llmError ? formatUserFriendlyError(llmError) : 'Add an API key (e.g. GROQ_API_KEY in .env) for the free tier, or use Settings to add another provider.'}`;
+                source = 'Assistant guidance';
+              }
             } else if (isPestelRequest && dashboardSnapshot?.countryName) {
               // PESTEL fallback: when no LLM succeeded, try one web search so the user gets at least something.
               const pestelQuery = `${dashboardSnapshot.countryName} PESTEL analysis latest current`.trim();

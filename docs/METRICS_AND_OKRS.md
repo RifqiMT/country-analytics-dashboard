@@ -93,6 +93,14 @@ This document defines how the **Country Analytics Platform** measures success an
 | **BA-2** | Correlation scatter engagement | Percentage of Business Analytics sessions where user changes X or Y metric at least once |
 | **BA-3** | Correlation metric pairs | Number of unique X/Y metric pairs selected per session (when Business Analytics is used) |
 
+### 2.9 Porter 5 Forces
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **PF-1** | Porter 5 Forces tab view rate | Percentage of sessions that open the Porter 5 Forces tab |
+| **PF-2** | Porter 5 Forces generate/refresh rate | Percentage of Porter 5 Forces tab sessions where user triggers generate or refresh at least once |
+| **PF-3** | Porter 5 Forces industry diversity | Number of distinct industry divisions selected per session (when Porter 5 Forces is used) |
+
 ---
 
 ## 3. OKR Metrics – Objectives and Key Results
@@ -156,6 +164,8 @@ Use a `product_area.action` pattern:
 | `pestel.generate_clicked` | User triggers PESTEL generate or refresh |
 | `pestel.chart_downloaded` | User downloads PESTEL chart as PNG |
 | `swot.chart_downloaded` | User downloads SWOT chart as PNG |
+| `porter5.tab_viewed` | User opens Porter 5 Forces tab |
+| `porter5.generate_clicked` | User triggers Porter 5 Forces generate or refresh |
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip |
 | `global.charts_viewed` | User opens Global Charts sub-tab |

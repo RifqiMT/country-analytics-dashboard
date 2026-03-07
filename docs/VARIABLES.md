@@ -68,6 +68,13 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `timezone` | Timezone | Primary timezone of the country (e.g. Asia/Jakarta, Europe/Paris). IANA timezone database. | — | Summary (General), Assistant context, Source tab. | Asia/Jakarta. |
 | `locationAndGeography` | Location & geographic context | Where a country is located, which continent or region it belongs to, and its neighbouring or bordering countries. Not stored as a dashboard metric; answered by the Analytics Assistant via LLM and web search. | — | Analytics Assistant only (e.g. "Where is Indonesia located?", "Neighbouring countries of France"); documented in Source tab under Country metadata & context. | "Indonesia is in Southeast Asia; neighbours: Malaysia, Papua New Guinea, Timor-Leste." |
 
+### 1.6 Porter 5 Forces / Industry Context
+
+| Variable name | Friendly name | Definition | Formula | Location in app | Example |
+|---------------|---------------|------------|---------|-----------------|---------|
+| `industrySectorId` | Industry / sector (ILO–ISIC division) | Two-digit ILO/ISIC division code representing an industry or sector (e.g. 10 = Manufacture of food products, 41 = Construction of buildings). Used to scope Porter Five Forces analysis. | ILO ISIC Rev. 4 division codes; list in `src/data/iloIndustrySectors.ts` (ILO_INDUSTRY_SECTORS_GRANULAR). | Porter 5 Forces tab: industry dropdown (grouped by section A–U); system prompt builder (`porter5ForcesContext.ts`). | 10 (Manufacture of food products). |
+| `industryLabel` / `getIndustryDivisionLabelShort(id)` | Industry division label (short) | Human-readable short label for the division (e.g. "Manufacture of food products"). | Lookup from ILO_INDUSTRY_SECTORS_GRANULAR by division code. | Porter 5 Forces UI label and LLM prompt. | "Manufacture of food products". |
+
 ---
 
 ## 2. Configuration Constants
@@ -239,6 +246,7 @@ flowchart TB
     Charts[Global: Charts]
     BA[Business Analytics]
     PESTEL[PESTEL context]
+    Porter5[Porter 5 Forces]
     Chat[Analytics Assistant]
     Source[Source tab]
   end
@@ -252,6 +260,7 @@ flowchart TB
   CDD --> Timeline
   CDD --> Compare
   CDD --> PESTEL
+  CDD --> Porter5
   CDD --> Chat
   GCM --> Map
   GCM --> Table
@@ -261,7 +270,7 @@ flowchart TB
   Meta --> Chat
 ```
 
-**Legend:** **CountryDashboardData** feeds the Country Dashboard (Summary, Timelines, Country Comparison), PESTEL context, and Analytics Assistant context. **GlobalCountryMetricsRow** feeds the Global map, table, Global Charts, and Business Analytics scatter. **metricMetadata.ts** feeds the Source tab and Assistant system prompt.
+**Legend:** **CountryDashboardData** feeds the Country Dashboard (Summary, Timelines, Country Comparison), PESTEL context, **Porter 5 Forces** context, and Analytics Assistant context. **GlobalCountryMetricsRow** feeds the Global map, table, Global Charts, and Business Analytics scatter. **metricMetadata.ts** feeds the Source tab and Assistant system prompt.
 
 ### 7.4 Quick Reference: Variable → App Area
 
@@ -281,4 +290,5 @@ flowchart TB
 | **Global Charts** | Same as Global table, aggregated (unified, economic, health, population-structure series) |
 | **Business Analytics** | Any two numeric metrics as X and Y (from global dataset) |
 | **PESTEL / Analytics Assistant** | Country context (summary + metrics) and global data; location/geography from LLM and web search, not stored variables |
+| **Porter 5 Forces** | Country context (summary + metrics), global data (DATA_MAX_YEAR), **industrySectorId** / industry division label; supplemental web search for country + industry |
 | **Source tab** | All variables documented in metric cards (Financial, Population, Health, Geography, Country metadata & context) |

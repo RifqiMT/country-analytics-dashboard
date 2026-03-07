@@ -1,0 +1,289 @@
+import { useState, useCallback, useEffect } from 'react';
+import { buildPorter5ForcesSystemPrompt } from '../utils/porter5ForcesContext';
+import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
+import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
+import { getStoredModel, getEffectiveApiKey } from '../config/llm';
+import { DATA_MAX_YEAR } from '../config';
+import { CountrySelector } from './CountrySelector';
+import {
+  ILO_INDUSTRY_SECTORS_GRANULAR,
+  DEFAULT_INDUSTRY_DIVISION_CODE,
+  getIndustryDivisionLabelShort,
+} from '../data/iloIndustrySectors';
+
+interface Porter5ForcesSectionProps {
+  dashboardData?: CountryDashboardData | null;
+  refreshTrigger?: number;
+  countryCode: string;
+  setCountryCode: (code: string) => void;
+}
+
+/** Strip trailing "Sources" section so only inline citations remain. */
+function stripOptionalSourcesSection(text: string): string {
+  const sourcesHeading = /(\n|^)(#{2,3})\s*Sources?\s*\n/i;
+  const match = text.match(sourcesHeading);
+  if (!match) return text;
+  const idx = match.index! + match[1].length;
+  return text.slice(0, idx).trimEnd();
+}
+
+/** Simple markdown-like formatting: headers, bold, links */
+function formatPorterContent(text: string): React.ReactNode {
+  const cleaned = stripOptionalSourcesSection(text);
+  const lines = cleaned.split('\n');
+  const elements: React.ReactNode[] = [];
+  let key = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line.trim()) {
+      elements.push(<br key={key++} />);
+      continue;
+    }
+    if (line.startsWith('### ')) {
+      elements.push(
+        <h4 key={key++} className="porter-h4">
+          {line.slice(4)}
+        </h4>,
+      );
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      elements.push(
+        <h3 key={key++} className="porter-h3">
+          {line.slice(3)}
+        </h3>,
+      );
+      continue;
+    }
+    elements.push(
+      <p key={key++} className="porter-p">
+        {formatInlineMarkdown(line)}
+      </p>,
+    );
+  }
+  return <div className="porter-content-inner">{elements}</div>;
+}
+
+function formatInlineMarkdown(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+  while (remaining.length > 0) {
+    const linkMatch = remaining.match(/\[([^\]]+)\]\(([^)]+)\)/);
+    const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
+    if (linkMatch && linkMatch.index !== undefined) {
+      const before = remaining.slice(0, linkMatch.index);
+      if (before) parts.push(before);
+      parts.push(
+        <a
+          key={key++}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="porter-link"
+        >
+          {linkMatch[1]}
+        </a>,
+      );
+      remaining = remaining.slice(linkMatch.index + linkMatch[0].length);
+    } else if (boldMatch && boldMatch.index !== undefined) {
+      const before = remaining.slice(0, boldMatch.index);
+      if (before) parts.push(before);
+      parts.push(<strong key={key++}>{boldMatch[1]}</strong>);
+      remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+    } else {
+      parts.push(remaining);
+      break;
+    }
+  }
+  return parts.length === 1 ? parts[0] : <>{parts}</>;
+}
+
+export function Porter5ForcesSection({
+  dashboardData,
+  refreshTrigger = 0,
+  countryCode,
+  setCountryCode,
+}: Porter5ForcesSectionProps) {
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [source, setSource] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
+  const [industrySectorId, setIndustrySectorId] = useState<string>(DEFAULT_INDUSTRY_DIVISION_CODE);
+
+  const globalDataYear = DATA_MAX_YEAR;
+
+  useEffect(() => {
+    if (!dashboardData) return;
+    let cancelled = false;
+    fetchGlobalCountryMetricsForYear(globalDataYear).then((rows) => {
+      if (!cancelled) setGlobalMetrics(rows);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardData, globalDataYear, refreshTrigger]);
+
+  const generateAnalysis = useCallback(async () => {
+    if (!dashboardData) {
+      setError('Please select a country in the Country dashboard first.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setAnalysis(null);
+    setSource(null);
+
+    const model = getStoredModel();
+    const apiKey = getEffectiveApiKey(model);
+    const systemPrompt = buildPorter5ForcesSystemPrompt(
+      dashboardData,
+      globalMetrics,
+      globalDataYear,
+      industrySectorId,
+    );
+    const industryLabel = getIndustryDivisionLabelShort(industrySectorId);
+    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Follow the required structure: one paragraph Executive Summary, then exactly two paragraphs for each of the five forces (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry). Use the data and context provided.`;
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [{ role: 'user', content: userMessage }],
+          systemPrompt,
+          model,
+          supplementWithWebSearch: true,
+          porter5ForcesRequest: true,
+          dashboardSnapshot: {
+            countryName: dashboardData.summary.name,
+            year: dashboardData.latestSnapshot?.year ?? dashboardData.range.endYear,
+            metrics: dashboardData.latestSnapshot?.metrics,
+          },
+          industrySector: industryLabel,
+          globalData: globalMetrics.length > 0 ? globalMetrics : undefined,
+          globalDataByYear:
+            globalMetrics.length > 0 ? { [globalDataYear]: globalMetrics } : undefined,
+          ...(apiKey && { apiKey }),
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData?.error ?? `Request failed (${res.status})`);
+      }
+
+      const data = (await res.json()) as { content?: string; source?: string };
+      setAnalysis(data.content ?? 'No response generated.');
+      setSource(data.source ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate Porter 5 Forces analysis.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [dashboardData, globalMetrics, industrySectorId, globalDataYear]);
+
+  return (
+    <section className="card porter5-section">
+      <div className="section-header">
+        <div>
+          <h2 className="section-title">Porter Five Forces</h2>
+          <p className="muted">
+            Industry attractiveness analysis (Threat of new entrants, Bargaining power of suppliers,
+            Bargaining power of buyers, Threat of substitutes, Competitive rivalry) for the selected
+            country and ILO/ISIC industry sector. Uses latest global data (year {DATA_MAX_YEAR}) and
+            supplementary information from TAVILY first, then GROQ, then other LLMs.
+          </p>
+        </div>
+      </div>
+
+      <div className="porter5-controls">
+        <div className="porter5-country-selector">
+          <CountrySelector
+            countryCode={countryCode}
+            setCountryCode={setCountryCode}
+            data={dashboardData ?? undefined}
+          />
+        </div>
+        <div className="porter5-industry-selector">
+          <label htmlFor="porter5-industry" className="porter5-industry-label">
+            Industry / sector (ILO–ISIC division)
+          </label>
+          <select
+            id="porter5-industry"
+            className="porter5-industry-select"
+            value={industrySectorId}
+            onChange={(e) => setIndustrySectorId(e.target.value)}
+            aria-label="Select industry or sector (ILO/ISIC granular)"
+          >
+            {ILO_INDUSTRY_SECTORS_GRANULAR.map((section) => (
+              <optgroup key={section.sectionLetter} label={`Section ${section.sectionLetter} – ${section.sectionLabel}`}>
+                {section.divisions.map((div) => (
+                  <option key={div.code} value={div.code}>
+                    {div.code} – {div.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+        <button
+          type="button"
+          className="porter5-generate-btn"
+          onClick={generateAnalysis}
+          disabled={isLoading || !dashboardData}
+          aria-label="Generate Porter Five Forces analysis"
+        >
+          {isLoading ? (
+            <>
+              <span className="porter5-spinner" aria-hidden />
+              Generating
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0Z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M8 4a.75.75 0 0 1 .75.75v2.69l3.22 3.22a.75.75 0 1 1-1.06 1.06l-3.5-3.5A.75.75 0 0 1 7.25 7V4.75A.75.75 0 0 1 8 4Z"
+                />
+              </svg>
+              Generate Porter 5 Forces Analysis
+            </>
+          )}
+        </button>
+      </div>
+
+      {!dashboardData && (
+        <p className="porter5-hint muted">
+          Select a country in the <strong>Country dashboard</strong> tab, then return here to
+          choose an industry/sector and generate the analysis.
+        </p>
+      )}
+
+      {error && (
+        <div className="porter5-error" role="alert">
+          {error}
+        </div>
+      )}
+
+      {analysis && (
+        <div className="porter5-output" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
+          <h3 className="porter5-output-title">Comprehensive Analysis</h3>
+          <div className="porter5-content">{formatPorterContent(analysis)}</div>
+          {source && (
+            <p className="porter5-source muted">
+              Source: {source}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

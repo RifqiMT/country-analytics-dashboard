@@ -9,7 +9,7 @@ This document describes the **data flow**, **component boundaries**, and **techn
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         App.tsx (Root)                            │
-│  - Main tabs (Country | Global | PESTEL | Business Analytics | Chat | Source)         │
+│  - Main tabs (Country | Global | PESTEL | Porter 5 Forces | Business Analytics | Chat | Source)         │
 │  - Global view sub-tabs: Map | Global table | Global Charts                          │
 │  - Global state: mainTab, globalViewTab, mapMetricId, year       │
 └─────────────────────────────────────────────────────────────────┘
@@ -17,10 +17,10 @@ This document describes the **data flow**, **component boundaries**, and **techn
         ┌───────────────────────────┼───────────────────────────┬──────────────────┬──────────────────┬──────────────┐
         ▼                           ▼                           ▼                  ▼                  ▼                  ▼
 ┌───────────────┐           ┌───────────────┐           ┌───────────────┐   ┌───────────────┐   ┌───────────────┐   ┌───────────────┐
-│   Country     │           │   Global     │           │   PESTEL      │   │   Business    │   │   Analytics   │   │   Source      │
-│   Dashboard   │           │   Analytics  │           │   Tab         │   │   Analytics   │   │   Assistant   │   │   Tab         │
-│               │           │               │           │               │   │   Tab         │   │   (Chat)      │   │               │
-│ - Selector   │           │ - Map         │           │ - PESTEL      │   │ - Correlation │   │ - Chatbot     │   │ - Where data  │
+│   Country     │           │   Global     │           │   PESTEL      │   │ Porter 5 / Biz │   │   Analytics   │   │   Source      │
+│   Dashboard   │           │   Analytics  │           │   Tab         │   │ Analytics      │   │   Assistant   │   │   Tab         │
+│               │           │               │           │               │   │ - Porter 5     │   │   (Chat)      │   │               │
+│ - Selector   │           │ - Map         │           │ - PESTEL      │   │   industry +   │   │ - Chatbot     │   │ - Where data  │
 │ - YearRange  │           │ - MapMetric  │           │   Section     │   │   Scatter     │   │   Section     │   │   appears     │
 │ - Summary    │           │ - AllCountries│           │ - Generate/   │   │ - X/Y metrics │   │ - Suggestions │   │ - Search      │
 │ - TimeSeries │           │   TableSection │          │   Refresh     │   │ - Pearson r   │   │ - Model/Key   │   │ - Filter chips│
@@ -171,6 +171,26 @@ vite-plugin-chat-api.ts middleware
 ChatbotSection renders message + source line
 ```
 
+### 2.4 Porter 5 Forces Data Flow
+
+```
+User opens Porter 5 Forces tab, selects country (from dashboard) + industry (ILO/ISIC division), clicks Generate
+         │
+         ▼
+Porter5ForcesSection: buildPorter5ForcesSystemPrompt(dashboardData, globalMetrics, industrySectorId)
+         │
+         ▼
+POST /api/chat with porter5ForcesRequest: true, industrySector: "<division label>"
+         │
+         ├─► fetchPorter5ForcesSupplementWebSearch(countryName, industrySector, year) [TAVILY]
+         ├─► Inject supplement into system prompt
+         ├─► GROQ (Llama) generates analysis (Executive Summary + 2 paras per force; inline citations only)
+         └─► Return { content, source: model label }
+         │
+         ▼
+Porter5ForcesSection strips any trailing "Sources" block; formatPorterContent() renders Markdown (headers, bold, links)
+```
+
 ---
 
 ## 3. Component Hierarchy
@@ -227,7 +247,19 @@ App
     └── Correlation & causation analysis (Pearson r, p-value, interpretation, causation note)
 ```
 
-### 3.4 PESTEL Tab
+### 3.4 Porter 5 Forces Tab
+
+```
+App
+└── Porter5ForcesSection
+    └── Country selector (same as Country dashboard)
+    └── Industry dropdown (ILO/ISIC divisions, grouped by section; iloIndustrySectors.ts)
+    └── Generate / Refresh button
+    └── Rendered output: Executive Summary + five forces (2 paras each); inline citations only (stripOptionalSourcesSection)
+    └── Source attribution (model label)
+```
+
+### 3.5 PESTEL Tab
 
 ```
 App
@@ -241,7 +273,7 @@ App
     └── Sources and hyperlinks (where applicable)
 ```
 
-### 3.5 Source Tab
+### 3.6 Source Tab
 
 ```
 App
@@ -254,7 +286,7 @@ App
     └── Metric cards (Financial, Population, Health, Geography, Country metadata & context)
 ```
 
-### 3.6 Analytics Assistant
+### 3.7 Analytics Assistant
 
 ```
 App
@@ -295,7 +327,8 @@ App
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
 | `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
 | `pestelContext.ts` | PESTEL prompt building; uses DATA_MAX_YEAR for peer comparison; **TAVILY** supplement (current year) fetched first, then **GROQ** to generate report; used by PESTEL tab |
-| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing; source attribution; PESTEL generation (current year for web supplement) |
+| **porter5ForcesContext.ts** | **Porter 5 Forces prompt building** – country, ILO/ISIC industry division, global data (DATA_MAX_YEAR), Executive Summary + 2 paras per force; **inline citations only** (no separate Sources section) |
+| `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing; source attribution; PESTEL and **Porter 5 Forces** generation; **fetchPorter5ForcesSupplementWebSearch()** (TAVILY) then GROQ for Porter 5 Forces |
 
 ### 4.4 Business Analytics
 

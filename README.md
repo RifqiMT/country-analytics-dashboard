@@ -31,7 +31,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
 - **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
 - **Understand** data methodology via the Source tab with descriptions, formulas, and source links
-- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data first** for all metrics the dashboards and tables cover; for supplementary and general-knowledge answers: **TAVILY (web search) first** for latest information, **GROQ second** as the primary LLM, then **other LLMs** as fallback. Source attribution is shown for every response.
+- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data first** for all metrics the dashboards and tables cover; for supplementary and general-knowledge answers: **TAVILY (web search) first** for latest information, **GROQ second** as the primary LLM, then **other LLMs** as fallback. Source attribution is shown for every response. **Porter 5 Forces** and **PESTEL** use the same order (TAVILY supplement then GROQ) for industry and country strategy reports.
 
 ### 1.2 Target Audience
 
@@ -50,6 +50,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, labour/unemployment, and comparison |
 | **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, population structure aggregates) for cross-country comparison |
 | **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications (PESTEL–SWOT), New Market Analysis, Key Takeaways, Recommendations (≥5 bullets each). Uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement; **download PESTEL and SWOT charts as PNG** |
+| **Porter 5 Forces** | Generate Porter Five Forces analysis by country and ILO/ISIC industry division; Executive Summary + 2 paragraphs per force; **inline citations only**; TAVILY → GROQ → others |
 | **Business Analytics** | Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation) |
 | **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
 | **Analytics assistant** | Chat for questions about metrics, methodology, location/geography, and general knowledge |
@@ -103,7 +104,17 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Generate / refresh** | Trigger generation with current country context; responses include sources and hyperlinks where applicable |
 | **Context-aware** | Uses selected country and dashboard data; global metrics and peer comparison use **DATA_MAX_YEAR** (most up-to-date); supplemental web search uses **current year** |
 
-### 3.4 Business Analytics
+### 3.4 Porter 5 Forces
+
+| Feature | Description |
+|---------|-------------|
+| **Porter 5 Forces tab** | Dedicated view for Porter Five Forces analysis of the selected country in a chosen **ILO/ISIC industry division** (e.g. Manufacture of food products, Construction). Uses **latest global data** (DATA_MAX_YEAR) and **TAVILY → GROQ → others** for generation. |
+| **Country + industry selector** | Same country as Country dashboard; **industry dropdown** grouped by ILO section (A–U) with division-level options (2-digit division code + label). Default division: 10 (Manufacture of food products). |
+| **Output structure** | **Executive Summary** (1 paragraph); **five forces**, each with exactly two paragraphs: Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry. |
+| **Citations** | **All citations and sources are inline** (merged into the narrative with Markdown hyperlinks). No separate "Sources" section or bullet list at the end. |
+| **Generate / refresh** | User triggers generation; response shows Comprehensive Analysis and source attribution (e.g. Llama 3.1 8B (Groq)). |
+
+### 3.5 Business Analytics
 
 | Feature | Description |
 |---------|-------------|
@@ -112,7 +123,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Correlation & causation analysis** | Pearson correlation coefficient (r), approximate p-value, interpretation text, and causation/context note with disclaimer |
 | **Country highlight** | Selected country from Country dashboard is highlighted on the scatter; changing country updates highlight |
 
-### 3.5 Source Tab
+### 3.6 Source Tab
 
 | Feature | Description |
 |---------|-------------|
@@ -122,7 +133,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Suggestions dropdown** | Matching metrics when typing; click to scroll to metric |
 | **Metric cards** | Grouped by category: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context). Each card: label, description, formula, unit, source links with external-link icons |
 
-### 3.6 Analytics Assistant (Chat)
+### 3.7 Analytics Assistant (Chat)
 
 | Feature | Description |
 |---------|-------------|
@@ -133,7 +144,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Out-of-scope handling** | Religion, culture, leaders, capital, language, **location/geography** (e.g. "Where is X?", "Which continent?", "Neighbouring countries") routed to LLM/web search; never answered with dashboard metrics |
 | **Suggestions** | Quick-start prompts for common questions |
 
-### 3.7 Data Fallbacks
+### 3.8 Data Fallbacks
 
 - **IMF WEO** – Government debt and GDP when World Bank has no data
 - **Territory fallbacks** – Inflation and interest rate from parent country (e.g. American Samoa → US) for 30+ territories
@@ -170,7 +181,7 @@ axios, d3-geo, d3-scale, html2canvas, react, react-dom, react-simple-maps, recha
 ### 5.1 High-Level Flow
 
 ```
-User → App.tsx (tabs: Country | Global | PESTEL | Business Analytics | Chat | Source)
+User → App.tsx (tabs: Country | Global | PESTEL | Porter 5 Forces | Business Analytics | Chat | Source)
          ↓
     useCountryDashboard (country, year range)
          ↓
@@ -189,7 +200,8 @@ User → App.tsx (tabs: Country | Global | PESTEL | Business Analytics | Chat | 
 | `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state (including macro economic, macro health, labour, population-structure frequencies) |
 | `src/api/worldBank.ts` | WDI API, global metrics, territory and Taiwan fallbacks |
 | `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
-| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health variants), LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, AllCountriesTableSection, PESTELSection, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
+| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health), LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, AllCountriesTableSection, GlobalChartsSection, PESTELSection, **Porter5ForcesSection**, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
+| `src/utils/porter5ForcesContext.ts` | Porter 5 Forces system prompt (country, industry division, global data, Executive Summary + 2 paras per force; inline citations only) |
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
 | `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
 | `src/utils/pestelContext.ts` | PESTEL prompt building and generation context for selected country |

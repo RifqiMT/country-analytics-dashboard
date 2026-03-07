@@ -63,11 +63,12 @@ See `USER_PERSONAS.md` for full detail.
 
 ### 4.1 Main Navigation
 
-Six main tabs:
+Seven main tabs:
 
 - **Country dashboard** – Single-country deep dive
 - **Global analytics** – Map, global tables, and **global macro charts** (unified, economic, health, population structure aggregates)
 - **PESTEL** – Generate and view PESTEL analysis for the selected country with structured sections and sources; uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement
+- **Porter 5 Forces** – Generate Porter Five Forces analysis for the selected country and a chosen **ILO/ISIC industry division**; Executive Summary + 2 paragraphs per force; **inline citations only** (no separate sources list); TAVILY → GROQ → others
 - **Business Analytics** – Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation)
 - **Source** – Metric definitions, formulas, data source links, Analytics Assistant flow
 - **Analytics assistant** – Chat for questions about metrics, methodology, and general knowledge
@@ -213,6 +214,19 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 - **Context**: Uses country context and dashboard data; generation via LLM (same infrastructure as Analytics assistant)
 - **Behaviour**: User triggers generate/refresh; response rendered in tab with clear sectioning and attribution
 - **Bullet minimums**: Prompt and guidelines require New Market Analysis, Key Takeaways, and Recommendations each to have at least 5 bullet points
+
+---
+
+### 4.7 Porter 5 Forces Analysis
+
+- **Tab**: Dedicated **Porter 5 Forces** tab in main navigation
+- **Input**: Selected country (from Country dashboard); **industry/sector** from a grouped dropdown (ILO/ISIC division-level: sections A–U, options = 2-digit division code + label). Default division: **10** (Manufacture of food products). Data: `src/data/iloIndustrySectors.ts` (ILO_INDUSTRY_SECTORS_GRANULAR).
+- **Data recency**: Uses **most up-to-date** global data (**DATA_MAX_YEAR**) for country context and peer comparison; **TAVILY (web search)** supplies supplemental information for the country and industry; LLM order: **TAVILY supplement first**, then **GROQ** to generate the analysis, then other LLMs if needed.
+- **Output structure**: 
+  1. **Executive Summary** – Exactly one paragraph (4–6 sentences) summarising overall competitive intensity and attractiveness of the chosen industry in the selected country.
+  2. **Five forces** – Each force has **exactly two paragraphs**: (1) Threat of new entrants, (2) Bargaining power of suppliers, (3) Bargaining power of buyers, (4) Threat of substitutes, (5) Competitive rivalry (industry competition).
+- **Citations**: **All citations and sources must be inline** (merged into the narrative with Markdown hyperlinks, e.g. [World Bank WDI](URL)). **No separate "Sources" section, bullet list, or reference list** at the end. Prompt and UI strip any trailing Sources block.
+- **Generate / refresh**: User triggers generation; response shows Comprehensive Analysis and source attribution (e.g. model label). Context: `buildPorter5ForcesSystemPrompt()` in `src/utils/porter5ForcesContext.ts`; supplement: `fetchPorter5ForcesSupplementWebSearch()` in `vite-plugin-chat-api.ts`.
 
 ---
 

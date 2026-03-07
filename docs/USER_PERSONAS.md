@@ -36,6 +36,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 - Starts with Country dashboard for a key market
 - Switches to Global analytics (map, table, or **global charts**) to compare regions and aggregates
+- Uses **Porter 5 Forces** tab to generate competitive analysis for a specific country and industry (e.g. Indonesia food manufacturing) for strategy or board materials
 - Sorts global table by GDP or population for rankings
 - Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
 - Uses Analytics assistant for quick **location/geography** and neighbour questions (e.g. "Which continent is Ukraine in?", "Neighbouring countries of Indonesia?") with up-to-date web search
@@ -77,6 +78,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 - Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
 - Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
+- Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with inline citations
 - Checks Source tab for government debt formula and IMF fallback
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, TAVILY/Web search, GROQ, other LLMs) to assess answer provenance
 - Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)
@@ -165,7 +167,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 | Persona | Primary Tab | Key Features |
 |---------|-------------|--------------|
-| Strategy Lead | Country + Global + Business Analytics + Chat | Map, global table sort, correlation scatter (Business Analytics), comparison, Analytics assistant |
-| Economist | Country + Global + PESTEL + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL (latest data), metric definitions, methodology questions |
+| Strategy Lead | Country + Global + **Porter 5 Forces** + Business Analytics + Chat | Map, global table sort, Porter 5 Forces (country + industry), correlation scatter (Business Analytics), comparison, Analytics assistant |
+| Economist | Country + Global + PESTEL + **Porter 5 Forces** + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL and Porter 5 Forces (latest data), metric definitions, methodology questions |
 | Market Manager | Country + Chat | Summary, Population Structure timeline (age groups + absolute), age breakdown, quick comparisons |
-| BI Analyst | All | Global table, Global charts, Business Analytics (correlation scatter), PESTEL, Source tab, sorting, Analytics assistant |
+| BI Analyst | All | Global table, Global charts, Business Analytics (correlation scatter), PESTEL, **Porter 5 Forces**, Source tab, sorting, Analytics assistant |

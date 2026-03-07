@@ -1868,6 +1868,164 @@ tbody tr:hover {
   line-height: 1.5;
 }
 
+/* Porter Five Forces – separate feature */
+.porter5-section {
+  padding: var(--space-6);
+}
+
+.porter5-section .section-header {
+  margin-bottom: var(--space-5);
+}
+
+.porter5-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.porter5-country-selector {
+  flex: 1 1 260px;
+  min-width: 240px;
+}
+
+.porter5-industry-selector {
+  flex: 1 1 280px;
+  min-width: 200px;
+}
+
+.porter5-industry-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: var(--space-1);
+}
+
+.porter5-industry-select {
+  width: 100%;
+  max-width: 360px;
+  padding: var(--space-2) var(--space-3);
+  font-size: 0.9rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.porter5-generate-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  background: var(--accent-blue, #2563eb);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.porter5-generate-btn:hover:not(:disabled) {
+  background: var(--accent-blue-dark, #1d4ed8);
+}
+
+.porter5-generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.porter5-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: pestel-spin 0.7s linear infinite;
+}
+
+.porter5-hint {
+  margin: var(--space-3) 0;
+  font-size: 0.9rem;
+}
+
+.porter5-error {
+  padding: var(--space-4);
+  background: rgba(185, 28, 28, 0.06);
+  border: 1px solid rgba(185, 28, 28, 0.2);
+  border-radius: var(--radius-lg);
+  color: var(--accent-red);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: var(--space-4);
+}
+
+.porter5-output {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-subtle);
+}
+
+.porter5-output-title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.porter5-content {
+  line-height: 1.65;
+  color: var(--text-primary);
+}
+
+.porter5-content-inner .porter-h3 {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.porter5-content-inner .porter-h4 {
+  margin: var(--space-3) 0 var(--space-1);
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.porter5-content-inner .porter-p {
+  margin: 0 0 var(--space-3);
+  font-size: 0.95rem;
+}
+
+.porter5-content-inner .porter-p:last-child {
+  margin-bottom: 0;
+}
+
+.porter5-content-inner .porter-link {
+  color: var(--accent-blue, #2563eb);
+  text-decoration: underline;
+}
+
+.porter5-content-inner .porter-link:hover {
+  text-decoration: none;
+}
+
+.porter5-source {
+  margin-top: var(--space-4);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 /* PESTEL – multi-metric correlation (between button and analysis) */
 .pestel-scatter-section {
   padding: var(--space-5) var(--space-6);

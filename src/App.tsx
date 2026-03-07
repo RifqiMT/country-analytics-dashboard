@@ -13,6 +13,7 @@ import { AllCountriesTableSection } from './components/AllCountriesTableSection'
 import { SourceSection } from './components/SourceSection';
 import { ChatbotSection } from './components/ChatbotSection';
 import { PESTELSection } from './components/PESTELSection';
+import { Porter5ForcesSection } from './components/Porter5ForcesSection';
 import { BusinessAnalyticsSection } from './components/BusinessAnalyticsSection';
 import { YearRangeSelector } from './components/YearRangeSelector';
 import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
@@ -49,7 +50,7 @@ function App() {
     resampledPopulationStructure,
   } = useCountryDashboard({ refreshTrigger: dataRefreshTrigger });
 
-  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'business' | 'chat'>('country');
+  const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'porter5' | 'business' | 'chat'>('country');
   const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table' | 'charts'>('map');
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
@@ -141,6 +142,18 @@ function App() {
           </button>
           <button
             type="button"
+            className={`main-tab ${mainTab === 'porter5' ? 'main-tab-active' : ''}`}
+            onClick={() => setMainTab('porter5')}
+          >
+            <span className="icon-16">
+              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                <path d="M4 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4Zm0 1h8a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm1.5 2.5a.5.5 0 0 0-.5.5v5a.5.5 0 0 0 1 0V6a.5.5 0 0 0-.5-.5Zm3 0a.5.5 0 0 0-.5.5v5a.5.5 0 0 0 1 0V6a.5.5 0 0 0-.5-.5Zm3 0a.5.5 0 0 0-.5.5v5a.5.5 0 0 0 1 0V6a.5.5 0 0 0-.5-.5Z" />
+              </svg>
+            </span>
+            <span>Porter 5 Forces</span>
+          </button>
+          <button
+            type="button"
             className={`main-tab ${mainTab === 'business' ? 'main-tab-active' : ''}`}
             onClick={() => setMainTab('business')}
           >
@@ -181,6 +194,13 @@ function App() {
           <SourceSection />
         ) : mainTab === 'pestel' ? (
           <PESTELSection
+            dashboardData={data}
+            refreshTrigger={dataRefreshTrigger}
+            countryCode={countryCode}
+            setCountryCode={setCountryCode}
+          />
+        ) : mainTab === 'porter5' ? (
+          <Porter5ForcesSection
             dashboardData={data}
             refreshTrigger={dataRefreshTrigger}
             countryCode={countryCode}
