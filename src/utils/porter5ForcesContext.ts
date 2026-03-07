@@ -144,6 +144,53 @@ Use the **most up-to-date** information: the metrics below use the latest availa
 
 **Required structure – follow exactly:**
 
+You must start your response with the **Porter 5 Forces Chart Summary** block below. This block is used to render a visual chart. Then add a horizontal rule (\`---\`) on its own line, followed by the Executive Summary and the full analysis.
+
+### Step 1: Porter 5 Forces Chart Summary (must appear first)
+
+For the chart, provide **exactly 5 bullet points** per force. Each bullet must be one short, concise sentence (summarised analysis). Output the following structure exactly—use these exact headings and replace the brackets with your analysis. Do not wrap this block in code fences.
+
+## Porter 5 Forces Chart Summary
+
+### 1. Threat of new entrants
+- [Bullet 1 – one short sentence]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+### 2. Bargaining power of suppliers
+- [Bullet 1]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+### 3. Bargaining power of buyers
+- [Bullet 1]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+### 4. Threat of substitutes
+- [Bullet 1]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+### 5. Competitive rivalry
+- [Bullet 1]
+- [Bullet 2]
+- [Bullet 3]
+- [Bullet 4]
+- [Bullet 5]
+
+---
+
+After the --- line, continue with:
+
 ### Executive Summary (1 paragraph)
 Write **exactly one paragraph** (4–6 sentences) that summarises the overall competitive intensity and attractiveness of the **${industryLabel}** sector in **${dashboardData?.summary?.name ?? 'the country'}**. Synthesise the five forces into a single, coherent overview. Do not use bullet points in this paragraph. **Include at least one inline citation** with a hyperlink (e.g. [World Bank WDI](https://data.worldbank.org/indicator)) where you cite a metric or fact.
 
@@ -165,6 +212,7 @@ Write **exactly two paragraphs**. Cover: availability of substitute products or 
 Write **exactly two paragraphs**. Cover: number and size of competitors; rate of industry growth; differentiation; exit barriers; intensity of rivalry in this country and sector. Use full sentences; no bullet lists. **Include hyperlinked citations** in the narrative where you reference data or supplemental web results.
 
 ## Guidelines
+- **Chart summary**: You must output the "Porter 5 Forces Chart Summary" block first, with exactly 5 bullet points under each of the 5 force headings. Use short, summarised sentences suitable for a chart. Then type \`---\` on a new line before the Executive Summary.
 - Use exact numbers from the data when relevant; never invent figures.
 - **Citations and sources**: Put **all** citations and sources **inline** in the narrative using hyperlinks: [Source Name](URL). Do **not** add a separate "Sources" section, bullet list, or reference list at the end—every source must be merged into the text where it is cited (e.g. "Unemployment is 5.4% ([World Bank WDI](https://data.worldbank.org/indicator)).").
 - Each of the five forces must have **exactly two paragraphs**.

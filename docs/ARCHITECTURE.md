@@ -184,11 +184,14 @@ POST /api/chat with porter5ForcesRequest: true, industrySector: "<division label
          │
          ├─► fetchPorter5ForcesSupplementWebSearch(countryName, industrySector, year) [TAVILY]
          ├─► Inject supplement into system prompt
-         ├─► GROQ (Llama) generates analysis (Executive Summary + 2 paras per force; inline citations only)
+         ├─► GROQ (Llama) generates analysis (Chart Summary block with 5 bullets per force, then --- then Executive Summary + 2 paras per force; inline citations only)
          └─► Return { content, source: model label }
          │
          ▼
-Porter5ForcesSection strips any trailing "Sources" block; formatPorterContent() renders Markdown (headers, bold, links)
+Porter5ForcesSection: parsePorter5ChartSummary(analysis) → { chartData, textWithoutChart }
+         ├─► If chartData present → Porter5Chart (standard cross layout: centre = Competitive Rivalry; top/left/right/bottom = other four forces; 5 bullets per force; connectors)
+         ├─► stripOptionalSourcesSection(); formatPorterContent(textWithoutChart) for Comprehensive Analysis
+         └─► Source attribution (model label)
 ```
 
 ---
@@ -255,7 +258,9 @@ App
     └── Country selector (same as Country dashboard)
     └── Industry dropdown (ILO/ISIC divisions, grouped by section; iloIndustrySectors.ts)
     └── Generate / Refresh button
-    └── Rendered output: Executive Summary + five forces (2 paras each); inline citations only (stripOptionalSourcesSection)
+    └── parsePorter5ChartSummary(analysis) → chartData + textWithoutChart
+    └── Porter5Chart (when chartData present): standard cross layout (centre = Competitive Rivalry; top/left/right/bottom = Threat of New Entry, Supplier Power, Buyer Power, Threat of Substitution); 5 bullets per force; thin connectors to centre
+    └── Comprehensive Analysis: formatPorterContent(textWithoutChart); inline citations only (stripOptionalSourcesSection)
     └── Source attribution (model label)
 ```
 

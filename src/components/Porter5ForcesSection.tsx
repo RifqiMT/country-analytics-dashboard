@@ -11,6 +11,168 @@ import {
   getIndustryDivisionLabelShort,
 } from '../data/iloIndustrySectors';
 
+/** Parsed chart data: exactly 5 bullet strings per force for the Porter 5 chart visualization */
+export interface Porter5ChartData {
+  threatOfNewEntrants: string[];
+  supplierPower: string[];
+  buyerPower: string[];
+  threatOfSubstitutes: string[];
+  competitiveRivalry: string[];
+}
+
+const CHART_START = '## Porter 5 Forces Chart Summary';
+const CHART_END_MARKERS = ['\n---\n', '\n### Executive Summary', '\n## Executive Summary'];
+
+/** Extract chart summary block and parsed bullets; returns null if block not found or malformed */
+function parsePorter5ChartSummary(analysis: string): {
+  chartData: Porter5ChartData | null;
+  textWithoutChart: string;
+} {
+  const idx = analysis.indexOf(CHART_START);
+  if (idx === -1) {
+    return { chartData: null, textWithoutChart: analysis };
+  }
+
+  const afterChartStart = analysis.slice(idx + CHART_START.length);
+  let endIdx = afterChartStart.length;
+  for (const marker of CHART_END_MARKERS) {
+    const i = afterChartStart.indexOf(marker);
+    if (i !== -1 && i < endIdx) endIdx = i;
+  }
+  const chartBlock = afterChartStart.slice(0, endIdx).trim();
+  const textWithoutChart =
+    analysis.slice(0, idx).trim() + afterChartStart.slice(endIdx).trim();
+
+  const sections = chartBlock.split(/\n###\s+/).filter(Boolean);
+  const result: Porter5ChartData = {
+    threatOfNewEntrants: [],
+    supplierPower: [],
+    buyerPower: [],
+    threatOfSubstitutes: [],
+    competitiveRivalry: [],
+  };
+
+  const forceKeys: (keyof Porter5ChartData)[] = [
+    'threatOfNewEntrants',
+    'supplierPower',
+    'buyerPower',
+    'threatOfSubstitutes',
+    'competitiveRivalry',
+  ];
+  const forcePatterns = [
+    /1\.\s*Threat of new entrants/i,
+    /2\.\s*Bargaining power of suppliers/i,
+    /3\.\s*Bargaining power of buyers/i,
+    /4\.\s*Threat of substitutes/i,
+    /5\.\s*Competitive rivalry/i,
+  ];
+
+  for (const section of sections) {
+    const lines = section.split('\n').map((l) => l.trim()).filter(Boolean);
+    const title = lines[0] ?? '';
+    const bulletLines = lines.slice(1).filter((l) => /^[-*]\s+/.test(l)).slice(0, 5);
+    const bullets = bulletLines.map((l) => l.replace(/^[-*]\s+/, '').trim());
+
+    for (let i = 0; i < forcePatterns.length; i++) {
+      if (forcePatterns[i].test(title)) {
+        result[forceKeys[i]] = bullets;
+        break;
+      }
+    }
+  }
+
+  const allHaveAtLeastOne = forceKeys.every((k) => result[k].length >= 1);
+  const chartData = allHaveAtLeastOne ? result : null;
+  return { chartData, textWithoutChart };
+}
+
+/** Porter 5 chart: center = Competitive Rivalry, top/left/right/bottom = other four forces */
+function Porter5Chart({ data }: { data: Porter5ChartData }) {
+  return (
+    <figure className="porter5-chart" aria-label="Porter Five Forces analysis chart">
+      <figcaption className="porter5-chart-caption">
+        <span className="porter5-chart-caption-label">Competitive analysis</span>
+        <h3 className="porter5-chart-title">Porter&apos;s Five Forces Analysis</h3>
+      </figcaption>
+      <div className="porter5-chart-grid">
+        <div className="porter5-chart-cell porter5-chart-top">
+          <article className="porter5-chart-card porter5-chart-card--entry">
+            <div className="porter5-chart-card__accent" aria-hidden />
+            <header className="porter5-chart-card__header">
+              <span className="porter5-chart-card__badge">1</span>
+              <h4 className="porter5-chart-card__title">Threat of New Entry</h4>
+            </header>
+            <ul className="porter5-chart-card__list">
+              {data.threatOfNewEntrants.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+            <div className="porter5-chart-connector porter5-chart-connector--down" aria-hidden />
+          </article>
+        </div>
+        <div className="porter5-chart-cell porter5-chart-left">
+          <article className="porter5-chart-card porter5-chart-card--supplier">
+            <div className="porter5-chart-card__accent" aria-hidden />
+            <header className="porter5-chart-card__header">
+              <span className="porter5-chart-card__badge">2</span>
+              <h4 className="porter5-chart-card__title">Supplier Power</h4>
+            </header>
+            <ul className="porter5-chart-card__list">
+              {data.supplierPower.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+            <div className="porter5-chart-connector porter5-chart-connector--right" aria-hidden />
+          </article>
+        </div>
+        <div className="porter5-chart-cell porter5-chart-center">
+          <article className="porter5-chart-card porter5-chart-card--center">
+            <header className="porter5-chart-card__header">
+              <span className="porter5-chart-card__badge porter5-chart-card__badge--center">5</span>
+              <h4 className="porter5-chart-card__title">Competitive Rivalry</h4>
+            </header>
+            <ul className="porter5-chart-card__list">
+              {data.competitiveRivalry.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+          </article>
+        </div>
+        <div className="porter5-chart-cell porter5-chart-right">
+          <article className="porter5-chart-card porter5-chart-card--buyer">
+            <div className="porter5-chart-card__accent" aria-hidden />
+            <header className="porter5-chart-card__header">
+              <span className="porter5-chart-card__badge">3</span>
+              <h4 className="porter5-chart-card__title">Buyer Power</h4>
+            </header>
+            <ul className="porter5-chart-card__list">
+              {data.buyerPower.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+            <div className="porter5-chart-connector porter5-chart-connector--left" aria-hidden />
+          </article>
+        </div>
+        <div className="porter5-chart-cell porter5-chart-bottom">
+          <article className="porter5-chart-card porter5-chart-card--substitute">
+            <div className="porter5-chart-card__accent" aria-hidden />
+            <header className="porter5-chart-card__header">
+              <span className="porter5-chart-card__badge">4</span>
+              <h4 className="porter5-chart-card__title">Threat of Substitution</h4>
+            </header>
+            <ul className="porter5-chart-card__list">
+              {data.threatOfSubstitutes.map((b, i) => (
+                <li key={i}>{b}</li>
+              ))}
+            </ul>
+            <div className="porter5-chart-connector porter5-chart-connector--up" aria-hidden />
+          </article>
+        </div>
+      </div>
+    </figure>
+  );
+}
+
 interface Porter5ForcesSectionProps {
   dashboardData?: CountryDashboardData | null;
   refreshTrigger?: number;
@@ -146,7 +308,7 @@ export function Porter5ForcesSection({
       industrySectorId,
     );
     const industryLabel = getIndustryDivisionLabelShort(industrySectorId);
-    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Follow the required structure: one paragraph Executive Summary, then exactly two paragraphs for each of the five forces (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry). Use the data and context provided.`;
+    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Start with the "Porter 5 Forces Chart Summary" block: exactly 5 bullet points (short sentences) under each of the five force headings, then --- on a new line, then one paragraph Executive Summary, then exactly two paragraphs for each force (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry). Use the data and context provided.`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -274,15 +436,29 @@ export function Porter5ForcesSection({
       )}
 
       {analysis && (
-        <div className="porter5-output" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
-          <h3 className="porter5-output-title">Comprehensive Analysis</h3>
-          <div className="porter5-content">{formatPorterContent(analysis)}</div>
-          {source && (
-            <p className="porter5-source muted">
-              Source: {source}
-            </p>
-          )}
-        </div>
+        <>
+          {(() => {
+            const { chartData, textWithoutChart } = parsePorter5ChartSummary(analysis);
+            return (
+              <>
+                {chartData && (
+                  <div className="porter5-chart-wrapper">
+                    <Porter5Chart data={chartData} />
+                  </div>
+                )}
+                <div className="porter5-output" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
+                  <h3 className="porter5-output-title">Comprehensive Analysis</h3>
+                  <div className="porter5-content">{formatPorterContent(textWithoutChart)}</div>
+                  {source && (
+                    <p className="porter5-source muted">
+                      Source: {source}
+                    </p>
+                  )}
+                </div>
+              </>
+            );
+          })()}
+        </>
       )}
     </section>
   );

@@ -2026,6 +2026,313 @@ tbody tr:hover {
   color: var(--text-muted);
 }
 
+/* Porter 5 Forces chart – standard framework layout (cross with center hub) */
+.porter5-chart-wrapper {
+  margin-bottom: var(--space-6);
+}
+
+.porter5-chart {
+  padding: var(--space-6) var(--space-5);
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.porter5-chart-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+  text-align: center;
+}
+
+.porter5-chart-caption-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.porter5-chart-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+/* Standard 3×3 cross: top/bottom above and below center; left/right on sides */
+.porter5-chart-grid {
+  display: grid;
+  grid-template-columns: 1fr minmax(260px, 320px) 1fr;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "  .    top    .  "
+    "left center right"
+    "  .   bottom  .  ";
+  gap: 0 var(--space-4);
+  row-gap: var(--space-4);
+  align-items: stretch;
+  justify-items: center;
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.porter5-chart-cell {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.porter5-chart-cell.porter5-chart-top {
+  grid-area: top;
+  justify-content: center;
+}
+
+.porter5-chart-cell.porter5-chart-left {
+  grid-area: left;
+  justify-content: flex-end;
+}
+
+.porter5-chart-cell.porter5-chart-center {
+  grid-area: center;
+  justify-content: center;
+}
+
+.porter5-chart-cell.porter5-chart-right {
+  grid-area: right;
+  justify-content: flex-start;
+}
+
+.porter5-chart-cell.porter5-chart-bottom {
+  grid-area: bottom;
+  justify-content: center;
+}
+
+/* Card width: top/bottom match center; left/right have fixed max for balance */
+.porter5-chart-cell.porter5-chart-top .porter5-chart-card,
+.porter5-chart-cell.porter5-chart-bottom .porter5-chart-card {
+  width: 100%;
+  max-width: 320px;
+}
+
+.porter5-chart-cell.porter5-chart-left .porter5-chart-card,
+.porter5-chart-cell.porter5-chart-right .porter5-chart-card {
+  width: 100%;
+  max-width: 280px;
+}
+
+.porter5-chart-cell.porter5-chart-center .porter5-chart-card {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Cards */
+.porter5-chart-card {
+  position: relative;
+  padding: var(--space-4);
+  background: var(--bg-primary);
+  border-radius: 10px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+}
+
+.porter5-chart-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.porter5-chart-card__accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 10px 10px 0 0;
+}
+
+.porter5-chart-card--entry .porter5-chart-card__accent {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+}
+
+.porter5-chart-card--supplier .porter5-chart-card__accent,
+.porter5-chart-card--buyer .porter5-chart-card__accent {
+  background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+}
+
+.porter5-chart-card--substitute .porter5-chart-card__accent {
+  background: linear-gradient(90deg, #0ea5e9 0%, #38bdf8 100%);
+}
+
+.porter5-chart-card--center {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.06);
+}
+
+.porter5-chart-card--center:hover {
+  box-shadow: 0 4px 16px rgba(30, 41, 59, 0.08);
+}
+
+.porter5-chart-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.porter5-chart-card--center .porter5-chart-card__header {
+  border-bottom-color: #e2e8f0;
+}
+
+.porter5-chart-card__title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.porter5-chart-card--center .porter5-chart-card__title {
+  color: #1e293b;
+}
+
+.porter5-chart-card__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  background: var(--text-muted);
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.porter5-chart-card--entry .porter5-chart-card__badge { background: #dc2626; }
+.porter5-chart-card--supplier .porter5-chart-card__badge,
+.porter5-chart-card--buyer .porter5-chart-card__badge { background: #2563eb; }
+.porter5-chart-card--substitute .porter5-chart-card__badge { background: #0ea5e9; }
+
+.porter5-chart-card__badge--center {
+  background: #64748b;
+}
+
+.porter5-chart-card__list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.porter5-chart-card__list li {
+  margin-bottom: var(--space-1);
+  padding-left: 2px;
+}
+
+.porter5-chart-card__list li:last-child {
+  margin-bottom: 0;
+}
+
+.porter5-chart-card__list li::marker {
+  color: var(--text-muted);
+}
+
+/* Connectors – thin grey lines toward center (standard framework style) */
+.porter5-chart-connector {
+  position: absolute;
+  background: #94a3b8;
+  border-radius: 0;
+  opacity: 0.7;
+}
+
+.porter5-chart-connector--down {
+  bottom: -14px;
+  left: 50%;
+  width: 2px;
+  height: 14px;
+  transform: translateX(-50%);
+}
+
+.porter5-chart-connector--up {
+  top: -14px;
+  left: 50%;
+  width: 2px;
+  height: 14px;
+  transform: translateX(-50%);
+}
+
+.porter5-chart-connector--right {
+  top: 50%;
+  right: -14px;
+  width: 14px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.porter5-chart-connector--left {
+  top: 50%;
+  left: -14px;
+  width: 14px;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+@media (max-width: 768px) {
+  .porter5-chart {
+    padding: var(--space-4);
+  }
+
+  .porter5-chart-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto auto auto;
+    grid-template-areas:
+      "top"
+      "left"
+      "center"
+      "right"
+      "bottom";
+    gap: var(--space-4);
+    max-width: 100%;
+  }
+
+  .porter5-chart-cell.porter5-chart-top .porter5-chart-card,
+  .porter5-chart-cell.porter5-chart-bottom .porter5-chart-card,
+  .porter5-chart-cell.porter5-chart-left .porter5-chart-card,
+  .porter5-chart-cell.porter5-chart-right .porter5-chart-card,
+  .porter5-chart-cell.porter5-chart-center .porter5-chart-card {
+    max-width: 100%;
+  }
+
+  .porter5-chart-cell.porter5-chart-left,
+  .porter5-chart-cell.porter5-chart-right {
+    justify-content: center;
+  }
+
+  .porter5-chart-connector--down,
+  .porter5-chart-connector--up,
+  .porter5-chart-connector--right,
+  .porter5-chart-connector--left {
+    display: none;
+  }
+}
+
 /* PESTEL – multi-metric correlation (between button and analysis) */
 .pestel-scatter-section {
   padding: var(--space-5) var(--space-6);

@@ -10,7 +10,7 @@ This folder contains product and technical documentation for the **Country Analy
 |----------|-------------|
 | [PRD.md](PRD.md) | **Product Requirements Document** – problem statement, goals, scope, features (Country Dashboard, Global Analytics, PESTEL, **Porter 5 Forces**, Business Analytics, Source, Analytics Assistant), data rules, NFRs, business and tech guidelines. Includes Analytics Assistant routing (TAVILY first, GROQ second, others) and out-of-scope handling (e.g. location/geography), PESTEL/SWOT chart exports, **Porter 5 Forces (country + industry, inline citations only)**, and section order. |
 | [USER_PERSONAS.md](USER_PERSONAS.md) | **Target personas** – roles, goals, pain points, success criteria. Covers use of PESTEL, **Porter 5 Forces**, Business Analytics (correlation scatter), and Population Structure. |
-| [USER_STORIES.md](USER_STORIES.md) | **User stories** by feature area – Country Dashboard, Time-series, Population & age structure, Global (map, tables, Global Charts), Business Analytics, Source, Analytics Assistant (incl. safe location/geography), PESTEL (incl. chart downloads), **Porter 5 Forces (generate, industry selector, inline citations)**, reliability and data quality. |
+| [USER_STORIES.md](USER_STORIES.md) | **User stories** by feature area – Country Dashboard, Time-series, Population & age structure, Global (map, tables, Global Charts), Business Analytics, Source, Analytics Assistant (incl. safe location/geography), PESTEL (incl. chart downloads), **Porter 5 Forces (generate, chart with 5 bullets per force, industry selector, inline citations)**, reliability and data quality. |
 
 ---
 

@@ -78,7 +78,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 - Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
 - Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
-- Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with inline citations
+- Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with **chart visualization** (five bullet points per force) and inline citations
 - Checks Source tab for government debt formula and IMF fallback
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, TAVILY/Web search, GROQ, other LLMs) to assess answer provenance
 - Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)

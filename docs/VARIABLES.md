@@ -75,6 +75,12 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `industrySectorId` | Industry / sector (ILO–ISIC division) | Two-digit ILO/ISIC division code representing an industry or sector (e.g. 10 = Manufacture of food products, 41 = Construction of buildings). Used to scope Porter Five Forces analysis. | ILO ISIC Rev. 4 division codes; list in `src/data/iloIndustrySectors.ts` (ILO_INDUSTRY_SECTORS_GRANULAR). | Porter 5 Forces tab: industry dropdown (grouped by section A–U); system prompt builder (`porter5ForcesContext.ts`). | 10 (Manufacture of food products). |
 | `industryLabel` / `getIndustryDivisionLabelShort(id)` | Industry division label (short) | Human-readable short label for the division (e.g. "Manufacture of food products"). | Lookup from ILO_INDUSTRY_SECTORS_GRANULAR by division code. | Porter 5 Forces UI label and LLM prompt. | "Manufacture of food products". |
 
+**Porter 5 chart data** (parsed from LLM response for the chart visualization):
+
+| Variable name | Friendly name | Definition | Formula | Location in app | Example |
+|---------------|---------------|------------|---------|-----------------|---------|
+| `Porter5ChartData` / `chartData` | Porter 5 chart summary | Parsed structure containing five arrays of strings (five bullet points per force) for the Porter's Five Forces chart. Derived from the "Porter 5 Forces Chart Summary" block in the LLM response. | Parsed by `parsePorter5ChartSummary()` from markdown headings `### 1. Threat of new entrants` … `### 5. Competitive rivalry` and following bullet lines. | Porter 5 Forces tab: `Porter5Chart` component; input to chart cards (threatOfNewEntrants, supplierPower, buyerPower, threatOfSubstitutes, competitiveRivalry). | `{ threatOfNewEntrants: ["…"], supplierPower: ["…"], … }`. |
+
 ---
 
 ## 2. Configuration Constants
