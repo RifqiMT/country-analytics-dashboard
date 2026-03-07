@@ -236,11 +236,7 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 - **Transparency**: Each chat response displays its source
 - **No login required**: Public data, no authentication or workspace setup
 
-### 6.5 Product Logic & Guidelines
-
-- **Product logic** (what the product does, why, and how features behave) is defined in `docs/PRD.md` (scope, features, data rules, business guidelines).
-- **Documentation standard**: All product and technical documentation is structured according to `docs/PRODUCT_DOCUMENTATION_STANDARD.md`, which covers document ownership, content guidelines (README, PRD, personas, user stories, metrics, variables, architecture), feature→code mapping, and security.
-- **Security**: Do not publish API keys or key-provisioning URLs in docs or code; use `.env` and `.env.example` placeholders only.
+All documentation is structured according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`), which defines required content (product overview, benefits, features, logics, business and tech guidelines, tech stack) and links to PRD, personas, user stories, metrics, variables, and architecture.
 
 ---
 

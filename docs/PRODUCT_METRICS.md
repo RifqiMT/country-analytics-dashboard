@@ -1,6 +1,8 @@
-# Product Metrics Documentation
+# Product Metrics Documentation – Country Analytics Platform
 
-This document provides a **comprehensive reference** for all **data metrics** displayed in the Country Analytics Platform. It is maintained according to the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). For engagement metrics and OKRs, see `METRICS_AND_OKRS.md`. For **all variables** (data metrics, config constants, environment variables) with variable name, friendly name, definition, formula, **location in the app**, **example**, and **relationship chart** (derivation and app flow), see `VARIABLES.md`.
+This document provides a **comprehensive reference** for all **data metrics** displayed in the Country Analytics Platform. It is maintained according to the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). It covers how metrics feed the UI, metric categories, per-metric definitions (ID, label, unit, formula, fallback), World Bank indicator codes, and data quality rules.
+
+**Related:** For **engagement and OKR metrics** for the product team, see `METRICS_AND_OKRS.md`. For **all variables** (data metrics, config constants, environment variables) with variable name, friendly name, definition, formula, location in the app, example, and relationship chart, see `VARIABLES.md`.
 
 ---
 

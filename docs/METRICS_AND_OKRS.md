@@ -1,16 +1,18 @@
 # Product Metrics & OKRs – Country Analytics Platform
 
-This document defines how we measure the **success** of the Country Analytics Platform and how those metrics map to product and engineering work. It is intended for the **product team** and aligns with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). For **data metrics** (GDP, population, etc.), see `PRODUCT_METRICS.md`. For **all variables** (data metrics, config, env) with variable name, friendly name, definition, formula, location in the app, example, and relationship chart, see `VARIABLES.md`.
+This document defines how we measure the **success** of the Country Analytics Platform and how those metrics map to product and engineering work. It is intended for the **product team** and aligns with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). It covers **product metrics** (engagement and feature-level) and **OKR metrics** (objectives and key results) for the product team.
+
+**Related:** For **data metrics** (GDP, population, health, etc.) displayed in the app, see `PRODUCT_METRICS.md`. For **all variables** (data metrics, config, env) with variable name, friendly name, definition, formula, location in the app, example, and relationship chart, see `VARIABLES.md`.
 
 ---
 
-## 1. North-Star and Core Metrics
+## 1. Product Metrics – North-Star and Core
 
 ### 1.1 North-Star Metric
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **NS-1** | **Weekly Active Analytical Sessions (WAAS)** | Count of distinct sessions per week in which a user: (1) Views at least one country dashboard, and (2) Performs at least one interactive action (e.g. changes year range, switches frequency, switches tab, sorts a global table, sends a chat message) |
+| **NS-1** | **Weekly Active Analytical Sessions (WAAS)** | Count of distinct sessions per week in which a user: (1) Views at least one country dashboard, and (2) Performs at least one interactive action (e.g. changes year range, switches frequency, switches tab, sorts a global table, sends a chat message). |
 
 **Why it matters:** Measures whether the tool is being actively used for analysis, not just opened once.
 
@@ -21,79 +23,81 @@ This document defines how we measure the **success** of the Country Analytics Pl
 | **E-1** | Country coverage used | Number of distinct countries viewed per week | Product / Strategy |
 | **E-2** | Depth of exploration | Average number of views per session: frequency changes, sub-toggle changes, map metric switches | Product / UX |
 | **E-3** | Global vs. country balance | Ratio of sessions that reach Global analytics tab vs. only Country dashboard | Product |
-| **E-4** | Source tab engagement | % of sessions that open the Source tab | Product |
-| **E-5** | Analytics assistant engagement | % of sessions that open the Analytics assistant tab and send at least one message | Product |
+| **E-4** | Source tab engagement | Percentage of sessions that open the Source tab | Product |
+| **E-5** | Analytics assistant engagement | Percentage of sessions that open the Analytics assistant tab and send at least one message | Product |
 
 ---
 
-## 2. Feature-Level Metrics
+## 2. Product Metrics – Feature-Level
 
 ### 2.1 Country Dashboard
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **CD-1** | Year-range interaction rate | % of sessions where the year range is changed from default |
+| **CD-1** | Year-range interaction rate | Percentage of sessions where the year range is changed from default |
 | **CD-2** | Timeline metric diversity | Average number of distinct metrics enabled on the unified timeline per session |
-| **CD-3** | Age-group breakdown usage | % of sessions where the age-group comparison toggle is turned on at least once, or Population Structure timeline is viewed |
-| **CD-4** | Population Structure usage | % of sessions where the Population Structure section is viewed (chart or table) |
+| **CD-3** | Age-group breakdown usage | Percentage of sessions where the age-group comparison toggle is turned on at least once, or Population Structure timeline is viewed |
+| **CD-4** | Population Structure usage | Percentage of sessions where the Population Structure section is viewed (chart or table) |
 
 ### 2.2 Global Analytics – Map
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **GM-1** | Map engagement rate | % of sessions that open the Global view and stay on the map for at least 10 seconds |
+| **GM-1** | Map engagement rate | Percentage of sessions that open the Global view and stay on the map for at least 10 seconds |
 | **GM-2** | Metric diversity (map) | Number of unique metrics selected on the map per session |
 
-### 2.2b Global Analytics – Global Charts
+### 2.3 Global Analytics – Global Charts
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **GC-1** | Global Charts view rate | % of sessions that open the Global Charts sub-tab |
-| **GC-2** | Global Charts frequency change | % of Global Charts sessions where user changes frequency or view (chart/table) |
+| **GC-1** | Global Charts view rate | Percentage of sessions that open the Global Charts sub-tab |
+| **GC-2** | Global Charts frequency change | Percentage of Global Charts sessions where user changes frequency or view (chart/table) |
 
-### 2.3 Global Analytics – Tables
+### 2.4 Global Analytics – Tables
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **GT-1** | Sort interaction rate | % of sessions where at least one table column is sorted |
+| **GT-1** | Sort interaction rate | Percentage of sessions where at least one table column is sorted |
 | **GT-2** | Sub-toggle distribution | Share of sessions that view each global table: General, Financial, Health & demographics |
-| **GT-3** | YoY visibility | % of global table rows rendered with a non-null YoY value for at least one metric |
+| **GT-3** | YoY visibility | Percentage of global table rows rendered with a non-null YoY value for at least one metric |
 
-### 2.4 Source Tab
+### 2.5 Source Tab
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **SR-1** | Source search usage | % of Source tab sessions that use the search input |
-| **SR-2** | Source filter usage | % of Source tab sessions that use a filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
+| **SR-1** | Source search usage | Percentage of Source tab sessions that use the search input |
+| **SR-2** | Source filter usage | Percentage of Source tab sessions that use a filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
 
-### 2.5 Analytics Assistant
+### 2.6 Analytics Assistant
 
 | ID | Metric | Definition |
 |----|--------|------------|
 | **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
-| **CA-2** | Source distribution | % of chat sessions by source: Dashboard data, Web search (Tavily), Groq, other LLMs |
-| **CA-3** | Suggestion chip usage | % of chat sessions where at least one suggestion chip is clicked |
+| **CA-2** | Source distribution | Percentage of chat sessions by source: Dashboard data, Web search (Tavily), Groq, other LLMs |
+| **CA-3** | Suggestion chip usage | Percentage of chat sessions where at least one suggestion chip is clicked |
 
-### 2.6 PESTEL
-
-| ID | Metric | Definition |
-|----|--------|------------|
-| **PE-1** | PESTEL tab view rate | % of sessions that open the PESTEL tab |
-| **PE-2** | PESTEL generate/refresh rate | % of PESTEL tab sessions where user triggers generate or refresh at least once |
-| **PE-3** | PESTEL chart export rate | % of PESTEL tab sessions where user downloads the PESTEL chart PNG |
-| **PE-4** | SWOT chart export rate | % of PESTEL tab sessions where user downloads the SWOT chart PNG |
-
-### 2.7 Business Analytics
+### 2.7 PESTEL
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **BA-1** | Business Analytics tab view rate | % of sessions that open the Business Analytics tab |
-| **BA-2** | Correlation scatter engagement | % of Business Analytics sessions where user changes X or Y metric at least once |
+| **PE-1** | PESTEL tab view rate | Percentage of sessions that open the PESTEL tab |
+| **PE-2** | PESTEL generate/refresh rate | Percentage of PESTEL tab sessions where user triggers generate or refresh at least once |
+| **PE-3** | PESTEL chart export rate | Percentage of PESTEL tab sessions where user downloads the PESTEL chart PNG |
+| **PE-4** | SWOT chart export rate | Percentage of PESTEL tab sessions where user downloads the SWOT chart PNG |
+
+### 2.8 Business Analytics
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **BA-1** | Business Analytics tab view rate | Percentage of sessions that open the Business Analytics tab |
+| **BA-2** | Correlation scatter engagement | Percentage of Business Analytics sessions where user changes X or Y metric at least once |
 | **BA-3** | Correlation metric pairs | Number of unique X/Y metric pairs selected per session (when Business Analytics is used) |
 
 ---
 
-## 3. Product OKRs (Example)
+## 3. OKR Metrics – Objectives and Key Results
+
+OKRs are set for the product team to drive adoption, depth of use, data trust, and Analytics assistant adoption.
 
 ### Objective 1 – Make the platform a daily tool for strategy and policy teams
 
@@ -115,7 +119,7 @@ This document defines how we measure the **success** of the Country Analytics Pl
 
 | Key Result | Target |
 |------------|--------|
-| **KR3.1** | < 1% of API calls result in unhandled errors |
+| **KR3.1** | Less than 1% of API calls result in unhandled errors |
 | **KR3.2** | No critical bugs where charts or tables crash on missing data across a full quarter |
 | **KR3.3** | Documentation (README + PRD) stays in sync with deployed features (no more than 1 release behind) |
 
@@ -153,21 +157,21 @@ Use a `product_area.action` pattern:
 | `pestel.chart_downloaded` | User downloads PESTEL chart as PNG |
 | `swot.chart_downloaded` | User downloads SWOT chart as PNG |
 | `source.search_used` | User enters search query |
-| `source.filter_chip_clicked` | User clicks a source filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
+| `source.filter_chip_clicked` | User clicks a source filter chip |
 | `global.charts_viewed` | User opens Global Charts sub-tab |
 | `chat.message_sent` | User sends a chat message |
 | `chat.suggestion_clicked` | User clicks a suggestion chip |
 | `chat.model_changed` | User changes LLM model |
-| `chat.source_received` | Assistant response received (payload: source type: Dashboard data | model label | Web search) |
+| `chat.source_received` | Assistant response received (payload: source type: Dashboard data \| model label \| Web search) |
 
 ### 4.2 Event Payload
 
-Each event should include:
+Each event should include where relevant:
 
-- `country_iso2` (if relevant)
+- `country_iso2`
 - `year` or `year_range`
 - `metric_id` (for timeline, map, or tables)
-- `view` (country_dashboard | global_map | global_table | global_correlation | business_analytics | pestel | source | chat)
+- `view` (country_dashboard \| global_map \| global_table \| global_charts \| business_analytics \| pestel \| source \| chat)
 
 ### 4.3 Privacy & PII
 

@@ -3,7 +3,7 @@
 **Version:** 2.0  
 **Last updated:** March 2026
 
-This document is the **single source of truth** for product requirements. It is maintained according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`) and covers problem statement, goals, scope, features (Country Dashboard, Global analytics, PESTEL, Business Analytics, Source, Analytics Assistant), data rules, non-functional requirements, and business and tech guidelines.
+This document is the **single source of truth** for product requirements. It is maintained according to the **Product Documentation Standard** (`docs/PRODUCT_DOCUMENTATION_STANDARD.md`) and covers **product overview** (problem statement, goals), **scope**, **features** (Country Dashboard, Global analytics, PESTEL, Business Analytics, Source, Analytics Assistant), **data rules and logic**, non-functional requirements, and **business and tech guidelines**.
 
 ---
 

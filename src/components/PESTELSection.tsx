@@ -109,7 +109,7 @@ function paragraphsToSentenceBullets(
     for (const s of sentences) {
       if (out.length >= maxBullets) break;
       const t = stripMd(s.trim());
-      if (t.length >= 15) out.push(t.length <= 320 ? t : t.slice(0, 317) + '…');
+      if (t.length >= 15) out.push(t.length <= 320 ? t : t.slice(0, 320));
     }
   }
   return out;
@@ -143,7 +143,7 @@ function getSwotBlock(analysis: string, headerPattern: string): string[] {
     );
     if (bullets.length > 0) return bullets;
     const one = stripMd(rawText.replace(/\n/g, ' ').trim());
-    if (one.length > 40) return [one.length <= 320 ? one : one.slice(0, 317) + '…'];
+    if (one.length > 40) return [one.length <= 320 ? one : one.slice(0, 320)];
   }
   return [];
 }
@@ -195,9 +195,9 @@ function parseSwotSectionFallback(analysis: string): SwotChartData {
     const bullets: string[] = [];
     for (const s of sentences.slice(0, 24)) {
       const t = stripMd(s.trim());
-      if (t.length >= 15) bullets.push(t.length <= 320 ? t : t.slice(0, 317) + '…');
+      if (t.length >= 15) bullets.push(t.length <= 320 ? t : t.slice(0, 320));
     }
-    if (bullets.length === 0 && normalized.length > 40) bullets.push(normalized.length <= 320 ? normalized : normalized.slice(0, 317) + '…');
+    if (bullets.length === 0 && normalized.length > 40) bullets.push(normalized.length <= 320 ? normalized : normalized.slice(0, 320));
     return bullets;
   };
   return {
@@ -688,7 +688,7 @@ export function PESTELSection({
           {isLoading ? (
             <>
               <span className="pestel-spinner" aria-hidden />
-              Generating…
+              Generating
             </>
           ) : (
             <>

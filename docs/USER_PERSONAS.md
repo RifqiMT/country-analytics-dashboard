@@ -1,6 +1,6 @@
 # User Personas – Country Analytics Platform
 
-This document describes the **target audiences** for the Country Analytics Platform: their roles, goals, pain points, success criteria, and typical usage. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and serves as the single source of truth for product and design alignment. Personas inform feature prioritisation and user stories in `USER_STORIES.md`.
+This document describes the **target audiences** for the Country Analytics Platform: their roles, goals, pain points, success criteria, and typical usage. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and serves as the single source of truth for product and design alignment. Personas inform feature prioritisation and user stories in `USER_STORIES.md`. They cover **product benefits** from the user’s perspective (fast insights, credible data, AI-assisted analysis, etc.).
 
 ---
 
