@@ -147,10 +147,21 @@ Seven main tabs:
 
 #### 4.3.5 Business Analytics (Dedicated Tab)
 
-- **Correlation scatter**: X and Y metric selectors; choose any two numeric metrics from the global dataset (e.g. GDP per capita vs life expectancy). Plot all countries as points; selected country (from Country dashboard) highlighted.
-- **Year selector**: Data year for scatter and correlation (defaults to dashboard end year).
-- **Correlation & causation analysis**: Pearson correlation coefficient (r), approximate p-value, interpretation text, and causation/context note with disclaimer that correlation does not imply causation.
-- **Use case**: Inspect correlation and outliers across countries; explore market positioning; hypothesis generation.
+- **Year range**: Start year and end year (inclusive). All years in the range are fetched and combined; each country–year is a point. Defaults to last five years when dashboard year changes.
+- **Data preparation**: Missing values (no valid X or Y) are removed and reported. IQR outliers are flagged using univariate 1.5×IQR rule on X and Y. User can **exclude IQR outliers** via checkbox; when checked, flagged points are removed from scatter and from all correlation/regression results.
+- **Correlation scatter**: X and Y metric selectors; any two numeric metrics from the global dataset. Plot shows cleaned data (and optionally excludes IQR outliers). Selected country (from Country dashboard) is highlighted. **Chart title**: "Scatter Plot: [X] vs [Y] | Corr = [r]". **Trend line** (linear regression) and **95% confidence interval** for the regression line (dashed bounds).
+- **Correlation & causation analysis**:
+  - **Explicit disclaimer**: "Correlation does NOT imply causation" at the top of the analysis block.
+  - **Data preparation summary**: Count of points removed for missing; count of IQR outliers flagged; points used (n) after cleaning.
+  - **Executive summary table**: Metric | Value | Interpretation for Pearson r, P-value, R², Beta (slope). Strength band: |r|<0.3 weak, 0.3–0.7 moderate, >0.7 strong.
+  - **Pearson correlation**: r, n, p-value, interpretation, and quantified sentence: "A 1-unit increase in X predicts [beta] change in Y (p=…)."
+  - **Residuals vs fitted** plot for heteroscedasticity check (residuals scattered around zero).
+  - **Subgroup analysis by region**: Table of r, n, p-value per region (consistency; Bradford Hill).
+  - **Causation & context**: Causation note and disclaimer (confounders, reverse causality).
+  - **Actionable insight**: One-paragraph business-focused interpretation.
+  - **If causation is not supported**: Recommended next steps (subgroup analysis, time-lagged/panel analysis, control for confounders, RCTs or instrumental variables).
+  - **Comprehensive hypothesis**: Working hypothesis and limitations (sample size, multicollinearity, non-linear effects).
+- **Use case**: Inspect correlation and outliers across countries; explore market positioning; hypothesis generation with clear data-prep and causation caveats.
 
 ### 4.4 Source Tab
 

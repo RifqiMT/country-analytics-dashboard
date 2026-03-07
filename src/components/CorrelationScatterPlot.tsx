@@ -123,7 +123,12 @@ interface CorrelationScatterPlotProps {
   xMetric: ScatterMetricKey;
   yMetric: ScatterMetricKey;
   highlightCountryIso2?: string | null;
-  year: number;
+  /** One or more years; when multiple, each country–year is a point and tooltip shows year */
+  years: number[];
+  /** If provided, shown in chart title and used for grid/title */
+  correlationR?: number;
+  /** If provided, 95% CI band for regression line (lower/upper) */
+  regressionCI?: Array<{ x: number; yFit: number; yLower: number; yUpper: number }>;
 }
 
 function getValue(row: GlobalCountryMetricsRow, key: ScatterMetricKey): number | null {
@@ -179,10 +184,13 @@ export function CorrelationScatterPlot({
   xMetric,
   yMetric,
   highlightCountryIso2,
-  year,
+  years,
+  correlationR,
+  regressionCI,
 }: CorrelationScatterPlotProps) {
   const xLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === xMetric)?.label ?? xMetric;
   const yLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === yMetric)?.label ?? yMetric;
+  const multiYear = years.length > 1;
 
   const plotData = data
     .map((row) => {
@@ -192,9 +200,11 @@ export function CorrelationScatterPlot({
       const isHighlight = highlightCountryIso2
         ? row.iso2Code?.toUpperCase() === highlightCountryIso2.toUpperCase()
         : false;
+      const rowYear = row.year;
       return {
         name: row.name,
         iso2: row.iso2Code,
+        year: rowYear,
         x,
         y,
         isHighlight,
@@ -248,13 +258,20 @@ export function CorrelationScatterPlot({
   if (plotData.length === 0) {
     return (
       <div className="correlation-scatter-empty">
-        <p className="muted">No data available for the selected metrics in {year}.</p>
+        <p className="muted">
+          No data available for the selected metrics{multiYear ? ` in the selected ${years.length} years` : ` in ${years[0]}`}.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="correlation-scatter-wrap">
+      {correlationR != null && (
+        <h4 className="correlation-scatter-chart-title">
+          Scatter Plot: {xLabel} vs {yLabel} | Corr = {correlationR.toFixed(3)}
+        </h4>
+      )}
       <ResponsiveContainer width="100%" height={360}>
         <ScatterChart margin={{ top: 16, right: 24, bottom: 24, left: 24 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
@@ -283,6 +300,7 @@ export function CorrelationScatterPlot({
               return (
                 <div className="correlation-scatter-tooltip">
                   <strong>{p.name}</strong>
+                  {multiYear && p.year != null && <div className="correlation-scatter-tooltip-year">Year: {p.year}</div>}
                   <div>
                     {xLabel}: {p.xFormatted}
                   </div>
@@ -324,6 +342,31 @@ export function CorrelationScatterPlot({
               dot={false}
               isAnimationActive={false}
             />
+          )}
+          {regressionCI && regressionCI.length >= 2 && (
+            <>
+              <Line
+                type="linear"
+                data={regressionCI}
+                dataKey="yLower"
+                stroke="var(--border-subtle)"
+                strokeWidth={1}
+                strokeDasharray="4 2"
+                dot={false}
+                isAnimationActive={false}
+                name="95% CI"
+              />
+              <Line
+                type="linear"
+                data={regressionCI}
+                dataKey="yUpper"
+                stroke="var(--border-subtle)"
+                strokeWidth={1}
+                strokeDasharray="4 2"
+                dot={false}
+                isAnimationActive={false}
+              />
+            </>
           )}
           <Legend />
         </ScatterChart>

@@ -179,17 +179,18 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ## 5a. Business Analytics – Correlation Scatter & Causation
 
-### US-5a.1 – Compare two metrics across countries
+### US-5a.1 – Compare two metrics across countries with year range
 
 - **As a** Country Economist or BI Analyst  
-- **I want to** open the Business Analytics tab, choose two metrics (X and Y), and see all countries plotted  
-- **So that** I can inspect correlation and outliers (e.g. GDP per capita vs life expectancy)  
+- **I want to** open the Business Analytics tab, set a year range (start–end), choose two metrics (X and Y), and see all country–year points plotted  
+- **So that** I can inspect correlation and outliers across multiple years (e.g. GDP per capita vs life expectancy)  
 
 **Acceptance criteria:**
-- X and Y metric selectors offer numeric metrics from the global dataset
-- Plot shows all countries as points; selected country (from Country dashboard) is highlighted
-- Year selector controls data year for scatter and correlation
-- Correlation & causation block shows Pearson r, p-value, interpretation, and causation note with disclaimer
+- Year range filter: start year and end year (inclusive); data from all years in the range are combined; each country–year is a point; helper text shows "N years selected".
+- X and Y metric selectors offer numeric metrics from the global dataset.
+- Plot shows cleaned data (missing removed; optionally IQR outliers excluded); selected country (from Country dashboard) is highlighted.
+- Scatter chart title shows "Scatter Plot: [X] vs [Y] | Corr = [r]"; trend line and 95% CI band are visible.
+- Correlation & causation block shows Pearson r, p-value, R², Beta, executive summary table, interpretation, residuals vs fitted plot, subgroup-by-region table, explicit "Correlation does NOT imply causation" disclaimer, actionable insight, and next steps when causation is not supported.
 
 ### US-5a.2 – Identify selected country on scatter
 
@@ -198,19 +199,31 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 - **So that** I can quickly see where it sits relative to others  
 
 **Acceptance criteria:**
-- Selected country is visually distinct (e.g. colour/size); other countries use a neutral style
-- Changing the country in the Country dashboard updates the highlight when Business Analytics tab is open
+- Selected country is visually distinct (e.g. colour/size); other countries use a neutral style.
+- Changing the country in the Country dashboard updates the highlight when Business Analytics tab is open.
 
-### US-5a.3 – Understand correlation and causation
+### US-5a.3 – Understand correlation and causation with full diagnostics
 
 - **As a** Country Economist  
-- **I want to** see Pearson correlation (r), p-value, and a short interpretation plus causation/context note  
+- **I want to** see Pearson correlation (r), p-value, strength band (weak/moderate/strong), R², beta, executive summary table, residuals plot, subgroup-by-region table, and explicit causation disclaimer with actionable insight and next steps  
 - **So that** I can assess relationship strength and avoid conflating correlation with causation  
 
 **Acceptance criteria:**
-- Correlation block shows r, n, and p-value (when computable)
-- Interpretation text and causation disclaimer are visible below the scatter
-- Insufficient data (e.g. fewer than 3 countries with both metrics) shows a friendly message
+- Correlation block shows r, n, p-value, strength band, R², and beta with interpretation.
+- Executive summary table: Metric | Value | Interpretation (Pearson r, P-value, R², Beta).
+- Residuals vs fitted plot is shown when sufficient data; subgroup-by-region table shows r, n, p-value per region.
+- Explicit disclaimer "Correlation does NOT imply causation" is visible; actionable insight paragraph and "If causation is not supported" next steps are present.
+- Insufficient data (e.g. fewer than 3 points with both metrics) shows a friendly message.
+
+### US-5a.4 – Exclude IQR outliers in Business Analytics
+
+- **As a** BI Analyst  
+- **I want to** optionally exclude points flagged as IQR outliers (&gt;1.5×IQR from Q1/Q3 on X or Y) from the scatter and correlation  
+- **So that** I can assess robustness of the relationship without extreme points  
+
+**Acceptance criteria:**
+- "Exclude IQR outliers" checkbox is available; when unchecked, all valid points (including flagged outliers) are used.
+- When checked, scatter and correlation use only non-outlier points; data preparation summary reports how many points were flagged and that they are excluded.
 
 ---
 

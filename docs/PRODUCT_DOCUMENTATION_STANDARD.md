@@ -61,7 +61,7 @@ All product and technical documentation should cover the following where applica
 - Global Analytics (map, global table, Global Charts)
 - PESTEL (generate, section order, chart exports, data recency)
 - **Porter 5 Forces** (country + ILO/ISIC industry division, generate, **chart with 5 bullets per force** (standard cross layout), **Comprehensive Analysis**, **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets), inline citations only, TAVILY → GROQ → others)
-- Business Analytics (correlation scatter, X/Y metrics, Pearson r, causation note)
+- Business Analytics (correlation scatter, **year range** start–end, **data preparation** missing + IQR outliers, **exclude IQR outliers** option, **executive summary table**, **residuals vs fitted**, **subgroup by region**, **actionable insight**, **causation disclaimer** and **next steps**)
 - Source tab (where metrics appear, search, filter chips, metric cards)
 - Analytics Assistant (cascading flow, source attribution, model selection, out-of-scope handling)
 

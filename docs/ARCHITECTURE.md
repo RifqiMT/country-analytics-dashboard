@@ -198,6 +198,36 @@ Porter5ForcesSection: parsePorter5ChartSummary(analysis) → { chartData, textWi
 Display order: Porter5Chart (when chartData present) → Comprehensive Analysis card → New Market Analysis card (5 bullets) → Key Takeaways card (5 bullets) → Recommendations card (5 bullets) → Source attribution (model label)
 ```
 
+### 2.5 Business Analytics Data Flow
+
+Business Analytics uses **global metrics** over a **year range** (start–end). Data preparation and correlation/causation logic live in `src/utils/correlationAnalysis.ts`; the UI is in `BusinessAnalyticsSection.tsx` and `CorrelationScatterPlot.tsx`.
+
+```
+User opens Business Analytics tab; selects start year, end year, X metric, Y metric; optionally checks "Exclude IQR outliers"
+         │
+         ▼
+Global metrics for year range: fetchGlobalCountryMetricsForYear(year) for each year in [startYear, endYear]; merge into rows (country–year per row)
+         │
+         ▼
+prepareScatterData(rows, xKey, yKey, excludeOutliers)
+         │   ├─► Remove rows with missing X or Y → rows, removedMissing
+         │   ├─► Flag IQR outliers (univariate 1.5×IQR on X and Y) → outlierIndices
+         │   └─► If excludeOutliers: cleanedRows = rows minus outliers; else cleanedRows = rows
+         │
+         ▼
+computeCorrelationResult(cleanedRows, xKey, yKey)
+         │   ├─► linearRegression() → slope, intercept, rSquared, fitted, residuals, seSlope, regressionCI
+         │   ├─► Pearson r, p-value, strengthLabel (weak | moderate | strong)
+         │   ├─► subgroupCorrelations(cleanedRows, 'region') → subgroupResults (r, n, pValue per region)
+         │   ├─► executiveSummaryTable (Pearson r, P-value, R², Beta with interpretations)
+         │   ├─► actionableInsight, causationNote, causationNextSteps
+         │   └─► dataPrep (removedMissing, outlierIndices, cleanedRows)
+         │
+         ▼
+BusinessAnalyticsSection: render CorrelationScatterPlot (points, trend line, 95% CI band, highlight selected country)
+         │   + Correlation & causation block: disclaimer, data prep summary, executive table, Pearson block, residuals vs fitted, subgroup table, actionable insight, causation next steps
+```
+
 ---
 
 ## 3. Component Hierarchy
@@ -247,11 +277,20 @@ App
 ```
 App
 └── BusinessAnalyticsSection
-    └── Year selector, highlight country selector
+    └── Year range (start year, end year); helper "N years selected"
+    └── "Exclude IQR outliers" checkbox
     └── CorrelationScatterPlot
-        └── X/Y metric selectors
-        └── Scatter chart (Recharts)
-    └── Correlation & causation analysis (Pearson r, p-value, interpretation, causation note)
+        └── X/Y metric selectors (numeric metrics from global dataset)
+        └── Scatter chart (Recharts): cleaned points, trend line, 95% CI band; selected country highlighted
+        └── Chart title: "Scatter Plot: [X] vs [Y] | Corr = [r]"
+    └── Correlation & causation block (from correlationAnalysis.ts)
+        └── "Correlation does NOT imply causation" disclaimer
+        └── Data preparation summary (removed missing, IQR outliers flagged, n used)
+        └── Executive summary table (Pearson r, P-value, R², Beta | value | interpretation)
+        └── Pearson r, n, p-value, strength band, R², beta, quantified sentence
+        └── Residuals vs fitted plot (heteroscedasticity check)
+        └── Subgroup analysis by region (r, n, p-value per region)
+        └── Causation & context note; actionable insight; if causation not supported → next steps
 ```
 
 ### 3.4 Porter 5 Forces Tab
@@ -350,9 +389,9 @@ App
 
 | Module | Purpose |
 |--------|---------|
-| `BusinessAnalyticsSection.tsx` | Tab UI: year selector, highlight country, CorrelationScatterPlot, correlation & causation block |
-| `CorrelationScatterPlot.tsx` | X/Y metric selectors, scatter chart, tooltip; uses global metrics for selected year |
-| `correlationAnalysis.ts` | `computeCorrelationAnalysis()` – Pearson r, p-value, interpretation text, causation note |
+| `BusinessAnalyticsSection.tsx` | Tab UI: year range (start/end), "Exclude IQR outliers" checkbox, CorrelationScatterPlot, full correlation & causation block (data prep summary, executive table, residuals plot, subgroup by region, actionable insight, causation next steps) |
+| `CorrelationScatterPlot.tsx` | X/Y metric selectors, scatter chart (cleaned data, trend line, 95% CI), tooltip, chart title with r; uses global metrics for year range |
+| `correlationAnalysis.ts` | **prepareScatterData**: remove missing, flag IQR outliers, optional exclusion → dataPrep, cleanedRows. **linearRegression**: slope, intercept, R², fitted, residuals, seSlope, regressionCI. **computeCorrelationResult**: Pearson r, p-value, strengthLabel, executiveSummaryTable, subgroupCorrelations (by region), actionableInsight, causationNote, causationNextSteps. Used by BusinessAnalyticsSection and CorrelationScatterPlot. |
 
 ### 4.5 Key Data Structures
 

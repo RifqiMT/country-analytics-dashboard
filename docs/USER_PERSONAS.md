@@ -75,8 +75,8 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 - Deep dive on one country with year range adjustment
 - Uses unified timeline with multiple metrics for correlation
-- Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) and highlight the selected country
-- Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
+- Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) across a **year range** (start–end), with **data preparation** (missing removed; optional IQR outlier exclusion), **executive summary table**, **residuals vs fitted** plot, **subgroup-by-region** table, **actionable insight**, and explicit **"Correlation does NOT imply causation"** disclaimer with **next steps** when causation is not supported
+- Uses **Business Analytics** tab: year range (start–end), X/Y metrics, optional **exclude IQR outliers**, correlation scatter (cleaned data, trend line, 95% CI), **data preparation summary**, **executive summary table** (r, p-value, R², Beta), **residuals vs fitted**, **subgroup by region**, causation disclaimer, **actionable insight**, and **next steps** when causation is not supported
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
 - Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with **chart** (five bullet points per force), **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each 5 bullets) and inline citations
 - Checks Source tab for government debt formula and IMF fallback
@@ -155,7 +155,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 - Explores multiple countries and year ranges
 - Uses Global table with sorting for quick rankings
-- Uses **Business Analytics** tab to explore relationships between metrics (e.g. GDP per capita vs under‑5 mortality) and highlight selected country; reviews Pearson correlation and causation note
+- Uses **Business Analytics** tab to explore relationships between metrics (e.g. GDP per capita vs under‑5 mortality) with **year range**, **data preparation** (missing, IQR outliers, optional exclusion), **executive summary table**, **residuals vs fitted**, **subgroup by region**, **actionable insight**, and causation disclaimer with **next steps**; reviews Pearson r, p-value, R², Beta, and interpretation
 - Uses **PESTEL** tab for structured country-level PESTEL analysis with **most up-to-date** information (global data for latest year, current-year web supplement) and sources before building reports
 - References Source tab for data definitions and API links
 - Uses Analytics assistant for rankings and methodology questions

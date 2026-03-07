@@ -6,6 +6,15 @@ import {
   SCATTER_METRIC_OPTIONS,
   type ScatterMetricKey,
 } from './CorrelationScatterPlot';
+import {
+  ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  ReferenceLine,
+} from 'recharts';
 import type { CountryDashboardData, GlobalCountryMetricsRow, CountrySummary } from '../types';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import { computeCorrelationAnalysis } from '../utils/correlationAnalysis';
@@ -23,12 +32,14 @@ export function BusinessAnalyticsSection({
   const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
   const [xMetric, setXMetric] = useState<ScatterMetricKey>('gdpNominalPerCapita');
   const [yMetric, setYMetric] = useState<ScatterMetricKey>('lifeExpectancy');
+  const [excludeOutliers, setExcludeOutliers] = useState<boolean>(false);
 
   const dashboardYear =
     dashboardData?.latestSnapshot?.year ??
     dashboardData?.range?.endYear ??
     DATA_MAX_YEAR;
-  const [selectedYear, setSelectedYear] = useState<number>(dashboardYear);
+  const [startYear, setStartYear] = useState<number>(Math.max(DATA_MIN_YEAR, dashboardYear - 4));
+  const [endYear, setEndYear] = useState<number>(dashboardYear);
   const [highlightCountryIso2, setHighlightCountryIso2] = useState<string | null>(
     () => dashboardData?.summary?.iso2Code ?? null,
   );
@@ -39,8 +50,19 @@ export function BusinessAnalyticsSection({
   const [countryActiveIndex, setCountryActiveIndex] = useState(0);
 
   useEffect(() => {
-    setSelectedYear((prev) => (dashboardYear !== prev ? dashboardYear : prev));
+    setEndYear(dashboardYear);
+    setStartYear(Math.max(DATA_MIN_YEAR, dashboardYear - 4));
   }, [dashboardYear]);
+
+  const selectedYears = useMemo(() => {
+    const start = Math.min(startYear, endYear);
+    const end = Math.max(startYear, endYear);
+    const s = Math.max(DATA_MIN_YEAR, Math.min(DATA_MAX_YEAR, start));
+    const e = Math.max(DATA_MIN_YEAR, Math.min(DATA_MAX_YEAR, end));
+    const years: number[] = [];
+    for (let y = s; y <= e; y++) years.push(y);
+    return years;
+  }, [startYear, endYear]);
 
   useEffect(() => {
     if (dashboardData?.summary?.iso2Code != null) {
@@ -76,21 +98,42 @@ export function BusinessAnalyticsSection({
       ? countries.find((c) => c.iso2Code === highlightCountryIso2)?.name ?? highlightCountryIso2
       : '';
 
-  const year = selectedYear;
-
   useEffect(() => {
     let cancelled = false;
-    fetchGlobalCountryMetricsForYear(year).then((rows) => {
-      if (!cancelled) setGlobalMetrics(rows);
-    });
+    if (selectedYears.length === 0) {
+      setGlobalMetrics([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+    Promise.all(selectedYears.map((y) => fetchGlobalCountryMetricsForYear(y)))
+      .then((arrays) => {
+        if (cancelled) return;
+        const combined = arrays.flat();
+        setGlobalMetrics(combined);
+      })
+      .catch(() => {
+        if (!cancelled) setGlobalMetrics([]);
+      });
     return () => {
       cancelled = true;
     };
-  }, [year, refreshTrigger]);
+  }, [selectedYears, refreshTrigger]);
 
   const correlationResult = globalMetrics.length > 0
-    ? computeCorrelationAnalysis(globalMetrics as unknown as Record<string, unknown>[], xMetric, yMetric)
+    ? computeCorrelationAnalysis(
+        globalMetrics as unknown as Record<string, unknown>[],
+        xMetric,
+        yMetric,
+        excludeOutliers,
+      )
     : null;
+
+  const scatterData = useMemo(() => {
+    if (!correlationResult || !correlationResult.dataPrep.cleanedRows.length) return globalMetrics;
+    const included = new Set(correlationResult.dataPrep.cleanedRows.map((r) => r.originalIndex));
+    return globalMetrics.filter((_, i) => included.has(i));
+  }, [globalMetrics, correlationResult]);
 
   const xLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === xMetric)?.label ?? xMetric;
   const yLabel = SCATTER_METRIC_OPTIONS.find((o) => o.key === yMetric)?.label ?? yMetric;
@@ -111,30 +154,66 @@ export function BusinessAnalyticsSection({
           <h2 className="section-title">Business Analytics</h2>
           <p className="muted">
             Multi-metric correlation analysis: compare countries across two metrics to explore
-            market positioning and correlations. Use the year and highlight country filters below; then select X and Y axes.
+            market positioning and correlations. Use the year range and highlight country filters below; then select X and Y axes. Data from all years in the range are included (each country–year is a point).
           </p>
         </div>
       </div>
 
       <div className="business-analytics-filters">
-        <div className="business-analytics-filter-group">
+        <div className="business-analytics-filter-group business-analytics-year-range">
           <label className="business-analytics-filter-label">
-            <span className="business-analytics-filter-title">Year</span>
-            <span className="business-analytics-filter-desc">Data year for scatter and correlation</span>
+            <span className="business-analytics-filter-title">Year range</span>
+            <span className="business-analytics-filter-desc">Start and end year (inclusive); scatter and correlation use all years in range</span>
           </label>
-          <input
-            type="number"
-            className="business-analytics-year-input"
-            min={DATA_MIN_YEAR}
-            max={DATA_MAX_YEAR}
-            value={selectedYear}
-            onChange={(e) => setSelectedYear(Number(e.target.value) || selectedYear)}
-            onBlur={() => {
-              const v = Math.min(DATA_MAX_YEAR, Math.max(DATA_MIN_YEAR, selectedYear));
-              setSelectedYear(v);
-            }}
-            aria-label="Year"
-          />
+          <div className="business-analytics-year-inputs">
+            <input
+              type="number"
+              className="business-analytics-year-input"
+              min={DATA_MIN_YEAR}
+              max={DATA_MAX_YEAR}
+              value={startYear}
+              onChange={(e) => setStartYear(Number(e.target.value) || startYear)}
+              onBlur={() => {
+                const v = Math.min(DATA_MAX_YEAR, Math.max(DATA_MIN_YEAR, startYear));
+                setStartYear(v);
+                if (endYear < v) setEndYear(v);
+              }}
+              aria-label="Start year"
+            />
+            <span className="business-analytics-year-sep" aria-hidden="true">–</span>
+            <input
+              type="number"
+              className="business-analytics-year-input"
+              min={DATA_MIN_YEAR}
+              max={DATA_MAX_YEAR}
+              value={endYear}
+              onChange={(e) => setEndYear(Number(e.target.value) || endYear)}
+              onBlur={() => {
+                const v = Math.min(DATA_MAX_YEAR, Math.max(DATA_MIN_YEAR, endYear));
+                setEndYear(v);
+                if (startYear > v) setStartYear(v);
+              }}
+              aria-label="End year"
+            />
+          </div>
+          {selectedYears.length > 0 && (
+            <p className="business-analytics-year-count muted small">
+              {selectedYears.length} year{selectedYears.length !== 1 ? 's' : ''} selected ({selectedYears[0]}
+              {selectedYears.length > 1 ? `–${selectedYears[selectedYears.length - 1]}` : ''})
+            </p>
+          )}
+        </div>
+        <div className="business-analytics-filter-group">
+          <label className="business-analytics-filter-label business-analytics-checkbox-label">
+            <input
+              type="checkbox"
+              checked={excludeOutliers}
+              onChange={(e) => setExcludeOutliers(e.target.checked)}
+              aria-label="Exclude IQR outliers"
+            />
+            <span className="business-analytics-filter-title">Exclude IQR outliers</span>
+            <span className="business-analytics-filter-desc">Remove points &gt;1.5×IQR from Q1/Q3 (univariate on X and Y)</span>
+          </label>
         </div>
         <div className="business-analytics-filter-group business-analytics-country-wrap">
           <label className="business-analytics-filter-label">
@@ -281,15 +360,21 @@ export function BusinessAnalyticsSection({
         </div>
         {globalMetrics.length > 0 ? (
           <CorrelationScatterPlot
-            data={globalMetrics}
+            data={scatterData}
             xMetric={xMetric}
             yMetric={yMetric}
             highlightCountryIso2={highlightCountryIso2}
-            year={year}
+            years={selectedYears}
+            correlationR={correlationResult?.r}
+            regressionCI={correlationResult?.regressionCI}
           />
         ) : (
           <div className="correlation-scatter-empty">
-            <p className="muted">Loading global metrics for {year}…</p>
+            <p className="muted">
+              {selectedYears.length > 0
+                ? `Loading global metrics for ${selectedYears.length} year${selectedYears.length !== 1 ? 's' : ''}…`
+                : 'Select a year range.'}
+            </p>
           </div>
         )}
       </div>
@@ -298,44 +383,125 @@ export function BusinessAnalyticsSection({
         <div className="correlation-causation-analysis">
           <h3 className="correlation-analysis-title">Correlation &amp; causation analysis</h3>
           <p className="muted correlation-analysis-subtitle">
-            Statistical summary and interpretation for the selected pair: <strong>{xLabel}</strong> (X) vs <strong>{yLabel}</strong> (Y). Year: {year}.
+            Statistical summary and interpretation for the selected pair: <strong>{xLabel}</strong> (X) vs <strong>{yLabel}</strong> (Y).{' '}
+            {selectedYears.length === 1
+              ? `Year: ${selectedYears[0]}.`
+              : `Years: ${selectedYears[0]}–${selectedYears[selectedYears.length - 1]} (${selectedYears.length} years, each country–year is a point).`}
           </p>
           {correlationResult ? (
             <div className="correlation-analysis-content">
+              <p className="correlation-causation-disclaimer" role="alert">
+                <strong>Correlation does NOT imply causation.</strong> The following describes association and strength of linear relationship. Causal claims require additional evidence (e.g. temporality, experiments).
+              </p>
+              <div className="correlation-analysis-block">
+                <h4 className="correlation-analysis-heading">Data preparation</h4>
+                <ul className="correlation-analysis-list">
+                  <li>Missing: {correlationResult.dataPrep.removedMissing} point(s) removed.</li>
+                  <li>IQR outliers: {correlationResult.dataPrep.outlierIndices.size} flagged (&gt;1.5×IQR). {excludeOutliers ? 'Excluded.' : 'Included; toggle "Exclude IQR outliers" to remove.'}</li>
+                  <li>Points used: n = {correlationResult.n}.</li>
+                </ul>
+              </div>
+              <div className="correlation-analysis-block">
+                <h4 className="correlation-analysis-heading">Executive summary</h4>
+                <table className="correlation-executive-table">
+                  <thead>
+                    <tr><th>Metric</th><th>Value</th><th>Interpretation</th></tr>
+                  </thead>
+                  <tbody>
+                    {correlationResult.executiveSummaryTable.map((row, i) => (
+                      <tr key={i}><td>{row.metric}</td><td>{row.value}</td><td>{row.interpretation}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
               <div className="correlation-analysis-block">
                 <h4 className="correlation-analysis-heading">Correlation (Pearson)</h4>
                 <p className="correlation-analysis-stat">
                   <span className="correlation-r">r = {correlationResult.r.toFixed(3)}</span>
                   <span className="correlation-meta">
-                    {' '}(n = {correlationResult.n} countries)
-                    {correlationResult.pValue != null && (
-                      <> · p-value {correlationResult.pValue < 0.001 ? '< 0.001' : correlationResult.pValue.toFixed(3)}</>
-                    )}
+                    {' '}(n = {correlationResult.n}) {correlationResult.pValue != null && <>· p-value {correlationResult.pValue < 0.001 ? '< 0.001' : correlationResult.pValue.toFixed(3)}</>}
+                    {' '}· Strength: <strong>{correlationResult.strengthLabel}</strong>
                   </span>
                 </p>
                 <p className="correlation-interpretation">{correlationResult.interpretation}</p>
+                <p className="correlation-quantify">
+                  A 1-unit increase in X predicts {correlationResult.betaCoefficient >= 0 ? '' : '−'}{Math.abs(correlationResult.betaCoefficient).toFixed(4)} change in Y
+                  {correlationResult.betaPValue != null && correlationResult.betaPValue < 0.05 && <> (p = {correlationResult.betaPValue < 0.001 ? '<0.001' : correlationResult.betaPValue.toFixed(3)})</>}.
+                </p>
                 {correlationResult.pValue != null && correlationResult.pValue < 0.05 && (
                   <p className="correlation-significance muted">
                     The correlation is statistically significant at the 5% level (two-tailed test of no linear relationship).
                   </p>
                 )}
               </div>
+              {correlationResult.residuals.length >= 3 && (
+                <div className="correlation-analysis-block">
+                  <h4 className="correlation-analysis-heading">Residuals vs fitted</h4>
+                  <p className="muted small">Check for heteroscedasticity: residuals should be scattered around zero.</p>
+                  <div className="correlation-residuals-plot">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <ScatterChart margin={{ top: 8, right: 16, bottom: 16, left: 16 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                        <XAxis type="number" dataKey="fitted" name="Fitted" stroke="var(--text-muted)" fontSize={10} />
+                        <YAxis type="number" dataKey="residual" name="Residual" stroke="var(--text-muted)" fontSize={10} />
+                        <Scatter
+                          data={correlationResult.fitted.map((f, i) => ({ fitted: f, residual: correlationResult.residuals[i] }))}
+                          fill="var(--accent-red)"
+                          fillOpacity={0.5}
+                          stroke="var(--accent-red)"
+                        />
+                        <ReferenceLine y={0} stroke="var(--border-strong)" strokeDasharray="2 2" />
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+              {correlationResult.subgroupResults.length > 0 && (
+                <div className="correlation-analysis-block">
+                  <h4 className="correlation-analysis-heading">Subgroup analysis (by region)</h4>
+                  <p className="muted small">Consistency across regions (Bradford Hill).</p>
+                  <table className="correlation-executive-table correlation-subgroup-table">
+                    <thead>
+                      <tr><th>Region</th><th>r</th><th>n</th><th>p-value</th></tr>
+                    </thead>
+                    <tbody>
+                      {correlationResult.subgroupResults.map((s, i) => (
+                        <tr key={i}>
+                          <td>{s.group}</td>
+                          <td>{s.r.toFixed(3)}</td>
+                          <td>{s.n}</td>
+                          <td>{s.pValue != null ? (s.pValue < 0.001 ? '<0.001' : s.pValue.toFixed(3)) : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
               <div className="correlation-analysis-block">
                 <h4 className="correlation-analysis-heading">Causation &amp; context</h4>
                 <p className="correlation-causation-note">{correlationResult.causationNote}</p>
                 <p className="correlation-disclaimer muted small">
-                  Cross-sectional correlation does not prove causation. Confounding, reverse causality, and country-specific factors can affect the relationship. Use for hypothesis generation and complement with time-series or experimental evidence where appropriate.
+                  Confounding, reverse causality, and country-specific factors can affect the relationship. Use for hypothesis generation; complement with time-series or experimental evidence.
                 </p>
+              </div>
+              <div className="correlation-analysis-block">
+                <h4 className="correlation-analysis-heading">Actionable insight</h4>
+                <p className="correlation-actionable">{correlationResult.actionableInsight}</p>
+              </div>
+              <div className="correlation-analysis-block">
+                <h4 className="correlation-analysis-heading">If causation is not supported</h4>
+                <p className="correlation-next-steps muted small">{correlationResult.causationNextSteps}</p>
               </div>
               <div className="correlation-analysis-block">
                 <h4 className="correlation-analysis-heading">Comprehensive hypothesis for business analysis</h4>
                 <p className="correlation-causation-note">
-                  Working hypothesis for <strong>{xLabel}</strong> (X) vs <strong>{yLabel}</strong> (Y) in {year}:
+                  Working hypothesis for <strong>{xLabel}</strong> (X) vs <strong>{yLabel}</strong> (Y){' '}
+                  {selectedYears.length === 1 ? `in ${selectedYears[0]}` : `across ${selectedYears.length} years (${selectedYears[0]}–${selectedYears[selectedYears.length - 1]})`}:
                 </p>
                 <ul className="correlation-hypothesis-list">
                   <li>
                     Based on the scatter and Pearson statistics, {hypothesisDirection}{' '}
-                    This pattern is estimated from {correlationResult.n} countries with valid data.
+                    This pattern is estimated from {correlationResult.n} points with valid data.
                   </li>
                   <li>
                     If this relationship holds within your target segment (e.g. region, income group, or portfolio
@@ -349,20 +515,16 @@ export function BusinessAnalyticsSection({
                     below may represent structural risk or underperformance.
                   </li>
                   <li>
-                    A practical next step is to pick 3–5 countries in each quadrant (high/low X vs high/low Y) and run a
-                    qualitative review: recent policy changes, sector mix, demographic profile, and institutional
-                    factors that might explain why they deviate from the average pattern.
+                    Limitations: sample size, possible multicollinearity, non-linear effects. Re-run for different years and metrics; complement with time-series or microdata where available.
                   </li>
                 </ul>
                 <p className="correlation-disclaimer muted small">
-                  This hypothesis is intentionally exploratory and should be stress-tested before driving capital
-                  allocation or policy decisions. Re-run the analysis for different years, check robustness to metric
-                  choices (e.g. per-capita vs levels), and complement with time-series or microdata where available.
+                  This hypothesis is exploratory. Stress-test before driving capital allocation or policy decisions.
                 </p>
               </div>
             </div>
           ) : (
-            <p className="muted">Insufficient data (fewer than 3 countries with valid values for both metrics) to compute correlation for this pair in {year}.</p>
+            <p className="muted">Insufficient data (fewer than 3 country–year points with valid values for both metrics) to compute correlation for this pair{selectedYears.length === 1 ? ` in ${selectedYears[0]}` : ''}.</p>
           )}
         </div>
       )}

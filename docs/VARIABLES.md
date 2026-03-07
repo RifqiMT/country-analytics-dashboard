@@ -86,6 +86,27 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `keyTakeawaysBullets` | Key Takeaways bullets | Array of exactly five concise bullet strings summarising strategic takeaways from the five forces. Parsed from the `## Key Takeaways` block. | Parsed by `parseKeyTakeaways()`. | Porter 5 Forces tab: "Key Takeaways" card (fourth section). | `["Capital-intensive…", "Government support…", …]`. |
 | `recommendationsBullets` | Recommendations bullets | Array of exactly five concise, actionable recommendation strings derived from the five forces. Parsed from the `## Recommendations` block. | Parsed by `parseRecommendations()`. | Porter 5 Forces tab: "Recommendations" card (fifth section). | `["Invest in technology…", "Adapt to preferences…", …]`. |
 
+### 1.7 Business Analytics – Correlation & Causation
+
+These variables control and describe the correlation scatter and causation analysis in the Business Analytics tab. They are defined in `src/utils/correlationAnalysis.ts` and consumed by `BusinessAnalyticsSection.tsx` and `CorrelationScatterPlot.tsx`.
+
+| Variable name | Friendly name | Definition | Formula | Location in app | Example |
+|---------------|----------------|------------|---------|-----------------|---------|
+| `startYear` | Start year (year range) | First year (inclusive) of the year range used to fetch and combine global data for the scatter. Each country–year in the range becomes one point. | User-selected or default (e.g. endYear − 4). | Business Analytics tab: year range controls (start). | 2019. |
+| `endYear` | End year (year range) | Last year (inclusive) of the year range. Aligns with dashboard end year when tab is opened; user can change. | User-selected or dashboard end year. | Business Analytics tab: year range controls (end). | 2023. |
+| `excludeOutliers` | Exclude IQR outliers | When true, points flagged as IQR outliers (univariate 1.5×IQR rule on X and Y) are removed from the scatter and from all correlation/regression results. | Boolean; user checkbox. | Business Analytics tab: "Exclude IQR outliers" checkbox. | true. |
+| `r` | Pearson correlation coefficient | Measure of linear association between X and Y; range −1 to 1. | Pearson r = Cov(X,Y) / (σ_X × σ_Y). | Business Analytics: correlation block, scatter title ("Corr = [r]"), executive summary table. | 0.72. |
+| `rSquared` | R² (coefficient of determination) | Proportion of variance in Y explained by X. | R² = 1 − (SS_res / SS_tot). | Business Analytics: correlation block, executive summary table. | 0.52. |
+| `betaCoefficient` | Beta (regression slope) | Predicted change in Y per one-unit increase in X. | Slope from OLS: β = Cov(X,Y) / Var(X). | Business Analytics: correlation block ("A 1-unit increase in X predicts [beta] change in Y"), executive summary table. | 0.0042. |
+| `strengthLabel` | Strength band | Human-readable strength of correlation: weak (\|r\|&lt;0.3), moderate (0.3–0.7), strong (&gt;0.7). | Band thresholds applied to \|r\|. | Business Analytics: correlation block, executive summary table interpretation. | "moderate". |
+| `regressionCI` | 95% confidence interval for regression line | At sample min/mid/max X, the fitted Y and lower/upper bounds of the 95% CI for the regression line. | yFit ± t_{0.975,n−2} × SE(fitted). | Business Analytics: scatter chart (dashed CI band). | `[{ x: 1000, yFit: 68, yLower: 65, yUpper: 71 }, …]`. |
+| `dataPrep` | Data preparation result | Summary of cleaning: rows with valid X,Y; count removed for missing; IQR outlier indices; cleaned rows (after optional exclusion). | `prepareScatterData()` in correlationAnalysis.ts. | Business Analytics: "Data preparation" summary (removed missing, outliers flagged, n used). | `{ removedMissing: 12, outlierIndices: Set(5), cleanedRows: […] }`. |
+| `subgroupResults` | Subgroup correlations by region | For each region, Pearson r, n, and p-value. Used for consistency (e.g. Bradford Hill). | `subgroupCorrelations()` in correlationAnalysis.ts. | Business Analytics: "Subgroup analysis by region" table. | `[{ group: "East Asia & Pacific", r: 0.68, n: 42, pValue: 0.001 }, …]`. |
+| `executiveSummaryTable` | Executive summary table | Table rows: metric name, value, interpretation (for Pearson r, P-value, R², Beta). | Built in `computeCorrelationResult()`. | Business Analytics: "Executive summary" table. | `[{ metric: "Pearson r", value: "0.72", interpretation: "Moderate positive" }, …]`. |
+| `actionableInsight` | Actionable insight | One-paragraph business-focused interpretation of the correlation and its implications. | Generated in `computeCorrelationResult()`. | Business Analytics: "Actionable insight" section. | "Higher GDP per capita is associated with…" |
+| `causationNextSteps` | Causation next steps | When causation is not supported, recommended next steps (e.g. subgroup analysis, time-lagged analysis, control for confounders). | Generated in `computeCorrelationResult()`. | Business Analytics: "If causation is not supported" section. | "Consider subgroup analysis by region…" |
+| `fitted` / `residuals` | Fitted values and residuals | For each point, fitted Y from regression and residual (observed − fitted). Used for residuals vs fitted plot. | OLS: fitted = intercept + slope × X; residual = Y − fitted. | Business Analytics: "Residuals vs fitted" plot. | fitted: [68.1, 69.2, …], residuals: [−0.5, 0.3, …]. |
+
 ---
 
 ## 2. Configuration Constants
@@ -231,6 +252,8 @@ flowchart LR
   pop65 --> popByAge
 ```
 
+**Business Analytics (correlation & causation):** Inputs are **startYear**, **endYear**, X metric key, Y metric key, and **excludeOutliers**. Global metrics for the year range are merged into rows; **prepareScatterData** produces **dataPrep** (removedMissing, outlierIndices, **cleanedRows**). **computeCorrelationResult** consumes cleanedRows and produces **r**, **rSquared**, **betaCoefficient**, **strengthLabel**, **regressionCI**, **fitted**/**residuals**, **executiveSummaryTable**, **subgroupResults**, **actionableInsight**, **causationNextSteps**. These flow to Business Analytics tab (scatter title, scatter CI band, data prep summary, executive table, residuals plot, subgroup table, actionable insight, next steps).
+
 ### 7.3 Variable Usage Flow in the Application
 
 The following diagram shows how variables **flow from data sources** into **data structures** and then into **app areas** (screens and features). Use it to see where each variable is connected and used in the product—from sources (World Bank, IMF, REST Countries, Sea Around Us) through the data layer to Country Dashboard, Global analytics, Business Analytics, PESTEL, Porter 5 Forces, Source tab, and Analytics Assistant.
@@ -299,7 +322,7 @@ flowchart TB
 | **Global map** | Any numeric metric + region, governmentType (from Map metric selector) |
 | **Global table** | All metrics per country-year (General, Financial, Health & demographics columns) |
 | **Global Charts** | Same as Global table, aggregated (unified, economic, health, population-structure series) |
-| **Business Analytics** | Any two numeric metrics as X and Y (from global dataset) |
+| **Business Analytics** | Any two numeric metrics as X and Y (from global dataset); **startYear**, **endYear** (year range); **excludeOutliers**; correlation outputs: **r**, **rSquared**, **betaCoefficient**, **strengthLabel**, **regressionCI**, **dataPrep**, **subgroupResults**, **executiveSummaryTable**, **actionableInsight**, **causationNextSteps**; **fitted** / **residuals** for residuals plot |
 | **PESTEL / Analytics Assistant** | Country context (summary + metrics) and global data; location/geography from LLM and web search, not stored variables |
 | **Porter 5 Forces** | Country context (summary + metrics), global data (DATA_MAX_YEAR), **industrySectorId** / industry division label; **chartData**, **newMarketBullets**, **keyTakeawaysBullets**, **recommendationsBullets** (parsed from LLM); supplemental web search for country + industry |
 | **Source tab** | All variables documented in metric cards (Financial, Population, Health, Geography, Country metadata & context) |

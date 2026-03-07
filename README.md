@@ -51,7 +51,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, population structure aggregates) for cross-country comparison |
 | **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications (PESTEL–SWOT), New Market Analysis, Key Takeaways, Recommendations (≥5 bullets each). Uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement; **download PESTEL and SWOT charts as PNG** |
 | **Porter 5 Forces** | Generate Porter Five Forces analysis by country and ILO/ISIC industry division; **Porter's Five Forces chart** (standard cross layout with five bullet points per force); **Comprehensive Analysis**; **New Market Analysis** (5 bullets); **Key Takeaways** (5 bullets); **Recommendations** (5 bullets); inline citations only; TAVILY → GROQ → others |
-| **Business Analytics** | Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation) |
+| **Business Analytics** | **Year range** (start–end, inclusive); multi-metric correlation scatter (X/Y axes, highlight country); **data preparation** (missing removed, IQR outliers flagged or excluded); scatter **title** "Scatter Plot: [X] vs [Y] | Corr = [r]" with **trend line and 95% CI**; **correlation & causation analysis**: executive summary table (Pearson r, P-value, R², Beta), strength band (weak/moderate/strong), **residuals vs fitted** plot, **subgroup by region** table, explicit "Correlation does NOT imply causation" disclaimer, **actionable insight**, and **next steps** when causation is not supported |
 | **Source** | Metric definitions, formulas, data source links, and Analytics Assistant flow |
 | **Analytics assistant** | Chat for questions about metrics, methodology, location/geography, and general knowledge |
 
@@ -120,10 +120,13 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Correlation scatter** | Choose X and Y metrics; plot all countries; highlight selected country (from Country dashboard); inspect correlation |
-| **Year selector** | Data year for scatter and correlation (syncs with dashboard year by default) |
-| **Correlation & causation analysis** | Pearson correlation coefficient (r), approximate p-value, interpretation text, and causation/context note with disclaimer |
-| **Country highlight** | Selected country from Country dashboard is highlighted on the scatter; changing country updates highlight |
+| **Year range** | Start year and end year (inclusive); data from all years in range are combined (each country–year is a point). Syncs with dashboard on load; user can change range. |
+| **Exclude IQR outliers** | Checkbox to remove points flagged as outliers (univariate IQR: &gt;1.5×IQR from Q1/Q3 on X or Y). When unchecked, outliers remain in the scatter and correlation. |
+| **Correlation scatter** | X and Y metric selectors; plot uses cleaned data (missing removed; optionally excluding IQR outliers). Selected country highlighted. **Chart title**: "Scatter Plot: [X] vs [Y] | Corr = [r]". **Trend line** (linear regression) and **95% confidence interval** band. |
+| **Data preparation** | Summary: points removed for missing X/Y; count of IQR-outlier points flagged; points used (n) after cleaning. |
+| **Executive summary table** | Metric | Value | Interpretation: Pearson r, P-value, R², Beta (slope). Strength band: \|r\|&lt;0.3 weak, 0.3–0.7 moderate, &gt;0.7 strong. |
+| **Correlation & causation** | Pearson r, p-value, interpretation, and quantified sentence: "A 1-unit increase in X predicts [beta] change in Y (p=…)." **Residuals vs fitted** plot (heteroscedasticity check). **Subgroup analysis by region**: table of r, n, p-value per region (consistency). Explicit **"Correlation does NOT imply causation"** disclaimer; causation/context note; **actionable insight** paragraph; **if causation not supported** recommended next steps (subgroup, time-series, multiple regression, RCTs/IV). |
+| **Country highlight** | Selected country from Country dashboard is highlighted on the scatter; changing country updates highlight. |
 
 ### 3.6 Source Tab
 
@@ -207,7 +210,7 @@ User → App.tsx (tabs: Country | Global | PESTEL | Porter 5 Forces | Business A
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
 | `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
 | `src/utils/pestelContext.ts` | PESTEL prompt building and generation context for selected country |
-| `src/utils/correlationAnalysis.ts` | Pearson correlation and causation interpretation for Business Analytics |
+| `src/utils/correlationAnalysis.ts` | **Data preparation** (missing removal, IQR outlier flagging/removal), **linear regression** (slope, intercept, R², fitted, residuals, 95% CI), Pearson r, **strength band** (weak/moderate/strong), **subgroup correlations by region**, **executive summary table**, **actionable insight**, and **causation next steps** for Business Analytics |
 | `src/utils/timeSeries.ts` | Resampling for timelines |
 | `src/config/llm.ts` | LLM model definitions, provider config |
 | `src/data/metricMetadata.ts` | Metric descriptions, formulas, source links (including context/country metadata) |

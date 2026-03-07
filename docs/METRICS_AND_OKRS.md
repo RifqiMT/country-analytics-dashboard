@@ -158,6 +158,8 @@ Use a `product_area.action` pattern:
 | `global.map_metric_changed` | User changes map metric |
 | `business_analytics.tab_viewed` | User opens Business Analytics tab |
 | `business_analytics.correlation_axes_changed` | User changes X or Y metric in correlation scatter |
+| `business_analytics.year_range_changed` | User changes start or end year in Business Analytics |
+| `business_analytics.exclude_outliers_toggled` | User toggles "Exclude IQR outliers" checkbox |
 | `global.table_sort_changed` | User sorts a table column |
 | `global.table_view_changed` | User switches General/Financial/Health |
 | `pestel.tab_viewed` | User opens PESTEL tab |
