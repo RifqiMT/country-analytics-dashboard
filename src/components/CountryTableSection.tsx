@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
+import { formatGrowthChangeShort } from '../utils/growthFormat';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { computeGlobalValue, toGlobalAggregateOption } from '../utils/globalAggregates';
 
@@ -124,6 +125,8 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
       if (seriesId === 'populationTotal') return (data.series?.population ?? [])[0];
       const health = (data.series?.health ?? []).find((s) => s.id === seriesId);
       if (health) return health;
+      const education = (data.series?.education ?? []).find((s) => s.id === seriesId);
+      if (education) return education;
       return (data.series?.financial ?? []).find((s) => s.id === seriesId);
     })();
     if (series && options?.selectedOverride === undefined) {
@@ -131,12 +134,8 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
       const curr = points.find((p) => p.year === snapshot.year)?.value;
       const prev = points.find((p) => p.year === snapshot.year - 1)
         ?.value;
-      if (curr != null && prev != null && prev !== 0) {
-        const pct = ((curr - prev) / Math.abs(prev)) * 100;
-        if (Number.isFinite(pct)) {
-          const sign = pct > 0 ? '+' : '';
-          yoySelected = `${sign}${pct.toFixed(1)}%`;
-        }
+      if (curr != null) {
+        yoySelected = formatGrowthChangeShort(curr, prev ?? null, seriesId);
       }
     }
 
@@ -144,37 +143,17 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
       const sumPrev = valuesPrev.reduce((acc, v) => acc + v, 0);
       const avgPrev = sumPrev / valuesPrev.length;
 
-      if (avgPrev !== 0) {
-        const pct = ((avgCurr - avgPrev) / Math.abs(avgPrev)) * 100;
-        if (Number.isFinite(pct)) {
-          const sign = pct > 0 ? '+' : '';
-          yoyAvg = `${sign}${pct.toFixed(1)}%`;
-        }
-      }
+      yoyAvg = formatGrowthChangeShort(avgCurr, avgPrev, key as string);
 
       const useAverageForGlobal = options?.globalAsAverage === true;
       if (useAverageForGlobal) {
-        if (avgPrev !== 0) {
-          const pct = ((avgCurr - avgPrev) / Math.abs(avgPrev)) * 100;
-          if (Number.isFinite(pct)) {
-            const sign = pct > 0 ? '+' : '';
-            yoyGlobal = `${sign}${pct.toFixed(1)}%`;
-          }
-        }
-      } else if (sumPrev !== 0) {
-        const pct = ((sumCurr - sumPrev) / Math.abs(sumPrev)) * 100;
-        if (Number.isFinite(pct)) {
-          const sign = pct > 0 ? '+' : '';
-          yoyGlobal = `${sign}${pct.toFixed(1)}%`;
-        }
+        yoyGlobal = formatGrowthChangeShort(avgCurr, avgPrev, key as string);
+      } else {
+        yoyGlobal = formatGrowthChangeShort(sumCurr, sumPrev, key as string);
       }
     }
-    if (ratioCurr != null && ratioPrev != null && ratioPrev !== 0) {
-      const pct = ((ratioCurr - ratioPrev) / Math.abs(ratioPrev)) * 100;
-      if (Number.isFinite(pct)) {
-        const sign = pct > 0 ? '+' : '';
-        yoyGlobal = `${sign}${pct.toFixed(1)}%`;
-      }
+    if (ratioCurr != null && ratioPrev != null) {
+      yoyGlobal = formatGrowthChangeShort(ratioCurr, ratioPrev, key as string);
     }
 
     const useAverageForGlobal = options?.globalAsAverage === true;
@@ -337,13 +316,55 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     globalFromWeightedAverage: { weightKey: 'populationTotal' },
   });
 
+  const outOfSchoolPrimaryPctAgg = computeAggregates(
+    'outOfSchoolPrimaryPct',
+    'outOfSchoolPrimaryPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const primaryCompletionRateAgg = computeAggregates(
+    'primaryCompletionRate',
+    'primaryCompletionRate',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const minProficiencyReadingPctAgg = computeAggregates(
+    'minProficiencyReadingPct',
+    'minProficiencyReadingPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const preprimaryEnrollmentPctAgg = computeAggregates(
+    'preprimaryEnrollmentPct',
+    'preprimaryEnrollmentPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const literacyRateAdultPctAgg = computeAggregates(
+    'literacyRateAdultPct',
+    'literacyRateAdultPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const genderParityIndexPrimaryAgg = computeAggregates(
+    'genderParityIndexPrimary',
+    'genderParityIndexPrimary',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const trainedTeachersPrimaryPctAgg = computeAggregates(
+    'trainedTeachersPrimaryPct',
+    'trainedTeachersPrimaryPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const publicExpenditureEducationPctGDPAgg = computeAggregates(
+    'publicExpenditureEducationPctGDP',
+    'publicExpenditureEducationPctGDP',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+
   const [expandedGroups, setExpandedGroups] = useState({
     general: true,
     financial: true,
     health: true,
+    education: true,
   });
 
-  const toggleGroup = (group: 'general' | 'financial' | 'health') => {
+  const toggleGroup = (group: 'general' | 'financial' | 'health' | 'education') => {
     setExpandedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
   };
 
@@ -351,12 +372,13 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   const renderRow = (
     label: string,
     agg: Agg,
-    format: 'compact' | 'percentage' | 'area',
+    format: 'compact' | 'percentage' | 'area' | 'gpi',
   ) => {
     const fmt = (v: number | null) => {
       if (v == null) return '–';
       if (format === 'percentage') return formatPercentage(v);
       if (format === 'area') return `${formatCompactNumber(v)} km²`;
+      if (format === 'gpi') return v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2);
       return formatCompactNumber(v);
     };
     const yoyClass = agg.yoySelected?.startsWith('-') ? ' table-cell-yoy--negative' : '';
@@ -481,6 +503,32 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
                 {renderRow('Population 0–14 (% of total)', pop0_14Agg, 'percentage')}
                 {renderRow('Population 15–64 (% of total)', pop15_64Agg, 'percentage')}
                 {renderRow('Population 65+ (% of total)', pop65PlusAgg, 'percentage')}
+              </>
+            )}
+
+            <tr
+              className="table-group-header table-group-header-clickable"
+              onClick={() => toggleGroup('education')}
+            >
+              <td colSpan={4}>
+                <span className="table-group-header-inner">
+                  <span className="table-group-chevron">
+                    {expandedGroups.education ? '▾' : '▸'}
+                  </span>
+                  <span>Education</span>
+                </span>
+              </td>
+            </tr>
+            {expandedGroups.education && (
+              <>
+                {renderRow('Out-of-school rate (primary, % of primary school age)', outOfSchoolPrimaryPctAgg, 'percentage')}
+                {renderRow('Primary completion rate (% of relevant age group)', primaryCompletionRateAgg, 'percentage')}
+                {renderRow('Minimum reading proficiency (% at end of primary)', minProficiencyReadingPctAgg, 'percentage')}
+                {renderRow('Preprimary enrollment (% gross)', preprimaryEnrollmentPctAgg, 'percentage')}
+                {renderRow('Adult literacy rate (% ages 15+)', literacyRateAdultPctAgg, 'percentage')}
+                {renderRow('Gender parity index (GPI), primary enrollment', genderParityIndexPrimaryAgg, 'gpi')}
+                {renderRow('Trained teachers in primary (% of total teachers)', trainedTeachersPrimaryPctAgg, 'percentage')}
+                {renderRow('Public expenditure on education (% of GDP)', publicExpenditureEducationPctGDPAgg, 'percentage')}
               </>
             )}
           </tbody>

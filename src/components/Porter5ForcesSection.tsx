@@ -502,8 +502,8 @@ export function Porter5ForcesSection({
           <p className="muted">
             Industry attractiveness analysis (Threat of new entrants, Bargaining power of suppliers,
             Bargaining power of buyers, Threat of substitutes, Competitive rivalry) for the selected
-            country and ILO/ISIC industry sector. Uses latest global data (year {DATA_MAX_YEAR}) and
-            supplementary information from TAVILY first, then GROQ, then other LLMs.
+            country and ILO/ISIC industry sector. Uses the same platform data (World Bank, UN, WHO, IMF; year {DATA_MAX_YEAR}) and
+            supplementary information from TAVILY, GROQ, or other LLMs.
           </p>
         </div>
       </div>

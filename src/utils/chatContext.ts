@@ -124,6 +124,7 @@ export function buildChatSystemPrompt(
       const p = snap.metrics.population;
       const h = snap.metrics.health;
       const g = snap.metrics.geography;
+      const e = snap.metrics.education;
       const year = snap.year;
       countryContext += compact
         ? `GDP ${formatValue(f?.gdpNominal ?? null, 'USD')}, Pop ${formatValue(p?.total ?? null, 'People')}, LifeExp ${formatValue(h?.lifeExpectancy ?? null, 'Years')}, Inflation ${formatValue(f?.inflationCPI ?? null, '%')}, Debt ${formatValue(f?.govDebtPercentGDP ?? null, '%')}\n`
@@ -151,6 +152,17 @@ export function buildChatSystemPrompt(
           countryContext += `- Land area: ${formatValue(g.landAreaKm2 ?? null, 'km²')}
 - Total area: ${formatValue(g.totalAreaKm2 ?? null, 'km²')}
 - EEZ: ${formatValue(g.eezKm2 ?? null, 'km²')}
+`;
+        }
+        if (e) {
+          countryContext += `- Out-of-school (primary, %): ${formatValue(e.outOfSchoolPrimaryPct ?? null, '%')}
+- Primary completion rate: ${formatValue(e.primaryCompletionRate ?? null, '%')}
+- Min. reading proficiency: ${formatValue(e.minProficiencyReadingPct ?? null, '%')}
+- Preprimary enrollment: ${formatValue(e.preprimaryEnrollmentPct ?? null, '%')}
+- Adult literacy: ${formatValue(e.literacyRateAdultPct ?? null, '%')}
+- Gender parity index (primary): ${e.genderParityIndexPrimary != null ? (e.genderParityIndexPrimary >= 10 ? (e.genderParityIndexPrimary / 100).toFixed(2) : e.genderParityIndexPrimary.toFixed(2)) : 'N/A'}
+- Trained teachers (primary): ${formatValue(e.trainedTeachersPrimaryPct ?? null, '%')}
+- Public expenditure on education (% GDP): ${formatValue(e.publicExpenditureEducationPctGDP ?? null, '%')}
 `;
         }
       }

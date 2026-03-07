@@ -672,7 +672,7 @@ export function PESTELSection({
           <p className="muted">
             Comprehensive macro-environmental analysis (Political, Economic, Social, Technological, Environmental, Legal)
             with PESTEL–SWOT matrix (Opportunities and Risks), new market analysis, key takeaways, and actionable recommendations.
-            Uses the most up-to-date global data (year {DATA_MAX_YEAR}) and supplements with web search for dimensions with limited dashboard data.
+            Uses the same analyst-grade data as the platform (World Bank, UN, WHO, IMF; 2000 – latest) and supplements with web search for dimensions with limited dashboard data.
           </p>
         </div>
       </div>

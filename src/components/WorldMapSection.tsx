@@ -96,6 +96,22 @@ function getMetricFromRow(
       return row.governmentType ?? null;
     case 'region':
       return row.region ?? null;
+    case 'outOfSchoolPrimaryPct':
+      return row.outOfSchoolPrimaryPct ?? null;
+    case 'primaryCompletionRate':
+      return row.primaryCompletionRate ?? null;
+    case 'minProficiencyReadingPct':
+      return row.minProficiencyReadingPct ?? null;
+    case 'preprimaryEnrollmentPct':
+      return row.preprimaryEnrollmentPct ?? null;
+    case 'literacyRateAdultPct':
+      return row.literacyRateAdultPct ?? null;
+    case 'genderParityIndexPrimary':
+      return row.genderParityIndexPrimary ?? null;
+    case 'trainedTeachersPrimaryPct':
+      return row.trainedTeachersPrimaryPct ?? null;
+    case 'publicExpenditureEducationPctGDP':
+      return row.publicExpenditureEducationPctGDP ?? null;
     default:
       return null;
   }
@@ -157,6 +173,22 @@ function getMetricLabel(metricId: MapMetricId): string {
       return 'Population 15–64 (% of total)';
     case 'pop65PlusShare':
       return 'Population 65+ (% of total)';
+    case 'outOfSchoolPrimaryPct':
+      return 'Out-of-school rate (primary, %)';
+    case 'primaryCompletionRate':
+      return 'Primary completion rate (%)';
+    case 'minProficiencyReadingPct':
+      return 'Minimum reading proficiency (%)';
+    case 'preprimaryEnrollmentPct':
+      return 'Preprimary enrollment (% gross)';
+    case 'literacyRateAdultPct':
+      return 'Adult literacy rate (%)';
+    case 'genderParityIndexPrimary':
+      return 'Gender parity index (GPI), primary';
+    case 'trainedTeachersPrimaryPct':
+      return 'Trained teachers primary (%)';
+    case 'publicExpenditureEducationPctGDP':
+      return 'Public expenditure on education (% GDP)';
     default:
       return String(metricId);
   }
@@ -183,6 +215,16 @@ function formatMetricValue(
     case 'pop15_64Share':
     case 'pop65PlusShare':
       return formatPercentage(value);
+    case 'outOfSchoolPrimaryPct':
+    case 'primaryCompletionRate':
+    case 'minProficiencyReadingPct':
+    case 'preprimaryEnrollmentPct':
+    case 'literacyRateAdultPct':
+    case 'trainedTeachersPrimaryPct':
+    case 'publicExpenditureEducationPctGDP':
+      return formatPercentage(value);
+    case 'genderParityIndexPrimary':
+      return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);
     case 'govDebtUSD':
       return formatCompactNumber(value);
     case 'lifeExpectancy':

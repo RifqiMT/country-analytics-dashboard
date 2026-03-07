@@ -1,7 +1,7 @@
 /**
  * Multi-metric correlation scatterplot for new market analysis.
  * Plots countries as points with selectable X/Y metrics from global data.
- * All numeric metrics are included and grouped by category.
+ * All numeric metrics from GlobalCountryMetricsRow are included as X/Y axis options (grouped by category).
  */
 import {
   ScatterChart,
@@ -16,9 +16,8 @@ import {
 } from 'recharts';
 import type { GlobalCountryMetricsRow } from '../types';
 
-/** All numeric metric keys available in GlobalCountryMetricsRow for scatter axes */
-export type ScatterMetricKey = keyof Pick<
-  GlobalCountryMetricsRow,
+/** Keys that exist on GlobalCountryMetricsRow and hold numeric values (including Share aliases that read from Pct). */
+export type ScatterMetricKey =
   | 'gdpNominal'
   | 'gdpPPP'
   | 'gdpNominalPerCapita'
@@ -46,14 +45,21 @@ export type ScatterMetricKey = keyof Pick<
   | 'landAreaKm2'
   | 'totalAreaKm2'
   | 'eezKm2'
->;
+  | 'outOfSchoolPrimaryPct'
+  | 'primaryCompletionRate'
+  | 'minProficiencyReadingPct'
+  | 'preprimaryEnrollmentPct'
+  | 'literacyRateAdultPct'
+  | 'genderParityIndexPrimary'
+  | 'trainedTeachersPrimaryPct'
+  | 'publicExpenditureEducationPctGDP';
 
 export interface ScatterMetricOption {
   key: ScatterMetricKey;
   label: string;
 }
 
-/** Grouped options for X/Y dropdowns (optgroup). Order defines display order. */
+/** All numeric metric keys for scatter axes (single source of truth). Grouped for UI. */
 export const SCATTER_METRIC_OPTIONS_GROUPED: { group: string; options: ScatterMetricOption[] }[] = [
   {
     group: 'Financial – GDP',
@@ -87,9 +93,9 @@ export const SCATTER_METRIC_OPTIONS_GROUPED: { group: string; options: ScatterMe
     group: 'Population',
     options: [
       { key: 'populationTotal', label: 'Population, total' },
-      { key: 'pop0_14Pct', label: 'Population 0–14 (%)' },
-      { key: 'pop15_64Pct', label: 'Population 15–64 (%)' },
-      { key: 'pop65PlusPct', label: 'Population 65+ (%)' },
+      { key: 'pop0_14Pct', label: 'Population 0–14 (% of total)' },
+      { key: 'pop15_64Pct', label: 'Population 15–64 (% of total)' },
+      { key: 'pop65PlusPct', label: 'Population 65+ (% of total)' },
       { key: 'population0_14', label: 'Population 0–14 (count)' },
       { key: 'population15_64', label: 'Population 15–64 (count)' },
       { key: 'population65Plus', label: 'Population 65+ (count)' },
@@ -110,6 +116,19 @@ export const SCATTER_METRIC_OPTIONS_GROUPED: { group: string; options: ScatterMe
       { key: 'landAreaKm2', label: 'Land area (km²)' },
       { key: 'totalAreaKm2', label: 'Total area (km²)' },
       { key: 'eezKm2', label: 'EEZ (km²)' },
+    ],
+  },
+  {
+    group: 'Education',
+    options: [
+      { key: 'outOfSchoolPrimaryPct', label: 'Out-of-school rate (primary, %)' },
+      { key: 'primaryCompletionRate', label: 'Primary completion rate (%)' },
+      { key: 'minProficiencyReadingPct', label: 'Minimum reading proficiency (%)' },
+      { key: 'preprimaryEnrollmentPct', label: 'Preprimary enrollment (% gross)' },
+      { key: 'literacyRateAdultPct', label: 'Adult literacy rate (%)' },
+      { key: 'genderParityIndexPrimary', label: 'Gender parity index (GPI), primary' },
+      { key: 'trainedTeachersPrimaryPct', label: 'Trained teachers primary (%)' },
+      { key: 'publicExpenditureEducationPctGDP', label: 'Public expenditure on education (% GDP)' },
     ],
   },
 ];
@@ -172,8 +191,16 @@ function formatAxisValue(value: number, key: ScatterMetricKey): string {
     'pop15_64Pct',
     'pop65PlusPct',
     'undernourishmentPrevalence',
+    'outOfSchoolPrimaryPct',
+    'primaryCompletionRate',
+    'minProficiencyReadingPct',
+    'preprimaryEnrollmentPct',
+    'literacyRateAdultPct',
+    'trainedTeachersPrimaryPct',
+    'publicExpenditureEducationPctGDP',
   ];
   if (pctKeys.includes(key)) return value.toFixed(0);
+  if (key === 'genderParityIndexPrimary') return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);
   if (key === 'lifeExpectancy') return value.toFixed(1);
   if (key === 'maternalMortalityRatio' || key === 'under5MortalityRate') return value.toFixed(0);
   return value.toFixed(1);

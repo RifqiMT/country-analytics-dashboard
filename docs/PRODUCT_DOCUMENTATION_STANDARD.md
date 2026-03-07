@@ -195,12 +195,12 @@ For every feature PR that changes user-visible behaviour:
 | PRD Section | Primary Components | API / Utils |
 |-------------|--------------------|--------------|
 | Country dashboard | SummarySection, CountrySelector, YearRangeSelector | worldBank.ts |
-| Time-series & macro | TimeSeriesSection, MacroIndicatorsTimelineSection (economic, health), LabourUnemploymentTimelineSection, PopulationStructureSection | worldBank.ts, timeSeries.ts |
+| Time-series & macro | TimeSeriesSection, MacroIndicatorsTimelineSection (economic, health), **EducationTimelineSection**, LabourUnemploymentTimelineSection, PopulationStructureSection | worldBank.ts, timeSeries.ts |
 | Population structure | PopulationStructureSection (age-group shares + absolute over time) | worldBank.ts, timeSeries.ts |
 | Country comparison | CountryTableSection | worldBank.ts |
 | Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
 | Global tables | AllCountriesTableSection | worldBank.ts |
-| Global charts | GlobalChartsSection (unified, economic, health, population structure) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
+| Global charts | GlobalChartsSection (unified, economic, health, **education**, population structure) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
 | **Porter 5 Forces** | **Porter5ForcesSection** (country + industry selector, **Porter5Chart** with standard cross layout, generate; **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, **Recommendations** in separate cards; inline citations) | **porter5ForcesContext.ts**, **iloIndustrySectors.ts**, LLM via chat API (TAVILY supplement, then GROQ); chart and block parsing (`parsePorter5ChartSummary`, `parseNewMarketAnalysis`, `parseKeyTakeaways`, `parseRecommendations`) and rendering in section |
 | PESTEL | PESTELSection (DATA_MAX_YEAR for global data; current year for web supplement) | pestelContext.ts, LLM via chat API; PESTEL/SWOT charts export via html2canvas |

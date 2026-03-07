@@ -18,45 +18,30 @@ import { formatCompactNumber } from '../utils/numberFormat';
 import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
-interface Props {
-  data?: CountryDashboardData;
-  frequency: Frequency;
-  setFrequency: (f: Frequency) => void;
-  resampledSeries?: CountryDashboardData['series'];
-}
-
-const UNIFIED_TIMELINE_METRIC_IDS: MetricId[] = [
-  'gdpNominal',
-  'gdpPPP',
-  'gdpNominalPerCapita',
-  'gdpPPPPerCapita',
-  'govDebtUSD',
-  'populationTotal',
+const EDUCATION_METRIC_IDS: MetricId[] = [
+  'outOfSchoolPrimaryPct',
+  'primaryCompletionRate',
+  'minProficiencyReadingPct',
+  'preprimaryEnrollmentPct',
+  'literacyRateAdultPct',
+  'genderParityIndexPrimary',
+  'trainedTeachersPrimaryPct',
+  'publicExpenditureEducationPctGDP',
 ];
 
-const METRIC_COLORS: Record<MetricId, string> = {
-  gdpNominal: '#c8102e', // Indonesian red
-  gdpPPP: '#b45309', // deep gold / brown
-  gdpNominalPerCapita: '#f59e0b', // amber
-  gdpPPPPerCapita: '#eab308', // bright gold
-  inflationCPI: '#f97316', // orange for inflation
-  govDebtPercentGDP: '#7f1d1d', // dark red for debt
-  govDebtUSD: '#991b1b', // darker red for debt USD
-  interestRate: '#0369a1', // blue for interest rate
-  unemploymentRate: '#22c55e', // green for unemployment
-  labourForceTotal: '#166534',
-  povertyHeadcount215: '#dc2626', // red for poverty
-  povertyHeadcountNational: '#b91c1c', // dark red for poverty
-  populationTotal: '#111827', // near-black for population
-  maternalMortalityRatio: '#b91c1c', // dark red for maternal mortality
-  under5MortalityRate: '#fb923c', // orange for child mortality
-  undernourishmentPrevalence: '#16a34a', // green for malnutrition
-  pop0_14Share: '#2563eb', // blue for young population share
-  pop15_64Share: '#7c3aed', // violet for working-age share
-  pop65PlusShare: '#be123c', // deep rose for senior share
-  // Not used in this chart (filtered out), but required by Record<MetricId, string>
-  unemployedTotal: '#15803d',
-  lifeExpectancy: '#0f766e',
+/** Metrics that are 0–100% and should be displayed capped at 100. */
+const EDUCATION_PCT_DISPLAY_CAP = new Set([
+  'outOfSchoolPrimaryPct', 'primaryCompletionRate', 'minProficiencyReadingPct',
+  'preprimaryEnrollmentPct', 'literacyRateAdultPct', 'trainedTeachersPrimaryPct',
+]);
+
+function displayValueForEducation(id: string, value: number | null | undefined): number | null {
+  if (value == null || !Number.isFinite(value)) return null;
+  if (EDUCATION_PCT_DISPLAY_CAP.has(id)) return Math.min(100, Math.max(0, value));
+  return value;
+}
+
+const METRIC_COLORS: Record<string, string> = {
   outOfSchoolPrimaryPct: '#dc2626',
   primaryCompletionRate: '#16a34a',
   minProficiencyReadingPct: '#0f766e',
@@ -67,8 +52,6 @@ const METRIC_COLORS: Record<MetricId, string> = {
   publicExpenditureEducationPctGDP: '#1d4ed8',
 };
 
-const RIGHT_AXIS_METRICS: MetricId[] = ['populationTotal'];
-
 const FREQUENCY_LABELS: Record<Frequency, string> = {
   weekly: 'Weekly (interpolated)',
   monthly: 'Monthly (interpolated)',
@@ -76,47 +59,69 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   yearly: 'Annual (observed)',
 };
 
-export function TimeSeriesSection({
+interface Props {
+  data?: CountryDashboardData;
+  frequency: Frequency;
+  setFrequency: (f: Frequency) => void;
+  resampledSeries?: CountryDashboardData['series'];
+}
+
+function formatEducationValue(
+  id: string,
+  v: number,
+): string {
+  if (id === 'genderParityIndexPrimary') {
+    return v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2);
+  }
+  if (id === 'publicExpenditureEducationPctGDP') {
+    return (v).toFixed(2);
+  }
+  return formatCompactNumber(v);
+}
+
+export function EducationTimelineSection({
   data,
   frequency,
   setFrequency,
   resampledSeries,
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
+  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(EDUCATION_METRIC_IDS);
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
-  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(
-    UNIFIED_TIMELINE_METRIC_IDS,
-  );
 
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Unified financial & population timeline</h2>
+        <h2 className="section-title">Macro indicators timeline – education</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
   }
 
-  const allSeries: MetricSeries[] = [
-    ...(finalSeries.financial ?? []),
-    ...(finalSeries.population ?? []),
-  ].filter((s) => UNIFIED_TIMELINE_METRIC_IDS.includes(s.id));
+  const allSeries: MetricSeries[] = (finalSeries.education ?? []).filter((s) =>
+    EDUCATION_METRIC_IDS.includes(s.id),
+  );
 
-  const displayStartYear = data.range
-    ? Math.max(data.range.startYear, DATA_MIN_YEAR)
-    : DATA_MIN_YEAR;
-  const displayEndYear = data.range
-    ? Math.min(data.range.endYear, DATA_MAX_YEAR)
-    : DATA_MAX_YEAR;
+  const displayStartYear =
+    data.range ? Math.max(data.range.startYear, DATA_MIN_YEAR) : DATA_MIN_YEAR;
+  const displayEndYear =
+    data.range ? Math.min(data.range.endYear, DATA_MAX_YEAR) : DATA_MAX_YEAR;
 
-  const labelByMetricId = allSeries.reduce<Record<MetricId, string>>(
-    (acc, series) => {
-      acc[series.id] = series.label;
+  const labelByMetricId = allSeries.reduce<Record<string, string>>(
+    (acc, s) => {
+      acc[s.id] = s.label;
       return acc;
     },
-    {} as Record<MetricId, string>,
+    {},
   );
+
+  const getMetricValueAtDate = (metricId: MetricId, date: string): number | null => {
+    const s = allSeries.find((m) => m.id === metricId);
+    if (!s?.points) return null;
+    const pt = s.points.find((p) => p.date === date);
+    return pt?.value ?? null;
+  };
 
   const dateSet = new Map<string, number>();
   for (const s of allSeries) {
@@ -130,17 +135,14 @@ export function TimeSeriesSection({
     (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
   );
   const baseData = sortedDates.map(([date, year]) => ({ date, year }));
+
   const merged = baseData.map((p) => {
     const row: Record<string, string | number | null> = {
       date: p.date,
       year: p.year,
     };
-    for (const metricId of UNIFIED_TIMELINE_METRIC_IDS) {
-      const seriesForMetric = allSeries.find((s) => s.id === metricId);
-      const value =
-        seriesForMetric?.points?.find((sp) => sp.date === p.date)?.value ??
-        null;
-      row[metricId] = value ?? null;
+    for (const metricId of EDUCATION_METRIC_IDS) {
+      row[metricId] = getMetricValueAtDate(metricId, p.date);
     }
     return row;
   });
@@ -155,39 +157,26 @@ export function TimeSeriesSection({
       return d.toLocaleDateString('en-US', {
         month: 'short',
         year: 'numeric',
-      }); // e.g. Jan 2024
+      });
     }
     if (frequency === 'quarterly') {
       const quarter = Math.floor(d.getMonth() / 3) + 1;
-      return `Q${quarter} ${d.getFullYear()}`; // e.g. Q1 2024
+      return `Q${quarter} ${d.getFullYear()}`;
     }
     return d.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       year: '2-digit',
-    }); // e.g. Mar 05, 24
+    });
   };
 
   const rawTicks =
     frequency === 'yearly'
       ? baseData.map((p) => p.year)
       : baseData.map((p) => p.date);
-
   const step =
     rawTicks.length <= 6 ? 1 : Math.max(1, Math.floor(rawTicks.length / 6));
-
   const xTicks = rawTicks.filter((_, index) => index % step === 0);
-
-  const unitByMetricId = allSeries.reduce<Record<MetricId, string>>(
-    (acc, s) => {
-      acc[s.id] = s.unit;
-      return acc;
-    },
-    {} as Record<MetricId, string>,
-  );
-
-  const formatTooltipValue = (_metricId: MetricId, value: number): string =>
-    formatCompactNumber(value);
 
   const freqLabel: Record<Frequency, string> = {
     weekly: 'WoW',
@@ -196,27 +185,25 @@ export function TimeSeriesSection({
     yearly: 'YoY',
   };
 
-  const CustomTooltip = ({
-    active,
-    payload,
-    label,
-  }: {
+  const CustomTooltip = (props: {
     active?: boolean;
-    payload?: Array<{ dataKey?: string; value?: number; name?: string; color?: string }>;
-    label?: string | number;
+    payload?: Array<{ dataKey?: string; value?: number; color?: string; name?: string }>;
+    label?: string;
   }) => {
-    if (!active || !payload || !payload.length || label == null) {
-      return null;
-    }
+    const { active, payload, label } = props;
+    if (!active || !payload?.length || label == null) return null;
 
     const byMetricId = new Map<
       string,
-      { name: string; value: number; color: string; change?: string; changeDirection?: 'up' | 'down' | 'flat'; unit?: string }
+      {
+        name: string;
+        value: number;
+        color: string;
+        change?: string;
+        changeDirection?: 'up' | 'down' | 'flat';
+      }
     >();
-
-    const index = merged.findIndex(
-      (row) => String(row[xKey]) === String(label),
-    );
+    const index = merged.findIndex((row) => row[xKey] === label);
     const prevRow = index > 0 ? merged[index - 1] : undefined;
 
     payload.forEach((p) => {
@@ -224,17 +211,15 @@ export function TimeSeriesSection({
       const id = String(p.dataKey);
       const current = p.value as number;
       const prev =
-        prevRow && prevRow[id] != null
-          ? (prevRow[id] as number)
-          : null;
+        prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
 
       let change: string | undefined;
       let changeDirection: 'up' | 'down' | 'flat' | undefined;
-      const formatted = formatGrowthChange(current, prev ?? null, freqLabel[frequency], id as string);
+      const formatted = formatGrowthChange(current, prev ?? null, freqLabel[frequency], id);
       if (formatted) {
         change = formatted;
         const diff = current - (prev ?? 0);
-        if (isPercentageMetric(id as string)) {
+        if (isPercentageMetric(id)) {
           if (diff > 0.05) changeDirection = 'up';
           else if (diff < -0.05) changeDirection = 'down';
           else changeDirection = 'flat';
@@ -247,23 +232,18 @@ export function TimeSeriesSection({
       }
 
       byMetricId.set(id, {
-        name: labelByMetricId[id as MetricId] ?? String(p.name),
-        value: current,
+        name: labelByMetricId[id] ?? String(p.name),
+        value: displayValueForEducation(id, current) ?? current,
         color: p.color ?? '#6b7280',
         change,
         changeDirection,
-        unit: unitByMetricId[id as MetricId],
       });
     });
 
-    const METRIC_DISPLAY_ORDER: MetricId[] = UNIFIED_TIMELINE_METRIC_IDS;
-    const rows = METRIC_DISPLAY_ORDER
+    const rows = EDUCATION_METRIC_IDS
       .filter((id) => selectedMetricIds.includes(id) && byMetricId.has(id))
-      .map((id) => {
-        const r = byMetricId.get(id)!;
-        return { ...r, metricId: id };
-      })
-      .filter((r) => !!r && r.value != null);
+      .map((id) => byMetricId.get(id)!)
+      .filter(Boolean);
 
     if (!rows.length) return null;
 
@@ -275,34 +255,37 @@ export function TimeSeriesSection({
             : String(formatAxisLabel(label as string | number))}
         </div>
         <div className="chart-tooltip-body">
-          {rows.map((row) => (
-            <div key={row.metricId} className="chart-tooltip-row">
-              <span
-                className="chart-tooltip-dot"
-                style={{ backgroundColor: row.color }}
-              />
-              <div className="chart-tooltip-label">{row.name}</div>
-              <div className="chart-tooltip-value">
-                {formatTooltipValue(row.metricId, row.value)}
-                {row.unit && row.metricId !== 'lifeExpectancy' && (
-                  <span className="chart-tooltip-unit"> {row.unit}</span>
+          <div className="chart-tooltip-category">
+            {rows.map((row) => (
+              <div key={row.name} className="chart-tooltip-row">
+                <span
+                  className="chart-tooltip-dot"
+                  style={{ backgroundColor: row.color }}
+                />
+                <div className="chart-tooltip-label">{row.name}</div>
+                <div className="chart-tooltip-value">
+                  {row.name.toLowerCase().includes('gender parity')
+                    ? (row.value >= 10 ? row.value / 100 : row.value).toFixed(2)
+                    : row.name.toLowerCase().includes('expenditure')
+                      ? `${row.value.toFixed(2)}%`
+                      : formatEducationValue('', row.value)}
+                </div>
+                {row.change && (
+                  <div
+                    className={`chart-tooltip-change ${
+                      row.changeDirection === 'up'
+                        ? 'chart-tooltip-change-up'
+                        : row.changeDirection === 'down'
+                          ? 'chart-tooltip-change-down'
+                          : 'chart-tooltip-change-flat'
+                    }`}
+                  >
+                    {row.change}
+                  </div>
                 )}
               </div>
-              {row.change && (
-                <div
-                  className={`chart-tooltip-change ${
-                    row.changeDirection === 'up'
-                      ? 'chart-tooltip-change-up'
-                      : row.changeDirection === 'down'
-                        ? 'chart-tooltip-change-down'
-                        : 'chart-tooltip-change-flat'
-                  }`}
-                >
-                  {row.change}
-                </div>
-              )}
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -312,10 +295,12 @@ export function TimeSeriesSection({
     <section className="card timeseries-section dashboard-grid-full">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Unified financial & population timeline</h2>
+          <h2 className="section-title">Macro indicators timeline – education</h2>
           <p className="muted">
-            GDP, GDP per capita, government debt, and population over time. Switch between
-            weekly, monthly, quarterly, and annual views; sub-annual views are interpolated from annual observations.
+            Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
+            interpolated from annual observations. Includes out-of-school rate, primary completion,
+            minimum reading proficiency, preprimary enrollment, adult literacy, gender parity index (GPI),
+            trained teachers in primary, and public expenditure on education (% of GDP).
           </p>
         </div>
         <div className="section-header-controls">
@@ -399,40 +384,40 @@ export function TimeSeriesSection({
           <div className="section-header-control-group">
             <div className="section-control-label">View</div>
             <div className="pill-group pill-group-secondary">
-            <button
-              type="button"
-              className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
-              onClick={() => setViewMode('chart')}
-            >
-              <span className="icon-12">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
-                </svg>
-              </span>
-              <span>Chart view</span>
-            </button>
-            <button
-              type="button"
-              className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
-              onClick={() => setViewMode('table')}
-            >
-              <span className="icon-12">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
-                </svg>
-              </span>
-              <span>Table view</span>
-            </button>
+              <button
+                type="button"
+                className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
+                onClick={() => setViewMode('chart')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
+                  </svg>
+                </span>
+                <span>Chart view</span>
+              </button>
+              <button
+                type="button"
+                className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
+                onClick={() => setViewMode('table')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
+                  </svg>
+                </span>
+                <span>Table view</span>
+              </button>
             </div>
           </div>
         </div>
       </div>
       <div className="metric-toggle-row-header">
         <div className="metric-toggle-title">Metrics displayed</div>
-        <div className="metric-toggle-hint">Tap to show or hide each series</div>
+        <div className="metric-toggle-hint">Tap to show or hide indicators</div>
       </div>
       <div className="metric-toggle-row">
-        {UNIFIED_TIMELINE_METRIC_IDS.map((id) => (
+        {EDUCATION_METRIC_IDS.map((id) => (
           <button
             key={id}
             type="button"
@@ -484,14 +469,6 @@ export function TimeSeriesSection({
                 tickMargin={8}
                 stroke="rgba(148,163,184,0.9)"
               />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tickFormatter={(v) => formatCompactNumber(v as number)}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.6)"
-              />
               <Tooltip
                 contentStyle={{
                   background: '#ffffff',
@@ -501,7 +478,7 @@ export function TimeSeriesSection({
                 }}
                 content={<CustomTooltip />}
               />
-              {UNIFIED_TIMELINE_METRIC_IDS.map((metricId) => (
+              {EDUCATION_METRIC_IDS.map((metricId) => (
                 <Line
                   key={metricId}
                   type="monotone"
@@ -509,8 +486,11 @@ export function TimeSeriesSection({
                   stroke={METRIC_COLORS[metricId]}
                   strokeWidth={2}
                   dot={false}
-                  hide={!merged.some((row) => row[metricId] != null)}
-                  yAxisId={RIGHT_AXIS_METRICS.includes(metricId) ? 'right' : 'left'}
+                  hide={
+                    !selectedMetricIds.includes(metricId) ||
+                    !merged.some((row) => row[metricId] != null)
+                  }
+                  yAxisId="left"
                 />
               ))}
             </LineChart>
@@ -523,7 +503,7 @@ export function TimeSeriesSection({
               <thead>
                 <tr>
                   <th>{frequency === 'yearly' ? 'Year' : 'Period'}</th>
-                  {UNIFIED_TIMELINE_METRIC_IDS.map((id) => (
+                  {selectedMetricIds.map((id) => (
                     <th key={id}>{labelByMetricId[id] ?? id}</th>
                   ))}
                 </tr>
@@ -532,7 +512,7 @@ export function TimeSeriesSection({
                 {merged.map((row, rowIndex) => (
                   <tr key={String(row[xKey])}>
                     <td>{formatAxisLabel(row[xKey] as string | number)}</td>
-                    {UNIFIED_TIMELINE_METRIC_IDS.map((id) => {
+                    {selectedMetricIds.map((id) => {
                       const v = row[id];
                       const prevRow = rowIndex > 0 ? merged[rowIndex - 1] : undefined;
                       const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
@@ -543,27 +523,33 @@ export function TimeSeriesSection({
                         changeText = formatGrowthChange(v as number, prev ?? null, freqLabel[frequency], id);
                         if (changeText) {
                           const diff = (v as number) - (prev ?? 0);
-                          if (isPercentageMetric(id)) {
-                            if (diff > 0.05) changeDir = 'up';
-                            else if (diff < -0.05) changeDir = 'down';
-                            else changeDir = 'flat';
-                          } else if (prev != null && prev !== 0) {
-                            const pct = (diff / Math.abs(prev)) * 100;
-                            if (pct > 0.05) changeDir = 'up';
-                            else if (pct < -0.05) changeDir = 'down';
-                            else changeDir = 'flat';
-                          }
+                          if (diff > 0.05) changeDir = 'up';
+                          else if (diff < -0.05) changeDir = 'down';
+                          else changeDir = 'flat';
                         }
                       }
 
+                      const isGPI = id === 'genderParityIndexPrimary';
+                      const cappedVal = displayValueForEducation(id, v as number | null);
+                      const displayValue =
+                        cappedVal == null
+                          ? '–'
+                          : isGPI
+                            ? (cappedVal as number) >= 10
+                              ? ((cappedVal as number) / 100).toFixed(2)
+                              : (cappedVal as number).toFixed(2)
+                            : id === 'publicExpenditureEducationPctGDP'
+                              ? (cappedVal as number).toFixed(2) + '%'
+                              : formatCompactNumber(cappedVal as number);
+
                       return (
                         <td key={id}>
-                          {v == null ? (
+                          {cappedVal == null ? (
                             '–'
                           ) : (
                             <div className="table-metric-cell">
                               <div className="table-metric-value">
-                                {formatTooltipValue(id, v as number)}
+                                {displayValue}
                               </div>
                               {changeText && changeDir && (
                                 <div
@@ -587,4 +573,3 @@ export function TimeSeriesSection({
     </section>
   );
 }
-

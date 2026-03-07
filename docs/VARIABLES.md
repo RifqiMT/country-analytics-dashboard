@@ -35,7 +35,7 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | Variable name | Friendly name | Definition | Formula | Location in app | Example |
 |---------------|---------------|------------|---------|-----------------|---------|
 | `populationTotal` | Population, total | Total population based on the de facto definition, counting all residents regardless of legal status or citizenship. | Census and intercensal estimates; UN projections. | Summary (Health & demographics), Unified Timeline, Population Structure, Country Comparison, Global map/table/charts, Source tab. | 277M people. |
-| `pop0_14Share` | Population 0–14 (% of total) | Percentage of total population aged 0 to 14 years. Part of the youth dependency ratio. | (Pop 0–14 / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 24.1%. |
+| `pop0_14Share` | Population 0–14 (% of total) | Percentage of total population aged 0 to 14 years. Part of the youth dependency ratio. In the codebase the underlying data field is `pop0_14Pct` (WDI returns a percentage); the metric ID used in timelines and map is `pop0_14Share`. Both denote the same value (% of total). | (Pop 0–14 / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 24.1%. |
 | `pop15_64Share` | Population 15–64 (% of total) | Percentage of total population aged 15 to 64 years. Represents the working-age population. | (Pop 15–64 / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 68.2%. |
 | `pop65PlusShare` | Population 65+ (% of total) | Percentage of total population aged 65 years and above. Part of the old-age dependency ratio. | (Pop 65+ / Total population) × 100. | Summary (Health & demographics), Population Structure timeline, Country Comparison (age breakdown), Global map/table/charts, Source tab. | 7.7%. |
 | `populationByAgeAbsolute` | Population by age group (absolute count) | Absolute number of people in each age band (0–14, 15–64, 65+). Derived from total population and age-group share of total. | Total population × (Age-group share % / 100). | Population Structure timeline (tooltip and table show % and absolute, e.g. 25.3% · 65.2 Mn), Source tab. | 66.8M (0–14). |
@@ -49,7 +49,22 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `under5MortalityRate` | Under-5 mortality rate (per 1,000 live births) | Probability per 1,000 that a newborn will die before reaching age five, if subject to current age-specific mortality rates. | Probability of dying before age 5, expressed per 1,000 live births. | Summary (Health & demographics), Macro Indicators Timeline (health), Global map/table/charts, Source tab. | 22 per 1,000. |
 | `undernourishmentPrevalence` | Prevalence of undernourishment (% of population) | Share of the population whose habitual food consumption is insufficient to provide the dietary energy levels required for a normal active and healthy life. | (Population with insufficient dietary energy intake / Total population) × 100. | Summary (Health & demographics), Macro Indicators Timeline (health), Global map/table/charts, Source tab. | 8.4%. |
 
-### 1.4 Geography
+### 1.4 Education
+
+All education metrics are sourced from UNESCO Institute for Statistics via World Bank WDI. Coverage from year 2000 to latest available (at least current year minus 2). Used in Summary (Education card), Education Timeline, Global map/table (Education view), Business Analytics scatter, and Source tab.
+
+| Variable name | Friendly name | Definition | Formula | Location in app | Example |
+|---------------|---------------|------------|---------|-----------------|---------|
+| `outOfSchoolPrimaryPct` | Out-of-school rate (primary, % of primary school age) | Percentage of children of primary school age not enrolled in primary or secondary school. Derived as 100 − primary net enrollment rate. | Out-of-school rate = 100 − Primary net enrollment (%). | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 5.2%. |
+| `primaryCompletionRate` | Primary completion rate (% of relevant age group) | Percentage of the relevant age group that completes the last year of primary education. | (Number completing last grade of primary / Population of official completion age) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 94.1%. |
+| `minProficiencyReadingPct` | Minimum reading proficiency (% of children at end of primary) | Percentage of children at end of primary who achieve at least minimum proficiency in reading. Derived as 100 − learning poverty (%). | Min. proficiency = 100 − Learning poverty (% below minimum). | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 72.0%. |
+| `preprimaryEnrollmentPct` | Early childhood education – Preprimary enrollment (% gross) | Gross enrollment ratio for preprimary education. | (Total enrollment in preprimary / Population of preprimary age) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 45.3%. |
+| `literacyRateAdultPct` | Literacy rate, adult (% of people ages 15+) | Percentage of the population aged 15 and above who can read and write a short statement on everyday life. | (Literate population 15+ / Total population 15+) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 96.0%. |
+| `genderParityIndexPrimary` | Gender parity index (GPI), primary enrollment | Ratio of female to male gross enrollment in primary. Value 1 = parity; &lt;1 more boys; &gt;1 more girls. WDI reports ratio × 100. | GPI = Female primary gross enrollment rate / Male primary gross enrollment rate. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 0.99. |
+| `trainedTeachersPrimaryPct` | Trained teachers in primary education (% of total teachers) | Percentage of primary teachers who have received the minimum organized teacher training required. | (Teachers with minimum training / Total primary teachers) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 88.5%. |
+| `publicExpenditureEducationPctGDP` | Public expenditure on education (% of GDP) | Government expenditure on education as a percentage of GDP. | (Government expenditure on education / GDP) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 3.5%. |
+
+### 1.5 Geography
 
 | Variable name | Friendly name | Definition | Formula | Location in app | Example |
 |---------------|---------------|------------|---------|-----------------|---------|
@@ -57,7 +72,7 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `totalAreaKm2` | Total area | Total surface area including land and water bodies within international boundaries and coastlines. | Land area + inland water bodies. | Summary (General), Global map/table (General), Source tab. | 1,916,907 km². |
 | `eezKm2` | Exclusive Economic Zone (EEZ) | Marine area extending 200 nautical miles from the coast over which a country has special rights regarding exploration and use of marine resources. | Defined by UN Convention on the Law of the Sea. | Summary (General – geography), Global map/table (General), Source tab. | 6,159,032 km². |
 
-### 1.5 Context / Country Metadata
+### 1.6 Context / Country Metadata
 
 | Variable name | Friendly name | Definition | Formula | Location in app | Example |
 |---------------|---------------|------------|---------|-----------------|---------|
@@ -70,7 +85,7 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `timezone` | Timezone | Primary timezone of the country (e.g. Asia/Jakarta, Europe/Paris). IANA timezone database. | — | Summary (General), Assistant context, Source tab. | Asia/Jakarta. |
 | `locationAndGeography` | Location & geographic context | Where a country is located, which continent or region it belongs to, and its neighbouring or bordering countries. Not stored as a dashboard metric; answered by the Analytics Assistant via LLM and web search. | — | Analytics Assistant only (e.g. "Where is Indonesia located?", "Neighbouring countries of France"); documented in Source tab under Country metadata & context. | "Indonesia is in Southeast Asia; neighbours: Malaysia, Papua New Guinea, Timor-Leste." |
 
-### 1.6 Porter 5 Forces / Industry Context
+### 1.7 Porter 5 Forces / Industry Context
 
 | Variable name | Friendly name | Definition | Formula | Location in app | Example |
 |---------------|---------------|------------|---------|-----------------|---------|
@@ -86,7 +101,7 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `keyTakeawaysBullets` | Key Takeaways bullets | Array of exactly five concise bullet strings summarising strategic takeaways from the five forces. Parsed from the `## Key Takeaways` block. | Parsed by `parseKeyTakeaways()`. | Porter 5 Forces tab: "Key Takeaways" card (fourth section). | `["Capital-intensive…", "Government support…", …]`. |
 | `recommendationsBullets` | Recommendations bullets | Array of exactly five concise, actionable recommendation strings derived from the five forces. Parsed from the `## Recommendations` block. | Parsed by `parseRecommendations()`. | Porter 5 Forces tab: "Recommendations" card (fifth section). | `["Invest in technology…", "Adapt to preferences…", …]`. |
 
-### 1.7 Business Analytics – Correlation & Causation
+### 1.8 Business Analytics – Correlation & Causation
 
 These variables control and describe the correlation scatter and causation analysis in the Business Analytics tab. They are defined in `src/utils/correlationAnalysis.ts` and consumed by `BusinessAnalyticsSection.tsx` and `CorrelationScatterPlot.tsx`.
 
@@ -216,8 +231,10 @@ Some variables are **derived** from other variables (in the API layer or in the 
 | `gdpPPPPerCapita` | GDP per Capita (PPP, Intl$) | GDP (PPP) / Population | `gdpPPP`, `populationTotal` |
 | `govDebtUSD` | Government debt (USD) | GDP × (Gov. debt % GDP / 100) | `gdpNominal`, `govDebtPercentGDP` |
 | `populationByAgeAbsolute` | Population by age group (absolute count) | Total population × (Age-group share % / 100) | `populationTotal`, `pop0_14Share` / `pop15_64Share` / `pop65PlusShare` |
+| `outOfSchoolPrimaryPct` | Out-of-school rate (primary, %) | 100 − Primary net enrollment (%) | Primary net enrollment from WDI (UNESCO UIS) |
+| `minProficiencyReadingPct` | Minimum reading proficiency (% at end of primary) | 100 − Learning poverty (% below minimum) | Learning poverty (%) from WDI (UNESCO UIS) |
 
-All other data metrics in Section 1 are **primary** (sourced directly from World Bank WDI, IMF, REST Countries, Sea Around Us, or Marine Regions).
+All other data metrics in Section 1 are **primary** (sourced directly from World Bank WDI, IMF, REST Countries, Sea Around Us, or Marine Regions). Education metrics are supplied via World Bank WDI from UNESCO Institute for Statistics (UIS).
 
 ### 7.2 Variable Relationship Chart (Derivation and Data Lineage)
 
@@ -262,6 +279,7 @@ The following diagram shows how variables **flow from data sources** into **data
 flowchart TB
   subgraph Sources["Data sources"]
     WDI[World Bank WDI]
+    UNESCO[UNESCO UIS via WDI]
     IMF[IMF WEO]
     REST[REST Countries]
     SAU[Sea Around Us / Marine Regions]
@@ -286,6 +304,8 @@ flowchart TB
   end
   WDI --> CDD
   WDI --> GCM
+  UNESCO --> CDD
+  UNESCO --> GCM
   IMF --> CDD
   IMF --> GCM
   REST --> CDD
@@ -313,16 +333,18 @@ flowchart TB
 | **Summary (General)** | region, incomeLevel, governmentType, headOfGovernmentType, capitalCity, currency, timezone, landAreaKm2, totalAreaKm2, eezKm2 |
 | **Summary (Financial)** | gdpNominal, gdpPPP, gdpNominalPerCapita, gdpPPPPerCapita, govDebtPercentGDP, govDebtUSD, inflationCPI, interestRate, unemploymentRate, povertyHeadcount215, povertyHeadcountNational |
 | **Summary (Health & demographics)** | populationTotal, pop0_14Share, pop15_64Share, pop65PlusShare, lifeExpectancy, maternalMortalityRatio, under5MortalityRate, undernourishmentPrevalence |
+| **Summary (Education)** | outOfSchoolPrimaryPct, primaryCompletionRate, minProficiencyReadingPct, preprimaryEnrollmentPct, literacyRateAdultPct, genderParityIndexPrimary, trainedTeachersPrimaryPct, publicExpenditureEducationPctGDP |
 | **Unified Timeline** | gdpNominal, gdpPPP, gdpNominalPerCapita, gdpPPPPerCapita, populationTotal, lifeExpectancy |
 | **Macro Indicators (economic)** | inflationCPI, interestRate, govDebtPercentGDP, unemploymentRate, povertyHeadcount215, povertyHeadcountNational |
 | **Macro Indicators (health)** | maternalMortalityRatio, under5MortalityRate, undernourishmentPrevalence |
+| **Education Timeline** | outOfSchoolPrimaryPct, primaryCompletionRate, minProficiencyReadingPct, preprimaryEnrollmentPct, literacyRateAdultPct, genderParityIndexPrimary, trainedTeachersPrimaryPct, publicExpenditureEducationPctGDP |
 | **Labour timeline** | unemployedTotal, labourForceTotal |
 | **Population Structure** | populationTotal, pop0_14Share, pop15_64Share, pop65PlusShare, populationByAgeAbsolute |
 | **Country Comparison** | All financial, population, health, geography (selected country vs average vs global) |
-| **Global map** | Any numeric metric + region, governmentType (from Map metric selector) |
-| **Global table** | All metrics per country-year (General, Financial, Health & demographics columns) |
-| **Global Charts** | Same as Global table, aggregated (unified, economic, health, population-structure series) |
-| **Business Analytics** | Any two numeric metrics as X and Y (from global dataset); **startYear**, **endYear** (year range); **excludeOutliers**; correlation outputs: **r**, **rSquared**, **betaCoefficient**, **strengthLabel**, **regressionCI**, **dataPrep**, **subgroupResults**, **executiveSummaryTable**, **actionableInsight**, **causationNextSteps**; **fitted** / **residuals** for residuals plot |
+| **Global map** | Any numeric metric + region, governmentType (from Map metric selector; includes Education category) |
+| **Global table** | All metrics per country-year (General, Financial, Health & demographics, **Education** columns) |
+| **Global Charts** | Same as Global table, aggregated (unified, economic, health, **education**, population-structure series) |
+| **Business Analytics** | Any two numeric metrics as X and Y (from global dataset; includes Education group); **startYear**, **endYear** (year range); **excludeOutliers**; correlation outputs: **r**, **rSquared**, **betaCoefficient**, **strengthLabel**, **regressionCI**, **dataPrep**, **subgroupResults**, **executiveSummaryTable**, **actionableInsight**, **causationNextSteps**; **fitted** / **residuals** for residuals plot |
 | **PESTEL / Analytics Assistant** | Country context (summary + metrics) and global data; location/geography from LLM and web search, not stored variables |
 | **Porter 5 Forces** | Country context (summary + metrics), global data (DATA_MAX_YEAR), **industrySectorId** / industry division label; **chartData**, **newMarketBullets**, **keyTakeawaysBullets**, **recommendationsBullets** (parsed from LLM); supplemental web search for country + industry |
-| **Source tab** | All variables documented in metric cards (Financial, Population, Health, Geography, Country metadata & context) |
+| **Source tab** | All variables documented in metric cards (Financial, Population, Health, **Education**, Geography, Country metadata & context) |

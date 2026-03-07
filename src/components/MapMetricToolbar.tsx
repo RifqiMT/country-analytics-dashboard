@@ -27,7 +27,15 @@ export type MapMetricId =
   | 'eezKm2'
   | 'headOfGovernmentType'
   | 'governmentType'
-  | 'region';
+  | 'region'
+  | 'outOfSchoolPrimaryPct'
+  | 'primaryCompletionRate'
+  | 'minProficiencyReadingPct'
+  | 'preprimaryEnrollmentPct'
+  | 'literacyRateAdultPct'
+  | 'genderParityIndexPrimary'
+  | 'trainedTeachersPrimaryPct'
+  | 'publicExpenditureEducationPctGDP';
 
 interface MapMetricOption {
   id: MapMetricId;
@@ -102,6 +110,21 @@ const MAP_METRIC_CATEGORIES: MapMetricCategory[] = [
       { id: 'headOfGovernmentType', label: 'Head of government', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z" /> },
       { id: 'governmentType', label: 'Government type', icon: <SvgIcon d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" /> },
       { id: 'region', label: 'Region', icon: <SvgIcon d="M8 1.5a5 5 0 0 0-5 5c0 3.25 3.5 6 4.4 6.7.36.28.84.28 1.2 0C9.5 12.5 13 9.75 13 6.5a5 5 0 0 0-5-5Zm0 2a3 3 0 1 1 0 6 3 3 0 0 1 0-6Z" /> },
+    ],
+  },
+  {
+    id: 'education',
+    label: 'Education',
+    icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" />,
+    metrics: [
+      { id: 'outOfSchoolPrimaryPct', label: 'Out-of-school (primary, %)', icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" /> },
+      { id: 'primaryCompletionRate', label: 'Primary completion (%)', icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" /> },
+      { id: 'minProficiencyReadingPct', label: 'Min. reading proficiency (%)', icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" /> },
+      { id: 'preprimaryEnrollmentPct', label: 'Preprimary enrollment (%)', icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" /> },
+      { id: 'literacyRateAdultPct', label: 'Adult literacy (%)', icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" /> },
+      { id: 'genderParityIndexPrimary', label: 'GPI (primary)', icon: <SvgIcon d="M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Z" /> },
+      { id: 'trainedTeachersPrimaryPct', label: 'Trained teachers primary (%)', icon: <SvgIcon d="M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z" /> },
+      { id: 'publicExpenditureEducationPctGDP', label: 'Education expenditure (% GDP)', icon: <SvgIcon d="M3 11.5a.75.75 0 0 1 .75-.75h2V4.5a.75.75 0 0 1 1.5 0v6.25h2l.1.01a.75.75 0 0 1-.1 1.49h-2v.75a.75.75 0 0 1-1.5 0V12.5h-2A.75.75 0 0 1 3 11.5Z" /> },
     ],
   },
 ];

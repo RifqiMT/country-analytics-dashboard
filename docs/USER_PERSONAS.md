@@ -35,7 +35,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 ### Typical Usage
 
 - Starts with Country dashboard for a key market
-- Switches to Global analytics (map, table, or **global charts**) to compare regions and aggregates
+- Switches to Global analytics (map, table, or **global charts**—unified, economic, health, **education**, population structure) to compare regions and aggregates
 - Uses **Porter 5 Forces** tab to generate competitive analysis for a specific country and industry (e.g. Indonesia food manufacturing) for strategy or board materials; reviews **chart**, **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each with 5 bullets) in separate cards
 - Sorts global table by GDP or population for rankings
 - Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
@@ -74,7 +74,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 ### Typical Usage
 
 - Deep dive on one country with year range adjustment
-- Uses unified timeline with multiple metrics for correlation
+- Uses unified timeline and **Education timeline** (out-of-school, completion, proficiency, literacy, GPI, etc.) for structural trends
 - Uses **Global correlation scatter** (in Business Analytics tab) to compare two metrics (e.g. GDP per capita vs life expectancy) across a **year range** (start–end), with **data preparation** (missing removed; optional IQR outlier exclusion), **executive summary table**, **residuals vs fitted** plot, **subgroup-by-region** table, **actionable insight**, and explicit **"Correlation does NOT imply causation"** disclaimer with **next steps** when causation is not supported
 - Uses **Business Analytics** tab: year range (start–end), X/Y metrics, optional **exclude IQR outliers**, correlation scatter (cleaned data, trend line, 95% CI), **data preparation summary**, **executive summary table** (r, p-value, R², Beta), **residuals vs fitted**, **subgroup by region**, causation disclaimer, **actionable insight**, and **next steps** when causation is not supported
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
@@ -170,4 +170,4 @@ This document describes the **target audiences** for the Country Analytics Platf
 | Strategy Lead | Country + Global + **Porter 5 Forces** + Business Analytics + Chat | Map, global table sort, Porter 5 Forces (country + industry), correlation scatter (Business Analytics), comparison, Analytics assistant |
 | Economist | Country + Global + PESTEL + **Porter 5 Forces** + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL and Porter 5 Forces (latest data), metric definitions, methodology questions |
 | Market Manager | Country + Chat | Summary, Population Structure timeline (age groups + absolute), age breakdown, quick comparisons |
-| BI Analyst | All | Global table, Global charts, Business Analytics (correlation scatter), PESTEL, **Porter 5 Forces**, Source tab, sorting, Analytics assistant |
+| BI Analyst | All | Global table, Global charts (unified, economic, health, **education**, population structure), Business Analytics (correlation scatter), PESTEL, **Porter 5 Forces**, Source tab, sorting, Analytics assistant |

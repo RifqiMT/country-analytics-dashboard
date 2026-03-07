@@ -25,11 +25,12 @@ This document describes the **data flow**, **component boundaries**, and **techn
 │ - Summary    │           │ - AllCountries│           │ - Generate/   │   │ - X/Y metrics │   │ - Suggestions │   │ - Search      │
 │ - TimeSeries │           │   TableSection │          │   Refresh     │   │ - Pearson r   │   │ - Model/Key   │   │ - Filter chips│
 │ - Macro      │           │ - Zoom, flag  │           │               │   │   & causation │   │   settings    │   │   (WB, IMF,   │
-│   (economic  │           │   on hover    │           │               │   │               │   │               │   │   REST, etc.)  │
-│   & health)  │           │               │           │               │   │               │   │               │   │ - Metric cards │
-│ - Labour     │           │               │           │               │   │               │   │               │   │   (incl.       │
-│   timeline   │           │               │           │               │   │               │   │               │   │   context)     │
-│ - Population │           │               │           │               │   │               │   │               │   │               │
+│   (economic  │           │   on hover    │           │               │   │               │   │               │   │   UNESCO, etc.)│
+│   & health)  │           │ - GlobalCharts│           │               │   │               │   │               │   │ - Metric cards │
+│ - Education  │           │   (unified,   │           │               │   │               │   │               │   │   (incl.       │
+│   timeline   │           │   econ, health,│           │               │   │               │   │               │   │   context)     │
+│ - Labour     │           │   education,  │           │               │   │               │   │               │   │               │
+│ - Population │           │   pop. struct)│           │               │   │               │   │               │   │               │
 │   Structure  │           │               │           │               │   │               │   │               │   │               │
 │ - CountryTable│          │               │           │               │   │               │   │               │   │               │
 └───────┬───────┘           └───────┬───────┘           └───────┬───────┘   └───────┬───────┘   └───────┬───────┘   └───────┬───────┘
@@ -249,6 +250,8 @@ App
     └── LineChart (Recharts)
 └── MacroIndicatorsTimelineSection (variant: health)
     └── LineChart (Recharts)
+└── EducationTimelineSection
+    └── LineChart (Recharts); UNESCO UIS via WDI
 └── LabourUnemploymentTimelineSection
     └── LineChart (Recharts), dual Y-axis
 └── PopulationStructureSection
@@ -268,7 +271,7 @@ App
 └── AllCountriesTableSection
     └── Table (General | Financial | Health)
 └── GlobalChartsSection
-    └── Unified, economic, health, population-structure aggregates (globalAggregates.ts)
+    └── Unified, economic, health, education, population-structure aggregates (globalAggregates.ts)
     └── Frequency + chart/table view
 ```
 
@@ -336,7 +339,7 @@ App
     └── Where metrics and information appear (collapsible: minimise/expand via header; Country Dashboard, Global, Global Charts, PESTEL, Business Analytics, Analytics Assistant)
     └── Analytics Assistant flow (year-based: Groq for period ≤ current year − 2, Tavily for recent)
     └── Search input
-    └── Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO)
+    └── Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO, UNESCO)
     └── Suggestions dropdown
     └── Metric cards (Financial, Population, Health, Geography, Country metadata & context)
 ```
@@ -408,7 +411,7 @@ App
 |--------|---------|
 | `timeSeries.ts` | Resample annual series to weekly/monthly/quarterly |
 | `numberFormat.ts` | formatCompactNumber, formatPercentage, formatYearRange |
-| `globalAggregates.ts` | Compute global aggregates for GlobalChartsSection (unified, economic, health, population structure) from global metrics |
+| `globalAggregates.ts` | Compute global aggregates for GlobalChartsSection (unified, economic, health, education, population structure) from global metrics |
 
 ---
 

@@ -82,6 +82,20 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ---
 
+### US-2.4 – View education indicators over time
+
+- **As a** Country Economist or Policy Analyst  
+- **I want to** see education metrics (out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure) in a dedicated Education timeline on the Country dashboard  
+- **So that** I can track education trends and cite UNESCO/WDI sources  
+
+**Acceptance criteria:**
+- Country dashboard includes an Education section with the same UI pattern as Macro Indicators (frequency dropdown, chart/table view, metric chips)
+- Metrics include out-of-school primary %, primary completion %, minimum reading proficiency %, preprimary enrollment %, adult literacy %, GPI primary, trained teachers %, education expenditure % GDP
+- Tooltip and table show values with period-over-period change where applicable
+- Data source is UNESCO Institute for Statistics via World Bank WDI
+
+---
+
 ## 3. Population & Age Structure
 
 ### US-3.1 – See age group breakdown
@@ -166,12 +180,12 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 ### US-5b.1 – View global aggregate trends
 
 - **As a** Policy Analyst or Strategy Lead  
-- **I want to** open the Global Charts sub-tab and see aggregated global time-series (unified, economic, health, population structure)  
+- **I want to** open the Global Charts sub-tab and see aggregated global time-series (unified, economic, health, **education**, population structure)  
 - **So that** I can understand worldwide trends without selecting a single country  
 
 **Acceptance criteria:**
 - Global analytics tab includes Map, Global table, and Global Charts sub-tabs
-- Global Charts show aggregated series for unified metrics, economic indicators, health indicators, and population structure (age-group shares)
+- Global Charts show aggregated series for unified metrics, economic indicators, health indicators, **education indicators** (e.g. out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure), and population structure (age-group shares)
 - Frequency (weekly/monthly/quarterly/yearly) and chart/table view are available
 - Data is built from the same global dataset as the map and table for the selected year
 
@@ -276,7 +290,7 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 **Acceptance criteria:**
 - Search filters metrics in real time
-- Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) filter by data source
+- Filter chips (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO, **UNESCO**) filter by data source
 - Section "Where metrics and information appear" explains how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, Business Analytics, and Analytics Assistant
 
 ---

@@ -4,6 +4,7 @@ import { useCountryDashboard } from './hooks/useCountryDashboard';
 import { SummarySection } from './components/SummarySection';
 import { TimeSeriesSection } from './components/TimeSeriesSection';
 import { MacroIndicatorsTimelineSection } from './components/MacroIndicatorsTimelineSection';
+import { EducationTimelineSection } from './components/EducationTimelineSection';
 import { LabourUnemploymentTimelineSection } from './components/LabourUnemploymentTimelineSection';
 import { PopulationStructureSection } from './components/PopulationStructureSection';
 import { CountryTableSection } from './components/CountryTableSection';
@@ -249,6 +250,12 @@ function App() {
                 setFrequency={setMacroHealthFrequency}
                 resampledSeries={resampledMacroHealth}
               />
+              <EducationTimelineSection
+                data={data}
+                frequency={macroFrequency}
+                setFrequency={setMacroFrequency}
+                resampledSeries={resampledMacro}
+              />
               <LabourUnemploymentTimelineSection
                 data={data}
                 frequency={labourFrequency}
@@ -271,8 +278,7 @@ function App() {
               <div>
                 <h2 className="section-title">Global view</h2>
                 <p className="muted">
-                  Switch between an interactive world map, a full global country table, and global macro charts for cross-country
-                  comparison.
+                  A modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest), powered by World Bank, UN, WHO, and IMF data. Switch between an interactive world map, a full global country table, and global macro charts for cross-country comparison.
                 </p>
               </div>
               <div className="global-header-controls">

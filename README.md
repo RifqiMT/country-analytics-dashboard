@@ -48,7 +48,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | View | Description |
 |------|-------------|
 | **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, labour/unemployment, and comparison |
-| **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, population structure aggregates) for cross-country comparison |
+| **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, **education**, population structure aggregates) for cross-country comparison |
 | **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications (PESTEL–SWOT), New Market Analysis, Key Takeaways, Recommendations (≥5 bullets each). Uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement; **download PESTEL and SWOT charts as PNG** |
 | **Porter 5 Forces** | Generate Porter Five Forces analysis by country and ILO/ISIC industry division; **Porter's Five Forces chart** (standard cross layout with five bullet points per force); **Comprehensive Analysis**; **New Market Analysis** (5 bullets); **Key Takeaways** (5 bullets); **Recommendations** (5 bullets); inline citations only; TAVILY → GROQ → others |
 | **Business Analytics** | **Year range** (start–end, inclusive); multi-metric correlation scatter (X/Y axes, highlight country); **data preparation** (missing removed, IQR outliers flagged or excluded); scatter **title** "Scatter Plot: [X] vs [Y] | Corr = [r]" with **trend line and 95% CI**; **correlation & causation analysis**: executive summary table (Pearson r, P-value, R², Beta), strength band (weak/moderate/strong), **residuals vs fitted** plot, **subgroup by region** table, explicit "Correlation does NOT imply causation" disclaimer, **actionable insight**, and **next steps** when causation is not supported |
@@ -91,7 +91,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, and Government. **Zoom** in/out and reset; **hover** shows country name, flag (proportionally on shape), metric value, effective year. |
 | **Year selector** | Independent of country dashboard |
 | **Global table** | General (area, region, government type, head of government), Financial (GDP, debt, inflation, lending rate, unemployment, poverty + YoY), Health & demographics (population, age groups, life expectancy, under‑5 mortality, maternal mortality, undernourishment + YoY) |
-| **Global charts** | Aggregated global time-series: unified (GDP, GDP per capita, population, life expectancy), economic (inflation, debt, interest, unemployment, poverty), health (under‑5, maternal mortality, undernourishment), population structure (age-group shares). Frequency and chart/table view. |
+| **Global charts** | Aggregated global time-series: unified (GDP, GDP per capita, population, life expectancy), economic (inflation, debt, interest, unemployment, poverty), health (under‑5, maternal mortality, undernourishment), **education** (out-of-school, completion, proficiency, preprimary, literacy, GPI, trained teachers, education expenditure), population structure (age-group shares). Frequency and chart/table view. |
 | **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
 
 ### 3.3 PESTEL
@@ -205,7 +205,7 @@ User → App.tsx (tabs: Country | Global | PESTEL | Porter 5 Forces | Business A
 | `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state (including macro economic, macro health, labour, population-structure frequencies) |
 | `src/api/worldBank.ts` | WDI API, global metrics, territory and Taiwan fallbacks |
 | `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
-| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health), LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, AllCountriesTableSection, GlobalChartsSection, PESTELSection, **Porter5ForcesSection**, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
+| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health), EducationTimelineSection, LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, AllCountriesTableSection, GlobalChartsSection (unified, economic, health, education, population structure), PESTELSection, **Porter5ForcesSection**, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
 | `src/utils/porter5ForcesContext.ts` | Porter 5 Forces system prompt (country, industry division, global data, Executive Summary + 2 paras per force; inline citations only) |
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
 | `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
@@ -226,7 +226,7 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 
 | Source | Purpose |
 |--------|---------|
-| **World Bank WDI** | GDP, population, health, geography, inflation, interest, gov debt |
+| **World Bank WDI** | GDP, population, health, geography, inflation, interest, gov debt, education (UNESCO UIS via WDI) |
 | **IMF WEO** | Fallback for GDP and government debt |
 | **REST Countries** | Timezone, currency, area, government type, head of government |
 | **Sea Around Us / Marine Regions** | EEZ (Exclusive Economic Zone) |

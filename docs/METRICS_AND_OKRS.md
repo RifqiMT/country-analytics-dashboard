@@ -50,13 +50,14 @@ This document defines how the **Country Analytics Platform** measures success an
 |----|--------|------------|
 | **GC-1** | Global Charts view rate | Percentage of sessions that open the Global Charts sub-tab |
 | **GC-2** | Global Charts frequency change | Percentage of Global Charts sessions where user changes frequency or view (chart/table) |
+| **GC-3** | Global Charts education block usage | Percentage of Global Charts sessions where the user views the Education aggregate series (out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure) |
 
 ### 2.4 Global Analytics – Tables
 
 | ID | Metric | Definition |
 |----|--------|------------|
 | **GT-1** | Sort interaction rate | Percentage of sessions where at least one table column is sorted |
-| **GT-2** | Sub-toggle distribution | Share of sessions that view each global table: General, Financial, Health & demographics |
+| **GT-2** | Sub-toggle distribution | Share of sessions that view each global table: General, Financial, Health & demographics, **Education** |
 | **GT-3** | YoY visibility | Percentage of global table rows rendered with a non-null YoY value for at least one metric |
 
 ### 2.5 Source Tab
@@ -64,7 +65,7 @@ This document defines how the **Country Analytics Platform** measures success an
 | ID | Metric | Definition |
 |----|--------|------------|
 | **SR-1** | Source search usage | Percentage of Source tab sessions that use the search input |
-| **SR-2** | Source filter usage | Percentage of Source tab sessions that use a filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO) |
+| **SR-2** | Source filter usage | Percentage of Source tab sessions that use a filter chip (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO, **UNESCO**) |
 
 ### 2.6 Analytics Assistant
 
@@ -171,6 +172,7 @@ Use a `product_area.action` pattern:
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip |
 | `global.charts_viewed` | User opens Global Charts sub-tab |
+| `global.charts_block_changed` | User switches Global Charts block (unified, economic, health, education, population structure) |
 | `chat.message_sent` | User sends a chat message |
 | `chat.suggestion_clicked` | User clicks a suggestion chip |
 | `chat.model_changed` | User changes LLM model |

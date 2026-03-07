@@ -15,6 +15,7 @@ import type {
   MetricSeries,
 } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
+import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
@@ -222,13 +223,20 @@ export function PopulationStructureSection({
 
       let change: string | undefined;
       let changeDirection: 'up' | 'down' | 'flat' | undefined;
-      if (prev != null && prev !== 0) {
-        const pct = ((current - prev) / Math.abs(prev)) * 100;
-        const rounded = Number.isFinite(pct) ? pct : 0;
-        if (rounded > 0.05) changeDirection = 'up';
-        else if (rounded < -0.05) changeDirection = 'down';
-        else changeDirection = 'flat';
-        change = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLabelMap[frequency]}`;
+      const formatted = formatGrowthChange(current, prev ?? null, freqLabelMap[frequency], id);
+      if (formatted) {
+        change = formatted;
+        const diff = current - (prev ?? 0);
+        if (isPercentageMetric(id)) {
+          if (diff > 0.05) changeDirection = 'up';
+          else if (diff < -0.05) changeDirection = 'down';
+          else changeDirection = 'flat';
+        } else if (prev != null && prev !== 0) {
+          const pct = (diff / Math.abs(prev)) * 100;
+          if (pct > 0.05) changeDirection = 'up';
+          else if (pct < -0.05) changeDirection = 'down';
+          else changeDirection = 'flat';
+        }
       }
 
       byMetricId.set(id, {
@@ -523,15 +531,21 @@ export function PopulationStructureSection({
 
                       let changeText: string | null = null;
                       let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (prev != null && prev !== 0 && v != null) {
-                        const pct = (((v as number) - prev) / Math.abs(prev)) * 100;
-                        const rounded = Number.isFinite(pct) ? pct : 0;
-                        if (rounded > 0.05) changeDir = 'up';
-                        else if (rounded < -0.05) changeDir = 'down';
-                        else changeDir = 'flat';
-                        changeText = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${
-                          freqLabel[frequency]
-                        }`;
+                      if (v != null) {
+                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabel[frequency], id);
+                        if (changeText) {
+                          const diff = (v as number) - (prev ?? 0);
+                          if (isPercentageMetric(id)) {
+                            if (diff > 0.05) changeDir = 'up';
+                            else if (diff < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          } else if (prev != null && prev !== 0) {
+                            const pct = (diff / Math.abs(prev)) * 100;
+                            if (pct > 0.05) changeDir = 'up';
+                            else if (pct < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          }
+                        }
                       }
 
                       return (

@@ -1,5 +1,6 @@
 import type { CountryDashboardData, CountrySummary, MetricSeries } from '../types';
 import { formatCompactNumber, formatPercentage, formatYearRange } from '../utils/numberFormat';
+import { formatGrowthChange } from '../utils/growthFormat';
 import { DATA_MIN_YEAR, DATA_MAX_YEAR } from '../config';
 
 const SvgIcon = ({ d, className }: { d: string; className?: string }) => (
@@ -98,13 +99,22 @@ function GeneralCard({ summary, geo }: { summary: CountrySummary; geo?: { landAr
 
 function getYoYDirection(yoy: string | null): 'up' | 'down' | 'flat' | null {
   if (!yoy) return null;
-  const match = yoy.match(/^([+-]?)([\d.]+)%/);
-  if (!match) return null;
-  const sign = match[1];
-  const pct = parseFloat(match[2]);
-  if (sign === '+') return 'up';
-  if (sign === '-' || pct < 0) return 'down';
-  return 'flat';
+  const pctMatch = yoy.match(/^([+-]?)([\d.]+)%/);
+  if (pctMatch) {
+    const sign = pctMatch[1];
+    if (sign === '+') return 'up';
+    if (sign === '-') return 'down';
+    return 'flat';
+  }
+  const bpsMatch = yoy.match(/^([+-]?)(\d+)\s*bps/);
+  if (bpsMatch) {
+    const sign = bpsMatch[1];
+    const num = parseInt(bpsMatch[2], 10);
+    if (sign === '+' && num > 0) return 'up';
+    if (sign === '-' || num < 0) return 'down';
+    return 'flat';
+  }
+  return null;
 }
 
 function FinancialCard({
@@ -319,6 +329,89 @@ function HealthCard({
   );
 }
 
+function EducationCard({
+  e,
+  getYoY,
+  series,
+}: {
+  e: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['education'] | undefined;
+  getYoY: (s: MetricSeries[] | undefined, id: string) => string | null;
+  series: MetricSeries[] | undefined;
+}) {
+  const formatGPI = (v: number | null | undefined) =>
+    v != null && Number.isFinite(v) ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : '–';
+
+  const groups: {
+    label: string;
+    items: {
+      icon: string;
+      label: string;
+      value: React.ReactNode;
+      yoy: string | null;
+    }[];
+  }[] = [
+    {
+      label: 'Access & completion',
+      items: [
+        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Out-of-school rate (primary, %)', value: e?.outOfSchoolPrimaryPct != null ? `${e.outOfSchoolPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolPrimaryPct') },
+        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Primary completion rate (%)', value: e?.primaryCompletionRate != null ? `${e.primaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'primaryCompletionRate') },
+      ],
+    },
+    {
+      label: 'Learning & literacy',
+      items: [
+        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Minimum reading proficiency (%)', value: e?.minProficiencyReadingPct != null ? `${e.minProficiencyReadingPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'minProficiencyReadingPct') },
+        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Preprimary enrollment (% gross)', value: e?.preprimaryEnrollmentPct != null ? `${e.preprimaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'preprimaryEnrollmentPct') },
+        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Adult literacy rate (%)', value: e?.literacyRateAdultPct != null ? `${e.literacyRateAdultPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'literacyRateAdultPct') },
+      ],
+    },
+    {
+      label: 'Quality & investment',
+      items: [
+        { icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z', label: 'Gender parity index (GPI), primary', value: formatGPI(e?.genderParityIndexPrimary), yoy: getYoY(series, 'genderParityIndexPrimary') },
+        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Trained teachers primary (%)', value: e?.trainedTeachersPrimaryPct != null ? `${e.trainedTeachersPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersPrimaryPct') },
+        { icon: 'M3 11.5a.75.75 0 0 1 .75-.75h2V4.5a.75.75 0 0 1 1.5 0v6.25h2l.1.01a.75.75 0 0 1-.1 1.49h-2v.75a.75.75 0 0 1-1.5 0V12.5h-2A.75.75 0 0 1 3 11.5Z', label: 'Public expenditure on education (% GDP)', value: e?.publicExpenditureEducationPctGDP != null ? `${e.publicExpenditureEducationPctGDP.toFixed(2)}%` : '–', yoy: getYoY(series, 'publicExpenditureEducationPctGDP') },
+      ],
+    },
+  ];
+
+  return (
+    <div className="summary-card education-card">
+      <h3 className="education-card-title">Education</h3>
+      <div className="education-groups">
+        {groups.map((group) => (
+          <div key={group.label} className="education-group">
+            <div className="education-group-label">{group.label}</div>
+            <div className="education-grid">
+              {group.items.map(({ icon, label, value, yoy }) => {
+                const dir = getYoYDirection(yoy);
+                return (
+                  <div key={label} className="education-item">
+                    <div className="education-item-header">
+                      <span className="education-item-icon">
+                        <SvgIcon d={icon} />
+                      </span>
+                      <span className="education-item-label">{label}</span>
+                    </div>
+                    <div className="education-item-body">
+                      <span className="education-item-value">{value}</span>
+                      {yoy && (
+                        <span className={`education-item-yoy education-item-yoy-${dir ?? 'flat'}`}>
+                          {yoy}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   data?: CountryDashboardData;
   loading?: boolean;
@@ -350,6 +443,7 @@ export function SummarySection({ data, countryCode }: Props) {
   const g = latestSnapshot?.metrics?.financial;
   const p = latestSnapshot?.metrics?.population;
   const h = latestSnapshot?.metrics?.health;
+  const e = latestSnapshot?.metrics?.education;
   const geo = latestSnapshot?.metrics?.geography;
 
   const latestYear = latestSnapshot?.year;
@@ -361,11 +455,8 @@ export function SummarySection({ data, countryCode }: Props) {
     const points = s.points ?? [];
     const curr = points.find((pt) => pt.year === latestYear)?.value;
     const prev = points.find((pt) => pt.year === latestYear - 1)?.value;
-    if (curr == null || prev == null || prev === 0) return null;
-    const pct = ((curr - prev) / Math.abs(prev)) * 100;
-    if (!Number.isFinite(pct)) return null;
-    const sign = pct > 0 ? '+' : '';
-    return `${sign}${pct.toFixed(1)}% YoY`;
+    if (curr == null) return null;
+    return formatGrowthChange(curr, prev ?? null, 'YoY', id);
   };
 
   return (
@@ -393,6 +484,7 @@ export function SummarySection({ data, countryCode }: Props) {
             <div className="overview-sources-chips">
               <span className="overview-chip">World Bank</span>
               <span className="overview-chip">UN</span>
+              <span className="overview-chip">UNESCO</span>
               <span className="overview-chip">WHO</span>
               <span className="overview-chip">IMF</span>
             </div>
@@ -404,6 +496,7 @@ export function SummarySection({ data, countryCode }: Props) {
         <GeneralCard summary={safeSummary} geo={geo} />
         <FinancialCard g={g} getYoY={getYoY} series={data.series?.financial ?? []} />
         <HealthCard p={p} h={h} getYoY={getYoY} series={data.series ?? { financial: [], population: [], health: [] }} />
+        <EducationCard e={e} getYoY={getYoY} series={data.series?.education ?? []} />
       </div>
     </section>
   );

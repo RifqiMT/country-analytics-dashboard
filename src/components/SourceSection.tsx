@@ -8,6 +8,7 @@ const CATEGORY_LABELS: Record<MetricMetadata['category'], string> = {
   health: 'Health',
   geography: 'Geography',
   context: 'Country metadata & context',
+  education: 'Education',
 };
 
 /** Filter chips by data source – metrics are filtered to those citing each source. */
@@ -21,6 +22,7 @@ const SOURCE_FILTER_CHIPS = [
   'WHO',
   'UN',
   'FAO',
+  'UNESCO',
 ];
 
 function matchesSearch(metric: MetricMetadata, query: string): boolean {
@@ -52,7 +54,7 @@ export function SourceSection() {
 
   const byCategory = useMemo(() => {
     const acc = {} as Record<MetricMetadata['category'], MetricMetadata[]>;
-    for (const cat of ['financial', 'population', 'health', 'geography', 'context'] as const) {
+    for (const cat of ['financial', 'population', 'health', 'geography', 'context', 'education'] as const) {
       acc[cat] = [];
     }
     for (const m of filteredMetrics) {
@@ -80,6 +82,7 @@ export function SourceSection() {
     'financial',
     'population',
     'health',
+    'education',
     'geography',
     'context',
   ];
@@ -90,7 +93,7 @@ export function SourceSection() {
         <div>
           <h2 className="section-title">Data sources & methodology</h2>
           <p className="muted">
-            Up-to-date definitions, formulas, and units for every metric and variable used in the app. Each entry links to credible primary sources (World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO). Coverage: Country Dashboard, Global view (map &amp; table), Global Charts, PESTEL, Business Analytics, and Analytics Assistant.
+            Country Analytics Platform provides a modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest), powered by World Bank, UN, WHO, and IMF data. This tab lists definitions, formulas, and units for every metric and variable used in the app. Each entry links to credible primary sources: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO, UNESCO. Coverage: Country Dashboard, Global view (map &amp; table), Global Charts, PESTEL, Business Analytics, and Analytics Assistant.
           </p>
           <p className="muted" style={{ marginTop: '0.5rem' }}>
             Time series and indicator data generally span from 2000 to the latest available year; definitions reflect current methodology where documented by the source.

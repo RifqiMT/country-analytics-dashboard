@@ -137,6 +137,9 @@ export function useCountryDashboard(
         health: (data.series.health ?? []).map((s) =>
           resampleSeries(s, frequency),
         ),
+        education: (data.series.education ?? []).map((s) =>
+          resampleSeries(s, frequency),
+        ),
       }
     : undefined;
 
@@ -149,6 +152,9 @@ export function useCountryDashboard(
           resampleSeries(s, macroFrequency),
         ),
         health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, macroFrequency),
+        ),
+        education: (data.series.education ?? []).map((s) =>
           resampleSeries(s, macroFrequency),
         ),
       }
@@ -165,6 +171,9 @@ export function useCountryDashboard(
         health: (data.series.health ?? []).map((s) =>
           resampleSeries(s, macroHealthFrequency),
         ),
+        education: (data.series.education ?? []).map((s) =>
+          resampleSeries(s, macroHealthFrequency),
+        ),
       }
     : undefined;
 
@@ -179,6 +188,9 @@ export function useCountryDashboard(
         health: (data.series.health ?? []).map((s) =>
           resampleSeries(s, labourFrequency),
         ),
+        education: (data.series.education ?? []).map((s) =>
+          resampleSeries(s, labourFrequency),
+        ),
       }
     : undefined;
 
@@ -191,6 +203,9 @@ export function useCountryDashboard(
           resampleSeries(s, populationStructureFrequency),
         ),
         health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, populationStructureFrequency),
+        ),
+        education: (data.series.education ?? []).map((s) =>
           resampleSeries(s, populationStructureFrequency),
         ),
       }

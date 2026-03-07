@@ -457,8 +457,7 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
         <div>
           <h2 className="section-title">Analytics assistant</h2>
           <p className="muted">
-            Ask about metrics, data sources, methodology, or general knowledge (e.g. where a
-            country is located, which continent). Powered by LLM.
+            Country Analytics Platform offers a modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest), powered by World Bank, UN, WHO, and IMF data. Ask the assistant about metrics, rankings, methodology, or general knowledge (e.g. where a country is located). Powered by LLM with access to dashboard data and web search.
           </p>
         </div>
         <div className="chatbot-controls">

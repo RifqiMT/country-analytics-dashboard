@@ -16,7 +16,7 @@ export interface MetricMetadata {
   formula?: string;
   unit: string;
   sources: MetricSource[];
-  category: 'financial' | 'population' | 'health' | 'geography' | 'context';
+  category: 'financial' | 'population' | 'health' | 'geography' | 'context' | 'education';
 }
 
 const WORLD_BANK_WDI = 'World Bank WDI';
@@ -25,6 +25,8 @@ const WORLD_BANK_COUNTRY = 'https://data.worldbank.org/country';
 const IMF_WEO = 'IMF World Economic Outlook';
 const IMF_DATAMAPPER = 'https://www.imf.org/external/datamapper';
 const REST_COUNTRIES = 'https://restcountries.com';
+const UNESCO_UIS = 'UNESCO Institute for Statistics';
+const UNESCO_UIS_URL = 'http://data.uis.unesco.org/';
 
 export const METRIC_METADATA: MetricMetadata[] = [
   // Financial – GDP
@@ -425,6 +427,111 @@ export const METRIC_METADATA: MetricMetadata[] = [
     sources: [
       { name: 'Wikipedia', url: 'https://en.wikipedia.org/wiki/Main_Page' },
       { name: 'CIA World Factbook', url: 'https://www.cia.gov/the-world-factbook/' },
+    ],
+  },
+  // Education – UNESCO Institute for Statistics via World Bank WDI (2000 to latest)
+  {
+    id: 'outOfSchoolPrimaryPct',
+    label: 'Out-of-school rate (primary, % of primary school age)',
+    description:
+      'Percentage of children of primary school age who are not enrolled in primary or secondary school. Derived as 100 minus the primary net enrollment rate. Aligned with SDG 4.1.2 and UNESCO UIS methodology.',
+    formula: 'Out-of-school rate (primary) = 100 − Primary net enrollment rate (%)',
+    unit: '% of primary school age',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.NENR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'primaryCompletionRate',
+    label: 'Primary completion rate (% of relevant age group)',
+    description:
+      'Percentage of the relevant age group that completes the last year of primary education. Key indicator for SDG 4.1.1. Sourced from UNESCO Institute for Statistics via World Bank WDI.',
+    formula: 'Primary completion rate = (Number completing last grade of primary / Population of official completion age) × 100',
+    unit: '% of relevant age group',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.CMPT.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'minProficiencyReadingPct',
+    label: 'Minimum reading proficiency (% of children at end of primary)',
+    description:
+      'Percentage of children at the end of primary education who achieve at least a minimum proficiency level in reading. Derived as 100 minus the learning poverty indicator (share below minimum proficiency). Aligned with SDG 4.1.1 and World Bank learning poverty methodology.',
+    formula: 'Minimum reading proficiency (%) = 100 − Learning poverty (% below minimum proficiency)',
+    unit: '%',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.LPV.PRIM` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'preprimaryEnrollmentPct',
+    label: 'Early childhood education – Preprimary enrollment (% gross)',
+    description:
+      'Gross enrollment ratio for preprimary education: total enrollment in preprimary education regardless of age, expressed as a percentage of the population of official preprimary age. Supports SDG 4.2.2.',
+    formula: 'Preprimary gross enrollment = (Total enrollment in preprimary / Population of preprimary age) × 100',
+    unit: '% gross',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRE.ENRR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'literacyRateAdultPct',
+    label: 'Literacy rate, adult (% of people ages 15+)',
+    description:
+      'Percentage of the population aged 15 and above who can read and write a short, simple statement on their everyday life. Key indicator for educational attainment and SDG 4.6.1.',
+    formula: 'Adult literacy rate = (Literate population aged 15+ / Total population aged 15+) × 100',
+    unit: '% of people ages 15+',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.ADT.LITR.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'genderParityIndexPrimary',
+    label: 'Gender parity index (GPI), primary enrollment',
+    description:
+      'Ratio of female to male gross enrollment in primary education. A value of 1 indicates parity; &lt;1 indicates more boys enrolled; &gt;1 indicates more girls enrolled. SDG 4.5.1.',
+    formula: 'GPI = (Female primary gross enrollment rate / Male primary gross enrollment rate); WDI reports ratio × 100.',
+    unit: 'ratio',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.ENR.PRIM.FM.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'trainedTeachersPrimaryPct',
+    label: 'Trained teachers in primary education (% of total teachers)',
+    description:
+      'Percentage of primary school teachers who have received the minimum organized teacher training (pre-service or in-service) required for teaching at the relevant level. Supports SDG 4.c.1.',
+    formula: 'Trained teachers (%) = (Teachers with minimum training / Total primary teachers) × 100',
+    unit: '% of total teachers',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.TCAQ.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'publicExpenditureEducationPctGDP',
+    label: 'Public expenditure on education (% of GDP)',
+    description:
+      'Government expenditure on education as a percentage of GDP. Includes spending by local, regional and national governments. Supports SDG 4.5.5 and cross-country comparison of education investment.',
+    formula: 'Public expenditure on education (% GDP) = (Government expenditure on education / GDP) × 100',
+    unit: '% of GDP',
+    category: 'education',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.XPD.TOTL.GD.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
 ];

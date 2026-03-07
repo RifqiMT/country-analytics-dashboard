@@ -152,6 +152,45 @@ export const GLOBAL_POP_STRUCTURE_AGGREGATES: Record<
   },
 };
 
+/** Education metrics: global = population-weighted average (same as health/demographics). */
+export const GLOBAL_EDUCATION_AGGREGATES: Record<
+  string,
+  { valueKey: keyof GlobalCountryMetricsRow; option: GlobalAggregateOption }
+> = {
+  outOfSchoolPrimaryPct: {
+    valueKey: 'outOfSchoolPrimaryPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  primaryCompletionRate: {
+    valueKey: 'primaryCompletionRate',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  minProficiencyReadingPct: {
+    valueKey: 'minProficiencyReadingPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  preprimaryEnrollmentPct: {
+    valueKey: 'preprimaryEnrollmentPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  literacyRateAdultPct: {
+    valueKey: 'literacyRateAdultPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  genderParityIndexPrimary: {
+    valueKey: 'genderParityIndexPrimary',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  trainedTeachersPrimaryPct: {
+    valueKey: 'trainedTeachersPrimaryPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  publicExpenditureEducationPctGDP: {
+    valueKey: 'publicExpenditureEducationPctGDP',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+};
+
 /** Unified timeline: totals as sum, per-capita as ratio (same as Country Comparison). */
 export const GLOBAL_UNIFIED_AGGREGATES: Record<
   string,

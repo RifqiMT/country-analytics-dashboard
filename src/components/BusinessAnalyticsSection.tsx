@@ -154,7 +154,7 @@ export function BusinessAnalyticsSection({
           <h2 className="section-title">Business Analytics</h2>
           <p className="muted">
             Multi-metric correlation analysis: compare countries across two metrics to explore
-            market positioning and correlations. Use the year range and highlight country filters below; then select X and Y axes. Data from all years in the range are included (each country–year is a point).
+            market positioning and correlations. Uses the same analyst-grade data as the platform (World Bank, UN, WHO, IMF; 2000 – latest). Use the year range and highlight country filters below; then select X and Y axes. Each country–year in the range is a point.
           </p>
         </div>
       </div>

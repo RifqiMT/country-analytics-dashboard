@@ -26,7 +26,17 @@ export type HealthMetricId =
   | 'pop15_64Share'
   | 'pop65PlusShare';
 
-export type MetricId = FinancialMetricId | PopulationMetricId | HealthMetricId;
+export type EducationMetricId =
+  | 'outOfSchoolPrimaryPct'
+  | 'primaryCompletionRate'
+  | 'minProficiencyReadingPct'
+  | 'preprimaryEnrollmentPct'
+  | 'literacyRateAdultPct'
+  | 'genderParityIndexPrimary'
+  | 'trainedTeachersPrimaryPct'
+  | 'publicExpenditureEducationPctGDP';
+
+export type MetricId = FinancialMetricId | PopulationMetricId | HealthMetricId | EducationMetricId;
 
 export interface TimePoint {
   date: string; // ISO date, typically Jan 1st of the year or synthetic sub-periods
@@ -107,6 +117,16 @@ export interface CountryYearSnapshot {
       under5MortalityRate?: number | null;
       undernourishmentPrevalence?: number | null;
     };
+    education?: {
+      outOfSchoolPrimaryPct?: number | null;
+      primaryCompletionRate?: number | null;
+      minProficiencyReadingPct?: number | null;
+      preprimaryEnrollmentPct?: number | null;
+      literacyRateAdultPct?: number | null;
+      genderParityIndexPrimary?: number | null;
+      trainedTeachersPrimaryPct?: number | null;
+      publicExpenditureEducationPctGDP?: number | null;
+    };
     geography?: {
       landAreaKm2?: number | null;
       totalAreaKm2?: number | null;
@@ -125,6 +145,7 @@ export interface CountryDashboardData {
     financial: MetricSeries[];
     population: MetricSeries[];
     health: MetricSeries[];
+    education: MetricSeries[];
   };
   latestSnapshot?: CountryYearSnapshot;
 }
@@ -160,6 +181,15 @@ export interface GlobalCountryMetricsRow {
   pop0_14Pct?: number | null;
   pop15_64Pct?: number | null;
   pop65PlusPct?: number | null;
+  // Education (UNESCO/World Bank WDI, from 2000 to latest)
+  outOfSchoolPrimaryPct?: number | null;
+  primaryCompletionRate?: number | null;
+  minProficiencyReadingPct?: number | null;
+  preprimaryEnrollmentPct?: number | null;
+  literacyRateAdultPct?: number | null;
+  genderParityIndexPrimary?: number | null;
+  trainedTeachersPrimaryPct?: number | null;
+  publicExpenditureEducationPctGDP?: number | null;
   // Area metrics (sq. km)
   landAreaKm2?: number | null;
   totalAreaKm2?: number | null;

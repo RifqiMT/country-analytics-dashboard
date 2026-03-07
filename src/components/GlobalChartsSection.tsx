@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from 'react';
 import type { Frequency, MetricId, MetricSeries, TimePoint } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
+import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
@@ -18,6 +19,7 @@ import {
   computeGlobalValue,
   GLOBAL_ECONOMIC_AGGREGATES,
   GLOBAL_HEALTH_AGGREGATES,
+  GLOBAL_EDUCATION_AGGREGATES,
   GLOBAL_POP_STRUCTURE_AGGREGATES,
   GLOBAL_UNIFIED_AGGREGATES,
 } from '../utils/globalAggregates';
@@ -124,6 +126,39 @@ const GLOBAL_HEALTH_LABELS: Record<string, string> = {
   lifeExpectancy: 'Life expectancy at birth (years)',
 };
 
+const EDUCATION_METRIC_IDS: MetricId[] = [
+  'outOfSchoolPrimaryPct',
+  'primaryCompletionRate',
+  'minProficiencyReadingPct',
+  'preprimaryEnrollmentPct',
+  'literacyRateAdultPct',
+  'genderParityIndexPrimary',
+  'trainedTeachersPrimaryPct',
+  'publicExpenditureEducationPctGDP',
+];
+
+const EDUCATION_COLORS: Record<string, string> = {
+  outOfSchoolPrimaryPct: '#dc2626',
+  primaryCompletionRate: '#16a34a',
+  minProficiencyReadingPct: '#0f766e',
+  preprimaryEnrollmentPct: '#7c3aed',
+  literacyRateAdultPct: '#0369a1',
+  genderParityIndexPrimary: '#b45309',
+  trainedTeachersPrimaryPct: '#059669',
+  publicExpenditureEducationPctGDP: '#1d4ed8',
+};
+
+const GLOBAL_EDUCATION_LABELS: Record<string, string> = {
+  outOfSchoolPrimaryPct: 'Out-of-school rate (primary, % of primary school age)',
+  primaryCompletionRate: 'Primary completion rate (% of relevant age group)',
+  minProficiencyReadingPct: 'Minimum reading proficiency (% of children at end of primary)',
+  preprimaryEnrollmentPct: 'Early childhood education – Preprimary enrollment (% gross)',
+  literacyRateAdultPct: 'Literacy rate, adult (% of people ages 15+)',
+  genderParityIndexPrimary: 'Gender parity index (GPI), primary enrollment',
+  trainedTeachersPrimaryPct: 'Trained teachers in primary education (% of total teachers)',
+  publicExpenditureEducationPctGDP: 'Public expenditure on education (% of GDP)',
+};
+
 const POP_STRUCTURE_METRIC_IDS: MetricId[] = [
   'pop0_14Share',
   'pop15_64Share',
@@ -169,6 +204,12 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
   const [selectedHealthMetricIds, setSelectedHealthMetricIds] = useState<MetricId[]>(HEALTH_METRIC_IDS);
   const [viewModeHealth, setViewModeHealth] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpenHealth, setIsFrequencyOpenHealth] = useState(false);
+
+  const [frequencyEducation, setFrequencyEducation] = useState<Frequency>('yearly');
+  const [globalEducationSeries, setGlobalEducationSeries] = useState<MetricSeries[]>([]);
+  const [selectedEducationMetricIds, setSelectedEducationMetricIds] = useState<MetricId[]>(EDUCATION_METRIC_IDS);
+  const [viewModeEducation, setViewModeEducation] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpenEducation, setIsFrequencyOpenEducation] = useState(false);
 
   const [frequencyPop, setFrequencyPop] = useState<Frequency>('yearly');
   const [globalPopStructureSeries, setGlobalPopStructureSeries] = useState<MetricSeries[]>([]);
@@ -228,6 +269,27 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         });
         setGlobalSeries(seriesList);
         setGlobalHealthSeries(healthSeriesList);
+        const educationSeriesList: MetricSeries[] = EDUCATION_METRIC_IDS.map((id) => {
+          const config = GLOBAL_EDUCATION_AGGREGATES[id];
+          const points: TimePoint[] = rowsPerYear.map((rows, i) => {
+            const year = years[i];
+            const value = config
+              ? computeGlobalValue(rows, config.valueKey, config.option)
+              : null;
+            return {
+              date: `${year}-01-01`,
+              year,
+              value,
+            };
+          });
+          return {
+            id,
+            label: GLOBAL_EDUCATION_LABELS[id] ?? id,
+            unit: '%',
+            points: fillSeriesPoints(points),
+          };
+        });
+        setGlobalEducationSeries(educationSeriesList);
         const unifiedSeriesList: MetricSeries[] = UNIFIED_TIMELINE_METRIC_IDS.map((id) => {
           const config = GLOBAL_UNIFIED_AGGREGATES[id];
           const points: TimePoint[] = rowsPerYear.map((rows, i) => {
@@ -484,6 +546,89 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
     yearly: 'YoY',
   };
 
+  const allEducationSeries = globalEducationSeries;
+  const resampledEducationSeries = allEducationSeries.map((s) => resampleSeries(s, frequencyEducation));
+  const labelByMetricIdEducation = allEducationSeries.reduce<Record<string, string>>(
+    (acc, series) => {
+      acc[series.id] = series.label;
+      return acc;
+    },
+    {},
+  );
+  const dateSetEducation = new Map<string, number>();
+  for (const s of resampledEducationSeries) {
+    const points = s.points ?? [];
+    for (const p of points) {
+      if (p.year < displayStartYear || p.year > displayEndYear) continue;
+      dateSetEducation.set(p.date, p.year);
+    }
+  }
+  const sortedDatesEducation = [...dateSetEducation.entries()].sort(
+    (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
+  );
+  const baseDataEducation = sortedDatesEducation.map(([date, year]) => ({ date, year }));
+  const seriesByIdEducation = new Map<string, MetricSeries>();
+  for (const s of resampledEducationSeries) {
+    seriesByIdEducation.set(s.id, s);
+  }
+  const getEducationMetricValueAtDate = (metricId: MetricId, date: string): number | null => {
+    const seriesForMetric = seriesByIdEducation.get(metricId);
+    if (!seriesForMetric) return null;
+    const v = seriesForMetric.points?.find((sp) => sp.date === date)?.value ?? null;
+    return v != null && typeof v === 'number' ? v : null;
+  };
+  const mergedEducation = baseDataEducation.map((p) => {
+    const row: Record<string, string | number | null> = {
+      date: p.date,
+      year: p.year,
+    };
+    for (const metricId of EDUCATION_METRIC_IDS) {
+      row[metricId] = getEducationMetricValueAtDate(metricId, p.date);
+    }
+    return row;
+  });
+  const xKeyEducation = frequencyEducation === 'yearly' ? 'year' : 'date';
+  const rawTicksEducation =
+    frequencyEducation === 'yearly'
+      ? baseDataEducation.map((p) => p.year)
+      : baseDataEducation.map((p) => p.date);
+  const stepEducation =
+    rawTicksEducation.length <= 6 ? 1 : Math.max(1, Math.floor(rawTicksEducation.length / 6));
+  const xTicksEducation = rawTicksEducation.filter((_, index) => index % stepEducation === 0);
+  const formatAxisLabelEducation = (value: string | number) => {
+    if (frequencyEducation === 'yearly') return String(value);
+    const d = new Date(String(value));
+    if (Number.isNaN(d.getTime())) return String(value);
+    if (frequencyEducation === 'monthly') {
+      return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    }
+    if (frequencyEducation === 'quarterly') {
+      const quarter = Math.floor(d.getMonth() / 3) + 1;
+      return `Q${quarter} ${d.getFullYear()}`;
+    }
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: '2-digit',
+    });
+  };
+  const freqLabelEducation: Record<Frequency, string> = {
+    weekly: 'WoW',
+    monthly: 'MoM',
+    quarterly: 'QoQ',
+    yearly: 'YoY',
+  };
+  const formatEducationValue = (id: string, v: number | null): string => {
+    if (v == null || !Number.isFinite(v)) return '–';
+    if (id === 'genderParityIndexPrimary') {
+      return v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2);
+    }
+    if (id === 'publicExpenditureEducationPctGDP') {
+      return v.toFixed(2) + '%';
+    }
+    return formatCompactNumber(v);
+  };
+
   const allPopSeries = globalPopStructureSeries;
   const resampledPopSeries = allPopSeries.map((s) => resampleSeries(s, frequencyPop));
   const labelByMetricIdPop = allPopSeries.reduce<Record<string, string>>(
@@ -670,13 +815,20 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
 
       let change: string | undefined;
       let changeDirection: 'up' | 'down' | 'flat' | undefined;
-      if (prev != null && prev !== 0) {
-        const pct = ((current - prev) / Math.abs(prev)) * 100;
-        const rounded = Number.isFinite(pct) ? pct : 0;
-        if (rounded > 0.05) changeDirection = 'up';
-        else if (rounded < -0.05) changeDirection = 'down';
-        else changeDirection = 'flat';
-        change = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLbl[freq]}`;
+      const formatted = formatGrowthChange(current, prev ?? null, freqLbl[freq], id);
+      if (formatted) {
+        change = formatted;
+        const diff = current - (prev ?? 0);
+        if (isPercentageMetric(id)) {
+          if (diff > 0.05) changeDirection = 'up';
+          else if (diff < -0.05) changeDirection = 'down';
+          else changeDirection = 'flat';
+        } else if (prev != null && prev !== 0) {
+          const pct = (diff / Math.abs(prev)) * 100;
+          if (pct > 0.05) changeDirection = 'up';
+          else if (pct < -0.05) changeDirection = 'down';
+          else changeDirection = 'flat';
+        }
       }
 
       byMetricId.set(id, {
@@ -1020,13 +1172,21 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
 
                       let changeText: string | null = null;
                       let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (prev != null && prev !== 0 && v != null) {
-                        const pct = (((v as number) - prev) / Math.abs(prev)) * 100;
-                        const rounded = Number.isFinite(pct) ? pct : 0;
-                        if (rounded > 0.05) changeDir = 'up';
-                        else if (rounded < -0.05) changeDir = 'down';
-                        else changeDir = 'flat';
-                        changeText = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLabelUnified[frequencyUnified]}`;
+                      if (v != null) {
+                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabelUnified[frequencyUnified], id);
+                        if (changeText) {
+                          const diff = (v as number) - (prev ?? 0);
+                          if (isPercentageMetric(id)) {
+                            if (diff > 0.05) changeDir = 'up';
+                            else if (diff < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          } else if (prev != null && prev !== 0) {
+                            const pct = (diff / Math.abs(prev)) * 100;
+                            if (pct > 0.05) changeDir = 'up';
+                            else if (pct < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          }
+                        }
                       }
 
                       return (
@@ -1286,15 +1446,21 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
 
                       let changeText: string | null = null;
                       let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (prev != null && prev !== 0 && v != null) {
-                        const pct = (((v as number) - prev) / Math.abs(prev)) * 100;
-                        const rounded = Number.isFinite(pct) ? pct : 0;
-                        if (rounded > 0.05) changeDir = 'up';
-                        else if (rounded < -0.05) changeDir = 'down';
-                        else changeDir = 'flat';
-                        changeText = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${
-                          freqLabel[frequency]
-                        }`;
+                      if (v != null) {
+                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabel[frequency], id);
+                        if (changeText) {
+                          const diff = (v as number) - (prev ?? 0);
+                          if (isPercentageMetric(id)) {
+                            if (diff > 0.05) changeDir = 'up';
+                            else if (diff < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          } else if (prev != null && prev !== 0) {
+                            const pct = (diff / Math.abs(prev)) * 100;
+                            if (pct > 0.05) changeDir = 'up';
+                            else if (pct < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          }
+                        }
                       }
 
                       return (
@@ -1575,15 +1741,21 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
 
                       let changeText: string | null = null;
                       let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (prev != null && prev !== 0 && v != null) {
-                        const pct = (((v as number) - prev) / Math.abs(prev)) * 100;
-                        const rounded = Number.isFinite(pct) ? pct : 0;
-                        if (rounded > 0.05) changeDir = 'up';
-                        else if (rounded < -0.05) changeDir = 'down';
-                        else changeDir = 'flat';
-                        changeText = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${
-                          freqLabelHealth[frequencyHealth]
-                        }`;
+                      if (v != null) {
+                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabelHealth[frequencyHealth], id);
+                        if (changeText) {
+                          const diff = (v as number) - (prev ?? 0);
+                          if (isPercentageMetric(id)) {
+                            if (diff > 0.05) changeDir = 'up';
+                            else if (diff < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          } else if (prev != null && prev !== 0) {
+                            const pct = (diff / Math.abs(prev)) * 100;
+                            if (pct > 0.05) changeDir = 'up';
+                            else if (pct < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          }
+                        }
                       }
 
                       const display =
@@ -1620,7 +1792,288 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         </div>
       )}
 
-      {/* 4. Population structure */}
+      {/* 4. Macro indicators (education) */}
+      <div className="section-header" style={{ marginTop: '2rem' }}>
+        <div>
+          <h2 className="section-title">
+            Global Charts – Macro indicators (education)
+          </h2>
+          <p className="muted">
+            World-level population-weighted averages for education (out-of-school rate, primary completion, minimum reading proficiency,
+            preprimary enrollment, adult literacy, gender parity index, trained teachers, public expenditure on education). Same formula as the Country Comparison table—values match for the same year.
+          </p>
+        </div>
+        <div className="section-header-controls">
+          <div className="section-header-control-group">
+            <div className="section-control-label">Frequency</div>
+            <div
+              className="frequency-toolbar"
+              tabIndex={-1}
+              onBlur={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setIsFrequencyOpenEducation(false);
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="map-metric-trigger"
+                aria-haspopup="listbox"
+                aria-expanded={isFrequencyOpenEducation}
+                onClick={() => setIsFrequencyOpenEducation((open) => !open)}
+              >
+                <span className="map-metric-trigger-icon">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" />
+                  </svg>
+                </span>
+                <span className="map-metric-trigger-label">
+                  {FREQUENCY_LABELS[frequencyEducation]}
+                </span>
+                <span
+                  className={`map-metric-trigger-chevron ${isFrequencyOpenEducation ? 'open' : ''}`}
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+                  </svg>
+                </span>
+              </button>
+              {isFrequencyOpenEducation && (
+                <div className="map-metric-dropdown" role="listbox">
+                  <div className="map-metric-category">
+                    <div className="map-metric-category-header">
+                      <span className="map-metric-category-icon">
+                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z" />
+                        </svg>
+                      </span>
+                      <span>Sampling cadence</span>
+                    </div>
+                    <div className="map-metric-category-items">
+                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          className={`map-metric-option ${frequencyEducation === f ? 'selected' : ''}`}
+                          onClick={() => {
+                            setFrequencyEducation(f);
+                            setIsFrequencyOpenEducation(false);
+                          }}
+                        >
+                          <span className="map-metric-option-icon">
+                            {frequencyEducation === f && (
+                              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                                <path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" />
+                              </svg>
+                            )}
+                          </span>
+                          <span>{FREQUENCY_LABELS[f]}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">View</div>
+            <div className="pill-group pill-group-secondary">
+              <button
+                type="button"
+                className={`pill ${viewModeEducation === 'chart' ? 'pill-active' : ''}`}
+                onClick={() => setViewModeEducation('chart')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
+                  </svg>
+                </span>
+                <span>Chart view</span>
+              </button>
+              <button
+                type="button"
+                className={`pill ${viewModeEducation === 'table' ? 'pill-active' : ''}`}
+                onClick={() => setViewModeEducation('table')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
+                  </svg>
+                </span>
+                <span>Table view</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="metric-toggle-row-header">
+        <div className="metric-toggle-title">Metrics displayed</div>
+        <div className="metric-toggle-hint">Tap to show or hide indicators</div>
+      </div>
+      <div className="metric-toggle-row">
+        {EDUCATION_METRIC_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            className={`tag ${selectedEducationMetricIds.includes(id) ? 'tag-active' : ''}`}
+            onClick={() => {
+              if (selectedEducationMetricIds.includes(id)) {
+                setSelectedEducationMetricIds(selectedEducationMetricIds.filter((m) => m !== id));
+              } else {
+                setSelectedEducationMetricIds([...selectedEducationMetricIds, id]);
+              }
+            }}
+          >
+            <span
+              className="tag-swatch"
+              style={{ backgroundColor: EDUCATION_COLORS[id] }}
+            />
+            {GLOBAL_EDUCATION_LABELS[id] ?? id}
+          </button>
+        ))}
+      </div>
+
+      {viewModeEducation === 'chart' ? (
+        <div className="chart-wrapper">
+          <ResponsiveContainer width="100%" height={320}>
+            <LineChart
+              data={mergedEducation}
+              margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
+            >
+              <CartesianGrid
+                stroke="rgba(148,163,184,0.25)"
+                vertical={false}
+              />
+              <XAxis
+                dataKey={xKeyEducation}
+                ticks={xTicksEducation}
+                tickFormatter={formatAxisLabelEducation}
+                tickLine={false}
+                tickMargin={8}
+                stroke="rgba(148,163,184,0.9)"
+                tick={{
+                  fontSize: 10,
+                  fill: 'rgba(55,65,81,0.9)',
+                }}
+              />
+              <YAxis
+                yAxisId="left"
+                tickFormatter={(v) => formatCompactNumber(v as number)}
+                tickLine={false}
+                tickMargin={8}
+                stroke="rgba(148,163,184,0.9)"
+              />
+              <Tooltip
+                contentStyle={{
+                  background: '#ffffff',
+                  border: '1px solid rgba(148,163,184,0.6)',
+                  borderRadius: 8,
+                  boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
+                }}
+                content={
+                  <CustomTooltip
+                    mergedOverride={mergedEducation}
+                    xKeyOverride={xKeyEducation}
+                    labelByMetricIdOverride={labelByMetricIdEducation}
+                    selectedMetricIdsOverride={selectedEducationMetricIds}
+                    frequencyOverride={frequencyEducation}
+                    formatAxisLabelOverride={formatAxisLabelEducation}
+                    metricIdsOverride={EDUCATION_METRIC_IDS}
+                    freqLabelOverride={freqLabelEducation}
+                    formatValueOverride={(id, v) => formatEducationValue(id, v)}
+                  />
+                }
+              />
+              {EDUCATION_METRIC_IDS.map((metricId) => (
+                <Line
+                  key={metricId}
+                  type="monotone"
+                  dataKey={metricId}
+                  stroke={EDUCATION_COLORS[metricId]}
+                  strokeWidth={2}
+                  dot={false}
+                  hide={
+                    !selectedEducationMetricIds.includes(metricId) ||
+                    !mergedEducation.some((row) => row[metricId] != null)
+                  }
+                  yAxisId="left"
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      ) : (
+        <div className="chart-table-wrapper">
+          <div className="chart-table-scroll">
+            <table className="chart-table">
+              <thead>
+                <tr>
+                  <th>{frequencyEducation === 'yearly' ? 'Year' : 'Period'}</th>
+                  {selectedEducationMetricIds.map((id) => (
+                    <th key={id}>{GLOBAL_EDUCATION_LABELS[id] ?? id}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {mergedEducation.map((row, rowIndex) => (
+                  <tr key={String(row[xKeyEducation])}>
+                    <td>{formatAxisLabelEducation(row[xKeyEducation] as string | number)}</td>
+                    {selectedEducationMetricIds.map((id) => {
+                      const v = row[id];
+                      const prevRow = rowIndex > 0 ? mergedEducation[rowIndex - 1] : undefined;
+                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
+
+                      let changeText: string | null = null;
+                      let changeDir: 'up' | 'down' | 'flat' | null = null;
+                      if (v != null) {
+                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabelEducation[frequencyEducation], id);
+                        if (changeText) {
+                          const diff = (v as number) - (prev ?? 0);
+                          if (isPercentageMetric(id)) {
+                            if (diff > 0.05) changeDir = 'up';
+                            else if (diff < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          } else if (prev != null && prev !== 0) {
+                            const pct = (diff / Math.abs(prev)) * 100;
+                            if (pct > 0.05) changeDir = 'up';
+                            else if (pct < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          }
+                        }
+                      }
+
+                      return (
+                        <td key={id}>
+                          {v == null ? (
+                            '–'
+                          ) : (
+                            <div className="table-metric-cell">
+                              <div className="table-metric-value">
+                                {formatEducationValue(id, v as number)}
+                              </div>
+                              {changeText && changeDir && (
+                                <div
+                                  className={`table-metric-change table-metric-change-${changeDir}`}
+                                >
+                                  {changeText}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* 5. Population structure */}
       <div className="section-header" style={{ marginTop: '2rem' }}>
         <div>
           <h2 className="section-title">
@@ -1857,13 +2310,21 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
 
                       let changeText: string | null = null;
                       let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (prev != null && prev !== 0 && v != null) {
-                        const pct = (((v as number) - prev) / Math.abs(prev)) * 100;
-                        const rounded = Number.isFinite(pct) ? pct : 0;
-                        if (rounded > 0.05) changeDir = 'up';
-                        else if (rounded < -0.05) changeDir = 'down';
-                        else changeDir = 'flat';
-                        changeText = `${rounded > 0 ? '+' : ''}${rounded.toFixed(1)}% ${freqLabelPop[frequencyPop]}`;
+                      if (v != null) {
+                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabelPop[frequencyPop], id);
+                        if (changeText) {
+                          const diff = (v as number) - (prev ?? 0);
+                          if (isPercentageMetric(id)) {
+                            if (diff > 0.05) changeDir = 'up';
+                            else if (diff < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          } else if (prev != null && prev !== 0) {
+                            const pct = (diff / Math.abs(prev)) * 100;
+                            if (pct > 0.05) changeDir = 'up';
+                            else if (pct < -0.05) changeDir = 'down';
+                            else changeDir = 'flat';
+                          }
+                        }
                       }
 
                       return (

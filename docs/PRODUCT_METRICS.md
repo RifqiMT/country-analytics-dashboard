@@ -10,11 +10,11 @@ This document provides a **comprehensive reference** for all **data metrics** di
 
 The same data metrics are used across the product in different ways:
 
-- **Country dashboard**: Summary cards (latest values + YoY), unified time-series (core structural metrics), macro indicators timeline (economic & financial and health, separate sections), unemployed & labour force timeline, **Population Structure** timeline (age-group shares and absolute counts over time), and country comparison table.
-- **Global analytics**: Choropleth map (one metric per view; zoom; hover with flag on shape), global tables (General, Financial, Health & demographics with YoY), and **Global Charts** (aggregated global time-series: unified, economic, health, population structure). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
+- **Country dashboard**: Summary cards (latest values + YoY), unified time-series (core structural metrics), macro indicators timeline (economic & financial and health, separate sections), **Education indicators** timeline (out-of-school, completion, minimum proficiency, early childhood, literacy, GPI, trained teachers, public expenditure), unemployed & labour force timeline, **Population Structure** timeline (age-group shares and absolute counts over time), and country comparison table.
+- **Global analytics**: Choropleth map (one metric per view; zoom; hover with flag on shape), global tables (General, Financial, Health & demographics, **Education** with YoY), and **Global Charts** (aggregated global time-series: unified, economic, health, **education**, population structure). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
 - **Business Analytics**: Correlation scatter uses two metrics from the global dataset over a **year range** (start–end); **data preparation** removes missing and optionally **IQR outliers** (1.5×IQR rule). Correlation & causation analysis includes **Pearson r**, **p-value**, **R²**, **Beta**, **executive summary table**, **residuals vs fitted** plot, **subgroup-by-region** table, **actionable insight**, and explicit **causation disclaimer** with **next steps** when causation is not supported. Logic is implemented in `src/utils/correlationAnalysis.ts` and rendered in `BusinessAnalyticsSection.tsx` and `CorrelationScatterPlot.tsx`.
 - **Porter 5 Forces**: Uses selected country context and global data (DATA_MAX_YEAR) plus a chosen ILO/ISIC industry division; supplemental web search (TAVILY first, then GROQ) enriches the analysis. Output is displayed in five distinct sections: **Porter's Five Forces chart** (standard cross layout with five bullet points per force), **Comprehensive Analysis** (Executive Summary + five forces narrative), **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets). All citations and sources are inline in the narrative.
-- **Source tab**: Each metric is documented with label, description, formula, unit, and source links; metadata comes from `src/data/metricMetadata.ts`. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Section "Where metrics and information appear" describes usage across Country Dashboard, Global view, PESTEL, **Porter 5 Forces**, Business Analytics, and Analytics Assistant.
+- **Source tab**: Each metric is documented with label, description, formula, unit, and source links; metadata comes from `src/data/metricMetadata.ts`. Categories: Financial, Population, Health, **Education**, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Section "Where metrics and information appear" describes usage across Country Dashboard, Global view, PESTEL, **Porter 5 Forces**, Business Analytics, and Analytics Assistant.
 - **Analytics Assistant & PESTEL**: Use country context and global data (including these metrics). PESTEL uses **DATA_MAX_YEAR** for global/peer data and **TAVILY (web search)** for **current year** supplemental information; **GROQ** is used as the first LLM to generate the report after the supplement is injected.
 
 ---
@@ -26,6 +26,7 @@ The same data metrics are used across the product in different ways:
 | **Financial** | GDP, Government debt, Inflation, Interest rate, Unemployment, Poverty headcount | World Bank WDI, IMF WEO |
 | **Population** | Total, Age groups (0–14, 15–64, 65+) | World Bank WDI |
 | **Health** | Life expectancy, Maternal mortality, Under‑5 mortality, Prevalence of undernourishment | World Bank WDI (WHO/UN/FAO sourced) |
+| **Education** | Out-of-school (primary), Primary completion, Min. reading proficiency, Preprimary enrollment, Adult literacy, Gender parity index (GPI), Trained teachers (primary), Public expenditure on education (% GDP) | UNESCO UIS via World Bank WDI |
 | **Geography** | Land area, Total area, EEZ | World Bank WDI, Sea Around Us, Marine Regions |
 | **Context / metadata** | Region, Income level, Government type, Head of government, Capital, Currency | World Bank, REST Countries |
 
@@ -75,7 +76,24 @@ The same data metrics are used across the product in different ways:
 
 ---
 
-## 6. Geography Metrics
+## 6. Education Metrics
+
+| Metric ID | Label | Unit | Formula |
+|-----------|-------|------|---------|
+| `outOfSchoolPrimaryPct` | Out-of-school rate (primary, %) | % | 100 − Primary net enrollment rate |
+| `primaryCompletionRate` | Primary completion rate | % | Percentage of cohort completing primary education |
+| `minProficiencyReadingPct` | Minimum reading proficiency | % | 100 − Learning poverty (%); share of children at end of primary who read at min. proficiency |
+| `preprimaryEnrollmentPct` | Preprimary enrollment (gross) | % | Gross enrollment in preprimary / official age group × 100 |
+| `literacyRateAdultPct` | Adult literacy rate | % | Percentage of population aged 15+ who can read and write |
+| `genderParityIndexPrimary` | Gender parity index (GPI), primary | Ratio | Girls’ enrollment / Boys’ enrollment (primary) |
+| `trainedTeachersPrimaryPct` | Trained teachers in primary (%) | % | Percentage of primary teachers with minimum required training |
+| `publicExpenditureEducationPctGDP` | Public expenditure on education (% GDP) | % of GDP | (Public expenditure on education / GDP) × 100 |
+
+**Sources:** UNESCO Institute for Statistics via World Bank WDI. Coverage from 2000 to latest (at least current year minus 2). See §8 for WDI indicator codes.
+
+---
+
+## 7. Geography Metrics
 
 | Metric ID | Label | Unit | Source |
 |-----------|-------|------|--------|
@@ -85,7 +103,7 @@ The same data metrics are used across the product in different ways:
 
 ---
 
-## 7. Government & Context Metrics (Map, Tables, Source)
+## 8. Government & Context Metrics (Map, Tables, Source)
 
 | Metric ID | Label | Type | Source |
 |-----------|-------|------|--------|
@@ -102,7 +120,7 @@ These are documented in the Source tab under **Country metadata & context** and 
 
 ---
 
-## 8. World Bank Indicator Codes
+## 9. World Bank Indicator Codes
 
 | Metric | WDI Code |
 |--------|----------|
@@ -128,10 +146,18 @@ These are documented in the Source tab under **Country metadata & context** and 
 | Prevalence of undernourishment (% of population) | SN.ITK.DEFC.ZS |
 | Land area | AG.LND.TOTL.K2 |
 | Surface area | AG.SRF.TOTL.K2 |
+| Primary net enrollment rate (%) | SE.PRM.NENR |
+| Primary completion rate (% of relevant age group) | SE.PRM.CMPT.ZS |
+| Learning poverty, primary (% below min. reading proficiency) | SE.LPV.PRIM |
+| School enrollment, preprimary (% gross) | SE.PRE.ENRR |
+| Literacy rate, adult total (% ages 15+) | SE.ADT.LITR.ZS |
+| Ratio of female to male primary enrollment (%) | SE.ENR.PRIM.FM.ZS |
+| Trained teachers in primary education (% of total teachers) | SE.PRM.TCAQ.ZS |
+| Government expenditure on education (% of GDP) | SE.XPD.TOTL.GD.ZS |
 
 ---
 
-## 9. Data Quality Rules
+## 10. Data Quality Rules
 
 - **Latest non-null**: Dashboard uses latest non-null value up to selected end year
 - **Year fallback**: Global loader steps backwards when a year has no data
@@ -141,13 +167,13 @@ These are documented in the Source tab under **Country metadata & context** and 
 
 ---
 
-## 10. Source Tab Reference
+## 11. Source Tab Reference
 
 The **Source** tab provides:
 
 - **Where metrics and information appear** – A collapsible section (minimisable by the user) describing how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, **Porter 5 Forces**, Business Analytics, and Analytics Assistant. Location and geography are answered by the Analytics Assistant via LLM and web search; credible sources are linked in the "Location & geographic context" metric card.
 - **Analytics Assistant flow** – Documents cascading routing: Dashboard/global data first for metrics; **TAVILY (web search)** for latest supplementary information; **GROQ** as primary LLM; then other LLMs; Tavily Web Search is selectable as a model.
-- **Per-metric documentation** – Full description, formula, unit, and data source links. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context).
-- **Search and filter** – By metric name, description, formula, or source; filter chips: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO.
+- **Per-metric documentation** – Full description, formula, unit, and data source links. Categories: Financial, Population, Health, **Education**, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context).
+- **Search and filter** – By metric name, description, formula, or source; filter chips: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO, **UNESCO**.
 
 Metadata is defined in `src/data/metricMetadata.ts`. All metrics above (including context) are in `metricMetadata.ts` for the Source tab.

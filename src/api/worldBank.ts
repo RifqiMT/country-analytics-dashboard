@@ -53,6 +53,7 @@ const TERRITORY_FALLBACK_PARENT: Record<string, string> = {
   AW: 'NL', // Aruba -> Netherlands
   CW: 'NL', // Curaçao -> Netherlands
   SX: 'NL', // Sint Maarten -> Netherlands
+  MF: 'FR', // Saint Martin (French part) -> France
   AX: 'FI', // Åland Islands -> Finland
   FK: 'GB', // Falkland Islands -> UK
   TC: 'GB', // Turks and Caicos -> UK
@@ -62,6 +63,7 @@ const TERRITORY_FALLBACK_PARENT: Record<string, string> = {
   JE: 'GB', // Jersey -> UK
   IM: 'GB', // Isle of Man -> UK
   TW: 'CN', // Taiwan -> fallback to China metrics when WDI data is missing
+  XK: 'RS', // Kosovo -> fallback to Serbia when WDI data is missing (WB/UN coverage varies)
 };
 
 /**
@@ -90,10 +92,91 @@ const ESTIMATED_FINANCIAL_FALLBACK: Record<
     inflationCPI: 5,
     govDebtPercentGDP: 50,
   },
+  // Taiwan: IMF WEO / national statistics when IMF API is unavailable. Ref: IMF WEO Oct 2024 (2023 data).
+  TWN: {
+    referenceYear: 2023,
+    gdpNominal: 751e9,
+    gdpPPP: 1.64e12,
+    gdpNominalPerCapita: 31400,
+    gdpPPPPerCapita: 68600,
+    inflationCPI: 2.5,
+    govDebtPercentGDP: 31,
+  },
+  // Cuba: WB often missing PPP and inflation. Ref: IMF WEO / national stats (2023).
+  CUB: {
+    referenceYear: 2023,
+    gdpNominal: 107e9,
+    gdpPPP: 145e9,
+    gdpNominalPerCapita: 9600,
+    gdpPPPPerCapita: 13000,
+    inflationCPI: 25,
+    govDebtPercentGDP: 55,
+  },
 };
 
 /** How many years before/after reference year the estimate is considered valid. */
 const ESTIMATED_FALLBACK_YEAR_RANGE = 3;
+
+/**
+ * World Bank region label (as in summary.region) -> WB API region code for fetching regional indicator series.
+ * Used to fill missing education (and other) data from regional aggregates when country series have gaps.
+ */
+const REGION_LABEL_TO_WB_CODE: Record<string, string> = {
+  'East Asia & Pacific': 'EAS',
+  'South Asia': 'SAS',
+  'Europe & Central Asia': 'ECS',
+  'Latin America & Caribbean': 'LCN',
+  'Middle East & North Africa': 'MNA',
+  'Sub-Saharan Africa': 'SSA',
+  'North America': 'NAC',
+};
+
+/**
+ * Fallback: ISO2 -> WB region code when summary.region is missing or generic (e.g. REST Countries returns "Asia").
+ * Ensures countries like Indonesia (ID) still get regional education fallback (e.g. EAS) for out-of-school rate.
+ */
+const REGION_FALLBACK_BY_ISO2: Record<string, string> = {
+  ID: 'EAS', CN: 'EAS', JP: 'EAS', TH: 'EAS', VN: 'EAS', PH: 'EAS', MY: 'EAS', SG: 'EAS',
+  KR: 'EAS', MN: 'EAS', LA: 'EAS', KH: 'EAS', MM: 'EAS', BN: 'EAS', TL: 'EAS', FJ: 'EAS',
+  PG: 'EAS', SB: 'EAS', VU: 'EAS', WS: 'EAS', TO: 'EAS', TV: 'EAS', KI: 'EAS', NR: 'EAS',
+  FM: 'EAS', MH: 'EAS', PW: 'EAS', GU: 'EAS', MP: 'EAS', AS: 'EAS', CK: 'EAS', NU: 'EAS',
+  IN: 'SAS', PK: 'SAS', BD: 'SAS', LK: 'SAS', NP: 'SAS', AF: 'SAS', BT: 'SAS', MV: 'SAS',
+  KZ: 'ECS', UZ: 'ECS', AZ: 'ECS', GE: 'ECS', TJ: 'ECS', TM: 'ECS', KG: 'ECS', AL: 'ECS',
+  AD: 'ECS', AM: 'ECS', AT: 'ECS', BY: 'ECS', BA: 'ECS', BG: 'ECS', HR: 'ECS', CY: 'ECS',
+  CZ: 'ECS', DK: 'ECS', EE: 'ECS', FI: 'ECS', FR: 'ECS', DE: 'ECS', GR: 'ECS', HU: 'ECS',
+  IS: 'ECS', IE: 'ECS', IT: 'ECS', LV: 'ECS', LI: 'ECS', LT: 'ECS', LU: 'ECS', MT: 'ECS',
+  MD: 'ECS', MC: 'ECS', ME: 'ECS', NL: 'ECS', MK: 'ECS', NO: 'ECS', PL: 'ECS', PT: 'ECS',
+  RO: 'ECS', RU: 'ECS', SM: 'ECS', RS: 'ECS', SK: 'ECS', SI: 'ECS', ES: 'ECS', SE: 'ECS',
+  CH: 'ECS', TR: 'ECS', UA: 'ECS', GB: 'ECS', XK: 'ECS',
+  SA: 'MNA', IR: 'MNA', IQ: 'MNA', YE: 'MNA', SY: 'MNA', JO: 'MNA', LB: 'MNA', AE: 'MNA',
+  IL: 'MNA', PS: 'MNA', KW: 'MNA', OM: 'MNA', QA: 'MNA', BH: 'MNA', DZ: 'MNA', EG: 'MNA',
+  LY: 'MNA', MA: 'MNA', TN: 'MNA',
+  NG: 'SSA', ET: 'SSA', CD: 'SSA', TZ: 'SSA', KE: 'SSA', ZA: 'SSA', UG: 'SSA', GH: 'SSA',
+  MZ: 'SSA', MG: 'SSA', CM: 'SSA', CI: 'SSA', NE: 'SSA', BF: 'SSA', ML: 'SSA', MW: 'SSA',
+  ZW: 'SSA', SN: 'SSA', TD: 'SSA', SD: 'SSA', AO: 'SSA', RW: 'SSA', ZM: 'SSA', SO: 'SSA',
+  US: 'NAC', CA: 'NAC', MX: 'LCN', BR: 'LCN', AR: 'LCN', CO: 'LCN', CL: 'LCN', PE: 'LCN',
+  EC: 'LCN', GT: 'LCN', CU: 'LCN', BO: 'LCN', DO: 'LCN', HN: 'LCN', PY: 'LCN', SV: 'LCN',
+  NI: 'LCN', CR: 'LCN', PA: 'LCN', UY: 'LCN', VE: 'LCN', PR: 'LCN', JM: 'LCN', TT: 'LCN',
+};
+
+/** ISO3 codes of territories that report to IMF under their own code (e.g. TWN = Chinese Taipei). Do not use parent GDP scaling; leave to IMF fallback for accurate financial data. */
+const TERRITORY_USE_IMF_GDP = new Set(['TWN', 'HKG', 'MAC']);
+
+/**
+ * Land and total (surface) area in km² for economies where World Bank WDI has no or sparse coverage.
+ * Sources: UN Statistics Division, REST Countries API, CIA World Factbook.
+ */
+const AREA_FALLBACK_KM2: Record<string, { land: number; total: number }> = {
+  XKX: { land: 10887, total: 10908 }, // Kosovo – UN/REST Countries
+  TWN: { land: 32260, total: 36193 }, // Taiwan – REST Countries / CIA
+};
+
+/** Population fallback for territories that use IMF GDP when World Bank has no WDI population (e.g. TWN). Ref: UN/IMF 2023. */
+const POPULATION_FALLBACK: Record<string, number> = {
+  TWN: 23.9e6,
+  HKG: 7.5e6,
+  MAC: 0.7e6,
+};
 
 // Indicator codes from World Bank (WDI)
 const INDICATORS = {
@@ -120,6 +203,15 @@ const INDICATORS = {
   undernourishmentPrevalence: 'SN.ITK.DEFC.ZS', // Prevalence of undernourishment (% of population) – FAO, UN
   landArea: 'AG.LND.TOTL.K2', // Land area (sq. km)
   surfaceArea: 'AG.SRF.TOTL.K2', // Surface area (sq. km)
+  // Education – UNESCO Institute for Statistics via World Bank WDI (from 2000)
+  primaryNetEnrollmentPct: 'SE.PRM.NENR', // Primary net enrollment rate (%); out-of-school rate = 100 - this
+  primaryCompletionRate: 'SE.PRM.CMPT.ZS', // Primary completion rate (% of relevant age group)
+  learningPovertyPct: 'SE.LPV.PRIM', // Learning poverty (% below minimum reading proficiency); min proficiency = 100 - this
+  preprimaryEnrollmentPct: 'SE.PRE.ENRR', // School enrollment, preprimary (% gross)
+  literacyRateAdultPct: 'SE.ADT.LITR.ZS', // Literacy rate, adult total (% of people ages 15+)
+  genderParityIndexPrimary: 'SE.ENR.PRIM.FM.ZS', // Ratio of female to male primary enrollment (%); GPI = value/100
+  trainedTeachersPrimaryPct: 'SE.PRM.TCAQ.ZS', // Trained teachers in primary education (% of total teachers)
+  publicExpenditureEducationPctGDP: 'SE.XPD.TOTL.GD.ZS', // Government expenditure on education as % of GDP
 } as const;
 
 type IndicatorKey = keyof typeof INDICATORS;
@@ -269,6 +361,42 @@ function fillSeriesWithFallback(
   }
 
   return dense;
+}
+
+/** Education metrics that are conceptually 0–100% and should be capped for display (WDI can report >100 e.g. gross completion). */
+const EDUCATION_PCT_CAP_100 = new Set([
+  'outOfSchoolPrimaryPct', 'primaryCompletionRate', 'minProficiencyReadingPct',
+  'preprimaryEnrollmentPct', 'literacyRateAdultPct', 'trainedTeachersPrimaryPct',
+]);
+
+/** Treat 0 as missing for indicators where 0 is implausible (e.g. no country has 0% public education expenditure, or 0% primary net enrollment). Enables regional/world fallback to fill. */
+function treatZeroAsMissingForEducation(
+  series: TimePoint[],
+  indicator: 'publicExpenditureEducationPctGDP' | 'primaryNetEnrollmentPct' | 'learningPovertyPct',
+): TimePoint[] {
+  if (
+    indicator !== 'publicExpenditureEducationPctGDP' &&
+    indicator !== 'primaryNetEnrollmentPct' &&
+    indicator !== 'learningPovertyPct'
+  ) return series;
+  return series.map((p) => ({
+    ...p,
+    value: p.value != null && p.value === 0 ? null : p.value,
+  }));
+}
+
+function clampEducationPct(metricId: string, value: number | null): number | null {
+  if (value == null || !Number.isFinite(value)) return value;
+  if (!EDUCATION_PCT_CAP_100.has(metricId)) return value;
+  return Math.min(100, Math.max(0, value));
+}
+
+function clampEducationSeriesPoints(series: TimePoint[], metricId: string): TimePoint[] {
+  if (!EDUCATION_PCT_CAP_100.has(metricId)) return series;
+  return series.map((p) => ({
+    ...p,
+    value: clampEducationPct(metricId, p.value),
+  }));
 }
 
 interface WorldBankIndicatorRow {
@@ -649,6 +777,22 @@ export async function fetchAllCountries(): Promise<CountrySummary[]> {
       });
     }
 
+    const hasKosovo = list.some(
+      (c) => c.iso2Code.toUpperCase() === 'XK' || c.iso3Code?.toUpperCase() === 'XKX' || /kosovo/i.test(c.name),
+    );
+    if (!hasKosovo) {
+      list.push({
+        iso2Code: 'XK',
+        iso3Code: 'XKX',
+        name: 'Kosovo',
+        region: 'Europe & Central Asia',
+        incomeLevel: 'Upper middle income',
+        capitalCity: 'Pristina',
+        latitude: 42.67,
+        longitude: 21.17,
+      });
+    }
+
     return list.sort((a, b) => a.name.localeCompare(b.name));
   })();
   return allCountriesPromise;
@@ -832,6 +976,166 @@ export async function fetchCountryDashboardData(
       fetchIndicatorSeries(countryCode, 'landArea', startYear, endYear),
       fetchIndicatorSeries(countryCode, 'surfaceArea', startYear, endYear),
     ]);
+
+  const [
+    primaryNetEnrollmentPctRaw,
+    primaryCompletionRateRaw,
+    learningPovertyPctRaw,
+    preprimaryEnrollmentPctRaw,
+    literacyRateAdultPctRaw,
+    genderParityIndexPrimaryRaw,
+    trainedTeachersPrimaryPctRaw,
+    publicExpenditureEducationPctGDPRaw,
+  ] = await Promise.all([
+    fetchIndicatorSeries(countryCode, 'primaryNetEnrollmentPct', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'primaryCompletionRate', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'learningPovertyPct', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'preprimaryEnrollmentPct', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'literacyRateAdultPct', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'genderParityIndexPrimary', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'trainedTeachersPrimaryPct', startYear, endYear),
+    fetchIndicatorSeries(countryCode, 'publicExpenditureEducationPctGDP', startYear, endYear),
+  ]);
+
+  // Treat 0 as missing for public expenditure (implausible); allows regional/world fallback to fill.
+  const publicExpenditureRawNormalized = treatZeroAsMissingForEducation(
+    publicExpenditureEducationPctGDPRaw,
+    'publicExpenditureEducationPctGDP',
+  );
+
+  // Regional fallback for education: when country is not a territory, fill gaps from WB regional aggregate (e.g. Indonesia -> East Asia & Pacific).
+  const parentIso2ForEducation = TERRITORY_FALLBACK_PARENT[countryCode.toUpperCase()];
+  let regionCode = !parentIso2ForEducation && summary.region ? REGION_LABEL_TO_WB_CODE[summary.region] : undefined;
+  if (!regionCode && !parentIso2ForEducation && summary.iso2Code) {
+    regionCode = REGION_FALLBACK_BY_ISO2[summary.iso2Code.toUpperCase()];
+  }
+  let primaryNetEnrollmentPctForSeries = treatZeroAsMissingForEducation(
+    primaryNetEnrollmentPctRaw,
+    'primaryNetEnrollmentPct',
+  );
+  let primaryCompletionRateForSeries = primaryCompletionRateRaw;
+  let learningPovertyPctForSeries = treatZeroAsMissingForEducation(
+    learningPovertyPctRaw,
+    'learningPovertyPct',
+  );
+  let preprimaryEnrollmentPctForSeries = preprimaryEnrollmentPctRaw;
+  let literacyRateAdultPctForSeries = literacyRateAdultPctRaw;
+  let genderParityIndexPrimaryForSeries = genderParityIndexPrimaryRaw;
+  let trainedTeachersPrimaryPctForSeries = trainedTeachersPrimaryPctRaw;
+  let publicExpenditureEducationPctGDPForSeries = publicExpenditureRawNormalized;
+
+  if (regionCode) {
+    const [
+      regionPrimaryNet,
+      regionCompletion,
+      regionLearningPoverty,
+      regionPreprimary,
+      regionLiteracy,
+      regionGPI,
+      regionTrained,
+      regionExpenditure,
+    ] = await Promise.all([
+      fetchIndicatorSeries(regionCode, 'primaryNetEnrollmentPct', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'primaryCompletionRate', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'learningPovertyPct', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'preprimaryEnrollmentPct', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'literacyRateAdultPct', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'genderParityIndexPrimary', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'trainedTeachersPrimaryPct', startYear, endYear),
+      fetchIndicatorSeries(regionCode, 'publicExpenditureEducationPctGDP', startYear, endYear),
+    ]);
+    primaryNetEnrollmentPctForSeries = mergeSeriesWithFallback(primaryNetEnrollmentPctForSeries, regionPrimaryNet, startYear, endYear);
+    primaryCompletionRateForSeries = mergeSeriesWithFallback(primaryCompletionRateRaw, regionCompletion, startYear, endYear);
+    learningPovertyPctForSeries = mergeSeriesWithFallback(learningPovertyPctForSeries, regionLearningPoverty, startYear, endYear);
+    preprimaryEnrollmentPctForSeries = mergeSeriesWithFallback(preprimaryEnrollmentPctRaw, regionPreprimary, startYear, endYear);
+    literacyRateAdultPctForSeries = mergeSeriesWithFallback(literacyRateAdultPctRaw, regionLiteracy, startYear, endYear);
+    genderParityIndexPrimaryForSeries = mergeSeriesWithFallback(genderParityIndexPrimaryRaw, regionGPI, startYear, endYear);
+    trainedTeachersPrimaryPctForSeries = mergeSeriesWithFallback(trainedTeachersPrimaryPctRaw, regionTrained, startYear, endYear);
+    publicExpenditureEducationPctGDPForSeries = mergeSeriesWithFallback(publicExpenditureRawNormalized, regionExpenditure, startYear, endYear);
+  }
+
+  // Territory fallback for education: when country is a territory (e.g. Channel Islands), fill from parent country.
+  if (parentIso2ForEducation) {
+    const [
+      parentPrimaryNet,
+      parentCompletion,
+      parentLearningPoverty,
+      parentPreprimary,
+      parentLiteracy,
+      parentGPI,
+      parentTrained,
+      parentExpenditure,
+    ] = await Promise.all([
+      fetchIndicatorSeries(parentIso2ForEducation, 'primaryNetEnrollmentPct', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'primaryCompletionRate', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'learningPovertyPct', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'preprimaryEnrollmentPct', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'literacyRateAdultPct', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'genderParityIndexPrimary', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'trainedTeachersPrimaryPct', startYear, endYear),
+      fetchIndicatorSeries(parentIso2ForEducation, 'publicExpenditureEducationPctGDP', startYear, endYear),
+    ]);
+    primaryNetEnrollmentPctForSeries = mergeSeriesWithFallback(primaryNetEnrollmentPctForSeries, parentPrimaryNet, startYear, endYear);
+    primaryCompletionRateForSeries = mergeSeriesWithFallback(primaryCompletionRateForSeries, parentCompletion, startYear, endYear);
+    learningPovertyPctForSeries = mergeSeriesWithFallback(learningPovertyPctForSeries, parentLearningPoverty, startYear, endYear);
+    preprimaryEnrollmentPctForSeries = mergeSeriesWithFallback(preprimaryEnrollmentPctForSeries, parentPreprimary, startYear, endYear);
+    literacyRateAdultPctForSeries = mergeSeriesWithFallback(literacyRateAdultPctForSeries, parentLiteracy, startYear, endYear);
+    genderParityIndexPrimaryForSeries = mergeSeriesWithFallback(genderParityIndexPrimaryForSeries, parentGPI, startYear, endYear);
+    trainedTeachersPrimaryPctForSeries = mergeSeriesWithFallback(trainedTeachersPrimaryPctForSeries, parentTrained, startYear, endYear);
+    publicExpenditureEducationPctGDPForSeries = mergeSeriesWithFallback(publicExpenditureEducationPctGDPForSeries, parentExpenditure, startYear, endYear);
+  }
+
+  // World (WLD) fallback for education: fill remaining gaps with World Bank world aggregate so timelines are complete.
+  const [
+    worldPrimaryNet,
+    worldCompletion,
+    worldLearningPoverty,
+    worldPreprimary,
+    worldLiteracy,
+    worldGPI,
+    worldTrained,
+    worldExpenditure,
+  ] = await Promise.all([
+    fetchIndicatorSeries('WLD', 'primaryNetEnrollmentPct', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'primaryCompletionRate', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'learningPovertyPct', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'preprimaryEnrollmentPct', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'literacyRateAdultPct', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'genderParityIndexPrimary', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'trainedTeachersPrimaryPct', startYear, endYear),
+    fetchIndicatorSeries('WLD', 'publicExpenditureEducationPctGDP', startYear, endYear),
+  ]);
+  primaryNetEnrollmentPctForSeries = mergeSeriesWithFallback(primaryNetEnrollmentPctForSeries, worldPrimaryNet, startYear, endYear);
+  primaryCompletionRateForSeries = mergeSeriesWithFallback(primaryCompletionRateForSeries, worldCompletion, startYear, endYear);
+  learningPovertyPctForSeries = mergeSeriesWithFallback(learningPovertyPctForSeries, worldLearningPoverty, startYear, endYear);
+  preprimaryEnrollmentPctForSeries = mergeSeriesWithFallback(preprimaryEnrollmentPctForSeries, worldPreprimary, startYear, endYear);
+  literacyRateAdultPctForSeries = mergeSeriesWithFallback(literacyRateAdultPctForSeries, worldLiteracy, startYear, endYear);
+  genderParityIndexPrimaryForSeries = mergeSeriesWithFallback(genderParityIndexPrimaryForSeries, worldGPI, startYear, endYear);
+  trainedTeachersPrimaryPctForSeries = mergeSeriesWithFallback(trainedTeachersPrimaryPctForSeries, worldTrained, startYear, endYear);
+  publicExpenditureEducationPctGDPForSeries = mergeSeriesWithFallback(publicExpenditureEducationPctGDPForSeries, worldExpenditure, startYear, endYear);
+
+  // Fill any remaining gaps in primary net enrollment (e.g. years where even world had no data) so out-of-school timeline is dense.
+  const primaryNetEnrollmentDense = fillSeriesWithFallback(primaryNetEnrollmentPctForSeries, startYear, endYear);
+  const OUT_OF_SCHOOL_DEFAULT_PCT = 10; // Last-resort when no country/region/world data for a year
+  const outOfSchoolPrimaryPctSeries: TimePoint[] = primaryNetEnrollmentDense.map((p) => {
+    const netEnroll = p.value != null && Number.isFinite(p.value) ? p.value : null;
+    const outOfSchool = netEnroll != null ? 100 - netEnroll : OUT_OF_SCHOOL_DEFAULT_PCT;
+    return {
+      ...p,
+      value: clampEducationPct('outOfSchoolPrimaryPct', outOfSchool),
+    };
+  });
+  // Fill gaps in learning poverty and derive min proficiency with last-resort default so chart is never empty (e.g. Indonesia).
+  const learningPovertyDense = fillSeriesWithFallback(learningPovertyPctForSeries, startYear, endYear);
+  const MIN_PROFICIENCY_DEFAULT_PCT = 70; // Last-resort when no country/region/world data (typical global ~50–70%)
+  const minProficiencyReadingPctSeries: TimePoint[] = learningPovertyDense.map((p) => {
+    const learningPoverty = p.value != null && Number.isFinite(p.value) ? p.value : null;
+    const minProficiency = learningPoverty != null ? 100 - learningPoverty : MIN_PROFICIENCY_DEFAULT_PCT;
+    return {
+      ...p,
+      value: clampEducationPct('minProficiencyReadingPct', minProficiency),
+    };
+  });
 
   const macroStartYear = Math.min(startYear, 1990);
   const parentIso2 = TERRITORY_FALLBACK_PARENT[countryCode.toUpperCase()];
@@ -1272,6 +1576,57 @@ export async function fetchCountryDashboardData(
     },
   ];
 
+  const educationSeries: MetricSeries[] = [
+    {
+      id: 'outOfSchoolPrimaryPct',
+      label: 'Out-of-school rate (primary, % of primary school age)',
+      unit: '%',
+      points: outOfSchoolPrimaryPctSeries,
+    },
+    {
+      id: 'primaryCompletionRate',
+      label: 'Primary completion rate (% of relevant age group)',
+      unit: '%',
+      points: clampEducationSeriesPoints(fillSeriesWithFallback(primaryCompletionRateForSeries, startYear, endYear), 'primaryCompletionRate'),
+    },
+    {
+      id: 'minProficiencyReadingPct',
+      label: 'Minimum reading proficiency (% of children at end of primary)',
+      unit: '%',
+      points: minProficiencyReadingPctSeries,
+    },
+    {
+      id: 'preprimaryEnrollmentPct',
+      label: 'Early childhood education – Preprimary enrollment (% gross)',
+      unit: '%',
+      points: clampEducationSeriesPoints(fillSeriesWithFallback(preprimaryEnrollmentPctForSeries, startYear, endYear), 'preprimaryEnrollmentPct'),
+    },
+    {
+      id: 'literacyRateAdultPct',
+      label: 'Literacy rate, adult (% of people ages 15+)',
+      unit: '%',
+      points: clampEducationSeriesPoints(fillSeriesWithFallback(literacyRateAdultPctForSeries, startYear, endYear), 'literacyRateAdultPct'),
+    },
+    {
+      id: 'genderParityIndexPrimary',
+      label: 'Gender parity index (GPI), primary enrollment',
+      unit: 'ratio',
+      points: fillSeriesWithFallback(genderParityIndexPrimaryForSeries, startYear, endYear),
+    },
+    {
+      id: 'trainedTeachersPrimaryPct',
+      label: 'Trained teachers in primary education (% of total teachers)',
+      unit: '%',
+      points: clampEducationSeriesPoints(fillSeriesWithFallback(trainedTeachersPrimaryPctForSeries, startYear, endYear), 'trainedTeachersPrimaryPct'),
+    },
+    {
+      id: 'publicExpenditureEducationPctGDP',
+      label: 'Public expenditure on education (% of GDP)',
+      unit: '% of GDP',
+      points: fillSeriesWithFallback(publicExpenditureEducationPctGDPForSeries, startYear, endYear),
+    },
+  ];
+
   const allYears = new Set<number>();
   for (const p of [...gdpNominal, ...population]) {
     allYears.add(p.year);
@@ -1302,8 +1657,14 @@ export async function fetchCountryDashboardData(
     };
 
     const populationBreakdown = await buildPopulationBreakdown(year, countryCode);
-    const landAreaValue = latestNonNullUpToYear(landAreaSeries, year);
-    const surfaceAreaValue = latestNonNullUpToYear(surfaceAreaSeries, year);
+    let landAreaValue = latestNonNullUpToYear(landAreaSeries, year);
+    let surfaceAreaValue = latestNonNullUpToYear(surfaceAreaSeries, year);
+    const iso3ForArea = summary.iso3Code?.toUpperCase();
+    const areaFallbackDashboard = iso3ForArea ? AREA_FALLBACK_KM2[iso3ForArea] : undefined;
+    if (areaFallbackDashboard) {
+      if (landAreaValue == null) landAreaValue = areaFallbackDashboard.land;
+      if (surfaceAreaValue == null) surfaceAreaValue = areaFallbackDashboard.total;
+    }
 
     latestSnapshot = {
       country: summary,
@@ -1366,6 +1727,34 @@ export async function fetchCountryDashboardData(
             year,
           ),
         },
+        education: {
+          outOfSchoolPrimaryPct: clampEducationPct('outOfSchoolPrimaryPct', latestNonNullUpToYear(outOfSchoolPrimaryPctSeries, year)),
+          primaryCompletionRate: clampEducationPct('primaryCompletionRate', latestNonNullUpToYear(
+            fillSeriesWithFallback(primaryCompletionRateForSeries, startYear, endYear),
+            year,
+          )),
+          minProficiencyReadingPct: clampEducationPct('minProficiencyReadingPct', latestNonNullUpToYear(minProficiencyReadingPctSeries, year)),
+          preprimaryEnrollmentPct: clampEducationPct('preprimaryEnrollmentPct', latestNonNullUpToYear(
+            fillSeriesWithFallback(preprimaryEnrollmentPctForSeries, startYear, endYear),
+            year,
+          )),
+          literacyRateAdultPct: clampEducationPct('literacyRateAdultPct', latestNonNullUpToYear(
+            fillSeriesWithFallback(literacyRateAdultPctForSeries, startYear, endYear),
+            year,
+          )),
+          genderParityIndexPrimary: latestNonNullUpToYear(
+            fillSeriesWithFallback(genderParityIndexPrimaryForSeries, startYear, endYear),
+            year,
+          ),
+          trainedTeachersPrimaryPct: clampEducationPct('trainedTeachersPrimaryPct', latestNonNullUpToYear(
+            fillSeriesWithFallback(trainedTeachersPrimaryPctForSeries, startYear, endYear),
+            year,
+          )),
+          publicExpenditureEducationPctGDP: latestNonNullUpToYear(
+            fillSeriesWithFallback(publicExpenditureEducationPctGDPForSeries, startYear, endYear),
+            year,
+          ),
+        },
         geography: {
           landAreaKm2: landAreaValue,
           totalAreaKm2: surfaceAreaValue ?? landAreaValue,
@@ -1389,6 +1778,7 @@ export async function fetchCountryDashboardData(
       financial: financialSeries,
       population: populationSeries,
       health: healthSeries,
+      education: educationSeries,
     },
     latestSnapshot,
   } as CountryDashboardData;
@@ -1450,6 +1840,14 @@ export async function fetchGlobalCountryMetricsForYear(
       pop65PlusPct,
       landArea,
       surfaceArea,
+      primaryNetEnrollmentPct,
+      primaryCompletionRate,
+      learningPovertyPct,
+      preprimaryEnrollmentPct,
+      literacyRateAdultPct,
+      genderParityIndexPrimary,
+      trainedTeachersPrimaryPct,
+      publicExpenditureEducationPctGDP,
     ] = await Promise.all([
       fetchGlobalIndicatorForYear('gdpNominal', year),
       fetchGlobalIndicatorForYear('gdpPPP', year),
@@ -1475,6 +1873,15 @@ export async function fetchGlobalCountryMetricsForYear(
       // Land/surface area are essentially static; use the latest non-null value.
       fetchGlobalStaticIndicator('landArea'),
       fetchGlobalStaticIndicator('surfaceArea'),
+      // Education (UNESCO/World Bank WDI)
+      fetchGlobalIndicatorLatestUpToYear('primaryNetEnrollmentPct', year, DATA_MIN_YEAR),
+      fetchGlobalIndicatorForYear('primaryCompletionRate', year),
+      fetchGlobalIndicatorLatestUpToYear('learningPovertyPct', year, DATA_MIN_YEAR),
+      fetchGlobalIndicatorForYear('preprimaryEnrollmentPct', year),
+      fetchGlobalIndicatorLatestUpToYear('literacyRateAdultPct', year, DATA_MIN_YEAR),
+      fetchGlobalIndicatorForYear('genderParityIndexPrimary', year),
+      fetchGlobalIndicatorLatestUpToYear('trainedTeachersPrimaryPct', year, DATA_MIN_YEAR),
+      fetchGlobalIndicatorLatestUpToYear('publicExpenditureEducationPctGDP', year, DATA_MIN_YEAR),
     ]);
 
     const normalizeForYear = (rows: WorldBankIndicatorRow[]) => {
@@ -1588,6 +1995,43 @@ export async function fetchGlobalCountryMetricsForYear(
     apply(landArea, 'landAreaKm2');
     apply(surfaceArea, 'totalAreaKm2');
 
+    // Education: apply raw indicators; derive out-of-school and min proficiency
+    const applyTransform = (
+      rows: WorldBankIndicatorRow[],
+      key: keyof GlobalCountryMetricsRow,
+      transform: (v: number) => number | null,
+    ) => {
+      const latestRows = normalizeForYear(rows);
+      for (const row of latestRows) {
+        if (!row.countryiso3code) continue;
+        const iso3 = row.countryiso3code.toUpperCase();
+        if (!validIso3.has(iso3) || row.value == null) continue;
+        const existing = byIso3.get(iso3);
+        if (existing) {
+          (existing as unknown as Record<string, unknown>)[key] = transform(row.value);
+        }
+      }
+    };
+    // Treat 0% primary net enrollment as missing so regional/world fallback can fill (WDI often returns 0 when data is missing).
+    applyTransform(primaryNetEnrollmentPct, 'outOfSchoolPrimaryPct', (v) => (v === 0 ? null : 100 - v));
+    apply(primaryCompletionRate, 'primaryCompletionRate');
+    applyTransform(learningPovertyPct, 'minProficiencyReadingPct', (v) => (v === 0 ? null : 100 - v));
+    apply(preprimaryEnrollmentPct, 'preprimaryEnrollmentPct');
+    apply(literacyRateAdultPct, 'literacyRateAdultPct');
+    apply(genderParityIndexPrimary, 'genderParityIndexPrimary');
+    apply(trainedTeachersPrimaryPct, 'trainedTeachersPrimaryPct');
+    apply(publicExpenditureEducationPctGDP, 'publicExpenditureEducationPctGDP');
+
+    // Clamp education percentage metrics to 0–100 (WDI can report >100 e.g. gross completion).
+    for (const row of byIso3.values()) {
+      row.outOfSchoolPrimaryPct = clampEducationPct('outOfSchoolPrimaryPct', row.outOfSchoolPrimaryPct ?? null);
+      row.primaryCompletionRate = clampEducationPct('primaryCompletionRate', row.primaryCompletionRate ?? null);
+      row.minProficiencyReadingPct = clampEducationPct('minProficiencyReadingPct', row.minProficiencyReadingPct ?? null);
+      row.preprimaryEnrollmentPct = clampEducationPct('preprimaryEnrollmentPct', row.preprimaryEnrollmentPct ?? null);
+      row.literacyRateAdultPct = clampEducationPct('literacyRateAdultPct', row.literacyRateAdultPct ?? null);
+      row.trainedTeachersPrimaryPct = clampEducationPct('trainedTeachersPrimaryPct', row.trainedTeachersPrimaryPct ?? null);
+    }
+
     // Derive absolute age-group population counts from total population and % shares.
     for (const row of byIso3.values()) {
       const total = row.populationTotal;
@@ -1613,7 +2057,28 @@ export async function fetchGlobalCountryMetricsForYear(
       }
     }
 
+    // Area fallback for Kosovo (XKX) and Taiwan (TWN) when World Bank WDI has no land/surface data.
+    for (const row of byIso3.values()) {
+      const iso3 = row.iso3Code?.toUpperCase();
+      if (!iso3) continue;
+      const areaFallback = AREA_FALLBACK_KM2[iso3];
+      if (!areaFallback) continue;
+      if (row.landAreaKm2 == null) row.landAreaKm2 = areaFallback.land;
+      if (row.totalAreaKm2 == null) row.totalAreaKm2 = areaFallback.total;
+    }
+    // Population fallback for territories that use IMF GDP (TWN, HKG, MAC) when WDI has no data.
+    for (const row of byIso3.values()) {
+      const iso3 = row.iso3Code?.toUpperCase();
+      if (!iso3) continue;
+      const popFallback = POPULATION_FALLBACK[iso3];
+      if (popFallback == null) continue;
+      if (row.populationTotal == null || row.populationTotal <= 0) {
+        row.populationTotal = popFallback;
+      }
+    }
+
     // Territory fallback: fill missing financial metrics from parent country (e.g. British Virgin Islands -> UK, Gibraltar -> UK).
+    // Do NOT assign parent's aggregate GDP/GDP PPP to the territory (would show e.g. China's totals for Taiwan). Only use scaled estimate (territory pop × parent per capita); otherwise leave null for IMF/other fallback.
     const iso2ToCountry = new Map(countryList.map((c) => [c.iso2Code.toUpperCase(), c]));
     for (const row of byIso3.values()) {
       const parentIso2 = row.iso2Code ? TERRITORY_FALLBACK_PARENT[row.iso2Code.toUpperCase()] : undefined;
@@ -1627,18 +2092,14 @@ export async function fetchGlobalCountryMetricsForYear(
       const parentPcNominal = parentRow.gdpNominalPerCapita;
       const parentPcPPP = parentRow.gdpPPPPerCapita;
 
-      if (row.gdpNominal == null && (parentPcNominal != null || parentRow.gdpNominal != null)) {
-        if (pop != null && parentPcNominal != null && pop > 0) {
+      // Skip aggregate GDP fallback for territories that report to IMF (e.g. Taiwan TWN); use IMF for accurate data.
+      const useImfGdp = row.iso3Code ? TERRITORY_USE_IMF_GDP.has(row.iso3Code.toUpperCase()) : false;
+      if (!useImfGdp) {
+        if (row.gdpNominal == null && parentPcNominal != null && pop != null && pop > 0) {
           row.gdpNominal = pop * parentPcNominal;
-        } else if (parentRow.gdpNominal != null) {
-          row.gdpNominal = parentRow.gdpNominal;
         }
-      }
-      if (row.gdpPPP == null && (parentPcPPP != null || parentRow.gdpPPP != null)) {
-        if (pop != null && parentPcPPP != null && pop > 0) {
+        if (row.gdpPPP == null && parentPcPPP != null && pop != null && pop > 0) {
           row.gdpPPP = pop * parentPcPPP;
-        } else if (parentRow.gdpPPP != null) {
-          row.gdpPPP = parentRow.gdpPPP;
         }
       }
       if (row.gdpNominalPerCapita == null && parentPcNominal != null) {
@@ -1670,6 +2131,63 @@ export async function fetchGlobalCountryMetricsForYear(
       }
       if (row.povertyHeadcountNational == null && parentRow.povertyHeadcountNational != null) {
         row.povertyHeadcountNational = parentRow.povertyHeadcountNational;
+      }
+      // Health & demographics: fill from parent when WDI has no data (e.g. Monaco, St. Martin, Taiwan, San Marino).
+      if (row.lifeExpectancy == null && parentRow.lifeExpectancy != null) {
+        row.lifeExpectancy = parentRow.lifeExpectancy;
+      }
+      if (row.maternalMortalityRatio == null && parentRow.maternalMortalityRatio != null) {
+        row.maternalMortalityRatio = parentRow.maternalMortalityRatio;
+      }
+      if (row.under5MortalityRate == null && parentRow.under5MortalityRate != null) {
+        row.under5MortalityRate = parentRow.under5MortalityRate;
+      }
+      if (row.undernourishmentPrevalence == null && parentRow.undernourishmentPrevalence != null) {
+        row.undernourishmentPrevalence = parentRow.undernourishmentPrevalence;
+      }
+      if (row.pop0_14Pct == null && parentRow.pop0_14Pct != null) {
+        row.pop0_14Pct = parentRow.pop0_14Pct;
+      }
+      if (row.pop15_64Pct == null && parentRow.pop15_64Pct != null) {
+        row.pop15_64Pct = parentRow.pop15_64Pct;
+      }
+      if (row.pop65PlusPct == null && parentRow.pop65PlusPct != null) {
+        row.pop65PlusPct = parentRow.pop65PlusPct;
+      }
+      // Education: fill from parent when WDI has no data (e.g. Kosovo, Taiwan).
+      if (row.outOfSchoolPrimaryPct == null && parentRow.outOfSchoolPrimaryPct != null) row.outOfSchoolPrimaryPct = parentRow.outOfSchoolPrimaryPct;
+      if (row.primaryCompletionRate == null && parentRow.primaryCompletionRate != null) row.primaryCompletionRate = parentRow.primaryCompletionRate;
+      if (row.minProficiencyReadingPct == null && parentRow.minProficiencyReadingPct != null) row.minProficiencyReadingPct = parentRow.minProficiencyReadingPct;
+      if (row.preprimaryEnrollmentPct == null && parentRow.preprimaryEnrollmentPct != null) row.preprimaryEnrollmentPct = parentRow.preprimaryEnrollmentPct;
+      if (row.literacyRateAdultPct == null && parentRow.literacyRateAdultPct != null) row.literacyRateAdultPct = parentRow.literacyRateAdultPct;
+      if (row.genderParityIndexPrimary == null && parentRow.genderParityIndexPrimary != null) row.genderParityIndexPrimary = parentRow.genderParityIndexPrimary;
+      if (row.trainedTeachersPrimaryPct == null && parentRow.trainedTeachersPrimaryPct != null) row.trainedTeachersPrimaryPct = parentRow.trainedTeachersPrimaryPct;
+      if (row.publicExpenditureEducationPctGDP == null && parentRow.publicExpenditureEducationPctGDP != null) row.publicExpenditureEducationPctGDP = parentRow.publicExpenditureEducationPctGDP;
+    }
+
+    // Clamp education percentage metrics again after territory fallback (parent values capped to 0–100).
+    for (const row of byIso3.values()) {
+      row.outOfSchoolPrimaryPct = clampEducationPct('outOfSchoolPrimaryPct', row.outOfSchoolPrimaryPct ?? null);
+      row.primaryCompletionRate = clampEducationPct('primaryCompletionRate', row.primaryCompletionRate ?? null);
+      row.minProficiencyReadingPct = clampEducationPct('minProficiencyReadingPct', row.minProficiencyReadingPct ?? null);
+      row.preprimaryEnrollmentPct = clampEducationPct('preprimaryEnrollmentPct', row.preprimaryEnrollmentPct ?? null);
+      row.literacyRateAdultPct = clampEducationPct('literacyRateAdultPct', row.literacyRateAdultPct ?? null);
+      row.trainedTeachersPrimaryPct = clampEducationPct('trainedTeachersPrimaryPct', row.trainedTeachersPrimaryPct ?? null);
+    }
+
+    // Re-derive absolute age-group population after territory fallback (parent may have filled pop shares).
+    for (const row of byIso3.values()) {
+      const total = row.populationTotal;
+      if (total != null && total > 0) {
+        if (row.pop0_14Pct != null && row.population0_14 == null) {
+          row.population0_14 = (row.pop0_14Pct / 100) * total;
+        }
+        if (row.pop15_64Pct != null && row.population15_64 == null) {
+          row.population15_64 = (row.pop15_64Pct / 100) * total;
+        }
+        if (row.pop65PlusPct != null && row.population65Plus == null) {
+          row.population65Plus = (row.pop65PlusPct / 100) * total;
+        }
       }
     }
 
@@ -1776,6 +2294,173 @@ export async function fetchGlobalCountryMetricsForYear(
       }
     }
 
+    // Regional fallback for health & demographics: fill missing using same-region then world medians (e.g. undernourishment for small islands, life expectancy / mortality for territories).
+    const worldLifeExp: number[] = [];
+    const worldMaternal: number[] = [];
+    const worldUnder5: number[] = [];
+    const worldUndernourishment: number[] = [];
+    const worldPop0_14: number[] = [];
+    const worldPop15_64: number[] = [];
+    const worldPop65: number[] = [];
+    for (const [, regionRows] of rowsByRegion) {
+      const lifeExp = regionRows
+        .map((r) => r.lifeExpectancy)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v < 120);
+      const maternal = regionRows
+        .map((r) => r.maternalMortalityRatio)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v >= 0);
+      const under5 = regionRows
+        .map((r) => r.under5MortalityRate)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v >= 0);
+      const undernourishment = regionRows
+        .map((r) => r.undernourishmentPrevalence)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const p0_14 = regionRows
+        .map((r) => r.pop0_14Pct)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v < 100);
+      const p15_64 = regionRows
+        .map((r) => r.pop15_64Pct)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v < 100);
+      const p65 = regionRows
+        .map((r) => r.pop65PlusPct)
+        .filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v < 100);
+      const regionLifeExp = medianForRegion(lifeExp);
+      const regionMaternal = medianForRegion(maternal);
+      const regionUnder5 = medianForRegion(under5);
+      const regionUndernourishment = medianForRegion(undernourishment);
+      const regionPop0_14 = medianForRegion(p0_14);
+      const regionPop15_64 = medianForRegion(p15_64);
+      const regionPop65 = medianForRegion(p65);
+      if (regionLifeExp != null) worldLifeExp.push(regionLifeExp);
+      if (regionMaternal != null) worldMaternal.push(regionMaternal);
+      if (regionUnder5 != null) worldUnder5.push(regionUnder5);
+      if (regionUndernourishment != null) worldUndernourishment.push(regionUndernourishment);
+      if (regionPop0_14 != null) worldPop0_14.push(regionPop0_14);
+      if (regionPop15_64 != null) worldPop15_64.push(regionPop15_64);
+      if (regionPop65 != null) worldPop65.push(regionPop65);
+      for (const row of regionRows) {
+        if (row.lifeExpectancy == null && regionLifeExp != null) row.lifeExpectancy = regionLifeExp;
+        if (row.maternalMortalityRatio == null && regionMaternal != null) row.maternalMortalityRatio = regionMaternal;
+        if (row.under5MortalityRate == null && regionUnder5 != null) row.under5MortalityRate = regionUnder5;
+        if (row.undernourishmentPrevalence == null && regionUndernourishment != null) row.undernourishmentPrevalence = regionUndernourishment;
+        if (row.pop0_14Pct == null && regionPop0_14 != null) row.pop0_14Pct = regionPop0_14;
+        if (row.pop15_64Pct == null && regionPop15_64 != null) row.pop15_64Pct = regionPop15_64;
+        if (row.pop65PlusPct == null && regionPop65 != null) row.pop65PlusPct = regionPop65;
+      }
+    }
+    const worldMedianLifeExp = medianForRegion(worldLifeExp);
+    const worldMedianMaternal = medianForRegion(worldMaternal);
+    const worldMedianUnder5 = medianForRegion(worldUnder5);
+    const worldMedianUndernourishment = medianForRegion(worldUndernourishment);
+    const worldMedianPop0_14 = medianForRegion(worldPop0_14);
+    const worldMedianPop15_64 = medianForRegion(worldPop15_64);
+    const worldMedianPop65 = medianForRegion(worldPop65);
+    for (const row of byIso3.values()) {
+      if (row.lifeExpectancy == null && worldMedianLifeExp != null) row.lifeExpectancy = worldMedianLifeExp;
+      if (row.maternalMortalityRatio == null && worldMedianMaternal != null) row.maternalMortalityRatio = worldMedianMaternal;
+      if (row.under5MortalityRate == null && worldMedianUnder5 != null) row.under5MortalityRate = worldMedianUnder5;
+      if (row.undernourishmentPrevalence == null && worldMedianUndernourishment != null) row.undernourishmentPrevalence = worldMedianUndernourishment;
+      if (row.pop0_14Pct == null && worldMedianPop0_14 != null) row.pop0_14Pct = worldMedianPop0_14;
+      if (row.pop15_64Pct == null && worldMedianPop15_64 != null) row.pop15_64Pct = worldMedianPop15_64;
+      if (row.pop65PlusPct == null && worldMedianPop65 != null) row.pop65PlusPct = worldMedianPop65;
+    }
+    // Re-derive absolute age-group population after regional/world health fallback.
+    for (const row of byIso3.values()) {
+      const total = row.populationTotal;
+      if (total != null && total > 0) {
+        if (row.pop0_14Pct != null) row.population0_14 = (row.pop0_14Pct / 100) * total;
+        if (row.pop15_64Pct != null) row.population15_64 = (row.pop15_64Pct / 100) * total;
+        if (row.pop65PlusPct != null) row.population65Plus = (row.pop65PlusPct / 100) * total;
+      }
+    }
+
+    // Regional fallback for education: fill missing using same-region then world medians (e.g. Indonesia and others with sparse UNESCO/WDI).
+    const worldEdOutOfSchool: number[] = [];
+    const worldEdCompletion: number[] = [];
+    const worldEdProficiency: number[] = [];
+    const worldEdPreprimary: number[] = [];
+    const worldEdLiteracy: number[] = [];
+    const worldEdGPI: number[] = [];
+    const worldEdTrained: number[] = [];
+    const worldEdExpenditure: number[] = [];
+    for (const [, regionRows] of rowsByRegion) {
+      const outOfSchool = regionRows.map((r) => r.outOfSchoolPrimaryPct).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const completion = regionRows.map((r) => r.primaryCompletionRate).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const proficiency = regionRows.map((r) => r.minProficiencyReadingPct).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const preprimary = regionRows.map((r) => r.preprimaryEnrollmentPct).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const literacy = regionRows.map((r) => r.literacyRateAdultPct).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const gpi = regionRows.map((r) => r.genderParityIndexPrimary).filter((v): v is number => v != null && Number.isFinite(v) && v > 0 && v < 2);
+      const trained = regionRows.map((r) => r.trainedTeachersPrimaryPct).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 100);
+      const expenditure = regionRows.map((r) => r.publicExpenditureEducationPctGDP).filter((v): v is number => v != null && Number.isFinite(v) && v >= 0 && v <= 30);
+      const rOut = medianForRegion(outOfSchool);
+      const rComp = medianForRegion(completion);
+      const rProf = medianForRegion(proficiency);
+      const rPre = medianForRegion(preprimary);
+      const rLit = medianForRegion(literacy);
+      const rGpi = medianForRegion(gpi);
+      const rTrained = medianForRegion(trained);
+      const rExp = medianForRegion(expenditure);
+      if (rOut != null) worldEdOutOfSchool.push(rOut);
+      if (rComp != null) worldEdCompletion.push(rComp);
+      if (rProf != null) worldEdProficiency.push(rProf);
+      if (rPre != null) worldEdPreprimary.push(rPre);
+      if (rLit != null) worldEdLiteracy.push(rLit);
+      if (rGpi != null) worldEdGPI.push(rGpi);
+      if (rTrained != null) worldEdTrained.push(rTrained);
+      if (rExp != null) worldEdExpenditure.push(rExp);
+      for (const row of regionRows) {
+        if (row.outOfSchoolPrimaryPct == null && rOut != null) row.outOfSchoolPrimaryPct = rOut;
+        if (row.primaryCompletionRate == null && rComp != null) row.primaryCompletionRate = rComp;
+        if (row.minProficiencyReadingPct == null && rProf != null) row.minProficiencyReadingPct = rProf;
+        if (row.preprimaryEnrollmentPct == null && rPre != null) row.preprimaryEnrollmentPct = rPre;
+        if (row.literacyRateAdultPct == null && rLit != null) row.literacyRateAdultPct = rLit;
+        if (row.genderParityIndexPrimary == null && rGpi != null) row.genderParityIndexPrimary = rGpi;
+        if (row.trainedTeachersPrimaryPct == null && rTrained != null) row.trainedTeachersPrimaryPct = rTrained;
+        if (row.publicExpenditureEducationPctGDP == null && rExp != null) row.publicExpenditureEducationPctGDP = rExp;
+      }
+    }
+    const worldMedOutOfSchool = medianForRegion(worldEdOutOfSchool);
+    const worldMedCompletion = medianForRegion(worldEdCompletion);
+    const worldMedProficiency = medianForRegion(worldEdProficiency);
+    const worldMedPreprimary = medianForRegion(worldEdPreprimary);
+    const worldMedLiteracy = medianForRegion(worldEdLiteracy);
+    const worldMedGPI = medianForRegion(worldEdGPI);
+    const worldMedTrained = medianForRegion(worldEdTrained);
+    const worldMedExpenditure = medianForRegion(worldEdExpenditure);
+    for (const row of byIso3.values()) {
+      if (row.outOfSchoolPrimaryPct == null && worldMedOutOfSchool != null) row.outOfSchoolPrimaryPct = worldMedOutOfSchool;
+      if (row.primaryCompletionRate == null && worldMedCompletion != null) row.primaryCompletionRate = worldMedCompletion;
+      if (row.minProficiencyReadingPct == null && worldMedProficiency != null) row.minProficiencyReadingPct = worldMedProficiency;
+      if (row.preprimaryEnrollmentPct == null && worldMedPreprimary != null) row.preprimaryEnrollmentPct = worldMedPreprimary;
+      if (row.literacyRateAdultPct == null && worldMedLiteracy != null) row.literacyRateAdultPct = worldMedLiteracy;
+      if (row.genderParityIndexPrimary == null && worldMedGPI != null) row.genderParityIndexPrimary = worldMedGPI;
+      if (row.trainedTeachersPrimaryPct == null && worldMedTrained != null) row.trainedTeachersPrimaryPct = worldMedTrained;
+      if (row.publicExpenditureEducationPctGDP == null && worldMedExpenditure != null) row.publicExpenditureEducationPctGDP = worldMedExpenditure;
+    }
+    // Last-resort fallback for out-of-school rate when no country/region has data (e.g. sparse WLD/UNESCO): use indicative global default so countries like Indonesia still show a value.
+    const OUT_OF_SCHOOL_FALLBACK_PCT = 10;
+    for (const row of byIso3.values()) {
+      if (row.outOfSchoolPrimaryPct == null) {
+        row.outOfSchoolPrimaryPct = worldMedOutOfSchool ?? OUT_OF_SCHOOL_FALLBACK_PCT;
+      }
+    }
+    // Last-resort fallback for minimum reading proficiency when no country/region/world data (sparse learning poverty).
+    const MIN_PROFICIENCY_FALLBACK_PCT = 70;
+    for (const row of byIso3.values()) {
+      if (row.minProficiencyReadingPct == null) {
+        row.minProficiencyReadingPct = worldMedProficiency ?? MIN_PROFICIENCY_FALLBACK_PCT;
+      }
+    }
+    // Final clamp of education percentage metrics after regional/world fallback.
+    for (const row of byIso3.values()) {
+      row.outOfSchoolPrimaryPct = clampEducationPct('outOfSchoolPrimaryPct', row.outOfSchoolPrimaryPct ?? null);
+      row.primaryCompletionRate = clampEducationPct('primaryCompletionRate', row.primaryCompletionRate ?? null);
+      row.minProficiencyReadingPct = clampEducationPct('minProficiencyReadingPct', row.minProficiencyReadingPct ?? null);
+      row.preprimaryEnrollmentPct = clampEducationPct('preprimaryEnrollmentPct', row.preprimaryEnrollmentPct ?? null);
+      row.literacyRateAdultPct = clampEducationPct('literacyRateAdultPct', row.literacyRateAdultPct ?? null);
+      row.trainedTeachersPrimaryPct = clampEducationPct('trainedTeachersPrimaryPct', row.trainedTeachersPrimaryPct ?? null);
+    }
+
     // Ensure we never display 0% for Poverty ($2.15/day): use a small floor when value is still 0 or null after all fallbacks.
     const POVERTY_215_MIN_FLOOR = 0.5;
     for (const row of byIso3.values()) {
@@ -1817,7 +2502,26 @@ export async function fetchGlobalCountryMetricsForYear(
       .map(([iso3]) => iso3);
     if (missingGdpIso3.length > 0) {
       try {
+        // Fetch IMF GDP for territories that report to IMF (TWN, HKG, MAC) individually first, so they get data even if the batch request fails or times out.
+        const territoryImfCodes = missingGdpIso3.filter((iso3) => TERRITORY_USE_IMF_GDP.has(iso3));
         const yearsToTry = [year, year - 1, year - 2].filter((y) => y >= DATA_MIN_YEAR && y <= DATA_MAX_YEAR);
+        for (const iso3 of territoryImfCodes) {
+          for (const y of yearsToTry) {
+            const imfGdp = await fetchGDPFromIMFForYearBatch([iso3], y);
+            const value = imfGdp.get(iso3);
+            if (value != null) {
+              const r = byIso3.get(iso3);
+              if (r && r.gdpNominal == null) {
+                r.gdpNominal = value;
+                if (r.populationTotal != null && r.populationTotal > 0) {
+                  r.gdpNominalPerCapita = value / r.populationTotal;
+                }
+              }
+              break;
+            }
+          }
+        }
+        // Then fill remaining missing GDP from IMF in batch.
         for (const y of yearsToTry) {
           const stillMissing = [...byIso3.entries()]
             .filter(([, r]) => r.gdpNominal == null)
@@ -1863,10 +2567,11 @@ export async function fetchGlobalCountryMetricsForYear(
 
     const rows = Array.from(byIso3.values());
 
-    // Fallback: fill missing Gov. debt and Lending rate with world median so
-    // countries like France still show an indicative value when source has no data.
+    // Fallback: fill missing Gov. debt, Lending rate, and Inflation with world median so
+    // countries like Marshall Islands, Channel Islands, Cuba show an indicative value.
     const govDebtValues = rows.map((r) => r.govDebtPercentGDP).filter((v): v is number => v != null && Number.isFinite(v));
     const interestRateValues = rows.map((r) => r.interestRate).filter((v): v is number => v != null && Number.isFinite(v));
+    const inflationValues = rows.map((r) => r.inflationCPI).filter((v): v is number => v != null && Number.isFinite(v));
     const median = (arr: number[]) => {
       if (!arr.length) return null;
       const sorted = [...arr].sort((a, b) => a - b);
@@ -1875,12 +2580,16 @@ export async function fetchGlobalCountryMetricsForYear(
     };
     const worldMedianGovDebt = median(govDebtValues);
     const worldMedianInterestRate = median(interestRateValues);
+    const worldMedianInflation = median(inflationValues);
     for (const row of rows) {
       if (row.govDebtPercentGDP == null && worldMedianGovDebt != null) {
         row.govDebtPercentGDP = worldMedianGovDebt;
       }
       if (row.interestRate == null && worldMedianInterestRate != null) {
         row.interestRate = worldMedianInterestRate;
+      }
+      if (row.inflationCPI == null && worldMedianInflation != null) {
+        row.inflationCPI = worldMedianInflation;
       }
       // Government debt in USD = GDP × (gov debt % / 100)
       if (
@@ -1889,6 +2598,25 @@ export async function fetchGlobalCountryMetricsForYear(
         row.govDebtPercentGDP > 0
       ) {
         row.govDebtUSD = (row.gdpNominal * row.govDebtPercentGDP) / 100;
+      }
+    }
+
+    // Fallback: estimate GDP PPP and GDP PPP per capita when missing but nominal GDP exists (e.g. Channel Islands, Cuba).
+    // Use world ratio (total PPP / total nominal) from countries that have both.
+    const totalNominal = rows.reduce((s, r) => s + (r.gdpNominal ?? 0), 0);
+    const totalPPP = rows.reduce((s, r) => s + (r.gdpPPP ?? 0), 0);
+    const worldPPPToNominalRatio = totalNominal > 0 && totalPPP > 0 ? totalPPP / totalNominal : null;
+    if (worldPPPToNominalRatio != null) {
+      for (const row of rows) {
+        if (row.gdpPPP == null && row.gdpNominal != null && row.gdpNominal > 0) {
+          row.gdpPPP = row.gdpNominal * worldPPPToNominalRatio;
+          if (row.populationTotal != null && row.populationTotal > 0) {
+            row.gdpPPPPerCapita = row.gdpPPP / row.populationTotal;
+          }
+        }
+        if (row.gdpPPPPerCapita == null && row.gdpPPP != null && row.populationTotal != null && row.populationTotal > 0) {
+          row.gdpPPPPerCapita = row.gdpPPP / row.populationTotal;
+        }
       }
     }
 

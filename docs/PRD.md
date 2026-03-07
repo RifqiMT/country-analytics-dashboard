@@ -67,7 +67,7 @@ See `USER_PERSONAS.md` for full detail.
 Seven main tabs:
 
 - **Country dashboard** – Single-country deep dive
-- **Global analytics** – Map, global tables, and **global macro charts** (unified, economic, health, population structure aggregates)
+- **Global analytics** – Map, global tables, and **global macro charts** (unified, economic, health, **education**, population structure aggregates)
 - **PESTEL** – Generate and view PESTEL analysis for the selected country with structured sections and sources; uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement
 - **Porter 5 Forces** – Generate Porter Five Forces analysis for the selected country and a chosen **ILO/ISIC industry division**; Executive Summary + 2 paragraphs per force; **inline citations only** (no separate sources list); TAVILY → GROQ → others
 - **Business Analytics** – Multi-metric correlation scatter (X/Y axes, highlight country), year selector, and correlation & causation analysis (Pearson r, p-value, interpretation)
@@ -118,6 +118,13 @@ Seven main tabs:
 - Toggle: Core metrics vs + Population age breakdown
 - YoY for each metric
 
+#### 4.2.8 Macro Indicators Timeline – Education
+
+- **Metrics** (UNESCO Institute for Statistics via World Bank WDI; coverage from 2000 to latest available, at least current year minus 2): Out-of-school rate (primary, %), Primary completion rate (%), Minimum reading proficiency (%), Early childhood – Preprimary enrollment (% gross), Adult literacy rate (%), Gender parity index (GPI) primary, Trained teachers in primary education (%), Public expenditure on education (% of GDP).
+- **Summary**: Education card in Country Dashboard with latest values and YoY for each metric.
+- **Timeline**: Dedicated Education section with frequency dropdown (weekly/monthly/quarterly/yearly), chart/table view, and metric chips to show/hide series. Same UI pattern as Macro Indicators.
+- **Derived**: Out-of-school rate = 100 − Primary net enrollment rate; Minimum reading proficiency = 100 − Learning poverty (%).
+
 ### 4.3 Global Analytics
 
 #### 4.3.1 Common Behaviour
@@ -127,7 +134,7 @@ Seven main tabs:
 
 #### 4.3.2 Global Map
 
-- **Metric selector**: 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, Government
+- **Metric selector**: 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), **Education** (out-of-school, completion, proficiency, preprimary, literacy, GPI, trained teachers, education expenditure), Geography, Government
 - Choropleth shading; **zoom** in/out and reset controls; **hover** shows country name, **flag proportionally on country shape**, metric value, effective year
 - Map does not sync selection with country dashboard for highlight; tooltip follows hover
 
@@ -136,13 +143,14 @@ Seven main tabs:
 - **General**: Country (with flag emoji), Code, Region, Government type, Head of government, Total area, EEZ
 - **Financial**: Country (with flag emoji), GDP Nominal, GDP PPP, GDP/Capita, GDP/Capita PPP, Gov. debt (USD), Inflation, Gov. debt (% GDP), Lending rate, Unemployment rate, Poverty headcount ($2.15/day and national line) + YoY
 - **Health & demographics**: Country (with flag emoji), Pop total, Pop 0–14, Pop 15–64, Pop 65+, Life expectancy, Under‑5 mortality, Maternal mortality, Prevalence of undernourishment + YoY
+- **Education**: Country (with flag emoji), Out-of-school (primary, %), Primary completion (%), Min. reading proficiency (%), Preprimary enrollment (%), Adult literacy (%), GPI (primary), Trained teachers (%), Education expenditure (% GDP) + YoY where applicable
 - All numeric columns sortable asc/desc
 - Code column hidden in Financial and Health views
 
 #### 4.3.4 Global Charts
 
 - **Location**: Global analytics tab, sub-tab "Global Charts"
-- **Content**: Aggregated global time-series for unified metrics (GDP, GDP per capita, population, life expectancy), economic indicators (inflation, debt, interest, unemployment, poverty), health indicators (under‑5 mortality, maternal mortality, undernourishment), and population structure (age-group shares). Built from `fetchGlobalCountryMetricsForYear` and `globalAggregates.ts`; frequency (weekly/monthly/quarterly/yearly) and chart/table view supported.
+- **Content**: Aggregated global time-series for: unified metrics (GDP, GDP per capita, population, life expectancy); economic indicators (inflation, debt, interest, unemployment, poverty); health indicators (under‑5 mortality, maternal mortality, undernourishment); **education indicators** (out-of-school primary %, primary completion %, minimum reading proficiency %, preprimary enrollment %, adult literacy %, GPI primary, trained teachers %, education expenditure % GDP); and population structure (age-group shares). Built from `fetchGlobalCountryMetricsForYear` and `globalAggregates.ts`; frequency (weekly/monthly/quarterly/yearly) and chart/table view supported.
 - **Use case**: Cross-country aggregate trends without selecting a single country.
 
 #### 4.3.5 Business Analytics (Dedicated Tab)
@@ -168,7 +176,7 @@ Seven main tabs:
 - **Where metrics and information appear**: A **collapsible (minimisable) section** describing how data is used in Country Dashboard, Global view (map, table, Global Charts), PESTEL, Business Analytics, and Analytics Assistant. Users can expand or minimise this section via the section header. Location and geography are answered by the Analytics Assistant via LLM and web search; credible sources are linked in the "Location & geographic context" metric card.
 - **Analytics Assistant flow**: Documents cascading routing: Dashboard/global data first, then Groq, then Tavily (web search), then other LLMs (Tavily Web Search selectable as a model).
 - **Search**: By metric name, description, formula, or source (dynamic filtering).
-- **Filter chips**: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO.
+- **Filter chips**: World Bank, IMF, REST Countries, Sea Around Us, Marine Regions, ILO, WHO, UN, FAO, **UNESCO**.
 - **Suggestions dropdown**: Matching metrics when typing; click to scroll to metric.
 - **Metric cards**: Grouped by category. Categories: Financial, Population, Health, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency, timezone, location & geographic context). Each card: label, description, formula (if applicable), unit, source links with external-link icons.
 

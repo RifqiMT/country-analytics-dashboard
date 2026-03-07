@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { GlobalCountryMetricsRow } from '../types';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
+import { formatGrowthChangeShort } from '../utils/growthFormat';
 import { useToast } from './ToastProvider';
 
 interface Props {
@@ -30,7 +31,7 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
   const [sortKey, setSortKey] =
     useState<keyof GlobalCountryMetricsRow>('totalAreaKm2');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [view, setView] = useState<'general' | 'financial' | 'health'>(
+  const [view, setView] = useState<'general' | 'financial' | 'health' | 'education'>(
     'general',
   );
 
@@ -97,19 +98,12 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
       (current.iso2Code ? prevByIso3.get(current.iso2Code) : undefined);
     const currVal = current[key];
     const prevVal = prev != null ? prev[key] : undefined;
-    if (
-      currVal == null ||
-      prevVal == null ||
-      typeof currVal !== 'number' ||
-      typeof prevVal !== 'number' ||
-      prevVal === 0
-    ) {
-      return null;
-    }
-    const pct = ((currVal - prevVal) / Math.abs(prevVal)) * 100;
-    if (!Number.isFinite(pct)) return null;
-    const sign = pct > 0 ? '+' : '';
-    return `${sign}${pct.toFixed(1)}%`;
+    if (currVal == null || typeof currVal !== 'number') return null;
+    return formatGrowthChangeShort(
+      currVal as number,
+      prevVal != null && typeof prevVal === 'number' ? prevVal : null,
+      key as string,
+    );
   }
 
   const sorted = [...rows].sort((a, b) => {
@@ -180,6 +174,17 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
             }}
           >
             Health &amp; demographics
+          </button>
+          <button
+            type="button"
+            className={`pill ${view === 'education' ? 'pill-active' : ''}`}
+            onClick={() => {
+              setView('education');
+              setSortKey('primaryCompletionRate');
+              setSortDir('desc');
+            }}
+          >
+            Education
           </button>
         </div>
       </div>
@@ -698,6 +703,79 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
                             <div className="table-cell-yoy">
                               {malnutritionYoY}
                             </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </>
+            )}
+            {view === 'education' && (
+              <>
+                <thead>
+                  <tr>
+                    <th onClick={() => changeSort('name')} className="sortable">Country</th>
+                    <th onClick={() => changeSort('outOfSchoolPrimaryPct')} className="sortable">Out-of-school (primary, %)</th>
+                    <th onClick={() => changeSort('primaryCompletionRate')} className="sortable">Primary completion (%)</th>
+                    <th onClick={() => changeSort('minProficiencyReadingPct')} className="sortable">Min. reading prof. (%)</th>
+                    <th onClick={() => changeSort('preprimaryEnrollmentPct')} className="sortable">Preprimary enroll. (%)</th>
+                    <th onClick={() => changeSort('literacyRateAdultPct')} className="sortable">Adult literacy (%)</th>
+                    <th onClick={() => changeSort('genderParityIndexPrimary')} className="sortable">GPI (primary)</th>
+                    <th onClick={() => changeSort('trainedTeachersPrimaryPct')} className="sortable">Trained teachers (%)</th>
+                    <th onClick={() => changeSort('publicExpenditureEducationPctGDP')} className="sortable">Educ. expend. (% GDP)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((row) => {
+                    const fmtPct = (v: number | null | undefined) =>
+                      v != null ? v.toFixed(1) + '%' : '–';
+                    const fmtGPI = (v: number | null | undefined) =>
+                      v != null ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : '–';
+                    return (
+                      <tr key={row.iso2Code}>
+                        <td>
+                          <span className="country-cell">
+                            {getFlagEmoji(row.iso2Code)} {row.name}
+                          </span>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {fmtPct(row.outOfSchoolPrimaryPct)}
+                          </div>
+                          {getYoYValue(row, 'outOfSchoolPrimaryPct') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'outOfSchoolPrimaryPct')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.primaryCompletionRate)}</div>
+                          {getYoYValue(row, 'primaryCompletionRate') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'primaryCompletionRate')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.minProficiencyReadingPct)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.preprimaryEnrollmentPct)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.literacyRateAdultPct)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtGPI(row.genderParityIndexPrimary)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.trainedTeachersPrimaryPct)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.publicExpenditureEducationPctGDP != null
+                              ? row.publicExpenditureEducationPctGDP.toFixed(2) + '%'
+                              : '–'}
+                          </div>
+                          {getYoYValue(row, 'publicExpenditureEducationPctGDP') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'publicExpenditureEducationPctGDP')}</div>
                           )}
                         </td>
                       </tr>
