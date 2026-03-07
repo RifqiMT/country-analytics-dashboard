@@ -1,6 +1,6 @@
 # Documentation Index – Country Analytics Platform
 
-This folder contains product and technical documentation for the **Country Analytics Platform**. All documents are maintained to cover **product overview**, **product benefits**, **features**, **logic**, **business and tech guidelines**, **tech stack**, and **data metrics**. The structure follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`).
+This folder contains product and technical documentation for the **Country Analytics Platform**. All documents are maintained to cover **product overview**, **product benefits**, **features**, **logic**, **business and tech guidelines**, **tech stack**, and **data metrics**. The structure follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). Use this index to locate the right document for product, design, or engineering needs.
 
 ---
 
@@ -8,7 +8,7 @@ This folder contains product and technical documentation for the **Country Analy
 
 | Document | Description |
 |----------|-------------|
-| [PRD.md](PRD.md) | **Product Requirements Document** – problem statement, goals, scope, features (Country Dashboard, Global Analytics, PESTEL, Business Analytics, Source, Analytics Assistant), data rules, NFRs, business and tech guidelines. Includes Analytics Assistant routing and out-of-scope handling (e.g. location/geography), PESTEL/SWOT chart exports, and section order. |
+| [PRD.md](PRD.md) | **Product Requirements Document** – problem statement, goals, scope, features (Country Dashboard, Global Analytics, PESTEL, Business Analytics, Source, Analytics Assistant), data rules, NFRs, business and tech guidelines. Includes Analytics Assistant routing (TAVILY first, GROQ second, others) and out-of-scope handling (e.g. location/geography), PESTEL/SWOT chart exports, and section order. |
 | [USER_PERSONAS.md](USER_PERSONAS.md) | **Target personas** – roles, goals, pain points, success criteria. Covers use of PESTEL, Business Analytics (correlation scatter), and Population Structure. |
 | [USER_STORIES.md](USER_STORIES.md) | **User stories** by feature area – Country Dashboard, Time-series, Population & age structure, Global (map, tables, Global Charts), Business Analytics, Source, Analytics Assistant (incl. safe location/geography), PESTEL (incl. chart downloads), reliability and data quality. |
 
@@ -18,10 +18,10 @@ This folder contains product and technical documentation for the **Country Analy
 
 | Document | Description |
 |----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | **Data flow and component architecture** – high-level flow, Country Dashboard and Global data flow, Analytics Assistant flow, component hierarchy (timelines, PESTEL with PNG exports, Global Charts, Business Analytics, Source, Chat), API layer, fallbacks (territory, Taiwan). |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | **Data flow and component architecture** – high-level flow, Country Dashboard and Global data flow, Analytics Assistant flow (TAVILY supplement, GROQ, others), component hierarchy (timelines, PESTEL with PNG exports, Global Charts, Business Analytics, Source, Chat), API layer, fallbacks (territory, Taiwan). |
 | [METRICS_AND_OKRS.md](METRICS_AND_OKRS.md) | **Product metrics and OKR metrics** – north-star and core engagement metrics, feature-level metrics (Country, Global, Source, PESTEL incl. chart exports, Business Analytics, Analytics Assistant), OKR objectives and key results for the product team, instrumentation guidelines, product team cadence. |
 | [PRODUCT_METRICS.md](PRODUCT_METRICS.md) | **Data metrics** – GDP, population, health, geography, context/metadata (incl. timezone, location & geography). Formulas, WDI codes, sources; how metrics feed the UI; Source tab reference (incl. collapsible “Where metrics appear”). |
-| [VARIABLES.md](VARIABLES.md) | **Variables** – every variable (data metrics, config constants, env): **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derived variables and flow through the app). |
+| [VARIABLES.md](VARIABLES.md) | **Variables** – every variable (data metrics, config constants, env): **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derivation, data lineage, and flow through the app). |
 | [PRODUCT_DOCUMENTATION_STANDARD.md](PRODUCT_DOCUMENTATION_STANDARD.md) | **Doc structure, ownership, change policy** – required content elements (product overview, benefits, features, logics, business/tech guidelines, tech stack), feature→code mapping, security. |
 
 ---

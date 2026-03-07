@@ -35,7 +35,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 | **G2** | Intuitive global comparison | Sorting, ranking, map and tables with consistent definitions |
 | **G3** | Credible and explainable data | Well-documented public sources; clear fallbacks; Source tab with formulas and source links |
 | **G4** | Analyst-friendly UX | Smooth time navigation, frequency toggles, search, filter chips |
-| **G5** | AI-assisted analysis | Analytics assistant that always prefers dashboard/global data for metrics, and for anything outside that (or when dashboard/global data cannot answer) uses Groq first, then Tavily (web search), then other LLMs (with source attribution) |
+| **G5** | AI-assisted analysis | Analytics Assistant prefers dashboard/global data for in-scope metrics; for supplementary and general-knowledge answers uses **TAVILY (web search) first** for latest information, **GROQ second** as the primary LLM, then other LLMs. Source attribution on every response. |
 
 ### 2.2 Non-Goals (Current Version)
 
@@ -163,14 +163,14 @@ Six main tabs:
 
 #### 4.5.1 Cascading Flow
 
-All flows start from **dashboard/global data** where possible. Whenever the question is outside what the global data can answer (or there is no data), the assistant uses LLMs in a fixed order: **Groq → Tavily (web search) → other LLMs**.
+All flows start from **dashboard/global data** where possible. For questions outside what the global data can answer (or when there is no data), the assistant uses a fixed order: **TAVILY (web search) first** for latest supplementary information, **GROQ second** as the primary LLM, **then other LLMs**.
 
 | Step | Source | When Used |
 |------|--------|-----------|
-| 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, yearly time-series summaries, and methodology (no API keys required) |
-| 2 | **Groq (Llama 3.3 70B)** | First LLM used when dashboard/global data cannot answer or when the question is outside global data (general knowledge, key facts, location/geography, leaders, history) |
-| 3 | **Web search (Tavily/Serper)** | Second step when Groq is unavailable or cannot produce a good answer; also used when **Tavily Web Search** is selected as model for direct web-search based answers |
-| 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter, **Tavily Web Search**) when user or server key is set |
+| 1 | **Dashboard data** | Rule-based answers for rankings, comparisons, single-metric lookups, yearly time-series summaries, and methodology (no API keys required). |
+| 2 | **TAVILY (web search)** | Latest or current-period information; supplementary context; used first when keys are configured so real-time data enriches answers. |
+| 3 | **GROQ (Llama 3.3 70B)** | Primary LLM when dashboard/TAVILY cannot answer; generates structured analysis (e.g. PESTEL report) using system prompt plus TAVILY supplement. |
+| 4 | **Other LLMs** | User-selected model (OpenAI, Anthropic, Google, OpenRouter, **Tavily Web Search**) when user or server key is set; fallback when GROQ is unavailable. |
 
 #### 4.5.2 Source Attribution
 
@@ -200,7 +200,7 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 
 - **Tab**: Dedicated PESTEL tab in main navigation
 - **Input**: Selected country (from Country dashboard); optional refresh
-- **Data recency**: Uses **most up-to-date** information: global metrics and peer comparison are fetched for **DATA_MAX_YEAR** (latest available in dataset); supplemental web search uses **current year**; system prompt instructs the model to frame the analysis as of today.
+- **Data recency**: Uses **most up-to-date** information: global metrics and peer comparison are fetched for **DATA_MAX_YEAR** (latest available in dataset); **TAVILY (web search)** supplies supplemental information for **current year**; system prompt instructs the model to frame the analysis as of today. LLM order for PESTEL: TAVILY supplement first, then **GROQ** to generate the report, then other LLMs if needed.
 - **Output**: Structured analysis with the following **section order**:
   1. **PESTEL Analysis** – Chart with bullet points per PESTEL factor (Political, Economic, Social, Technological, Environmental, Legal)
   2. **SWOT Analysis** – 2×2 grid with **one bullet per sentence** for Strengths, Weaknesses, Opportunities, Threats

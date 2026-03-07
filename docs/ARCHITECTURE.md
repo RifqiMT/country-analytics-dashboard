@@ -154,10 +154,12 @@ vite-plugin-chat-api.ts middleware
          │         └─► If answer found → return { content, source: "Dashboard data" }
          │         └─► If generic help or out-of-scope (leaders, religion, culture, **location/geography**, etc.) → continue
          │
-        ├─► Step 2: LLM cascade for questions outside global data
-        │         └─► Groq (Llama 3.3 70B) first for general knowledge and key facts when dashboard/global data cannot answer
-        │         └─► Tavily / Serper (web search) second when Groq is unavailable or cannot produce a good answer (or when Tavily Web Search is explicitly selected)
-        │         └─► If success → return { content, source: model label or "Web search" }
+         ├─► Step 2: For PESTEL – fetch TAVILY (web search) supplement first; inject into system prompt
+         │
+         ├─► Step 3: LLM cascade for questions outside global data
+         │         └─► **GROQ (Llama 3.3 70B)** first as primary LLM (for PESTEL, after TAVILY supplement)
+         │         └─► **TAVILY / Serper (web search)** for latest or current-period when GROQ unavailable or for supplementary context
+         │         └─► If success → return { content, source: model label or "Web search" }
          │
          ├─► Step 4: User-selected LLM (OpenAI, Anthropic, Google, OpenRouter, etc.)
          │         └─► Uses client apiKey or server env key
@@ -292,7 +294,7 @@ App
 |--------|---------|
 | `chatContext.ts` | `buildChatSystemPrompt()` – system prompt with metric metadata, country context, global data |
 | `chatFallback.ts` | `getFallbackResponse()` – rule-based answers for rankings, comparisons, methodology; out-of-scope returns generic help |
-| `pestelContext.ts` | PESTEL prompt building; uses DATA_MAX_YEAR for peer comparison year; used by PESTEL tab |
+| `pestelContext.ts` | PESTEL prompt building; uses DATA_MAX_YEAR for peer comparison; **TAVILY** supplement (current year) fetched first, then **GROQ** to generate report; used by PESTEL tab |
 | `vite-plugin-chat-api.ts` | `/api/chat` middleware – year-based routing; source attribution; PESTEL generation (current year for web supplement) |
 
 ### 4.4 Business Analytics
@@ -367,8 +369,8 @@ App
    - Methodology questions
    - Out-of-scope (religion, culture, leaders, etc.) returns generic help → triggers next step
 
-2. **Web search (Tavily/Serper)** – For general-knowledge about period after current year − 2 (or "now"); or when Tavily Web Search is selected as model.
+2. **Web search (Tavily/Serper)** – For general-knowledge about period after current year − 2 (or "now"); or when Tavily Web Search is selected as model. **TAVILY is used first** for PESTEL supplemental context (current year) before the LLM generates the report.
 
-3. **Groq** – Llama 3.3 70B for period ≤ current year − 2, or when web search fails. Server env key in .env.
+3. **GROQ** – Llama 3.3 70B as the **primary LLM** (first LLM tried after TAVILY supplement for PESTEL). Used for period ≤ current year − 2, or when web search does not apply. Server env key in .env.
 
 4. **Other LLMs** – User API key or server env keys for OpenAI, Anthropic, Google, OpenRouter.

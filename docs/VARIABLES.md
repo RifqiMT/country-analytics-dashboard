@@ -1,6 +1,6 @@
 # Variables Documentation – Country Analytics Platform
 
-This document is the **single reference** for all variables used in the Country Analytics Platform: **data metrics** (displayed in the UI), **configuration constants**, and **environment variables**. Each entry includes the **variable name**, **friendly name** (human-readable label), **definition**, **formula** (where applicable), **location in the app**, and a concrete **example**. A **variable relationship and usage** section describes how variables connect (e.g. derived metrics) and flow through the application. The document is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`).
+This document is the **single reference** for all variables used in the Country Analytics Platform. It follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and provides **variable name**, **friendly name** (human-readable label), **definition**, **formula** (where applicable), **location in the app**, and a concrete **example** for each entry. A **variable relationship and usage** section describes how variables connect (e.g. derived metrics, data lineage) and flow through the application from sources to UI. Professional wording is used throughout to support product, design, and engineering alignment.
 
 **Related:** Per-metric metadata for the Source tab is defined in `src/data/metricMetadata.ts`. For engagement and OKR metrics, see `METRICS_AND_OKRS.md`. For product data metrics overview, see `PRODUCT_METRICS.md`.
 
@@ -180,9 +180,9 @@ Some variables are **derived** from other variables (in the API layer or in the 
 
 All other data metrics in Section 1 are **primary** (sourced directly from World Bank WDI, IMF, REST Countries, Sea Around Us, or Marine Regions).
 
-### 7.2 Variable Relationship Chart (Derivation)
+### 7.2 Variable Relationship Chart (Derivation and Data Lineage)
 
-The following diagram shows how **derived variables** depend on **primary variables**. Arrows point from inputs to the derived metric.
+The following diagram shows how **derived variables** depend on **primary variables**. Arrows indicate data flow from inputs to the derived metric. Use this chart to trace data lineage and understand where each variable is computed or sourced.
 
 ```mermaid
 flowchart LR
@@ -213,9 +213,9 @@ flowchart LR
   pop65 --> popByAge
 ```
 
-### 7.3 Variable Usage Flow in the App
+### 7.3 Variable Usage Flow in the Application
 
-The following diagram shows how variables **flow from data sources** into **data structures** and then into **app areas** (screens and features).
+The following diagram shows how variables **flow from data sources** into **data structures** and then into **app areas** (screens and features). Use it to locate where each variable is consumed in the product.
 
 ```mermaid
 flowchart TB

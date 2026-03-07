@@ -1,6 +1,6 @@
 # Product Metrics & OKRs – Country Analytics Platform
 
-This document defines how we measure the **success** of the Country Analytics Platform and how those metrics map to product and engineering work. It is intended for the **product team** and aligns with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). It covers **product metrics** (engagement and feature-level) and **OKR metrics** (objectives and key results) for the product team.
+This document defines how the **Country Analytics Platform** measures success and how those metrics align with product and engineering work. It is intended for the **product team** and follows the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`). It covers **product metrics** (engagement and feature-level indicators) and **OKR metrics** (objectives and key results) for the product team. Wording is kept professional and scannable for stakeholders.
 
 **Related:** For **data metrics** (GDP, population, health, etc.) displayed in the app, see `PRODUCT_METRICS.md`. For **all variables** (data metrics, config, env) with variable name, friendly name, definition, formula, location in the app, example, and relationship chart, see `VARIABLES.md`.
 
@@ -72,8 +72,8 @@ This document defines how we measure the **success** of the Country Analytics Pl
 
 | ID | Metric | Definition |
 |----|--------|------------|
-| **CA-1** | Chat message rate | Average number of messages sent per session when Analytics assistant is used |
-| **CA-2** | Source distribution | Percentage of chat sessions by source: Dashboard data, Web search (Tavily), Groq, other LLMs |
+| **CA-1** | Chat message rate | Average number of messages sent per session when Analytics Assistant is used |
+| **CA-2** | Source distribution | Percentage of chat sessions by source: Dashboard data, Web search (Tavily), GROQ, other LLMs |
 | **CA-3** | Suggestion chip usage | Percentage of chat sessions where at least one suggestion chip is clicked |
 
 ### 2.7 PESTEL

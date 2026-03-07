@@ -31,7 +31,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Explore** a country in depth across GDP, population, age structure, life expectancy, government debt, and geography
 - **Compare** countries with time trends, YoY changes, cross-country rankings, and side-by-side comparisons
 - **Understand** data methodology via the Source tab with descriptions, formulas, and source links
-- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data → Groq → Tavily (web search) → other LLMs**
+- **Ask** natural-language questions via the Analytics Assistant with cascading logic: **Dashboard data first** for all metrics the dashboards and tables cover; for supplementary and general-knowledge answers: **TAVILY (web search) first** for latest information, **GROQ second** as the primary LLM, then **other LLMs** as fallback. Source attribution is shown for every response.
 
 ### 1.2 Target Audience
 
@@ -62,7 +62,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 - **Credible data** – World Bank WDI, IMF WEO, REST Countries, Sea Around Us; fallbacks for territories
 - **Intuitive UX** – Searchable country selector, year presets, frequency toggles
 - **Transparent methodology** – Source tab documents every metric with formulas and source links
-- **AI-assisted analysis** – Analytics assistant with **cascading logic**: Dashboard data first for all metrics the dashboards/tables cover; for anything outside that or when global data cannot answer, use **Groq** first, then **Tavily (web search)**, then other LLMs. Tavily Web Search is also selectable as a model.
+- **AI-assisted analysis** – Analytics Assistant uses **Dashboard data first** for in-scope metrics; for general-knowledge and supplementary information: **TAVILY (web search) first** for real-time data, **GROQ second** as the primary LLM, then **other LLMs**. PESTEL uses the same order: TAVILY supplement (current year) then GROQ to generate the report. Source attribution on every response.
 - **Source attribution** – Each chat response shows its source (Dashboard data, model name, or Web search)
 - **No login required** – Public data, no authentication or workspace setup
 
@@ -260,12 +260,12 @@ Open the URL printed by Vite (typically `http://localhost:5173`).
 
 ### Analytics Assistant
 
-The **Analytics assistant** tab uses cascading, year-based routing:
+The **Analytics assistant** tab uses a cascading, year-based flow:
 
-1. **Dashboard data** – Rule-based answers for rankings, comparisons, time-series summaries, and methodology (no keys required)
-2. **Groq (Llama 3.3 70B)** – General-knowledge questions about period ≤ current year − 2 (e.g. "in 2023"), or when dashboard data cannot answer
-3. **Tavily (web search)** – Latest or current-period questions (e.g. "now", explicit near-current years) and general-knowledge not covered by Groq or dashboard data
-4. **Other LLMs** – User-selected models (OpenAI, Anthropic, Google, OpenRouter, etc.); **Tavily Web Search** is also available as a direct model
+1. **Dashboard data** – Rule-based answers for rankings, comparisons, time-series summaries, and methodology (no keys required).
+2. **TAVILY (web search)** – Latest or current-period questions and supplementary information; used first for real-time context when keys are configured.
+3. **GROQ (Llama 3.3 70B)** – Primary LLM for general-knowledge and structured analysis (e.g. PESTEL report generation) when dashboard data cannot answer.
+4. **Other LLMs** – User-selected models (OpenAI, Anthropic, Google, OpenRouter, etc.); **Tavily Web Search** is also available as a direct model in the dropdown.
 
 **To enable LLM and web search:**
 

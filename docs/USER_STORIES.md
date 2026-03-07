@@ -343,7 +343,7 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 **Acceptance criteria:**
 - Each assistant message displays a source line: "Dashboard data", model label (e.g. Llama 3.3 70B), or "Web search"
-- Source reflects cascading routing: Dashboard/global data for metrics; Groq for general knowledge and key facts outside global data; Web search (Tavily) when Groq cannot answer; other LLMs when explicitly selected or used as fallback
+- Source reflects cascading routing: Dashboard/global data for metrics; **TAVILY (web search)** for latest supplementary information; **GROQ** as primary LLM when dashboard/TAVILY cannot answer; other LLMs when explicitly selected or used as fallback
 
 ---
 
@@ -367,7 +367,7 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 - **So that** I get up-to-date answers from web search  
 
 **Acceptance criteria:**
-- Questions that rely on data outside the global dataset (e.g. current leaders, very recent events) use Groq first, then Tavily (web search) when Groq cannot answer
+- Questions that rely on data outside the global dataset (e.g. current leaders, very recent events) use **TAVILY (web search) first** for latest information, then **GROQ** as the primary LLM when needed
 - Selecting Tavily Web Search as model forces web search for all general-knowledge queries
 
 ---

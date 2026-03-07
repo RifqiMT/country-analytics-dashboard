@@ -635,6 +635,10 @@ export function PESTELSection({
             year: dashboardData.latestSnapshot?.year ?? dashboardData.range.endYear,
             metrics: dashboardData.latestSnapshot?.metrics,
           },
+          // Pass latest global data so backend can use it; PESTEL uses DATA_MAX_YEAR for peer comparison and metrics.
+          globalData: globalMetrics.length > 0 ? globalMetrics : undefined,
+          globalDataByYear:
+            globalMetrics.length > 0 ? { [globalDataYear]: globalMetrics } : undefined,
           ...(apiKey && { apiKey }),
         }),
       });

@@ -110,6 +110,7 @@ Use Markdown links: [Source Name](URL) when referencing data in your text.
 - **Sea Around Us / Marine Regions** – Exclusive Economic Zone (EEZ): https://www.searoundus.org/
 - **Marine Regions** – EEZ boundaries: https://www.marineregions.org/
 - Data coverage: ${DATA_MIN_YEAR} to ${DATA_MAX_YEAR} (current year minus 2).
+- **Global and peer comparison**: All peer comparison and global metrics in this context are from the latest available year (${DATA_MAX_YEAR}). Use them as the most up-to-date reference for rankings and regional comparison.
 `;
 
   let countryContext = '';
@@ -244,7 +245,7 @@ Use Markdown links: [Source Name](URL) when referencing data in your text.
 ## Your task
 Produce a **comprehensive PESTEL analysis** for the country above. Today is ${today}.
 
-**Most up-to-date information**: Your analysis must reflect the most up-to-date information as of today. The point-in-time metrics below use the most recent year available in the dataset (${DATA_MAX_YEAR}). The peer comparison and any global metrics are for the latest available year. Use supplemental web search results when provided to enrich dimensions (e.g. Technological, Legal, Political, Environmental) with the latest real-world context. Treat all data in this context as the best available up-to-date information.
+**Most up-to-date information**: Your analysis must reflect the most up-to-date information as of today. The point-in-time metrics below use the most recent year available in the dataset (${DATA_MAX_YEAR}). The peer comparison and any global metrics in this prompt are from the latest available year (${DATA_MAX_YEAR})—use them as the primary reference for rankings and regional context. Use supplemental web search results when provided to enrich dimensions (e.g. Technological, Legal, Political, Environmental) with the latest real-world context. Treat all data in this context as the best available up-to-date information.
 
 Your analysis MUST be thorough, professional, and suitable for strategic decision-making (e.g. market entry, investment, policy review). Use ALL data provided, including time-series trends. Follow the reference format below for structure, depth, and style.
 ${referenceFormat}

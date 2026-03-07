@@ -149,7 +149,8 @@ interface SerperSearchResult {
 
 /**
  * Fetch supplemental web data for PESTEL analysis (dimensions with limited dashboard data).
- * Runs targeted searches for technology, legal, environmental, and political context.
+ * Uses TAVILY first for web search, then Serper if configured. Runs targeted searches for
+ * technology, legal, environmental, and political context.
  */
 async function fetchPestelSupplementWebSearch(
   countryName: string,
@@ -181,6 +182,7 @@ async function fetchWebSearch(query: string): Promise<{ context: string; directA
   const hasTavily = tavilyKey && !tavilyKey.startsWith('tvly-your') && !PLACEHOLDER_PATTERNS.test(tavilyKey);
   const hasSerper = serperKey && !PLACEHOLDER_PATTERNS.test(serperKey);
 
+  // TAVILY first for latest supplementary information (PESTEL and general).
   if (hasTavily) {
     const result = await fetchTavilySearch(query);
     if (result) return result;
@@ -561,6 +563,7 @@ async function handleChatRequest(
           const tryGroqFirst = true;
 
           // PESTEL: supplement system prompt with web search for dimensions with limited dashboard data.
+          // Order for PESTEL: (1) TAVILY first – latest supplementary info via web search, (2) GROQ second – LLM to generate report, (3) other LLMs last.
           // Use current year for PESTEL so supplemental results are the most up-to-date (as of today).
           if (supplementWithWebSearch && dashboardSnapshot?.countryName) {
             const year = isPestelRequest
@@ -594,17 +597,19 @@ async function handleChatRequest(
           let usedWebSearch = false;
 
           // PESTEL must use the LLM with the full system prompt (supplement already added above).
-          // Do not fill content from a standalone web search here — that would skip the LLM and return only a snippet.
-
-          // PESTEL: try user's chosen model first when they have an API key (saves Groq free-tier tokens).
-          const pestelUserKey = isPestelRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
-          if (pestelUserKey && !isValidLlmResponse(content)) {
-            try {
-              content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
-              if (isValidLlmResponse(content)) usedModelId = model;
-            } catch (err) {
-              llmError = err instanceof Error ? err.message : String(err);
-              content = '';
+          // LLM order for PESTEL: TAVILY (web supplement) first – done above; GROQ second; other LLMs last.
+          // Do not try user's model before GROQ for PESTEL so we consistently use GROQ second after TAVILY.
+          if (!isPestelRequest) {
+            // Non-PESTEL: try user's chosen model first when they have an API key (saves Groq free-tier tokens).
+            const pestelUserKey = apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
+            if (pestelUserKey && !isValidLlmResponse(content)) {
+              try {
+                content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+                if (isValidLlmResponse(content)) usedModelId = model;
+              } catch (err) {
+                llmError = err instanceof Error ? err.message : String(err);
+                content = '';
+              }
             }
           }
 
@@ -633,6 +638,7 @@ async function handleChatRequest(
           }
 
           if (!isValidLlmResponse(content) && tryGroqFirst) {
+            // For PESTEL: GROQ is the first LLM tried (TAVILY supplement already in system prompt).
             const groqKey = getServerApiKey('groq');
             if (groqKey) {
               try {

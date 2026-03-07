@@ -35,7 +35,7 @@ The documentation standard ensures:
 | **docs/README.md** | Documentation index and quick links |
 | **docs/PRODUCT_DOCUMENTATION_STANDARD.md** | This document – doc structure, ownership, change policy |
 | **docs/PRODUCT_METRICS.md** | **Data metrics** (GDP, population, etc.) with formulas, WDI codes, and source references; how metrics feed the UI |
-| **docs/VARIABLES.md** | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derivation and app flow) |
+| **docs/VARIABLES.md** | All variables: **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derived variables, data lineage, and flow through the app) |
 | **src/data/metricMetadata.ts** | Metric definitions, formulas, source links (code-as-docs) |
 
 ---
@@ -68,7 +68,7 @@ All product and technical documentation should cover the following where applica
 
 - **Product logic**: What the product does, why, and how features behave (filters, defaults, fallbacks)
 - **Data logic**: Latest non-null, year fallback, territory/IMF fallbacks, Taiwan handling
-- **Analytics Assistant logic**: Dashboard data first → Groq → Tavily (web search) → other LLMs; year-based routing; out-of-scope (location/geography, leaders, etc.) never answered with dashboard metrics
+- **Analytics Assistant logic**: Dashboard data first for in-scope metrics; then **TAVILY (web search) first** for latest supplementary information; **GROQ second** as the primary LLM; then other LLMs. Year-based routing; out-of-scope (location/geography, leaders, etc.) never answered with dashboard metrics.
 
 ### 3.5 Business Guidelines
 
@@ -112,7 +112,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 - Focus on **what** and **why**, not low-level implementation
 - Capture: exact behaviour of filters, ranges, default values; all main tabs and sub-features (including Business Analytics and PESTEL section order and bullet requirements); data fallbacks; edge cases; Analytics Assistant cascading flow and source attribution; **out-of-scope handling** (location/geography, neighbours – never return dashboard metrics; safe guidance and route to LLM/web search)
 - **PESTEL output structure**: PESTEL Analysis chart (downloadable as PNG), SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications, New Market Analysis (≥5 bullets), Key Takeaways (≥5 bullets), Recommendations (≥5 bullets)
-- **PESTEL data recency**: DATA_MAX_YEAR for global/peer data; current year for supplemental web search
+- **PESTEL data recency**: DATA_MAX_YEAR for global/peer data; **TAVILY (web search)** for current-year supplemental information; **GROQ** used as the first LLM to generate the report after the supplement is injected into the system prompt.
 - Reference primary components and API modules
 
 ### 4.3 User Personas
@@ -143,7 +143,7 @@ Must include: **Product overview** (value proposition, target audience, key view
 ### 4.7 Product Metrics (Data) and Variables
 
 - **PRODUCT_METRICS.md**: How metrics feed the UI; per-metric ID, label, unit, formula, fallback; WDI codes and data quality rules
-- **VARIABLES.md**: Every variable (data metrics, config, env) with **variable name**, **friendly name**, definition, formula, **location in the app**, example; **relationship chart** (derived variables and flow through the app)
+- **VARIABLES.md**: Every variable (data metrics, config, env) with **variable name**, **friendly name**, definition, formula (where applicable), **location in the app**, **example**; and a **relationship chart** showing how variables connect (derived from primary inputs) and flow through the app from data sources to UI areas.
 
 ---
 

@@ -1,6 +1,6 @@
 # User Personas – Country Analytics Platform
 
-This document describes the **target audiences** for the Country Analytics Platform: their roles, goals, pain points, success criteria, and typical usage. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and serves as the single source of truth for product and design alignment. Personas inform feature prioritisation and user stories in `USER_STORIES.md`. They cover **product benefits** from the user’s perspective (fast insights, credible data, AI-assisted analysis, etc.).
+This document describes the **target audiences** for the Country Analytics Platform: their roles, goals, pain points, success criteria, and typical usage. It is maintained in line with the **Product Documentation Standard** (`PRODUCT_DOCUMENTATION_STANDARD.md`) and serves as the single source of truth for product and design alignment. Personas inform feature prioritisation and user stories in `USER_STORIES.md`. They reflect **product benefits** from the user’s perspective (fast insights, credible data, AI-assisted analysis with TAVILY-first and GROQ-second flow, etc.).
 
 ---
 
@@ -78,7 +78,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 - Uses **Business Analytics** tab: correlation scatter (X/Y metrics, highlight country) and correlation & causation analysis (Pearson r, p-value)
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
 - Checks Source tab for government debt formula and IMF fallback
-- Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, Groq, Web search) and year-based routing (Groq for older period, Tavily for recent) to assess answer provenance
+- Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, TAVILY/Web search, GROQ, other LLMs) to assess answer provenance
 - Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)
 
 ---
