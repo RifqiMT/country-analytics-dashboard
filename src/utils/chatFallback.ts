@@ -495,7 +495,7 @@ export function getFallbackResponse(
   }
 
   if (OUT_OF_SCOPE_FALLBACK.test(q)) {
-    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about religion, culture, or current leaders, use the LLM or web search. For full conversational answers, add your API key in Settings.`;
+    return `I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt (from World Bank or IMF when WB has no data), interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, government type, and education metrics (enrollment, completion, literacy, etc.). Ask for a country by name, "Top N by [metric]", or "compare X and Y". In Global Analytics you can filter by region. For questions about religion, culture, or current leaders, use the LLM or web search. For full conversational answers, add your API key in Settings.`;
   }
 
   const isSummary = matchesQuery(q, ['summary', 'summarize', 'brief', 'overview in brief']);
@@ -1250,9 +1250,11 @@ export function getFallbackResponse(
       '**Financial:** ' + (byCategory.financial ?? []).join(', '),
       '**Population:** ' + (byCategory.population ?? []).join(', '),
       '**Health:** ' + (byCategory.health ?? []).join(', '),
+      '**Education:** ' + (byCategory.education ?? []).join(', '),
       '**Geography:** ' + (byCategory.geography ?? []).join(', '),
+      '**Country metadata & context:** ' + (byCategory.context ?? []).join(', '),
       '',
-      'Use the Country or Global tabs to explore the data. For detailed definitions, see the Source tab.',
+      'Use the Country or Global tabs to explore the data. In Global Analytics you can filter by region. For detailed definitions and sources, see the Source tab.',
     ];
     return lines.join('\n');
   }
@@ -1261,7 +1263,7 @@ export function getFallbackResponse(
     return `**GDP metrics:**\n\n- **GDP (Nominal, US$)**: Total value of goods and services produced, converted to current U.S. dollars using official exchange rates. Formula: GDP = C + I + G + (X − M).\n\n- **GDP (PPP, Intl$)**: Same as GDP but converted using purchasing power parity rates, which allows better comparison of living standards across countries.\n\n- **GDP per capita** is GDP divided by population. For exact values, ask "top 10 countries by GDP" or use the Global tab.`;
 
   if (matchesQuery(q, ['government debt', 'gov debt', 'debt']))
-    return `**Government debt:**\n\n- **% of GDP**: Measures total government gross debt relative to the size of the economy. Formula: (Total government debt / GDP) × 100.\n\n- **USD**: Total debt in current U.S. dollars, derived from GDP and the debt %.\n\nSources: World Bank WDI, IMF World Economic Outlook.`;
+    return `**Government debt:**\n\n- **% of GDP**: Measures total government gross debt relative to the size of the economy. Formula: (Total government debt / GDP) × 100.\n\n- **USD**: Total debt in current U.S. dollars, derived from GDP and the debt %.\n\nSources: World Bank WDI (primary); when a country has no World Bank data (e.g. China), IMF World Economic Outlook (WEO) is used automatically.`;
 
   if (matchesQuery(q, ['population', 'age', '0-14', '15-64', '65', 'demographics', 'age structure', 'working age', 'youth', 'elderly']))
     return `**Population metrics:**\n\n- **Total population**: Total residents (de facto definition).\n\n- **Age breakdown**: 0–14 (youth), 15–64 (working-age), 65+ (65 and above). Each is shown as % of total and absolute counts. These help assess dependency ratios (youth and old-age).\n\nSource: World Bank WDI.`;
@@ -1282,10 +1284,13 @@ export function getFallbackResponse(
     return `**Inflation (CPI, %)**: Annual percentage change in the consumer price index. Measures how prices of a basket of consumer goods and services change over time. Formula: ((CPI_t − CPI_{t−1}) / CPI_{t−1}) × 100. Source: World Bank WDI.`;
 
   if (matchesQuery(q, ['source', 'data', 'where', 'come from', 'who provides']))
-    return `**Data sources:**\n\n- **World Bank WDI**: GDP, population, inflation, debt, health, geography\n- **IMF World Economic Outlook**: GDP and government debt data\n- **Sea Around Us / Marine Regions**: Exclusive Economic Zone (EEZ)\n\nData coverage: typically 2000 to latest available (with ~2 year lag). See the Source tab for detailed links.`;
+    return `**Data sources:**\n\n- **World Bank WDI**: GDP, population, inflation, government debt (where available), health, geography, education (UNESCO UIS via WDI)\n- **IMF World Economic Outlook**: GDP and government debt; debt is used when World Bank has no data for a country (e.g. China)\n- **Sea Around Us / Marine Regions**: Exclusive Economic Zone (EEZ)\n- **REST Countries**: Region, government type, capital, currency\n\nData coverage: typically 2000 to latest available (current year minus 2). See the Source tab for detailed links and formulas.`;
 
   if (matchesQuery(q, ['eez', 'exclusive economic zone', 'maritime']))
     return `**Exclusive Economic Zone (EEZ)**: Marine area extending 200 nautical miles from the coast over which a country has special rights regarding exploration and use of marine resources. Defined by UN Convention on the Law of the Sea. Sources: Sea Around Us, Marine Regions.`;
+
+  if (matchesQuery(q, ['education', 'enrollment', 'completion', 'literacy', 'unesco', 'school', 'out of school']))
+    return `**Education metrics:** The dashboard includes enrollment (primary, secondary, tertiary), completion rates, out-of-school rates, minimum reading proficiency, adult literacy, gender parity indices, trained teachers, and public expenditure on education (% of GDP). Sourced from UNESCO Institute for Statistics (UIS) via World Bank WDI. Data typically from 2000 to latest available. See the Source tab for each indicator's definition and links.`;
 
   const defaultHelp = `I can help with questions about **all metrics** in this dashboard. Examples:
 
@@ -1300,11 +1305,11 @@ export function getFallbackResponse(
 
 **Regions & methodology**
 - "Top 5 Asian countries by population" · "Countries in Europe"
-- "What is GDP?" · "How is inflation calculated?" · "Data sources"
+- "What is GDP?" · "How is inflation calculated?" · "Data sources" · "Government debt sources"
 
-**Full list:** Ask "What metrics are available?" or open the **Source** tab.
+**Full list:** Ask "What metrics are available?" or open the **Source** tab. In **Global Analytics** you can filter map, table, and charts by region.
 
-**Unlimited combinations** – You can ask for any mix of: GDP, PPP, per capita, population, life expectancy, inflation, debt, interest rate, unemployment, labour force, poverty, maternal mortality, under-5 mortality, undernourishment, land area, EEZ, age groups, government type, region. For full conversational answers, add your API key in Settings.`;
+**Unlimited combinations** – You can ask for any mix of: GDP, PPP, per capita, population, life expectancy, inflation, debt (from World Bank or IMF when WB has no data), interest rate, unemployment, labour force, poverty, maternal mortality, under-5 mortality, undernourishment, land area, EEZ, age groups, government type, region, and education metrics. For full conversational answers, add your API key in Settings.`;
 
   if (matchesQuery(q, ['help', 'hello', 'hi', 'how to', 'how do i', 'get started', 'what can you'])) {
     return defaultHelp;

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { GlobalCountryMetricsRow } from '../types';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
@@ -8,6 +8,8 @@ import { useToast } from './ToastProvider';
 interface Props {
   year: number;
   setYear: (year: number) => void;
+  /** When set, only show countries in this region (World Bank region name). */
+  region?: string | null;
   /** Increment to force refetch of global table data (e.g. after "Refresh all data"). */
   refreshTrigger?: number;
 }
@@ -22,7 +24,7 @@ function getFlagEmoji(iso2: string): string {
     .join('');
 }
 
-export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
+export function AllCountriesTableSection({ year, region = null, refreshTrigger = 0 }: Props) {
   const { showToast, dismissToast } = useToast();
   const [rows, setRows] = useState<GlobalCountryMetricsRow[]>([]);
   const [rowsPrev, setRowsPrev] = useState<GlobalCountryMetricsRow[]>([]);
@@ -80,8 +82,17 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
     };
   }, [year, refreshTrigger, dismissToast, showToast]);
 
+  const displayRows = useMemo(
+    () => (region ? rows.filter((r) => r.region === region) : rows),
+    [rows, region],
+  );
+  const displayRowsPrev = useMemo(
+    () => (region ? rowsPrev.filter((r) => r.region === region) : rowsPrev),
+    [rowsPrev, region],
+  );
+
   const prevByIso3 = new Map<string, GlobalCountryMetricsRow>();
-  for (const r of rowsPrev) {
+  for (const r of displayRowsPrev) {
     if (r.iso3Code) {
       prevByIso3.set(r.iso3Code, r);
     } else if (r.iso2Code) {
@@ -106,7 +117,7 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
     );
   }
 
-  const sorted = [...rows].sort((a, b) => {
+  const sorted = [...displayRows].sort((a, b) => {
     const av = a[sortKey];
     const bv = b[sortKey];
     if (av == null && bv == null) return 0;
@@ -717,13 +728,29 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
                   <tr>
                     <th onClick={() => changeSort('name')} className="sortable">Country</th>
                     <th onClick={() => changeSort('outOfSchoolPrimaryPct')} className="sortable">Out-of-school (primary, %)</th>
-                    <th onClick={() => changeSort('primaryCompletionRate')} className="sortable">Primary completion (%)</th>
+                    <th onClick={() => changeSort('outOfSchoolSecondaryPct')} className="sortable">Out-of-school (secondary, %)</th>
+                    <th onClick={() => changeSort('outOfSchoolTertiaryPct')} className="sortable">Out-of-school (tertiary, %)</th>
+                    <th onClick={() => changeSort('primaryCompletionRate')} className="sortable">Primary completion (gross, %)</th>
+                    <th onClick={() => changeSort('secondaryCompletionRate')} className="sortable">Secondary completion (gross, %)</th>
+                    <th onClick={() => changeSort('tertiaryCompletionRate')} className="sortable">Tertiary completion (gross, %)</th>
                     <th onClick={() => changeSort('minProficiencyReadingPct')} className="sortable">Min. reading prof. (%)</th>
-                    <th onClick={() => changeSort('preprimaryEnrollmentPct')} className="sortable">Preprimary enroll. (%)</th>
                     <th onClick={() => changeSort('literacyRateAdultPct')} className="sortable">Adult literacy (%)</th>
                     <th onClick={() => changeSort('genderParityIndexPrimary')} className="sortable">GPI (primary)</th>
-                    <th onClick={() => changeSort('trainedTeachersPrimaryPct')} className="sortable">Trained teachers (%)</th>
+                    <th onClick={() => changeSort('genderParityIndexSecondary')} className="sortable">GPI (secondary)</th>
+                    <th onClick={() => changeSort('genderParityIndexTertiary')} className="sortable">GPI (tertiary)</th>
+                    <th onClick={() => changeSort('trainedTeachersPrimaryPct')} className="sortable">Trained teachers primary (%)</th>
+                    <th onClick={() => changeSort('trainedTeachersSecondaryPct')} className="sortable">Trained teachers secondary (%)</th>
+                    <th onClick={() => changeSort('trainedTeachersTertiaryPct')} className="sortable">Trained teachers tertiary (%)</th>
                     <th onClick={() => changeSort('publicExpenditureEducationPctGDP')} className="sortable">Educ. expend. (% GDP)</th>
+                    <th onClick={() => changeSort('primaryPupilsTotal')} className="sortable">Primary enrollment (total)</th>
+                    <th onClick={() => changeSort('primaryEnrollmentPct')} className="sortable">Primary enroll. (% gross)</th>
+                    <th onClick={() => changeSort('secondaryPupilsTotal')} className="sortable">Secondary enrollment (total)</th>
+                    <th onClick={() => changeSort('secondaryEnrollmentPct')} className="sortable">Secondary enroll. (% gross)</th>
+                    <th onClick={() => changeSort('tertiaryEnrollmentPct')} className="sortable">Tertiary enroll. (% gross)</th>
+                    <th onClick={() => changeSort('tertiaryEnrollmentTotal')} className="sortable">Tertiary enroll. (total)</th>
+                    <th onClick={() => changeSort('primarySchoolsTotal')} className="sortable">Primary teachers</th>
+                    <th onClick={() => changeSort('secondarySchoolsTotal')} className="sortable">Secondary teachers</th>
+                    <th onClick={() => changeSort('tertiaryInstitutionsTotal')} className="sortable">Tertiary teachers</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -748,16 +775,41 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
                           )}
                         </td>
                         <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {fmtPct(row.outOfSchoolSecondaryPct)}
+                          </div>
+                          {getYoYValue(row, 'outOfSchoolSecondaryPct') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'outOfSchoolSecondaryPct')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {fmtPct(row.outOfSchoolTertiaryPct)}
+                          </div>
+                          {getYoYValue(row, 'outOfSchoolTertiaryPct') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'outOfSchoolTertiaryPct')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
                           <div className="table-cell-main">{fmtPct(row.primaryCompletionRate)}</div>
                           {getYoYValue(row, 'primaryCompletionRate') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'primaryCompletionRate')}</div>
                           )}
                         </td>
                         <td className="numeric-cell">
-                          <div className="table-cell-main">{fmtPct(row.minProficiencyReadingPct)}</div>
+                          <div className="table-cell-main">{fmtPct(row.secondaryCompletionRate)}</div>
+                          {getYoYValue(row, 'secondaryCompletionRate') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'secondaryCompletionRate')}</div>
+                          )}
                         </td>
                         <td className="numeric-cell">
-                          <div className="table-cell-main">{fmtPct(row.preprimaryEnrollmentPct)}</div>
+                          <div className="table-cell-main">{fmtPct(row.tertiaryCompletionRate)}</div>
+                          {getYoYValue(row, 'tertiaryCompletionRate') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryCompletionRate')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.minProficiencyReadingPct)}</div>
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">{fmtPct(row.literacyRateAdultPct)}</div>
@@ -766,7 +818,19 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
                           <div className="table-cell-main">{fmtGPI(row.genderParityIndexPrimary)}</div>
                         </td>
                         <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtGPI(row.genderParityIndexSecondary)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtGPI(row.genderParityIndexTertiary)}</div>
+                        </td>
+                        <td className="numeric-cell">
                           <div className="table-cell-main">{fmtPct(row.trainedTeachersPrimaryPct)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.trainedTeachersSecondaryPct)}</div>
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.trainedTeachersTertiaryPct)}</div>
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
@@ -776,6 +840,72 @@ export function AllCountriesTableSection({ year, refreshTrigger = 0 }: Props) {
                           </div>
                           {getYoYValue(row, 'publicExpenditureEducationPctGDP') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'publicExpenditureEducationPctGDP')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.primaryPupilsTotal != null ? formatCompactNumber(row.primaryPupilsTotal) : '–'}
+                          </div>
+                          {getYoYValue(row, 'primaryPupilsTotal') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'primaryPupilsTotal')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.primaryEnrollmentPct)}</div>
+                          {getYoYValue(row, 'primaryEnrollmentPct') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'primaryEnrollmentPct')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.secondaryPupilsTotal != null ? formatCompactNumber(row.secondaryPupilsTotal) : '–'}
+                          </div>
+                          {getYoYValue(row, 'secondaryPupilsTotal') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'secondaryPupilsTotal')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.secondaryEnrollmentPct)}</div>
+                          {getYoYValue(row, 'secondaryEnrollmentPct') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'secondaryEnrollmentPct')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">{fmtPct(row.tertiaryEnrollmentPct)}</div>
+                          {getYoYValue(row, 'tertiaryEnrollmentPct') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryEnrollmentPct')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.tertiaryEnrollmentTotal != null ? formatCompactNumber(row.tertiaryEnrollmentTotal) : '–'}
+                          </div>
+                          {getYoYValue(row, 'tertiaryEnrollmentTotal') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryEnrollmentTotal')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.primarySchoolsTotal != null ? formatCompactNumber(row.primarySchoolsTotal) : '–'}
+                          </div>
+                          {getYoYValue(row, 'primarySchoolsTotal') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'primarySchoolsTotal')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.secondarySchoolsTotal != null ? formatCompactNumber(row.secondarySchoolsTotal) : '–'}
+                          </div>
+                          {getYoYValue(row, 'secondarySchoolsTotal') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'secondarySchoolsTotal')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.tertiaryInstitutionsTotal != null ? formatCompactNumber(row.tertiaryInstitutionsTotal) : '–'}
+                          </div>
+                          {getYoYValue(row, 'tertiaryInstitutionsTotal') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryInstitutionsTotal')}</div>
                           )}
                         </td>
                       </tr>

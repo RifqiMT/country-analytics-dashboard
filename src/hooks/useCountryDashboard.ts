@@ -21,6 +21,10 @@ interface UseCountryDashboardResult {
   setMacroFrequency: (f: Frequency) => void;
   macroHealthFrequency: Frequency;
   setMacroHealthFrequency: (f: Frequency) => void;
+  educationOOSFrequency: Frequency;
+  setEducationOOSFrequency: (f: Frequency) => void;
+  educationEnrollmentStaffFrequency: Frequency;
+  setEducationEnrollmentStaffFrequency: (f: Frequency) => void;
   labourFrequency: Frequency;
   setLabourFrequency: (f: Frequency) => void;
   populationStructureFrequency: Frequency;
@@ -35,6 +39,8 @@ interface UseCountryDashboardResult {
   resampled: CountryDashboardData['series'] | undefined;
   resampledMacro: CountryDashboardData['series'] | undefined;
   resampledMacroHealth: CountryDashboardData['series'] | undefined;
+  resampledEducationOOS: CountryDashboardData['series'] | undefined;
+  resampledEducationEnrollmentStaff: CountryDashboardData['series'] | undefined;
   resampledLabour: CountryDashboardData['series'] | undefined;
   resampledPopulationStructure: CountryDashboardData['series'] | undefined;
 }
@@ -60,6 +66,11 @@ export function useCountryDashboard(
   const [macroHealthFrequency, setMacroHealthFrequency] = useState<Frequency>(
     options?.initialFrequency ?? 'yearly',
   );
+  const [educationOOSFrequency, setEducationOOSFrequency] = useState<Frequency>(
+    options?.initialFrequency ?? 'yearly',
+  );
+  const [educationEnrollmentStaffFrequency, setEducationEnrollmentStaffFrequency] =
+    useState<Frequency>(options?.initialFrequency ?? 'yearly');
   const [labourFrequency, setLabourFrequency] = useState<Frequency>(
     options?.initialFrequency ?? 'yearly',
   );
@@ -177,6 +188,40 @@ export function useCountryDashboard(
       }
     : undefined;
 
+  const resampledEducationOOS = data?.series
+    ? {
+        financial: (data.series.financial ?? []).map((s) =>
+          resampleSeries(s, educationOOSFrequency),
+        ),
+        population: (data.series.population ?? []).map((s) =>
+          resampleSeries(s, educationOOSFrequency),
+        ),
+        health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, educationOOSFrequency),
+        ),
+        education: (data.series.education ?? []).map((s) =>
+          resampleSeries(s, educationOOSFrequency),
+        ),
+      }
+    : undefined;
+
+  const resampledEducationEnrollmentStaff = data?.series
+    ? {
+        financial: (data.series.financial ?? []).map((s) =>
+          resampleSeries(s, educationEnrollmentStaffFrequency),
+        ),
+        population: (data.series.population ?? []).map((s) =>
+          resampleSeries(s, educationEnrollmentStaffFrequency),
+        ),
+        health: (data.series.health ?? []).map((s) =>
+          resampleSeries(s, educationEnrollmentStaffFrequency),
+        ),
+        education: (data.series.education ?? []).map((s) =>
+          resampleSeries(s, educationEnrollmentStaffFrequency),
+        ),
+      }
+    : undefined;
+
   const resampledLabour = data?.series
     ? {
         financial: (data.series.financial ?? []).map((s) =>
@@ -220,6 +265,10 @@ export function useCountryDashboard(
     setMacroFrequency,
     macroHealthFrequency,
     setMacroHealthFrequency,
+    educationOOSFrequency,
+    setEducationOOSFrequency,
+    educationEnrollmentStaffFrequency,
+    setEducationEnrollmentStaffFrequency,
     labourFrequency,
     setLabourFrequency,
     populationStructureFrequency,
@@ -234,6 +283,8 @@ export function useCountryDashboard(
     resampled,
     resampledMacro,
     resampledMacroHealth,
+    resampledEducationOOS,
+    resampledEducationEnrollmentStaff,
     resampledLabour,
     resampledPopulationStructure,
   };

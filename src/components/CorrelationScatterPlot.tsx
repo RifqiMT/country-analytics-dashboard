@@ -46,13 +46,29 @@ export type ScatterMetricKey =
   | 'totalAreaKm2'
   | 'eezKm2'
   | 'outOfSchoolPrimaryPct'
+  | 'outOfSchoolSecondaryPct'
+  | 'outOfSchoolTertiaryPct'
   | 'primaryCompletionRate'
+  | 'secondaryCompletionRate'
+  | 'tertiaryCompletionRate'
   | 'minProficiencyReadingPct'
-  | 'preprimaryEnrollmentPct'
   | 'literacyRateAdultPct'
   | 'genderParityIndexPrimary'
+  | 'genderParityIndexSecondary'
+  | 'genderParityIndexTertiary'
   | 'trainedTeachersPrimaryPct'
-  | 'publicExpenditureEducationPctGDP';
+  | 'trainedTeachersSecondaryPct'
+  | 'trainedTeachersTertiaryPct'
+  | 'publicExpenditureEducationPctGDP'
+  | 'primaryPupilsTotal'
+  | 'primaryEnrollmentPct'
+  | 'secondaryPupilsTotal'
+  | 'secondaryEnrollmentPct'
+  | 'tertiaryEnrollmentPct'
+  | 'tertiaryEnrollmentTotal'
+  | 'primarySchoolsTotal'
+  | 'secondarySchoolsTotal'
+  | 'tertiaryInstitutionsTotal';
 
 export interface ScatterMetricOption {
   key: ScatterMetricKey;
@@ -122,13 +138,29 @@ export const SCATTER_METRIC_OPTIONS_GROUPED: { group: string; options: ScatterMe
     group: 'Education',
     options: [
       { key: 'outOfSchoolPrimaryPct', label: 'Out-of-school rate (primary, %)' },
-      { key: 'primaryCompletionRate', label: 'Primary completion rate (%)' },
+      { key: 'outOfSchoolSecondaryPct', label: 'Out-of-school rate (secondary, %)' },
+      { key: 'outOfSchoolTertiaryPct', label: 'Out-of-school rate (tertiary, %)' },
+      { key: 'primaryCompletionRate', label: 'Primary completion rate (gross, %)' },
+      { key: 'secondaryCompletionRate', label: 'Secondary completion rate (gross, %)' },
+      { key: 'tertiaryCompletionRate', label: 'Tertiary completion rate (gross, %)' },
       { key: 'minProficiencyReadingPct', label: 'Minimum reading proficiency (%)' },
-      { key: 'preprimaryEnrollmentPct', label: 'Preprimary enrollment (% gross)' },
       { key: 'literacyRateAdultPct', label: 'Adult literacy rate (%)' },
       { key: 'genderParityIndexPrimary', label: 'Gender parity index (GPI), primary' },
+      { key: 'genderParityIndexSecondary', label: 'Gender parity index (GPI), secondary' },
+      { key: 'genderParityIndexTertiary', label: 'Gender parity index (GPI), tertiary' },
       { key: 'trainedTeachersPrimaryPct', label: 'Trained teachers primary (%)' },
+      { key: 'trainedTeachersSecondaryPct', label: 'Trained teachers secondary (%)' },
+      { key: 'trainedTeachersTertiaryPct', label: 'Trained teachers tertiary (%)' },
       { key: 'publicExpenditureEducationPctGDP', label: 'Public expenditure on education (% GDP)' },
+      { key: 'primaryPupilsTotal', label: 'Primary enrollment (total)' },
+      { key: 'primaryEnrollmentPct', label: 'Primary enrollment (% gross)' },
+      { key: 'secondaryPupilsTotal', label: 'Secondary enrollment (total)' },
+      { key: 'secondaryEnrollmentPct', label: 'Secondary enrollment (% gross)' },
+      { key: 'tertiaryEnrollmentPct', label: 'Tertiary enrollment (% gross)' },
+      { key: 'tertiaryEnrollmentTotal', label: 'Tertiary enrollment (total)' },
+      { key: 'primarySchoolsTotal', label: 'Primary education, teachers (total)' },
+      { key: 'secondarySchoolsTotal', label: 'Secondary education, teachers (total)' },
+      { key: 'tertiaryInstitutionsTotal', label: 'Tertiary education, teachers (total)' },
     ],
   },
 ];
@@ -164,6 +196,9 @@ function formatAxisValue(value: number, key: ScatterMetricKey): string {
     'population0_14',
     'population15_64',
     'population65Plus',
+    'primaryPupilsTotal',
+    'secondaryPupilsTotal',
+    'tertiaryEnrollmentTotal',
     'landAreaKm2',
     'totalAreaKm2',
     'eezKm2',
@@ -192,15 +227,23 @@ function formatAxisValue(value: number, key: ScatterMetricKey): string {
     'pop65PlusPct',
     'undernourishmentPrevalence',
     'outOfSchoolPrimaryPct',
+    'outOfSchoolSecondaryPct',
+    'outOfSchoolTertiaryPct',
     'primaryCompletionRate',
+    'secondaryCompletionRate',
+    'tertiaryCompletionRate',
     'minProficiencyReadingPct',
-    'preprimaryEnrollmentPct',
     'literacyRateAdultPct',
     'trainedTeachersPrimaryPct',
+    'trainedTeachersSecondaryPct',
+    'trainedTeachersTertiaryPct',
     'publicExpenditureEducationPctGDP',
+    'primaryEnrollmentPct',
+    'secondaryEnrollmentPct',
+    'tertiaryEnrollmentPct',
   ];
   if (pctKeys.includes(key)) return value.toFixed(0);
-  if (key === 'genderParityIndexPrimary') return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);
+  if (key === 'genderParityIndexPrimary' || key === 'genderParityIndexSecondary' || key === 'genderParityIndexTertiary') return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);
   if (key === 'lifeExpectancy') return value.toFixed(1);
   if (key === 'maternalMortalityRatio' || key === 'under5MortalityRate') return value.toFixed(0);
   return value.toFixed(1);

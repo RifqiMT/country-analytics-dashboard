@@ -1,7 +1,9 @@
 import type { CountryDashboardData, CountrySummary, MetricSeries } from '../types';
+import { useState } from 'react';
 import { formatCompactNumber, formatPercentage, formatYearRange } from '../utils/numberFormat';
 import { formatGrowthChange } from '../utils/growthFormat';
 import { DATA_MIN_YEAR, DATA_MAX_YEAR } from '../config';
+import { getMetricIconPath } from '../icons/metricIcons';
 
 const SvgIcon = ({ d, className }: { d: string; className?: string }) => (
   <svg viewBox="0 0 16 16" aria-hidden className={className}>
@@ -9,7 +11,29 @@ const SvgIcon = ({ d, className }: { d: string; className?: string }) => (
   </svg>
 );
 
-function GeneralCard({ summary, geo }: { summary: CountrySummary; geo?: { landAreaKm2?: number | null; totalAreaKm2?: number | null; eezKm2?: number | null } }) {
+/** Chevron right (collapsed) and down (expanded) for expand/collapse controls */
+const ChevronRight = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className="summary-chevron summary-chevron-right">
+    <path fill="currentColor" d="M6 4 5 5l4 3-4 3 1 1 5-4-5-4Z" />
+  </svg>
+);
+const ChevronDown = () => (
+  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden className="summary-chevron summary-chevron-down">
+    <path fill="currentColor" d="M4 6 5 5l3 3 3-3 1 1-4 4-4-4Z" />
+  </svg>
+);
+
+function GeneralCard({
+  summary,
+  geo,
+  expanded,
+  onToggle,
+}: {
+  summary: CountrySummary;
+  geo?: { landAreaKm2?: number | null; totalAreaKm2?: number | null; eezKm2?: number | null };
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const groups: { label: string; items: { icon: string; label: string; value: React.ReactNode; badge?: boolean }[] }[] = [
     {
       label: 'Location & classification',
@@ -64,8 +88,19 @@ function GeneralCard({ summary, geo }: { summary: CountrySummary; geo?: { landAr
 
   return (
     <div className="summary-card general-card">
-      <h3 className="general-card-title">General</h3>
-      <div className="general-groups">
+      <button
+        type="button"
+        className="summary-card-toggle"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls="general-card-content"
+        id="general-card-toggle"
+      >
+        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+        <h3 className="general-card-title" id="general-card-label">General</h3>
+      </button>
+      <div id="general-card-content" aria-labelledby="general-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
+        <div className="general-groups">
         {groups.map((group) => (
           <div key={group.label} className="general-group">
             <div className="general-group-label">{group.label}</div>
@@ -93,6 +128,7 @@ function GeneralCard({ summary, geo }: { summary: CountrySummary; geo?: { landAr
           <span className="general-footer-value">{summary.government}</span>
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -121,10 +157,14 @@ function FinancialCard({
   g,
   getYoY,
   series,
+  expanded,
+  onToggle,
 }: {
   g: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['financial'] | undefined;
   getYoY: (s: MetricSeries[] | undefined, id: string) => string | null;
   series: MetricSeries[] | undefined;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const groups: {
     label: string;
@@ -180,8 +220,19 @@ function FinancialCard({
 
   return (
     <div className="summary-card financial-card">
-      <h3 className="financial-card-title">Financial metrics</h3>
-      <div className="financial-groups">
+      <button
+        type="button"
+        className="summary-card-toggle"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls="financial-card-content"
+        id="financial-card-toggle"
+      >
+        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+        <h3 className="financial-card-title" id="financial-card-label">Financial metrics</h3>
+      </button>
+      <div id="financial-card-content" aria-labelledby="financial-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
+        <div className="financial-groups">
         {groups.map((group) => (
           <div key={group.label} className="financial-group">
             <div className="financial-group-label">{group.label}</div>
@@ -211,6 +262,7 @@ function FinancialCard({
           </div>
         ))}
       </div>
+      </div>
     </div>
   );
 }
@@ -220,11 +272,15 @@ function HealthCard({
   h,
   getYoY,
   series,
+  expanded,
+  onToggle,
 }: {
   p: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['population'] | undefined;
   h: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['health'] | undefined;
   getYoY: (s: MetricSeries[] | undefined, id: string) => string | null;
   series: { population: MetricSeries[]; health: MetricSeries[] };
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const ageGroups = p?.ageBreakdown?.groups ?? [];
   const totalPopulation = p?.total ?? null;
@@ -294,8 +350,19 @@ function HealthCard({
 
   return (
     <div className="summary-card health-card">
-      <h3 className="health-card-title">Health & demographics</h3>
-      <div className="health-groups">
+      <button
+        type="button"
+        className="summary-card-toggle"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls="health-card-content"
+        id="health-card-toggle"
+      >
+        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+        <h3 className="health-card-title" id="health-card-label">Health & demographics</h3>
+      </button>
+      <div id="health-card-content" aria-labelledby="health-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
+        <div className="health-groups">
         {groups.map((group) => (
           <div key={group.label} className="health-group">
             <div className="health-group-label">{group.label}</div>
@@ -325,6 +392,7 @@ function HealthCard({
           </div>
         ))}
       </div>
+      </div>
     </div>
   );
 }
@@ -333,10 +401,14 @@ function EducationCard({
   e,
   getYoY,
   series,
+  expanded,
+  onToggle,
 }: {
   e: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['education'] | undefined;
   getYoY: (s: MetricSeries[] | undefined, id: string) => string | null;
   series: MetricSeries[] | undefined;
+  expanded: boolean;
+  onToggle: () => void;
 }) {
   const formatGPI = (v: number | null | undefined) =>
     v != null && Number.isFinite(v) ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : '–';
@@ -351,34 +423,66 @@ function EducationCard({
     }[];
   }[] = [
     {
-      label: 'Access & completion',
+      label: 'Out-of-school & completion',
       items: [
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Out-of-school rate (primary, %)', value: e?.outOfSchoolPrimaryPct != null ? `${e.outOfSchoolPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolPrimaryPct') },
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Primary completion rate (%)', value: e?.primaryCompletionRate != null ? `${e.primaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'primaryCompletionRate') },
+        { icon: getMetricIconPath('outOfSchoolPrimaryPct'), label: 'Out-of-school rate (primary, %)', value: e?.outOfSchoolPrimaryPct != null ? `${e.outOfSchoolPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolPrimaryPct') },
+        { icon: getMetricIconPath('outOfSchoolSecondaryPct'), label: 'Out-of-school rate (secondary, %)', value: e?.outOfSchoolSecondaryPct != null ? `${e.outOfSchoolSecondaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolSecondaryPct') },
+        { icon: getMetricIconPath('outOfSchoolTertiaryPct'), label: 'Out-of-school rate (tertiary, %)', value: e?.outOfSchoolTertiaryPct != null ? `${e.outOfSchoolTertiaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolTertiaryPct') },
+        { icon: getMetricIconPath('primaryCompletionRate'), label: 'Primary completion rate (gross, %)', value: e?.primaryCompletionRate != null ? `${e.primaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'primaryCompletionRate') },
+        { icon: getMetricIconPath('secondaryCompletionRate'), label: 'Secondary completion rate (gross, %)', value: e?.secondaryCompletionRate != null ? `${e.secondaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'secondaryCompletionRate') },
+        { icon: getMetricIconPath('tertiaryCompletionRate'), label: 'Tertiary completion rate (gross, %)', value: e?.tertiaryCompletionRate != null ? `${e.tertiaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'tertiaryCompletionRate') },
       ],
     },
     {
       label: 'Learning & literacy',
       items: [
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Minimum reading proficiency (%)', value: e?.minProficiencyReadingPct != null ? `${e.minProficiencyReadingPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'minProficiencyReadingPct') },
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Preprimary enrollment (% gross)', value: e?.preprimaryEnrollmentPct != null ? `${e.preprimaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'preprimaryEnrollmentPct') },
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Adult literacy rate (%)', value: e?.literacyRateAdultPct != null ? `${e.literacyRateAdultPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'literacyRateAdultPct') },
+        { icon: getMetricIconPath('minProficiencyReadingPct'), label: 'Minimum reading proficiency (%)', value: e?.minProficiencyReadingPct != null ? `${e.minProficiencyReadingPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'minProficiencyReadingPct') },
+        { icon: getMetricIconPath('literacyRateAdultPct'), label: 'Adult literacy rate (%)', value: e?.literacyRateAdultPct != null ? `${e.literacyRateAdultPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'literacyRateAdultPct') },
       ],
     },
     {
       label: 'Quality & investment',
       items: [
-        { icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z', label: 'Gender parity index (GPI), primary', value: formatGPI(e?.genderParityIndexPrimary), yoy: getYoY(series, 'genderParityIndexPrimary') },
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'Trained teachers primary (%)', value: e?.trainedTeachersPrimaryPct != null ? `${e.trainedTeachersPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersPrimaryPct') },
-        { icon: 'M3 11.5a.75.75 0 0 1 .75-.75h2V4.5a.75.75 0 0 1 1.5 0v6.25h2l.1.01a.75.75 0 0 1-.1 1.49h-2v.75a.75.75 0 0 1-1.5 0V12.5h-2A.75.75 0 0 1 3 11.5Z', label: 'Public expenditure on education (% GDP)', value: e?.publicExpenditureEducationPctGDP != null ? `${e.publicExpenditureEducationPctGDP.toFixed(2)}%` : '–', yoy: getYoY(series, 'publicExpenditureEducationPctGDP') },
+        { icon: getMetricIconPath('genderParityIndexPrimary'), label: 'Gender parity index (GPI), primary', value: formatGPI(e?.genderParityIndexPrimary), yoy: getYoY(series, 'genderParityIndexPrimary') },
+        { icon: getMetricIconPath('genderParityIndexSecondary'), label: 'Gender parity index (GPI), secondary', value: formatGPI(e?.genderParityIndexSecondary), yoy: getYoY(series, 'genderParityIndexSecondary') },
+        { icon: getMetricIconPath('genderParityIndexTertiary'), label: 'Gender parity index (GPI), tertiary', value: formatGPI(e?.genderParityIndexTertiary), yoy: getYoY(series, 'genderParityIndexTertiary') },
+        { icon: getMetricIconPath('trainedTeachersPrimaryPct'), label: 'Trained teachers primary (%)', value: e?.trainedTeachersPrimaryPct != null ? `${e.trainedTeachersPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersPrimaryPct') },
+        { icon: getMetricIconPath('trainedTeachersSecondaryPct'), label: 'Trained teachers secondary (%)', value: e?.trainedTeachersSecondaryPct != null ? `${e.trainedTeachersSecondaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersSecondaryPct') },
+        { icon: getMetricIconPath('trainedTeachersTertiaryPct'), label: 'Trained teachers tertiary (%)', value: e?.trainedTeachersTertiaryPct != null ? `${e.trainedTeachersTertiaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersTertiaryPct') },
+        { icon: getMetricIconPath('publicExpenditureEducationPctGDP'), label: 'Public expenditure on education (% GDP)', value: e?.publicExpenditureEducationPctGDP != null ? `${e.publicExpenditureEducationPctGDP.toFixed(2)}%` : '–', yoy: getYoY(series, 'publicExpenditureEducationPctGDP') },
+      ],
+    },
+    {
+      label: 'Enrollment & staff',
+      items: [
+        { icon: getMetricIconPath('primaryPupilsTotal'), label: 'Primary enrollment (total)', value: e?.primaryPupilsTotal != null ? formatCompactNumber(e.primaryPupilsTotal) : '–', yoy: getYoY(series, 'primaryPupilsTotal') },
+        { icon: getMetricIconPath('secondaryPupilsTotal'), label: 'Secondary enrollment (total)', value: e?.secondaryPupilsTotal != null ? formatCompactNumber(e.secondaryPupilsTotal) : '–', yoy: getYoY(series, 'secondaryPupilsTotal') },
+        { icon: getMetricIconPath('tertiaryEnrollmentTotal'), label: 'Tertiary enrollment (total)', value: e?.tertiaryEnrollmentTotal != null ? formatCompactNumber(e.tertiaryEnrollmentTotal) : '–', yoy: getYoY(series, 'tertiaryEnrollmentTotal') },
+        { icon: getMetricIconPath('primaryEnrollmentPct'), label: 'Primary enrollment (% gross)', value: e?.primaryEnrollmentPct != null ? `${e.primaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'primaryEnrollmentPct') },
+        { icon: getMetricIconPath('secondaryEnrollmentPct'), label: 'Secondary enrollment (% gross)', value: e?.secondaryEnrollmentPct != null ? `${e.secondaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'secondaryEnrollmentPct') },
+        { icon: getMetricIconPath('tertiaryEnrollmentPct'), label: 'Tertiary enrollment (% gross)', value: e?.tertiaryEnrollmentPct != null ? `${e.tertiaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'tertiaryEnrollmentPct') },
+        { icon: getMetricIconPath('primarySchoolsTotal'), label: 'Primary education, teachers (total)', value: e?.primarySchoolsTotal != null ? formatCompactNumber(e.primarySchoolsTotal) : '–', yoy: getYoY(series, 'primarySchoolsTotal') },
+        { icon: getMetricIconPath('secondarySchoolsTotal'), label: 'Secondary education, teachers (total)', value: e?.secondarySchoolsTotal != null ? formatCompactNumber(e.secondarySchoolsTotal) : '–', yoy: getYoY(series, 'secondarySchoolsTotal') },
+        { icon: getMetricIconPath('tertiaryInstitutionsTotal'), label: 'Tertiary education, teachers (total)', value: e?.tertiaryInstitutionsTotal != null ? formatCompactNumber(e.tertiaryInstitutionsTotal) : '–', yoy: getYoY(series, 'tertiaryInstitutionsTotal') },
       ],
     },
   ];
 
   return (
     <div className="summary-card education-card">
-      <h3 className="education-card-title">Education</h3>
-      <div className="education-groups">
+      <button
+        type="button"
+        className="summary-card-toggle"
+        onClick={onToggle}
+        aria-expanded={expanded}
+        aria-controls="education-card-content"
+        id="education-card-toggle"
+      >
+        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+        <h3 className="education-card-title" id="education-card-label">Education</h3>
+      </button>
+      <div id="education-card-content" aria-labelledby="education-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
+        <div className="education-groups">
         {groups.map((group) => (
           <div key={group.label} className="education-group">
             <div className="education-group-label">{group.label}</div>
@@ -407,6 +511,7 @@ function EducationCard({
             </div>
           </div>
         ))}
+      </div>
       </div>
     </div>
   );
@@ -459,6 +564,12 @@ export function SummarySection({ data, countryCode }: Props) {
     return formatGrowthChange(curr, prev ?? null, 'YoY', id);
   };
 
+  const [summaryExpanded, setSummaryExpanded] = useState(true);
+  const [generalExpanded, setGeneralExpanded] = useState(true);
+  const [financialExpanded, setFinancialExpanded] = useState(true);
+  const [healthExpanded, setHealthExpanded] = useState(true);
+  const [educationExpanded, setEducationExpanded] = useState(true);
+
   return (
     <section className="summary-section card">
       <div className="overview-header">
@@ -492,12 +603,26 @@ export function SummarySection({ data, countryCode }: Props) {
         </div>
       </div>
 
-      <div className="summary-grid">
-        <GeneralCard summary={safeSummary} geo={geo} />
-        <FinancialCard g={g} getYoY={getYoY} series={data.series?.financial ?? []} />
-        <HealthCard p={p} h={h} getYoY={getYoY} series={data.series ?? { financial: [], population: [], health: [] }} />
-        <EducationCard e={e} getYoY={getYoY} series={data.series?.education ?? []} />
+      <button
+        type="button"
+        className="summary-section-toggle"
+        onClick={() => setSummaryExpanded((s) => !s)}
+        aria-expanded={summaryExpanded}
+        aria-controls="summary-grid"
+        id="summary-section-toggle"
+      >
+        <span className="summary-card-chevron">{summaryExpanded ? <ChevronDown /> : <ChevronRight />}</span>
+        <span className="summary-section-toggle-label">Summary</span>
+      </button>
+
+      {summaryExpanded && (
+      <div className="summary-grid" id="summary-grid" role="region" aria-labelledby="summary-section-toggle">
+        <GeneralCard summary={safeSummary} geo={geo} expanded={generalExpanded} onToggle={() => setGeneralExpanded((g) => !g)} />
+        <FinancialCard g={g} getYoY={getYoY} series={data.series?.financial ?? []} expanded={financialExpanded} onToggle={() => setFinancialExpanded((f) => !f)} />
+        <HealthCard p={p} h={h} getYoY={getYoY} series={data.series ?? { financial: [], population: [], health: [] }} expanded={healthExpanded} onToggle={() => setHealthExpanded((h) => !h)} />
+        <EducationCard e={e} getYoY={getYoY} series={data.series?.education ?? []} expanded={educationExpanded} onToggle={() => setEducationExpanded((e) => !e)} />
       </div>
+      )}
     </section>
   );
 }

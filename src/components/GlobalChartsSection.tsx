@@ -8,7 +8,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useEffect, useState } from 'react';
-import type { Frequency, MetricId, MetricSeries, TimePoint } from '../types';
+import type { Frequency, MetricId, MetricSeries, TimePoint, GlobalCountryMetricsRow } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import type { TooltipProps } from 'recharts';
@@ -19,10 +19,12 @@ import {
   computeGlobalValue,
   GLOBAL_ECONOMIC_AGGREGATES,
   GLOBAL_HEALTH_AGGREGATES,
-  GLOBAL_EDUCATION_AGGREGATES,
   GLOBAL_POP_STRUCTURE_AGGREGATES,
   GLOBAL_UNIFIED_AGGREGATES,
+  GLOBAL_EDUCATION_AGGREGATES,
+  GLOBAL_LABOUR_AGGREGATES,
 } from '../utils/globalAggregates';
+import { GRAPHS_SUBSECTION_CONFIG, type GraphsSubsectionId } from '../data/graphsSubsectionConfig';
 
 /** Forward-fill and back-fill nulls so the series has no gaps (same logic as country-level macro timeline). */
 function fillSeriesPoints(points: TimePoint[]): TimePoint[] {
@@ -126,39 +128,6 @@ const GLOBAL_HEALTH_LABELS: Record<string, string> = {
   lifeExpectancy: 'Life expectancy at birth (years)',
 };
 
-const EDUCATION_METRIC_IDS: MetricId[] = [
-  'outOfSchoolPrimaryPct',
-  'primaryCompletionRate',
-  'minProficiencyReadingPct',
-  'preprimaryEnrollmentPct',
-  'literacyRateAdultPct',
-  'genderParityIndexPrimary',
-  'trainedTeachersPrimaryPct',
-  'publicExpenditureEducationPctGDP',
-];
-
-const EDUCATION_COLORS: Record<string, string> = {
-  outOfSchoolPrimaryPct: '#dc2626',
-  primaryCompletionRate: '#16a34a',
-  minProficiencyReadingPct: '#0f766e',
-  preprimaryEnrollmentPct: '#7c3aed',
-  literacyRateAdultPct: '#0369a1',
-  genderParityIndexPrimary: '#b45309',
-  trainedTeachersPrimaryPct: '#059669',
-  publicExpenditureEducationPctGDP: '#1d4ed8',
-};
-
-const GLOBAL_EDUCATION_LABELS: Record<string, string> = {
-  outOfSchoolPrimaryPct: 'Out-of-school rate (primary, % of primary school age)',
-  primaryCompletionRate: 'Primary completion rate (% of relevant age group)',
-  minProficiencyReadingPct: 'Minimum reading proficiency (% of children at end of primary)',
-  preprimaryEnrollmentPct: 'Early childhood education – Preprimary enrollment (% gross)',
-  literacyRateAdultPct: 'Literacy rate, adult (% of people ages 15+)',
-  genderParityIndexPrimary: 'Gender parity index (GPI), primary enrollment',
-  trainedTeachersPrimaryPct: 'Trained teachers in primary education (% of total teachers)',
-  publicExpenditureEducationPctGDP: 'Public expenditure on education (% of GDP)',
-};
-
 const POP_STRUCTURE_METRIC_IDS: MetricId[] = [
   'pop0_14Share',
   'pop15_64Share',
@@ -177,14 +146,91 @@ const GLOBAL_POP_STRUCTURE_LABELS: Record<string, string> = {
   pop65PlusShare: 'Population 65+ (% of total)',
 };
 
+const EDUCATION_OOS_METRIC_IDS: MetricId[] = [
+  'outOfSchoolPrimaryPct',
+  'outOfSchoolSecondaryPct',
+  'outOfSchoolTertiaryPct',
+  'primaryCompletionRate',
+  'secondaryCompletionRate',
+  'tertiaryCompletionRate',
+];
+
+const EDUCATION_OOS_COLORS: Record<string, string> = {
+  outOfSchoolPrimaryPct: '#dc2626',
+  outOfSchoolSecondaryPct: '#b91c1c',
+  outOfSchoolTertiaryPct: '#991b1b',
+  primaryCompletionRate: '#16a34a',
+  secondaryCompletionRate: '#15803d',
+  tertiaryCompletionRate: '#166534',
+};
+
+const GLOBAL_EDUCATION_OOS_LABELS: Record<string, string> = {
+  outOfSchoolPrimaryPct: 'Out of school, primary (%)',
+  outOfSchoolSecondaryPct: 'Out of school, secondary (%)',
+  outOfSchoolTertiaryPct: 'Out of school, tertiary (%)',
+  primaryCompletionRate: 'Primary completion rate (%)',
+  secondaryCompletionRate: 'Secondary completion rate (%)',
+  tertiaryCompletionRate: 'Tertiary completion rate (%)',
+};
+
+const EDUCATION_ENROLLMENT_METRIC_IDS: MetricId[] = [
+  'primaryPupilsTotal',
+  'secondaryPupilsTotal',
+  'tertiaryEnrollmentTotal',
+  'primaryEnrollmentPct',
+  'secondaryEnrollmentPct',
+  'tertiaryEnrollmentPct',
+  'primarySchoolsTotal',
+  'secondarySchoolsTotal',
+  'tertiaryInstitutionsTotal',
+];
+
+const EDUCATION_ENROLLMENT_COLORS: Record<string, string> = {
+  primaryPupilsTotal: '#0d9488',
+  secondaryPupilsTotal: '#ca8a04',
+  tertiaryEnrollmentTotal: '#4f46e5',
+  primaryEnrollmentPct: '#0f766e',
+  secondaryEnrollmentPct: '#a16207',
+  tertiaryEnrollmentPct: '#2563eb',
+  primarySchoolsTotal: '#0d9488',
+  secondarySchoolsTotal: '#ca8a04',
+  tertiaryInstitutionsTotal: '#7c3aed',
+};
+
+const GLOBAL_EDUCATION_ENROLLMENT_LABELS: Record<string, string> = {
+  primaryPupilsTotal: 'Primary pupils (total)',
+  secondaryPupilsTotal: 'Secondary pupils (total)',
+  tertiaryEnrollmentTotal: 'Tertiary enrollment (total)',
+  primaryEnrollmentPct: 'Primary enrollment (% gross)',
+  secondaryEnrollmentPct: 'Secondary enrollment (% gross)',
+  tertiaryEnrollmentPct: 'Tertiary enrollment (% gross)',
+  primarySchoolsTotal: 'Primary schools (total)',
+  secondarySchoolsTotal: 'Secondary schools (total)',
+  tertiaryInstitutionsTotal: 'Tertiary institutions (total)',
+};
+
+const LABOUR_METRIC_IDS: MetricId[] = ['unemployedTotal', 'labourForceTotal'];
+
+const LABOUR_COLORS: Record<string, string> = {
+  unemployedTotal: '#dc2626',
+  labourForceTotal: '#0ea5e9',
+};
+
+const GLOBAL_LABOUR_LABELS: Record<string, string> = {
+  unemployedTotal: 'Unemployed (number)',
+  labourForceTotal: 'Labour force (total)',
+};
+
 interface Props {
   /** Increment to force refetch (e.g. after "Refresh all data"). */
   refreshTrigger?: number;
   /** Selected max year from the Global Analytics year filter. */
   maxYear: number;
+  /** When set, aggregates are computed only for countries in this region (World Bank region name). */
+  region?: string | null;
 }
 
-export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
+export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null }: Props) {
   const [frequency, setFrequency] = useState<Frequency>('yearly');
   const [globalSeries, setGlobalSeries] = useState<MetricSeries[]>([]);
   const [globalHealthSeries, setGlobalHealthSeries] = useState<MetricSeries[]>([]);
@@ -205,18 +251,59 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
   const [viewModeHealth, setViewModeHealth] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpenHealth, setIsFrequencyOpenHealth] = useState(false);
 
-  const [frequencyEducation, setFrequencyEducation] = useState<Frequency>('yearly');
-  const [globalEducationSeries, setGlobalEducationSeries] = useState<MetricSeries[]>([]);
-  const [selectedEducationMetricIds, setSelectedEducationMetricIds] = useState<MetricId[]>(EDUCATION_METRIC_IDS);
-  const [viewModeEducation, setViewModeEducation] = useState<'chart' | 'table'>('chart');
-  const [isFrequencyOpenEducation, setIsFrequencyOpenEducation] = useState(false);
-
   const [frequencyPop, setFrequencyPop] = useState<Frequency>('yearly');
   const [globalPopStructureSeries, setGlobalPopStructureSeries] = useState<MetricSeries[]>([]);
   const [worldPopByYear, setWorldPopByYear] = useState<Record<number, number>>({});
   const [selectedPopMetricIds, setSelectedPopMetricIds] = useState<MetricId[]>(POP_STRUCTURE_METRIC_IDS);
   const [viewModePop, setViewModePop] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpenPop, setIsFrequencyOpenPop] = useState(false);
+
+  const [globalEducationOOSSeries, setGlobalEducationOOSSeries] = useState<MetricSeries[]>([]);
+  const [frequencyEduOOS, setFrequencyEduOOS] = useState<Frequency>('yearly');
+  const [selectedEduOOSMetricIds, setSelectedEduOOSMetricIds] = useState<MetricId[]>(EDUCATION_OOS_METRIC_IDS);
+  const [viewModeEduOOS, setViewModeEduOOS] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpenEduOOS, setIsFrequencyOpenEduOOS] = useState(false);
+
+  const [globalEducationEnrollmentSeries, setGlobalEducationEnrollmentSeries] = useState<MetricSeries[]>([]);
+  const [frequencyEduEnroll, setFrequencyEduEnroll] = useState<Frequency>('yearly');
+  const [selectedEduEnrollMetricIds, setSelectedEduEnrollMetricIds] = useState<MetricId[]>(EDUCATION_ENROLLMENT_METRIC_IDS);
+  const [viewModeEduEnroll, setViewModeEduEnroll] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpenEduEnroll, setIsFrequencyOpenEduEnroll] = useState(false);
+
+  const [globalLabourSeries, setGlobalLabourSeries] = useState<MetricSeries[]>([]);
+  const [frequencyLabour, setFrequencyLabour] = useState<Frequency>('yearly');
+  const [selectedLabourMetricIds, setSelectedLabourMetricIds] = useState<MetricId[]>(LABOUR_METRIC_IDS);
+  const [viewModeLabour, setViewModeLabour] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpenLabour, setIsFrequencyOpenLabour] = useState(false);
+
+  const [sectionExpanded, setSectionExpanded] = useState(true);
+  const [subsectionsExpanded, setSubsectionsExpanded] = useState<Record<GraphsSubsectionId, boolean>>(
+    () =>
+      GRAPHS_SUBSECTION_CONFIG.reduce(
+        (acc, { id }) => ({ ...acc, [id]: true }),
+        {} as Record<GraphsSubsectionId, boolean>,
+      ),
+  );
+  const toggleSubsection = (id: GraphsSubsectionId) => {
+    setSubsectionsExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+  const expandAllSubsections = () => {
+    setSubsectionsExpanded(
+      GRAPHS_SUBSECTION_CONFIG.reduce(
+        (acc, { id }) => ({ ...acc, [id]: true }),
+        {} as Record<GraphsSubsectionId, boolean>,
+      ),
+    );
+  };
+  const collapseAllSubsections = () => {
+    setSubsectionsExpanded(
+      GRAPHS_SUBSECTION_CONFIG.reduce(
+        (acc, { id }) => ({ ...acc, [id]: false }),
+        {} as Record<GraphsSubsectionId, boolean>,
+      ),
+    );
+  };
+  const allExpanded = GRAPHS_SUBSECTION_CONFIG.every(({ id }) => subsectionsExpanded[id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -230,12 +317,15 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
       .then((rowsPerYear) => {
         if (cancelled) return;
 
+        const filterByRegion = (rows: GlobalCountryMetricsRow[]) =>
+          region ? rows.filter((r) => r.region === region) : rows;
+
         const seriesList: MetricSeries[] = ECONOMIC_METRIC_IDS.map((id) => {
           const config = GLOBAL_ECONOMIC_AGGREGATES[id];
           const points: TimePoint[] = rowsPerYear.map((rows, i) => {
             const year = years[i];
             const value = config
-              ? computeGlobalValue(rows, config.valueKey, config.option)
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
               : null;
             return { date: `${year}-01-01`, year, value };
           });
@@ -252,7 +342,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
           const points: TimePoint[] = rowsPerYear.map((rows, i) => {
             const year = years[i];
             const value = config
-              ? computeGlobalValue(rows, config.valueKey, config.option)
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
               : null;
             return {
               date: `${year}-01-01`,
@@ -269,33 +359,12 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         });
         setGlobalSeries(seriesList);
         setGlobalHealthSeries(healthSeriesList);
-        const educationSeriesList: MetricSeries[] = EDUCATION_METRIC_IDS.map((id) => {
-          const config = GLOBAL_EDUCATION_AGGREGATES[id];
-          const points: TimePoint[] = rowsPerYear.map((rows, i) => {
-            const year = years[i];
-            const value = config
-              ? computeGlobalValue(rows, config.valueKey, config.option)
-              : null;
-            return {
-              date: `${year}-01-01`,
-              year,
-              value,
-            };
-          });
-          return {
-            id,
-            label: GLOBAL_EDUCATION_LABELS[id] ?? id,
-            unit: '%',
-            points: fillSeriesPoints(points),
-          };
-        });
-        setGlobalEducationSeries(educationSeriesList);
         const unifiedSeriesList: MetricSeries[] = UNIFIED_TIMELINE_METRIC_IDS.map((id) => {
           const config = GLOBAL_UNIFIED_AGGREGATES[id];
           const points: TimePoint[] = rowsPerYear.map((rows, i) => {
             const year = years[i];
             const value = config
-              ? computeGlobalValue(rows, config.valueKey, config.option)
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
               : null;
             return { date: `${year}-01-01`, year, value };
           });
@@ -312,7 +381,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
           const points: TimePoint[] = rowsPerYear.map((rows, i) => {
             const year = years[i];
             const value = config
-              ? computeGlobalValue(rows, config.valueKey, config.option)
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
               : null;
             return {
               date: `${year}-01-01`,
@@ -331,13 +400,69 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         const popByYear: Record<number, number> = {};
         rowsPerYear.forEach((rows, i) => {
           const year = years[i];
-          const total = rows.reduce(
+          const filtered = filterByRegion(rows);
+          const total = filtered.reduce(
             (s, r) => s + (r.populationTotal != null && !Number.isNaN(r.populationTotal) ? r.populationTotal : 0),
             0,
           );
           if (total > 0) popByYear[year] = total;
         });
         setWorldPopByYear(popByYear);
+
+        const educationOOSSeriesList: MetricSeries[] = EDUCATION_OOS_METRIC_IDS.map((id) => {
+          const config = GLOBAL_EDUCATION_AGGREGATES[id];
+          const points: TimePoint[] = rowsPerYear.map((rows, i) => {
+            const year = years[i];
+            const value = config
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
+              : null;
+            return { date: `${year}-01-01`, year, value };
+          });
+          return {
+            id,
+            label: GLOBAL_EDUCATION_OOS_LABELS[id] ?? id,
+            unit: '%',
+            points: fillSeriesPoints(points),
+          };
+        });
+        setGlobalEducationOOSSeries(educationOOSSeriesList);
+
+        const educationEnrollmentSeriesList: MetricSeries[] = EDUCATION_ENROLLMENT_METRIC_IDS.map((id) => {
+          const config = GLOBAL_EDUCATION_AGGREGATES[id];
+          const points: TimePoint[] = rowsPerYear.map((rows, i) => {
+            const year = years[i];
+            const value = config
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
+              : null;
+            return { date: `${year}-01-01`, year, value };
+          });
+          const isPct = id.endsWith('Pct');
+          return {
+            id,
+            label: GLOBAL_EDUCATION_ENROLLMENT_LABELS[id] ?? id,
+            unit: isPct ? '%' : '',
+            points: fillSeriesPoints(points),
+          };
+        });
+        setGlobalEducationEnrollmentSeries(educationEnrollmentSeriesList);
+
+        const labourSeriesList: MetricSeries[] = LABOUR_METRIC_IDS.map((id) => {
+          const config = GLOBAL_LABOUR_AGGREGATES[id];
+          const points: TimePoint[] = rowsPerYear.map((rows, i) => {
+            const year = years[i];
+            const value = config
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
+              : null;
+            return { date: `${year}-01-01`, year, value };
+          });
+          return {
+            id,
+            label: GLOBAL_LABOUR_LABELS[id] ?? id,
+            unit: '',
+            points: fillSeriesPoints(points),
+          };
+        });
+        setGlobalLabourSeries(labourSeriesList);
       })
       .catch((e) => {
         if (!cancelled) {
@@ -350,7 +475,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [refreshTrigger]);
+  }, [refreshTrigger, region]);
 
   const allSeries = globalSeries;
   const resampledSeries = allSeries.map((s) => resampleSeries(s, frequency));
@@ -546,89 +671,6 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
     yearly: 'YoY',
   };
 
-  const allEducationSeries = globalEducationSeries;
-  const resampledEducationSeries = allEducationSeries.map((s) => resampleSeries(s, frequencyEducation));
-  const labelByMetricIdEducation = allEducationSeries.reduce<Record<string, string>>(
-    (acc, series) => {
-      acc[series.id] = series.label;
-      return acc;
-    },
-    {},
-  );
-  const dateSetEducation = new Map<string, number>();
-  for (const s of resampledEducationSeries) {
-    const points = s.points ?? [];
-    for (const p of points) {
-      if (p.year < displayStartYear || p.year > displayEndYear) continue;
-      dateSetEducation.set(p.date, p.year);
-    }
-  }
-  const sortedDatesEducation = [...dateSetEducation.entries()].sort(
-    (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
-  );
-  const baseDataEducation = sortedDatesEducation.map(([date, year]) => ({ date, year }));
-  const seriesByIdEducation = new Map<string, MetricSeries>();
-  for (const s of resampledEducationSeries) {
-    seriesByIdEducation.set(s.id, s);
-  }
-  const getEducationMetricValueAtDate = (metricId: MetricId, date: string): number | null => {
-    const seriesForMetric = seriesByIdEducation.get(metricId);
-    if (!seriesForMetric) return null;
-    const v = seriesForMetric.points?.find((sp) => sp.date === date)?.value ?? null;
-    return v != null && typeof v === 'number' ? v : null;
-  };
-  const mergedEducation = baseDataEducation.map((p) => {
-    const row: Record<string, string | number | null> = {
-      date: p.date,
-      year: p.year,
-    };
-    for (const metricId of EDUCATION_METRIC_IDS) {
-      row[metricId] = getEducationMetricValueAtDate(metricId, p.date);
-    }
-    return row;
-  });
-  const xKeyEducation = frequencyEducation === 'yearly' ? 'year' : 'date';
-  const rawTicksEducation =
-    frequencyEducation === 'yearly'
-      ? baseDataEducation.map((p) => p.year)
-      : baseDataEducation.map((p) => p.date);
-  const stepEducation =
-    rawTicksEducation.length <= 6 ? 1 : Math.max(1, Math.floor(rawTicksEducation.length / 6));
-  const xTicksEducation = rawTicksEducation.filter((_, index) => index % stepEducation === 0);
-  const formatAxisLabelEducation = (value: string | number) => {
-    if (frequencyEducation === 'yearly') return String(value);
-    const d = new Date(String(value));
-    if (Number.isNaN(d.getTime())) return String(value);
-    if (frequencyEducation === 'monthly') {
-      return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-    }
-    if (frequencyEducation === 'quarterly') {
-      const quarter = Math.floor(d.getMonth() / 3) + 1;
-      return `Q${quarter} ${d.getFullYear()}`;
-    }
-    return d.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: '2-digit',
-    });
-  };
-  const freqLabelEducation: Record<Frequency, string> = {
-    weekly: 'WoW',
-    monthly: 'MoM',
-    quarterly: 'QoQ',
-    yearly: 'YoY',
-  };
-  const formatEducationValue = (id: string, v: number | null): string => {
-    if (v == null || !Number.isFinite(v)) return '–';
-    if (id === 'genderParityIndexPrimary') {
-      return v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2);
-    }
-    if (id === 'publicExpenditureEducationPctGDP') {
-      return v.toFixed(2) + '%';
-    }
-    return formatCompactNumber(v);
-  };
-
   const allPopSeries = globalPopStructureSeries;
   const resampledPopSeries = allPopSeries.map((s) => resampleSeries(s, frequencyPop));
   const labelByMetricIdPop = allPopSeries.reduce<Record<string, string>>(
@@ -711,6 +753,60 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
     quarterly: 'QoQ',
     yearly: 'YoY',
   };
+
+  /** Build merged data + axis helpers for a block given series, frequency, and metric ids. */
+  function buildBlockData(
+    allSeries: MetricSeries[],
+    freq: Frequency,
+    metricIds: MetricId[],
+  ) {
+    const resampled = allSeries.map((s) => resampleSeries(s, freq));
+    const labelByMetricId = allSeries.reduce<Record<string, string>>(
+      (acc, s) => {
+        acc[s.id] = s.label;
+        return acc;
+      },
+      {},
+    );
+    const dateSet = new Map<string, number>();
+    for (const s of resampled) {
+      for (const p of s.points ?? []) {
+        if (p.year < displayStartYear || p.year > displayEndYear) continue;
+        dateSet.set(p.date, p.year);
+      }
+    }
+    const sortedDates = [...dateSet.entries()].sort(
+      (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
+    );
+    const baseData = sortedDates.map(([date, year]) => ({ date, year }));
+    const seriesById = new Map<string, MetricSeries>();
+    for (const s of resampled) seriesById.set(s.id, s);
+    const getVal = (metricId: MetricId, date: string): number | null =>
+      seriesById.get(metricId)?.points?.find((sp) => sp.date === date)?.value ?? null;
+    const merged = baseData.map((p) => {
+      const row: Record<string, string | number | null> = { date: p.date, year: p.year };
+      for (const id of metricIds) row[id] = getVal(id, p.date);
+      return row;
+    });
+    const xKey = freq === 'yearly' ? 'year' : 'date';
+    const rawTicks = freq === 'yearly' ? baseData.map((p) => p.year) : baseData.map((p) => p.date);
+    const step = rawTicks.length <= 6 ? 1 : Math.max(1, Math.floor(rawTicks.length / 6));
+    const xTicks = rawTicks.filter((_, i) => i % step === 0);
+    const formatAxisLabel = (value: string | number) => {
+      if (freq === 'yearly') return String(value);
+      const d = new Date(String(value));
+      if (Number.isNaN(d.getTime())) return String(value);
+      if (freq === 'monthly') return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      if (freq === 'quarterly') return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
+    };
+    const freqLabel: Record<Frequency, string> = { weekly: 'WoW', monthly: 'MoM', quarterly: 'QoQ', yearly: 'YoY' };
+    return { merged, labelByMetricId, baseData, xKey, xTicks, formatAxisLabel, freqLabel };
+  }
+
+  const eduOOSData = buildBlockData(globalEducationOOSSeries, frequencyEduOOS, EDUCATION_OOS_METRIC_IDS);
+  const eduEnrollData = buildBlockData(globalEducationEnrollmentSeries, frequencyEduEnroll, EDUCATION_ENROLLMENT_METRIC_IDS);
+  const labourData = buildBlockData(globalLabourSeries, frequencyLabour, LABOUR_METRIC_IDS);
 
   const xKey = frequency === 'yearly' ? 'year' : 'date';
 
@@ -913,34 +1009,100 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
 
   if (loading) {
     return (
-      <section className="card timeseries-section">
-        <h2 className="section-title">Global Charts</h2>
-        <p className="muted">Loading global macro indicators…</p>
+      <section className="card graphs-section">
+        <button
+          type="button"
+          className="graphs-section-header"
+          aria-expanded={false}
+          aria-controls="global-charts-section-content"
+        >
+          <span className="graphs-section-chevron" aria-hidden>▸</span>
+          <span className="graphs-section-title">Global Charts</span>
+        </button>
+        <div id="global-charts-section-content" className="graphs-section-content">
+          <p className="muted" style={{ marginTop: 'var(--space-3)' }}>Loading global macro indicators…</p>
+        </div>
       </section>
     );
   }
 
   if (error) {
     return (
-      <section className="card timeseries-section">
-        <h2 className="section-title">Global Charts</h2>
-        <p className="muted">{error}</p>
+      <section className="card graphs-section">
+        <button
+          type="button"
+          className="graphs-section-header"
+          aria-expanded={false}
+          aria-controls="global-charts-section-content"
+        >
+          <span className="graphs-section-chevron" aria-hidden>▸</span>
+          <span className="graphs-section-title">Global Charts</span>
+        </button>
+        <div id="global-charts-section-content" className="graphs-section-content">
+          <p className="muted" style={{ marginTop: 'var(--space-3)' }}>{error}</p>
+        </div>
       </section>
     );
   }
 
   return (
-    <section className="card timeseries-section dashboard-grid-full">
-      {/* 1. Unified financial & population timeline */}
-      <div className="section-header">
-        <div>
-          <h2 className="section-title">
-            Global Charts – Unified financial &amp; population timeline
-          </h2>
-          <p className="muted">
-            World totals: sum of GDP (nominal &amp; PPP), government debt (USD), and population; GDP per capita = world GDP ÷ world population. Same metrics as the country-level unified timeline. Population on right axis.
-          </p>
+    <section className="card graphs-section">
+      <button
+        type="button"
+        className="graphs-section-header"
+        onClick={() => setSectionExpanded((e) => !e)}
+        aria-expanded={sectionExpanded}
+        aria-controls="global-charts-section-content"
+      >
+        <span className="graphs-section-chevron" aria-hidden>
+          {sectionExpanded ? '▾' : '▸'}
+        </span>
+        <span className="graphs-section-title">Global Charts</span>
+      </button>
+      <div id="global-charts-section-content" className="graphs-section-content" hidden={!sectionExpanded}>
+        <p className="muted graphs-section-methodology">
+          Aggregated weighted global metrics: rates and shares use population- or GDP-weighted averages; ratios use world totals (e.g. debt/GDP); levels use world sums.
+        </p>
+        <div className="graphs-section-toolbar">
+          <button
+            type="button"
+            className="graphs-section-toolbar-btn"
+            onClick={allExpanded ? collapseAllSubsections : expandAllSubsections}
+          >
+            {allExpanded ? 'Collapse all' : 'Expand all'}
+          </button>
         </div>
+        <div className="graphs-subsections">
+          {GRAPHS_SUBSECTION_CONFIG.map(({ id, label }) => {
+            const isExpanded = subsectionsExpanded[id];
+            return (
+              <div key={id} className="graphs-subsection">
+                <button
+                  type="button"
+                  className="graphs-subsection-header"
+                  onClick={() => toggleSubsection(id)}
+                  aria-expanded={isExpanded}
+                  aria-controls={`global-charts-subsection-${id}`}
+                >
+                  <span className="graphs-subsection-chevron" aria-hidden>
+                    {isExpanded ? '▾' : '▸'}
+                  </span>
+                  <span id={`global-charts-subsection-${id}-title`} className="graphs-subsection-title">{label}</span>
+                </button>
+                <div
+                  id={`global-charts-subsection-${id}`}
+                  className={`graphs-subsection-content ${isExpanded ? 'is-expanded' : ''}`}
+                  hidden={!isExpanded}
+                  role="region"
+                  aria-labelledby={`global-charts-subsection-${id}-title`}
+                >
+                  {isExpanded && id === 'unified' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header">
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
         <div className="section-header-controls">
           <div className="section-header-control-group">
             <div className="section-control-label">Frequency</div>
@@ -1218,18 +1380,15 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         </div>
       )}
 
-      {/* 2. Macro indicators (economic & financial) */}
-      <div className="section-header" style={{ marginTop: '2rem' }}>
-        <div>
-          <h2 className="section-title">
-            Global Charts – Macro indicators (economic &amp; financial)
-          </h2>
-          <p className="muted">
-            World aggregates: average across all countries with data. Same metrics as the country-level
-            macro timeline (inflation, government debt, lending rate, unemployment, poverty). Switch between
-            weekly, monthly, quarterly, and annual views; sub-annual views are interpolated from annual data.
-          </p>
-        </div>
+                    </div>
+                  )}
+                  {isExpanded && id === 'macroEconomic' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
         <div className="section-header-controls">
           <div className="section-header-control-group">
             <div className="section-control-label">Frequency</div>
@@ -1492,17 +1651,15 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         </div>
       )}
 
-      {/* 3. Macro indicators (health) */}
-      <div className="section-header" style={{ marginTop: '2rem' }}>
-        <div>
-          <h2 className="section-title">
-            Global Charts – Macro indicators (health)
-          </h2>
-          <p className="muted">
-            World-level population-weighted averages for health and demographics (maternal mortality, under-5 mortality,
-            undernourishment, life expectancy). Same formula as the Country Comparison table on the Country Dashboard—values match for the same year.
-          </p>
-        </div>
+                    </div>
+                  )}
+                  {isExpanded && id === 'macroHealth' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
         <div className="section-header-controls">
           <div className="section-header-control-group">
             <div className="section-control-label">Frequency</div>
@@ -1792,298 +1949,15 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
         </div>
       )}
 
-      {/* 4. Macro indicators (education) */}
-      <div className="section-header" style={{ marginTop: '2rem' }}>
-        <div>
-          <h2 className="section-title">
-            Global Charts – Macro indicators (education)
-          </h2>
-          <p className="muted">
-            World-level population-weighted averages for education (out-of-school rate, primary completion, minimum reading proficiency,
-            preprimary enrollment, adult literacy, gender parity index, trained teachers, public expenditure on education). Same formula as the Country Comparison table—values match for the same year.
-          </p>
-        </div>
-        <div className="section-header-controls">
-          <div className="section-header-control-group">
-            <div className="section-control-label">Frequency</div>
-            <div
-              className="frequency-toolbar"
-              tabIndex={-1}
-              onBlur={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-                  setIsFrequencyOpenEducation(false);
-                }
-              }}
-            >
-              <button
-                type="button"
-                className="map-metric-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={isFrequencyOpenEducation}
-                onClick={() => setIsFrequencyOpenEducation((open) => !open)}
-              >
-                <span className="map-metric-trigger-icon">
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" />
-                  </svg>
-                </span>
-                <span className="map-metric-trigger-label">
-                  {FREQUENCY_LABELS[frequencyEducation]}
-                </span>
-                <span
-                  className={`map-metric-trigger-chevron ${isFrequencyOpenEducation ? 'open' : ''}`}
-                  aria-hidden="true"
-                >
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
-                  </svg>
-                </span>
-              </button>
-              {isFrequencyOpenEducation && (
-                <div className="map-metric-dropdown" role="listbox">
-                  <div className="map-metric-category">
-                    <div className="map-metric-category-header">
-                      <span className="map-metric-category-icon">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z" />
-                        </svg>
-                      </span>
-                      <span>Sampling cadence</span>
                     </div>
-                    <div className="map-metric-category-items">
-                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          className={`map-metric-option ${frequencyEducation === f ? 'selected' : ''}`}
-                          onClick={() => {
-                            setFrequencyEducation(f);
-                            setIsFrequencyOpenEducation(false);
-                          }}
-                        >
-                          <span className="map-metric-option-icon">
-                            {frequencyEducation === f && (
-                              <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                                <path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" />
-                              </svg>
-                            )}
-                          </span>
-                          <span>{FREQUENCY_LABELS[f]}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          <div className="section-header-control-group">
-            <div className="section-control-label">View</div>
-            <div className="pill-group pill-group-secondary">
-              <button
-                type="button"
-                className={`pill ${viewModeEducation === 'chart' ? 'pill-active' : ''}`}
-                onClick={() => setViewModeEducation('chart')}
-              >
-                <span className="icon-12">
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
-                  </svg>
-                </span>
-                <span>Chart view</span>
-              </button>
-              <button
-                type="button"
-                className={`pill ${viewModeEducation === 'table' ? 'pill-active' : ''}`}
-                onClick={() => setViewModeEducation('table')}
-              >
-                <span className="icon-12">
-                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
-                  </svg>
-                </span>
-                <span>Table view</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div className="metric-toggle-row-header">
-        <div className="metric-toggle-title">Metrics displayed</div>
-        <div className="metric-toggle-hint">Tap to show or hide indicators</div>
-      </div>
-      <div className="metric-toggle-row">
-        {EDUCATION_METRIC_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={`tag ${selectedEducationMetricIds.includes(id) ? 'tag-active' : ''}`}
-            onClick={() => {
-              if (selectedEducationMetricIds.includes(id)) {
-                setSelectedEducationMetricIds(selectedEducationMetricIds.filter((m) => m !== id));
-              } else {
-                setSelectedEducationMetricIds([...selectedEducationMetricIds, id]);
-              }
-            }}
-          >
-            <span
-              className="tag-swatch"
-              style={{ backgroundColor: EDUCATION_COLORS[id] }}
-            />
-            {GLOBAL_EDUCATION_LABELS[id] ?? id}
-          </button>
-        ))}
-      </div>
-
-      {viewModeEducation === 'chart' ? (
-        <div className="chart-wrapper">
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart
-              data={mergedEducation}
-              margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
-            >
-              <CartesianGrid
-                stroke="rgba(148,163,184,0.25)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey={xKeyEducation}
-                ticks={xTicksEducation}
-                tickFormatter={formatAxisLabelEducation}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.9)"
-                tick={{
-                  fontSize: 10,
-                  fill: 'rgba(55,65,81,0.9)',
-                }}
-              />
-              <YAxis
-                yAxisId="left"
-                tickFormatter={(v) => formatCompactNumber(v as number)}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.9)"
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#ffffff',
-                  border: '1px solid rgba(148,163,184,0.6)',
-                  borderRadius: 8,
-                  boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
-                }}
-                content={
-                  <CustomTooltip
-                    mergedOverride={mergedEducation}
-                    xKeyOverride={xKeyEducation}
-                    labelByMetricIdOverride={labelByMetricIdEducation}
-                    selectedMetricIdsOverride={selectedEducationMetricIds}
-                    frequencyOverride={frequencyEducation}
-                    formatAxisLabelOverride={formatAxisLabelEducation}
-                    metricIdsOverride={EDUCATION_METRIC_IDS}
-                    freqLabelOverride={freqLabelEducation}
-                    formatValueOverride={(id, v) => formatEducationValue(id, v)}
-                  />
-                }
-              />
-              {EDUCATION_METRIC_IDS.map((metricId) => (
-                <Line
-                  key={metricId}
-                  type="monotone"
-                  dataKey={metricId}
-                  stroke={EDUCATION_COLORS[metricId]}
-                  strokeWidth={2}
-                  dot={false}
-                  hide={
-                    !selectedEducationMetricIds.includes(metricId) ||
-                    !mergedEducation.some((row) => row[metricId] != null)
-                  }
-                  yAxisId="left"
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="chart-table-wrapper">
-          <div className="chart-table-scroll">
-            <table className="chart-table">
-              <thead>
-                <tr>
-                  <th>{frequencyEducation === 'yearly' ? 'Year' : 'Period'}</th>
-                  {selectedEducationMetricIds.map((id) => (
-                    <th key={id}>{GLOBAL_EDUCATION_LABELS[id] ?? id}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {mergedEducation.map((row, rowIndex) => (
-                  <tr key={String(row[xKeyEducation])}>
-                    <td>{formatAxisLabelEducation(row[xKeyEducation] as string | number)}</td>
-                    {selectedEducationMetricIds.map((id) => {
-                      const v = row[id];
-                      const prevRow = rowIndex > 0 ? mergedEducation[rowIndex - 1] : undefined;
-                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
-
-                      let changeText: string | null = null;
-                      let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (v != null) {
-                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabelEducation[frequencyEducation], id);
-                        if (changeText) {
-                          const diff = (v as number) - (prev ?? 0);
-                          if (isPercentageMetric(id)) {
-                            if (diff > 0.05) changeDir = 'up';
-                            else if (diff < -0.05) changeDir = 'down';
-                            else changeDir = 'flat';
-                          } else if (prev != null && prev !== 0) {
-                            const pct = (diff / Math.abs(prev)) * 100;
-                            if (pct > 0.05) changeDir = 'up';
-                            else if (pct < -0.05) changeDir = 'down';
-                            else changeDir = 'flat';
-                          }
-                        }
-                      }
-
-                      return (
-                        <td key={id}>
-                          {v == null ? (
-                            '–'
-                          ) : (
-                            <div className="table-metric-cell">
-                              <div className="table-metric-value">
-                                {formatEducationValue(id, v as number)}
-                              </div>
-                              {changeText && changeDir && (
-                                <div
-                                  className={`table-metric-change table-metric-change-${changeDir}`}
-                                >
-                                  {changeText}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* 5. Population structure */}
-      <div className="section-header" style={{ marginTop: '2rem' }}>
-        <div>
-          <h2 className="section-title">
-            Global Charts – Population structure
-          </h2>
-          <p className="muted">
-            World-level population by age group (0–14, 15–64, 65+) as share of total. Population-weighted average.
-            Absolute numbers show world total in each age group (share × world population). Same logic as the economic and health blocks above.
-          </p>
-        </div>
+                  )}
+                  {isExpanded && id === 'populationStructure' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
         <div className="section-header-controls">
           <div className="section-header-control-group">
             <div className="section-control-label">Frequency</div>
@@ -2360,6 +2234,356 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear }: Props) {
           </div>
         </div>
       )}
+
+                    </div>
+                  )}
+                  {isExpanded && id === 'educationOOS' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
+                        <div className="section-header-controls">
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Frequency</div>
+                            <div className="frequency-toolbar" tabIndex={-1} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsFrequencyOpenEduOOS(false); }}>
+                              <button type="button" className="map-metric-trigger" aria-haspopup="listbox" aria-expanded={isFrequencyOpenEduOOS} onClick={() => setIsFrequencyOpenEduOOS((o) => !o)}>
+                                <span className="map-metric-trigger-icon"><svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" /></svg></span>
+                                <span className="map-metric-trigger-label">{FREQUENCY_LABELS[frequencyEduOOS]}</span>
+                                <span className={`map-metric-trigger-chevron ${isFrequencyOpenEduOOS ? 'open' : ''}`} aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" /></svg></span>
+                              </button>
+                              {isFrequencyOpenEduOOS && (
+                                <div className="map-metric-dropdown" role="listbox">
+                                  <div className="map-metric-category">
+                                    <div className="map-metric-category-header"><span className="map-metric-category-icon"><svg viewBox="0 0 16 16"><path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" /></svg></span><span>Sampling cadence</span></div>
+                                    <div className="map-metric-category-items">
+                                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                                        <button key={f} type="button" className={`map-metric-option ${frequencyEduOOS === f ? 'selected' : ''}`} onClick={() => { setFrequencyEduOOS(f); setIsFrequencyOpenEduOOS(false); }}>
+                                          <span className="map-metric-option-icon">{frequencyEduOOS === f && <svg viewBox="0 0 16 16"><path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" /></svg>}</span>
+                                          <span>{FREQUENCY_LABELS[f]}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">View</div>
+                            <div className="pill-group pill-group-secondary">
+                              <button type="button" className={`pill ${viewModeEduOOS === 'chart' ? 'pill-active' : ''}`} onClick={() => setViewModeEduOOS('chart')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Z" /></svg></span><span>Chart view</span></button>
+                              <button type="button" className={`pill ${viewModeEduOOS === 'table' ? 'pill-active' : ''}`} onClick={() => setViewModeEduOOS('table')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" /></svg></span><span>Table view</span></button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="metric-toggle-row-header"><div className="metric-toggle-title">Metrics displayed</div><div className="metric-toggle-hint">Tap to show or hide indicators</div></div>
+                      <div className="metric-toggle-row">
+                        {EDUCATION_OOS_METRIC_IDS.map((mid) => (
+                          <button key={mid} type="button" className={`tag ${selectedEduOOSMetricIds.includes(mid) ? 'tag-active' : ''}`} onClick={() => setSelectedEduOOSMetricIds(selectedEduOOSMetricIds.includes(mid) ? selectedEduOOSMetricIds.filter((m) => m !== mid) : [...selectedEduOOSMetricIds, mid])}>
+                            <span className="tag-swatch" style={{ backgroundColor: EDUCATION_OOS_COLORS[mid] }} />
+                            {eduOOSData.labelByMetricId[mid] ?? mid}
+                          </button>
+                        ))}
+                      </div>
+                      {viewModeEduOOS === 'chart' ? (
+                        <div className="chart-wrapper">
+                          <ResponsiveContainer width="100%" height={320}>
+                            <LineChart data={eduOOSData.merged} margin={{ top: 12, right: 24, bottom: 24, left: 8 }}>
+                              <CartesianGrid stroke="rgba(148,163,184,0.25)" vertical={false} />
+                              <XAxis dataKey={eduOOSData.xKey} ticks={eduOOSData.xTicks} tickFormatter={eduOOSData.formatAxisLabel} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" tick={{ fontSize: 10, fill: 'rgba(55,65,81,0.9)' }} />
+                              <YAxis tickFormatter={(v) => formatCompactNumber(v as number)} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" />
+                              <Tooltip contentStyle={{ background: '#fff', border: '1px solid rgba(148,163,184,0.6)', borderRadius: 8, boxShadow: '0 10px 30px rgba(15,23,42,0.16)' }} content={<CustomTooltip mergedOverride={eduOOSData.merged} xKeyOverride={eduOOSData.xKey} labelByMetricIdOverride={eduOOSData.labelByMetricId} selectedMetricIdsOverride={selectedEduOOSMetricIds} frequencyOverride={frequencyEduOOS} formatAxisLabelOverride={eduOOSData.formatAxisLabel} metricIdsOverride={EDUCATION_OOS_METRIC_IDS} freqLabelOverride={eduOOSData.freqLabel} />} />
+                              {EDUCATION_OOS_METRIC_IDS.map((metricId) => (
+                                <Line key={metricId} type="monotone" dataKey={metricId} stroke={EDUCATION_OOS_COLORS[metricId]} strokeWidth={2} dot={false} hide={!selectedEduOOSMetricIds.includes(metricId) || !eduOOSData.merged.some((row) => row[metricId] != null)} yAxisId="left" />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="chart-table-wrapper">
+                          <div className="chart-table-scroll">
+                            <table className="chart-table">
+                              <thead>
+                                <tr>
+                                  <th>{frequencyEduOOS === 'yearly' ? 'Year' : 'Period'}</th>
+                                  {selectedEduOOSMetricIds.map((id) => (<th key={id}>{eduOOSData.labelByMetricId[id] ?? id}</th>))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {eduOOSData.merged.map((row, rowIndex) => (
+                                  <tr key={String(row[eduOOSData.xKey])}>
+                                    <td>{eduOOSData.formatAxisLabel(row[eduOOSData.xKey] as string | number)}</td>
+                                    {selectedEduOOSMetricIds.map((id) => {
+                                      const v = row[id];
+                                      const prevRow = rowIndex > 0 ? eduOOSData.merged[rowIndex - 1] : undefined;
+                                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
+                                      let changeText: string | null = null;
+                                      let changeDir: 'up' | 'down' | 'flat' | null = null;
+                                      if (v != null) {
+                                        changeText = formatGrowthChange(v as number, prev ?? null, eduOOSData.freqLabel[frequencyEduOOS], id);
+                                        if (changeText) {
+                                          const diff = (v as number) - (prev ?? 0);
+                                          if (isPercentageMetric(id)) { if (diff > 0.05) changeDir = 'up'; else if (diff < -0.05) changeDir = 'down'; else changeDir = 'flat'; }
+                                          else if (prev != null && prev !== 0) { const pct = (diff / Math.abs(prev)) * 100; if (pct > 0.05) changeDir = 'up'; else if (pct < -0.05) changeDir = 'down'; else changeDir = 'flat'; }
+                                        }
+                                      }
+                                      return (
+                                        <td key={id}>
+                                          {v == null ? '–' : (
+                                            <div className="table-metric-cell">
+                                              <div className="table-metric-value">{formatCompactNumber(v as number)}</div>
+                                              {changeText && changeDir && <div className={`table-metric-change table-metric-change-${changeDir}`}>{changeText}</div>}
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isExpanded && id === 'educationEnrollment' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
+                        <div className="section-header-controls">
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Frequency</div>
+                            <div className="frequency-toolbar" tabIndex={-1} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsFrequencyOpenEduEnroll(false); }}>
+                              <button type="button" className="map-metric-trigger" aria-haspopup="listbox" aria-expanded={isFrequencyOpenEduEnroll} onClick={() => setIsFrequencyOpenEduEnroll((o) => !o)}>
+                                <span className="map-metric-trigger-icon"><svg viewBox="0 0 16 16"><path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Z" /></svg></span>
+                                <span className="map-metric-trigger-label">{FREQUENCY_LABELS[frequencyEduEnroll]}</span>
+                                <span className={`map-metric-trigger-chevron ${isFrequencyOpenEduEnroll ? 'open' : ''}`} aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" /></svg></span>
+                              </button>
+                              {isFrequencyOpenEduEnroll && (
+                                <div className="map-metric-dropdown" role="listbox">
+                                  <div className="map-metric-category">
+                                    <div className="map-metric-category-header"><span className="map-metric-category-icon"><svg viewBox="0 0 16 16"><path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" /></svg></span><span>Sampling cadence</span></div>
+                                    <div className="map-metric-category-items">
+                                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                                        <button key={f} type="button" className={`map-metric-option ${frequencyEduEnroll === f ? 'selected' : ''}`} onClick={() => { setFrequencyEduEnroll(f); setIsFrequencyOpenEduEnroll(false); }}>
+                                          <span className="map-metric-option-icon">{frequencyEduEnroll === f && <svg viewBox="0 0 16 16"><path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" /></svg>}</span>
+                                          <span>{FREQUENCY_LABELS[f]}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">View</div>
+                            <div className="pill-group pill-group-secondary">
+                              <button type="button" className={`pill ${viewModeEduEnroll === 'chart' ? 'pill-active' : ''}`} onClick={() => setViewModeEduEnroll('chart')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Z" /></svg></span><span>Chart view</span></button>
+                              <button type="button" className={`pill ${viewModeEduEnroll === 'table' ? 'pill-active' : ''}`} onClick={() => setViewModeEduEnroll('table')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" /></svg></span><span>Table view</span></button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="metric-toggle-row-header"><div className="metric-toggle-title">Metrics displayed</div><div className="metric-toggle-hint">Tap to show or hide indicators</div></div>
+                      <div className="metric-toggle-row">
+                        {EDUCATION_ENROLLMENT_METRIC_IDS.map((mid) => (
+                          <button key={mid} type="button" className={`tag ${selectedEduEnrollMetricIds.includes(mid) ? 'tag-active' : ''}`} onClick={() => setSelectedEduEnrollMetricIds(selectedEduEnrollMetricIds.includes(mid) ? selectedEduEnrollMetricIds.filter((m) => m !== mid) : [...selectedEduEnrollMetricIds, mid])}>
+                            <span className="tag-swatch" style={{ backgroundColor: EDUCATION_ENROLLMENT_COLORS[mid] }} />
+                            {eduEnrollData.labelByMetricId[mid] ?? mid}
+                          </button>
+                        ))}
+                      </div>
+                      {viewModeEduEnroll === 'chart' ? (
+                        <div className="chart-wrapper">
+                          <ResponsiveContainer width="100%" height={320}>
+                            <LineChart data={eduEnrollData.merged} margin={{ top: 12, right: 24, bottom: 24, left: 8 }}>
+                              <CartesianGrid stroke="rgba(148,163,184,0.25)" vertical={false} />
+                              <XAxis dataKey={eduEnrollData.xKey} ticks={eduEnrollData.xTicks} tickFormatter={eduEnrollData.formatAxisLabel} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" tick={{ fontSize: 10, fill: 'rgba(55,65,81,0.9)' }} />
+                              <YAxis yAxisId="left" tickFormatter={(v) => formatCompactNumber(v as number)} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" />
+                              <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => formatPercentage(v as number)} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" />
+                              <Tooltip contentStyle={{ background: '#fff', border: '1px solid rgba(148,163,184,0.6)', borderRadius: 8, boxShadow: '0 10px 30px rgba(15,23,42,0.16)' }} content={<CustomTooltip mergedOverride={eduEnrollData.merged} xKeyOverride={eduEnrollData.xKey} labelByMetricIdOverride={eduEnrollData.labelByMetricId} selectedMetricIdsOverride={selectedEduEnrollMetricIds} frequencyOverride={frequencyEduEnroll} formatAxisLabelOverride={eduEnrollData.formatAxisLabel} metricIdsOverride={EDUCATION_ENROLLMENT_METRIC_IDS} freqLabelOverride={eduEnrollData.freqLabel} formatValueOverride={(id, val) => ['primaryEnrollmentPct', 'secondaryEnrollmentPct', 'tertiaryEnrollmentPct'].includes(id) ? (val != null ? formatPercentage(val) : '–') : (val != null ? formatCompactNumber(val) : '–')} />} />
+                              {EDUCATION_ENROLLMENT_METRIC_IDS.map((metricId) => (
+                                <Line key={metricId} type="monotone" dataKey={metricId} stroke={EDUCATION_ENROLLMENT_COLORS[metricId]} strokeWidth={2} dot={false} hide={!selectedEduEnrollMetricIds.includes(metricId) || !eduEnrollData.merged.some((row) => row[metricId] != null)} yAxisId={['primaryEnrollmentPct', 'secondaryEnrollmentPct', 'tertiaryEnrollmentPct'].includes(metricId) ? 'right' : 'left'} />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="chart-table-wrapper">
+                          <div className="chart-table-scroll">
+                            <table className="chart-table">
+                              <thead>
+                                <tr>
+                                  <th>{frequencyEduEnroll === 'yearly' ? 'Year' : 'Period'}</th>
+                                  {selectedEduEnrollMetricIds.map((id) => (<th key={id}>{eduEnrollData.labelByMetricId[id] ?? id}</th>))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {eduEnrollData.merged.map((row, rowIndex) => (
+                                  <tr key={String(row[eduEnrollData.xKey])}>
+                                    <td>{eduEnrollData.formatAxisLabel(row[eduEnrollData.xKey] as string | number)}</td>
+                                    {selectedEduEnrollMetricIds.map((id) => {
+                                      const v = row[id];
+                                      const prevRow = rowIndex > 0 ? eduEnrollData.merged[rowIndex - 1] : undefined;
+                                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
+                                      let changeText: string | null = null;
+                                      let changeDir: 'up' | 'down' | 'flat' | null = null;
+                                      if (v != null) {
+                                        changeText = formatGrowthChange(v as number, prev ?? null, eduEnrollData.freqLabel[frequencyEduEnroll], id);
+                                        if (changeText) {
+                                          const diff = (v as number) - (prev ?? 0);
+                                          if (isPercentageMetric(id)) { if (diff > 0.05) changeDir = 'up'; else if (diff < -0.05) changeDir = 'down'; else changeDir = 'flat'; }
+                                          else if (prev != null && prev !== 0) { const pct = (diff / Math.abs(prev)) * 100; if (pct > 0.05) changeDir = 'up'; else if (pct < -0.05) changeDir = 'down'; else changeDir = 'flat'; }
+                                        }
+                                      }
+                                      const isPct = ['primaryEnrollmentPct', 'secondaryEnrollmentPct', 'tertiaryEnrollmentPct'].includes(id);
+                                      return (
+                                        <td key={id}>
+                                          {v == null ? '–' : (
+                                            <div className="table-metric-cell">
+                                              <div className="table-metric-value">{isPct ? formatPercentage(v as number) : formatCompactNumber(v as number)}</div>
+                                              {changeText && changeDir && <div className={`table-metric-change table-metric-change-${changeDir}`}>{changeText}</div>}
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isExpanded && id === 'labour' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                        </div>
+                        <div className="section-header-controls">
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Frequency</div>
+                            <div className="frequency-toolbar" tabIndex={-1} onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsFrequencyOpenLabour(false); }}>
+                              <button type="button" className="map-metric-trigger" aria-haspopup="listbox" aria-expanded={isFrequencyOpenLabour} onClick={() => setIsFrequencyOpenLabour((o) => !o)}>
+                                <span className="map-metric-trigger-icon"><svg viewBox="0 0 16 16"><path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Z" /></svg></span>
+                                <span className="map-metric-trigger-label">{FREQUENCY_LABELS[frequencyLabour]}</span>
+                                <span className={`map-metric-trigger-chevron ${isFrequencyOpenLabour ? 'open' : ''}`} aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" /></svg></span>
+                              </button>
+                              {isFrequencyOpenLabour && (
+                                <div className="map-metric-dropdown" role="listbox">
+                                  <div className="map-metric-category">
+                                    <div className="map-metric-category-header"><span className="map-metric-category-icon"><svg viewBox="0 0 16 16"><path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" /></svg></span><span>Sampling cadence</span></div>
+                                    <div className="map-metric-category-items">
+                                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                                        <button key={f} type="button" className={`map-metric-option ${frequencyLabour === f ? 'selected' : ''}`} onClick={() => { setFrequencyLabour(f); setIsFrequencyOpenLabour(false); }}>
+                                          <span className="map-metric-option-icon">{frequencyLabour === f && <svg viewBox="0 0 16 16"><path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" /></svg>}</span>
+                                          <span>{FREQUENCY_LABELS[f]}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">View</div>
+                            <div className="pill-group pill-group-secondary">
+                              <button type="button" className={`pill ${viewModeLabour === 'chart' ? 'pill-active' : ''}`} onClick={() => setViewModeLabour('chart')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Z" /></svg></span><span>Chart view</span></button>
+                              <button type="button" className={`pill ${viewModeLabour === 'table' ? 'pill-active' : ''}`} onClick={() => setViewModeLabour('table')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" /></svg></span><span>Table view</span></button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="metric-toggle-row-header"><div className="metric-toggle-title">Metrics displayed</div><div className="metric-toggle-hint">Tap to show or hide indicators</div></div>
+                      <div className="metric-toggle-row">
+                        {LABOUR_METRIC_IDS.map((mid) => (
+                          <button key={mid} type="button" className={`tag ${selectedLabourMetricIds.includes(mid) ? 'tag-active' : ''}`} onClick={() => setSelectedLabourMetricIds(selectedLabourMetricIds.includes(mid) ? selectedLabourMetricIds.filter((m) => m !== mid) : [...selectedLabourMetricIds, mid])}>
+                            <span className="tag-swatch" style={{ backgroundColor: LABOUR_COLORS[mid] }} />
+                            {labourData.labelByMetricId[mid] ?? mid}
+                          </button>
+                        ))}
+                      </div>
+                      {viewModeLabour === 'chart' ? (
+                        <div className="chart-wrapper">
+                          <ResponsiveContainer width="100%" height={320}>
+                            <LineChart data={labourData.merged} margin={{ top: 12, right: 24, bottom: 24, left: 8 }}>
+                              <CartesianGrid stroke="rgba(148,163,184,0.25)" vertical={false} />
+                              <XAxis dataKey={labourData.xKey} ticks={labourData.xTicks} tickFormatter={labourData.formatAxisLabel} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" tick={{ fontSize: 10, fill: 'rgba(55,65,81,0.9)' }} />
+                              <YAxis yAxisId="left" tickFormatter={(v) => formatCompactNumber(v as number)} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" />
+                              <YAxis yAxisId="right" orientation="right" tickFormatter={(v) => formatCompactNumber(v as number)} tickLine={false} tickMargin={8} stroke="rgba(148,163,184,0.9)" />
+                              <Tooltip contentStyle={{ background: '#fff', border: '1px solid rgba(148,163,184,0.6)', borderRadius: 8, boxShadow: '0 10px 30px rgba(15,23,42,0.16)' }} content={<CustomTooltip mergedOverride={labourData.merged} xKeyOverride={labourData.xKey} labelByMetricIdOverride={labourData.labelByMetricId} selectedMetricIdsOverride={selectedLabourMetricIds} frequencyOverride={frequencyLabour} formatAxisLabelOverride={labourData.formatAxisLabel} metricIdsOverride={LABOUR_METRIC_IDS} freqLabelOverride={labourData.freqLabel} />} />
+                              {LABOUR_METRIC_IDS.map((metricId) => (
+                                <Line key={metricId} type="monotone" dataKey={metricId} stroke={LABOUR_COLORS[metricId]} strokeWidth={2} dot={false} hide={!selectedLabourMetricIds.includes(metricId) || !labourData.merged.some((row) => row[metricId] != null)} yAxisId={metricId === 'labourForceTotal' ? 'right' : 'left'} />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="chart-table-wrapper">
+                          <div className="chart-table-scroll">
+                            <table className="chart-table">
+                              <thead>
+                                <tr>
+                                  <th>{frequencyLabour === 'yearly' ? 'Year' : 'Period'}</th>
+                                  {selectedLabourMetricIds.map((id) => (<th key={id}>{labourData.labelByMetricId[id] ?? id}</th>))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {labourData.merged.map((row, rowIndex) => (
+                                  <tr key={String(row[labourData.xKey])}>
+                                    <td>{labourData.formatAxisLabel(row[labourData.xKey] as string | number)}</td>
+                                    {selectedLabourMetricIds.map((id) => {
+                                      const v = row[id];
+                                      const prevRow = rowIndex > 0 ? labourData.merged[rowIndex - 1] : undefined;
+                                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
+                                      let changeText: string | null = null;
+                                      let changeDir: 'up' | 'down' | 'flat' | null = null;
+                                      if (v != null) {
+                                        changeText = formatGrowthChange(v as number, prev ?? null, labourData.freqLabel[frequencyLabour], id);
+                                        if (changeText) {
+                                          const diff = (v as number) - (prev ?? 0);
+                                          if (prev != null && prev !== 0) { const pct = (diff / Math.abs(prev)) * 100; if (pct > 0.05) changeDir = 'up'; else if (pct < -0.05) changeDir = 'down'; else changeDir = 'flat'; }
+                                        }
+                                      }
+                                      return (
+                                        <td key={id}>
+                                          {v == null ? '–' : (
+                                            <div className="table-metric-cell">
+                                              <div className="table-metric-value">{formatCompactNumber(v as number)}</div>
+                                              {changeText && changeDir && <div className={`table-metric-change table-metric-change-${changeDir}`}>{changeText}</div>}
+                                            </div>
+                                          )}
+                                        </td>
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </section>
   );
 }

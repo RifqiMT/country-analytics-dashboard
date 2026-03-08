@@ -14,41 +14,42 @@ import type {
   MetricId,
   MetricSeries,
 } from '../types';
-import { formatCompactNumber } from '../utils/numberFormat';
+import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
-const ECONOMIC_METRIC_IDS: MetricId[] = [
-  'inflationCPI',
-  'govDebtPercentGDP',
-  'interestRate',
-  'unemploymentRate',
-  'povertyHeadcount215',
-  'povertyHeadcountNational',
+/** Education – Enrollment & staff: enrollment (total), enrollment (% gross), teachers (total), ordered by level (primary, secondary, tertiary). */
+const ENROLLMENT_STAFF_METRIC_IDS: MetricId[] = [
+  'primaryPupilsTotal',
+  'secondaryPupilsTotal',
+  'tertiaryEnrollmentTotal',
+  'primaryEnrollmentPct',
+  'secondaryEnrollmentPct',
+  'tertiaryEnrollmentPct',
+  'primarySchoolsTotal',
+  'secondarySchoolsTotal',
+  'tertiaryInstitutionsTotal',
 ];
-
-const HEALTH_METRIC_IDS: MetricId[] = [
-  'maternalMortalityRatio',
-  'under5MortalityRate',
-  'undernourishmentPrevalence',
-  'lifeExpectancy',
-];
-
-const RIGHT_AXIS_METRICS: MetricId[] = HEALTH_METRIC_IDS;
 
 const METRIC_COLORS: Record<string, string> = {
-  inflationCPI: '#f97316',
-  govDebtPercentGDP: '#7f1d1d',
-  interestRate: '#0369a1',
-  unemploymentRate: '#22c55e',
-  povertyHeadcount215: '#dc2626',
-  povertyHeadcountNational: '#b91c1c',
-  maternalMortalityRatio: '#b91c1c',
-  under5MortalityRate: '#fb923c',
-  undernourishmentPrevalence: '#16a34a',
-  lifeExpectancy: '#0f766e',
+  primaryPupilsTotal: '#0d9488',
+  secondaryPupilsTotal: '#ca8a04',
+  tertiaryEnrollmentTotal: '#4f46e5',
+  primaryEnrollmentPct: '#0f766e',
+  secondaryEnrollmentPct: '#a16207',
+  tertiaryEnrollmentPct: '#2563eb',
+  primarySchoolsTotal: '#0d9488',
+  secondarySchoolsTotal: '#ca8a04',
+  tertiaryInstitutionsTotal: '#7c3aed',
 };
+
+/** Percentage-based metrics use the right Y-axis (0–100%); all others use the left (absolute counts). */
+const ENROLLMENT_STAFF_RIGHT_AXIS_METRICS: MetricId[] = [
+  'primaryEnrollmentPct',
+  'secondaryEnrollmentPct',
+  'tertiaryEnrollmentPct',
+];
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
   weekly: 'Weekly (interpolated)',
@@ -57,52 +58,41 @@ const FREQUENCY_LABELS: Record<Frequency, string> = {
   yearly: 'Annual (observed)',
 };
 
-type MacroVariant = 'economic' | 'health';
-
 interface Props {
   data?: CountryDashboardData;
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
   resampledSeries?: CountryDashboardData['series'];
-  variant: MacroVariant;
   /** When provided (e.g. from Graphs section), used as the section heading for alignment with subsection name. */
   sectionTitle?: string;
 }
 
-export function MacroIndicatorsTimelineSection({
+export function EducationEnrollmentStaffTimelineSection({
   data,
   frequency,
   setFrequency,
   resampledSeries,
-  variant,
-  sectionTitle,
+  sectionTitle = 'Education – Enrollment & staff',
 }: Props) {
-  const isHealth = variant === 'health';
-  const defaultTitle = isHealth
-    ? 'Macro indicators timeline – health'
-    : 'Macro indicators timeline – economic & financial';
-  const title = sectionTitle ?? defaultTitle;
-  const ACTIVE_METRIC_IDS = isHealth ? HEALTH_METRIC_IDS : ECONOMIC_METRIC_IDS;
-
   const finalSeries = resampledSeries ?? data?.series;
-  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(ACTIVE_METRIC_IDS);
+  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(
+    ENROLLMENT_STAFF_METRIC_IDS,
+  );
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
 
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">{title}</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
   }
 
-  const allSeries: MetricSeries[] = [
-    ...(finalSeries.financial ?? []),
-    ...(finalSeries.population ?? []),
-    ...(finalSeries.health ?? []),
-  ].filter((s) => ACTIVE_METRIC_IDS.includes(s.id));
+  const allSeries: MetricSeries[] = (finalSeries.education ?? []).filter(
+    (s) => ENROLLMENT_STAFF_METRIC_IDS.includes(s.id),
+  );
 
   const displayStartYear =
     data.range
@@ -121,7 +111,6 @@ export function MacroIndicatorsTimelineSection({
     {},
   );
 
-  // Use union of all dates from all three metrics so each series can show its full range (WB + IMF fallback).
   const dateSet = new Map<string, number>();
   for (const s of allSeries) {
     const points = s.points ?? [];
@@ -131,7 +120,7 @@ export function MacroIndicatorsTimelineSection({
     }
   }
   const sortedDates = [...dateSet.entries()].sort(
-    (a, b) => a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0]),
+    (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
   );
   const baseData = sortedDates.map(([date, year]) => ({ date, year }));
 
@@ -140,38 +129,12 @@ export function MacroIndicatorsTimelineSection({
     seriesById.set(s.id, s);
   }
 
-  const forwardFilledCache = new Map<string, Map<string, number | null>>();
-
-  const freqLabel: Record<Frequency, string> = {
-    weekly: 'WoW',
-    monthly: 'MoM',
-    quarterly: 'QoQ',
-    yearly: 'YoY',
-  };
-
   const getMetricValueAtDate = (metricId: MetricId, date: string): number | null => {
     const seriesForMetric = seriesById.get(metricId);
-    if (!seriesForMetric) return null;
-
-    if (metricId !== 'lifeExpectancy') {
-      return (
-        seriesForMetric.points?.find((sp) => sp.date === date)?.value ?? null
-      );
-    }
-
-    let filled = forwardFilledCache.get(metricId);
-    if (!filled) {
-      filled = new Map<string, number | null>();
-      let last: number | null = null;
-      for (const p of baseData) {
-        const v =
-          seriesForMetric.points?.find((sp) => sp.date === p.date)?.value ?? null;
-        if (v != null) last = v;
-        filled.set(p.date, last);
-      }
-      forwardFilledCache.set(metricId, filled);
-    }
-    return filled.get(date) ?? null;
+    if (!seriesForMetric?.points) return null;
+    return (
+      seriesForMetric.points.find((sp) => sp.date === date)?.value ?? null
+    );
   };
 
   const merged = baseData.map((p) => {
@@ -179,7 +142,7 @@ export function MacroIndicatorsTimelineSection({
       date: p.date,
       year: p.year,
     };
-    for (const metricId of ACTIVE_METRIC_IDS) {
+    for (const metricId of ENROLLMENT_STAFF_METRIC_IDS) {
       row[metricId] = getMetricValueAtDate(metricId, p.date);
     }
     return row;
@@ -216,6 +179,13 @@ export function MacroIndicatorsTimelineSection({
     rawTicks.length <= 6 ? 1 : Math.max(1, Math.floor(rawTicks.length / 6));
   const xTicks = rawTicks.filter((_, index) => index % step === 0);
 
+  const freqLabel: Record<Frequency, string> = {
+    weekly: 'WoW',
+    monthly: 'MoM',
+    quarterly: 'QoQ',
+    yearly: 'YoY',
+  };
+
   const CustomTooltip = ({
     active,
     label,
@@ -235,17 +205,12 @@ export function MacroIndicatorsTimelineSection({
         color: string;
         change?: string;
         changeDirection?: 'up' | 'down' | 'flat';
+        dataKey: string;
       }
     >();
     const index = merged.findIndex((row) => row[xKey] === label);
     const prevRow = index > 0 ? merged[index - 1] : undefined;
 
-    const freqLabel: Record<Frequency, string> = {
-      weekly: 'WoW',
-      monthly: 'MoM',
-      quarterly: 'QoQ',
-      yearly: 'YoY',
-    };
     payload.forEach((p) => {
       if (p.value == null || p.dataKey == null) return;
       const id = String(p.dataKey);
@@ -255,22 +220,24 @@ export function MacroIndicatorsTimelineSection({
 
       let change: string | undefined;
       let changeDirection: 'up' | 'down' | 'flat' | undefined;
-      const formatted = formatGrowthChange(current, prev ?? null, freqLabel[frequency], id);
+      const formatted = formatGrowthChange(
+        current,
+        prev ?? null,
+        freqLabel[frequency],
+        id,
+      );
       if (formatted) {
         change = formatted;
         const diff = current - (prev ?? 0);
         if (isPercentageMetric(id)) {
-          const diffPp = diff;
-          if (diffPp > 0.05) changeDirection = 'up';
-          else if (diffPp < -0.05) changeDirection = 'down';
+          if (diff > 0.05) changeDirection = 'up';
+          else if (diff < -0.05) changeDirection = 'down';
           else changeDirection = 'flat';
-        } else {
-          if (prev != null && prev !== 0) {
-            const pct = (diff / Math.abs(prev)) * 100;
-            if (pct > 0.05) changeDirection = 'up';
-            else if (pct < -0.05) changeDirection = 'down';
-            else changeDirection = 'flat';
-          }
+        } else if (prev != null && prev !== 0) {
+          const pct = (diff / Math.abs(prev)) * 100;
+          if (pct > 0.05) changeDirection = 'up';
+          else if (pct < -0.05) changeDirection = 'down';
+          else changeDirection = 'flat';
         }
       }
 
@@ -280,25 +247,22 @@ export function MacroIndicatorsTimelineSection({
         color: p.color ?? '#6b7280',
         change,
         changeDirection,
+        dataKey: id,
       });
     });
 
-    const rows = ACTIVE_METRIC_IDS
-      .filter((id) => selectedMetricIds.includes(id) && byMetricId.has(id))
-      .map((id) => byMetricId.get(id)!)
-      .filter(Boolean);
-
-    if (!rows.length) return null;
-
-    // Show a single flat group of metrics in the tooltip (no category labels)
     const rowsByCategory = [
       {
         label: '',
-        rows: ACTIVE_METRIC_IDS.filter((id) => selectedMetricIds.includes(id))
+        rows: ENROLLMENT_STAFF_METRIC_IDS.filter((id) =>
+          selectedMetricIds.includes(id),
+        )
           .map((id) => byMetricId.get(id))
           .filter((r): r is NonNullable<typeof r> => r != null),
       },
     ].filter((g) => g.rows.length > 0);
+
+    if (!rowsByCategory.some((g) => g.rows.length > 0)) return null;
 
     return (
       <div className="chart-tooltip">
@@ -321,8 +285,8 @@ export function MacroIndicatorsTimelineSection({
                   />
                   <div className="chart-tooltip-label">{row.name}</div>
                   <div className="chart-tooltip-value">
-                    {row.name.toLowerCase().includes('life expectancy')
-                      ? `${row.value.toFixed(1)}`
+                    {ENROLLMENT_STAFF_RIGHT_AXIS_METRICS.includes(row.dataKey as MetricId)
+                      ? formatPercentage(row.value)
                       : formatCompactNumber(row.value)}
                   </div>
                   {row.change && (
@@ -352,22 +316,14 @@ export function MacroIndicatorsTimelineSection({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            {title}
+            {sectionTitle}
           </h2>
-          {isHealth ? (
-            <p className="muted">
-              Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
-              interpolated from annual observations. Includes maternal mortality, under-5 mortality,
-              undernourishment prevalence, and life expectancy.
-            </p>
-          ) : (
-            <p className="muted">
-              Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
-              interpolated from annual observations. Includes inflation, government debt, lending rate,
-              unemployment rate, and poverty metrics. Unemployed (number) and labour force (total) are in a
-              separate chart below.
-            </p>
-          )}
+          <p className="muted">
+            Switch between weekly, monthly, quarterly, and annual views. Sub-annual
+            views are smoothly interpolated from annual observations. Includes
+            enrollment (total and % gross) for primary, secondary, and tertiary
+            education, and total teachers (primary, secondary, tertiary).
+          </p>
         </div>
         <div className="section-header-controls">
           <div className="section-header-control-group">
@@ -411,7 +367,7 @@ export function MacroIndicatorsTimelineSection({
                     <div className="map-metric-category-header">
                       <span className="map-metric-category-icon">
                         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z" />
+                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-8.5Z" />
                         </svg>
                       </span>
                       <span>Sampling cadence</span>
@@ -450,30 +406,30 @@ export function MacroIndicatorsTimelineSection({
           <div className="section-header-control-group">
             <div className="section-control-label">View</div>
             <div className="pill-group pill-group-secondary">
-            <button
-              type="button"
-              className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
-              onClick={() => setViewMode('chart')}
-            >
-              <span className="icon-12">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
-                </svg>
-              </span>
-              <span>Chart view</span>
-            </button>
-            <button
-              type="button"
-              className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
-              onClick={() => setViewMode('table')}
-            >
-              <span className="icon-12">
-                <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                  <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
-                </svg>
-              </span>
-              <span>Table view</span>
-            </button>
+              <button
+                type="button"
+                className={`pill ${viewMode === 'chart' ? 'pill-active' : ''}`}
+                onClick={() => setViewMode('chart')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Zm.75 1.5h10v7H3.5v-7Zm1.75 1a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 .75-.75Zm3 1a.75.75 0 0 1 .75.75v1.5a.75.75 0 0 1-1.5 0v-1.5a.75.75 0 0 1 .75-.75Z" />
+                  </svg>
+                </span>
+                <span>Chart view</span>
+              </button>
+              <button
+                type="button"
+                className={`pill ${viewMode === 'table' ? 'pill-active' : ''}`}
+                onClick={() => setViewMode('table')}
+              >
+                <span className="icon-12">
+                  <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
+                  </svg>
+                </span>
+                <span>Table view</span>
+              </button>
             </div>
           </div>
         </div>
@@ -483,7 +439,7 @@ export function MacroIndicatorsTimelineSection({
         <div className="metric-toggle-hint">Tap to show or hide indicators</div>
       </div>
       <div className="metric-toggle-row">
-        {ACTIVE_METRIC_IDS.map((id) => (
+        {ENROLLMENT_STAFF_METRIC_IDS.map((id) => (
           <button
             key={id}
             type="button"
@@ -538,7 +494,7 @@ export function MacroIndicatorsTimelineSection({
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                tickFormatter={(v) => formatCompactNumber(v as number)}
+                tickFormatter={(v) => formatPercentage(v as number)}
                 tickLine={false}
                 tickMargin={8}
                 stroke="rgba(148,163,184,0.6)"
@@ -552,7 +508,7 @@ export function MacroIndicatorsTimelineSection({
                 }}
                 content={<CustomTooltip />}
               />
-              {ACTIVE_METRIC_IDS.map((metricId) => (
+              {ENROLLMENT_STAFF_METRIC_IDS.map((metricId) => (
                 <Line
                   key={metricId}
                   type="monotone"
@@ -564,7 +520,9 @@ export function MacroIndicatorsTimelineSection({
                     !selectedMetricIds.includes(metricId) ||
                     !merged.some((row) => row[metricId] != null)
                   }
-                  yAxisId={RIGHT_AXIS_METRICS.includes(metricId) ? 'right' : 'left'}
+                  yAxisId={
+                    ENROLLMENT_STAFF_RIGHT_AXIS_METRICS.includes(metricId) ? 'right' : 'left'
+                  }
                 />
               ))}
             </LineChart>
@@ -588,13 +546,22 @@ export function MacroIndicatorsTimelineSection({
                     <td>{formatAxisLabel(row[xKey] as string | number)}</td>
                     {selectedMetricIds.map((id) => {
                       const v = row[id];
-                      const prevRow = rowIndex > 0 ? merged[rowIndex - 1] : undefined;
-                      const prev = prevRow && prevRow[id] != null ? (prevRow[id] as number) : null;
+                      const prevRow =
+                        rowIndex > 0 ? merged[rowIndex - 1] : undefined;
+                      const prev =
+                        prevRow && prevRow[id] != null
+                          ? (prevRow[id] as number)
+                          : null;
 
                       let changeText: string | null = null;
                       let changeDir: 'up' | 'down' | 'flat' | null = null;
                       if (v != null) {
-                        changeText = formatGrowthChange(v as number, prev ?? null, freqLabel[frequency], id);
+                        changeText = formatGrowthChange(
+                          v as number,
+                          prev ?? null,
+                          freqLabel[frequency],
+                          id,
+                        );
                         if (changeText) {
                           const diff = (v as number) - (prev ?? 0);
                           if (isPercentageMetric(id)) {
@@ -617,9 +584,7 @@ export function MacroIndicatorsTimelineSection({
                           ) : (
                             <div className="table-metric-cell">
                               <div className="table-metric-value">
-                                {id === 'lifeExpectancy'
-                                  ? (v as number).toFixed(1)
-                                  : formatCompactNumber(v as number)}
+                                {formatCompactNumber(v as number)}
                               </div>
                               {changeText && changeDir && (
                                 <div

@@ -40,6 +40,8 @@ interface Props {
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
   resampledSeries?: CountryDashboardData['series'];
+  /** When provided (e.g. from Graphs section), used as the section heading for alignment with subsection name. */
+  sectionTitle?: string;
 }
 
 export function LabourUnemploymentTimelineSection({
@@ -47,6 +49,7 @@ export function LabourUnemploymentTimelineSection({
   frequency,
   setFrequency,
   resampledSeries,
+  sectionTitle = 'Unemployed (number) & labour force timeline',
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
@@ -57,7 +60,7 @@ export function LabourUnemploymentTimelineSection({
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Unemployed (number) & labour force</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
@@ -269,7 +272,7 @@ export function LabourUnemploymentTimelineSection({
       <div className="section-header">
         <div>
           <h2 className="section-title">
-            Unemployed (number) & labour force timeline
+            {sectionTitle}
           </h2>
           <p className="muted">
             Number of people unemployed and total labour force. Same frequency

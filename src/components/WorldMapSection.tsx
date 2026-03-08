@@ -32,6 +32,8 @@ interface Props {
   data?: CountryDashboardData;
   selectedMetricId: MapMetricId;
   year: number;
+  /** When set, only show countries in this region (World Bank region name). */
+  region?: string | null;
   /** Increment to force refetch of global map data (e.g. after "Refresh all data"). */
   refreshTrigger?: number;
 }
@@ -98,20 +100,52 @@ function getMetricFromRow(
       return row.region ?? null;
     case 'outOfSchoolPrimaryPct':
       return row.outOfSchoolPrimaryPct ?? null;
+    case 'outOfSchoolSecondaryPct':
+      return row.outOfSchoolSecondaryPct ?? null;
+    case 'outOfSchoolTertiaryPct':
+      return row.outOfSchoolTertiaryPct ?? null;
     case 'primaryCompletionRate':
       return row.primaryCompletionRate ?? null;
+    case 'secondaryCompletionRate':
+      return row.secondaryCompletionRate ?? null;
+    case 'tertiaryCompletionRate':
+      return row.tertiaryCompletionRate ?? null;
     case 'minProficiencyReadingPct':
       return row.minProficiencyReadingPct ?? null;
-    case 'preprimaryEnrollmentPct':
-      return row.preprimaryEnrollmentPct ?? null;
     case 'literacyRateAdultPct':
       return row.literacyRateAdultPct ?? null;
     case 'genderParityIndexPrimary':
       return row.genderParityIndexPrimary ?? null;
+    case 'genderParityIndexSecondary':
+      return row.genderParityIndexSecondary ?? null;
+    case 'genderParityIndexTertiary':
+      return row.genderParityIndexTertiary ?? null;
     case 'trainedTeachersPrimaryPct':
       return row.trainedTeachersPrimaryPct ?? null;
+    case 'trainedTeachersSecondaryPct':
+      return row.trainedTeachersSecondaryPct ?? null;
+    case 'trainedTeachersTertiaryPct':
+      return row.trainedTeachersTertiaryPct ?? null;
     case 'publicExpenditureEducationPctGDP':
       return row.publicExpenditureEducationPctGDP ?? null;
+    case 'primaryPupilsTotal':
+      return row.primaryPupilsTotal ?? null;
+    case 'primaryEnrollmentPct':
+      return row.primaryEnrollmentPct ?? null;
+    case 'secondaryPupilsTotal':
+      return row.secondaryPupilsTotal ?? null;
+    case 'secondaryEnrollmentPct':
+      return row.secondaryEnrollmentPct ?? null;
+    case 'tertiaryEnrollmentPct':
+      return row.tertiaryEnrollmentPct ?? null;
+    case 'tertiaryEnrollmentTotal':
+      return row.tertiaryEnrollmentTotal ?? null;
+    case 'primarySchoolsTotal':
+      return row.primarySchoolsTotal ?? null;
+    case 'secondarySchoolsTotal':
+      return row.secondarySchoolsTotal ?? null;
+    case 'tertiaryInstitutionsTotal':
+      return row.tertiaryInstitutionsTotal ?? null;
     default:
       return null;
   }
@@ -175,20 +209,52 @@ function getMetricLabel(metricId: MapMetricId): string {
       return 'Population 65+ (% of total)';
     case 'outOfSchoolPrimaryPct':
       return 'Out-of-school rate (primary, %)';
+    case 'outOfSchoolSecondaryPct':
+      return 'Out-of-school rate (secondary, %)';
+    case 'outOfSchoolTertiaryPct':
+      return 'Out-of-school rate (tertiary, %)';
     case 'primaryCompletionRate':
-      return 'Primary completion rate (%)';
+      return 'Primary completion rate (gross, %)';
+    case 'secondaryCompletionRate':
+      return 'Secondary completion rate (gross, %)';
+    case 'tertiaryCompletionRate':
+      return 'Tertiary completion rate (gross, %)';
     case 'minProficiencyReadingPct':
       return 'Minimum reading proficiency (%)';
-    case 'preprimaryEnrollmentPct':
-      return 'Preprimary enrollment (% gross)';
     case 'literacyRateAdultPct':
       return 'Adult literacy rate (%)';
     case 'genderParityIndexPrimary':
       return 'Gender parity index (GPI), primary';
+    case 'genderParityIndexSecondary':
+      return 'Gender parity index (GPI), secondary';
+    case 'genderParityIndexTertiary':
+      return 'Gender parity index (GPI), tertiary';
     case 'trainedTeachersPrimaryPct':
       return 'Trained teachers primary (%)';
+    case 'trainedTeachersSecondaryPct':
+      return 'Trained teachers secondary (%)';
+    case 'trainedTeachersTertiaryPct':
+      return 'Trained teachers tertiary (%)';
     case 'publicExpenditureEducationPctGDP':
       return 'Public expenditure on education (% GDP)';
+    case 'primaryPupilsTotal':
+      return 'Primary enrollment (total)';
+    case 'primaryEnrollmentPct':
+      return 'Primary enrollment (% gross)';
+    case 'secondaryPupilsTotal':
+      return 'Secondary enrollment (total)';
+    case 'secondaryEnrollmentPct':
+      return 'Secondary enrollment (% gross)';
+    case 'tertiaryEnrollmentPct':
+      return 'Tertiary enrollment (% gross)';
+    case 'tertiaryEnrollmentTotal':
+      return 'Tertiary enrollment (total)';
+    case 'primarySchoolsTotal':
+      return 'Primary education, teachers (total)';
+    case 'secondarySchoolsTotal':
+      return 'Secondary education, teachers (total)';
+    case 'tertiaryInstitutionsTotal':
+      return 'Tertiary education, teachers (total)';
     default:
       return String(metricId);
   }
@@ -216,14 +282,32 @@ function formatMetricValue(
     case 'pop65PlusShare':
       return formatPercentage(value);
     case 'outOfSchoolPrimaryPct':
+    case 'outOfSchoolSecondaryPct':
+    case 'outOfSchoolTertiaryPct':
     case 'primaryCompletionRate':
+    case 'secondaryCompletionRate':
+    case 'tertiaryCompletionRate':
     case 'minProficiencyReadingPct':
-    case 'preprimaryEnrollmentPct':
     case 'literacyRateAdultPct':
     case 'trainedTeachersPrimaryPct':
+    case 'trainedTeachersSecondaryPct':
+    case 'trainedTeachersTertiaryPct':
     case 'publicExpenditureEducationPctGDP':
+    case 'primaryEnrollmentPct':
+    case 'secondaryEnrollmentPct':
+    case 'tertiaryEnrollmentPct':
       return formatPercentage(value);
+    case 'primaryPupilsTotal':
+    case 'secondaryPupilsTotal':
+    case 'tertiaryEnrollmentTotal':
+    case 'primarySchoolsTotal':
+    case 'secondarySchoolsTotal':
+    case 'tertiaryInstitutionsTotal':
+      return formatCompactNumber(value);
     case 'genderParityIndexPrimary':
+      return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);
+    case 'genderParityIndexSecondary':
+    case 'genderParityIndexTertiary':
       return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);
     case 'govDebtUSD':
       return formatCompactNumber(value);
@@ -284,7 +368,7 @@ function getFlagBaseColor(iso2?: string): string {
   }
 }
 
-export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger = 0 }: Props) {
+export function WorldMapSection({ data, selectedMetricId, year, region = null, refreshTrigger = 0 }: Props) {
   if (!data) {
     return (
       <section className="card map-section">
@@ -361,16 +445,21 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
     };
   }, []);
 
+  const displayRows = useMemo(
+    () => (region ? globalRows.filter((r) => r.region === region) : globalRows),
+    [globalRows, region],
+  );
+
   // Index by ISO3 for quick metric lookup.
   const byIso3 = useMemo(() => {
     const map = new Map<string, GlobalCountryMetricsRow>();
-    for (const row of globalRows) {
+    for (const row of displayRows) {
       if (row.iso3Code) {
         map.set(row.iso3Code.toUpperCase(), row);
       }
     }
     return map;
-  }, [globalRows]);
+  }, [displayRows]);
 
   const isCategorical = CATEGORICAL_METRICS.includes(selectedMetricId);
 
@@ -380,7 +469,7 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
     }
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
-    for (const row of globalRows) {
+    for (const row of displayRows) {
       const v = getMetricFromRow(row, selectedMetricId);
       if (v == null || typeof v === 'string' || Number.isNaN(v)) continue;
       if (v < min) min = v;
@@ -390,7 +479,7 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
       return { minValue: null as number | null, maxValue: null as number | null };
     }
     return { minValue: min, maxValue: max };
-  }, [globalRows, selectedMetricId, isCategorical]);
+  }, [displayRows, selectedMetricId, isCategorical]);
 
   const categoricalPalette = [
     '#fbbf24', '#b45309', '#dc2626', '#ea580c', '#ca8a04',
@@ -415,12 +504,12 @@ export function WorldMapSection({ data, selectedMetricId, year, refreshTrigger =
   const categoricalLegendItems = useMemo(() => {
     if (!isCategorical) return [];
     const seen = new Set<string>();
-    for (const row of globalRows) {
+    for (const row of displayRows) {
       const v = getMetricFromRow(row, selectedMetricId);
       if (typeof v === 'string' && v.trim()) seen.add(v);
     }
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
-  }, [globalRows, selectedMetricId, isCategorical]);
+  }, [displayRows, selectedMetricId, isCategorical]);
 
   const getFillColor = (metricValue: number | string | null) => {
     if (metricValue == null) {

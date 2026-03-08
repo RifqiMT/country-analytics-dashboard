@@ -457,7 +457,7 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
         <div>
           <h2 className="section-title">Analytics assistant</h2>
           <p className="muted">
-            Country Analytics Platform offers a modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest), powered by World Bank, UN, WHO, and IMF data. Ask the assistant about metrics, rankings, methodology, or general knowledge (e.g. where a country is located). Powered by LLM with access to dashboard data and web search.
+            Country Analytics Platform offers a modern, analyst-grade view across financial, demographic, health, and education metrics for every country (2000 – latest), powered by World Bank WDI, IMF WEO, UNESCO UIS, and UN/WHO data. Government debt (% of GDP) is filled from IMF when World Bank has no data (e.g. China). Ask the assistant about metrics, rankings, methodology, data sources, or general knowledge (e.g. where a country is located). Global Analytics includes a region filter for map, table, and charts. Powered by LLM with access to dashboard data and web search.
           </p>
         </div>
         <div className="chatbot-controls">
@@ -789,7 +789,7 @@ function formatMessage(text: string): string {
 }
 
 const LOCATION_UI_FALLBACK_MESSAGE =
-  'I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt, interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, and government type. Ask for a country by name, "Top N by [metric]", or "compare X and Y". For questions about **location or geography** (e.g. where a country is located, which continent, neighbouring countries), use the LLM or web search. For full conversational answers, add your API key in Settings.';
+  'I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt (from World Bank or IMF when WB has no data), interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, government type, and education metrics (enrollment, completion, literacy, etc.). Ask for a country by name, "Top N by [metric]", or "compare X and Y". In Global Analytics you can filter by region. For questions about **location or geography** (e.g. where a country is located, which continent, neighbouring countries), use the LLM or web search. For full conversational answers, add your API key in Settings.';
 
 function isLocationQuestionClient(q: string): boolean {
   const s = q.trim().toLowerCase();

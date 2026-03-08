@@ -11,7 +11,7 @@ This document describes the **data flow**, **component boundaries**, and **techn
 │                         App.tsx (Root)                            │
 │  - Main tabs (Country | Global | PESTEL | Porter 5 Forces | Business Analytics | Chat | Source)         │
 │  - Global view sub-tabs: Map | Global table | Global Charts                          │
-│  - Global state: mainTab, globalViewTab, mapMetricId, year       │
+│  - Global state: mainTab, globalViewTab, mapMetricId, year, globalRegion, globalRegions       │
 └─────────────────────────────────────────────────────────────────┘
                                     │
         ┌───────────────────────────┼───────────────────────────┬──────────────────┬──────────────────┬──────────────┐
@@ -132,7 +132,10 @@ fetchGlobalCountryMetricsForYear(year)
 Merge by country (ISO3); build GlobalCountryMetricsRow[]
          │
          ▼
-WorldMapSection / AllCountriesTableSection
+Filter by region when globalRegion is set (WorldMapSection, AllCountriesTableSection, GlobalChartsSection use displayRows = rows filtered by region)
+         │
+         ▼
+WorldMapSection / AllCountriesTableSection / GlobalChartsSection
 ```
 
 ### 2.3 Analytics Assistant Data Flow
@@ -264,13 +267,14 @@ App
 ```
 App
 └── MapMetricToolbar
-└── WorldMapSection
+└── RegionFilter (dynamic, searchable; limits map, table, charts to selected region)
+└── WorldMapSection (region prop; displayRows = filtered by region when set)
     └── ZoomableGroup (zoom, reset)
     └── ComposableMap (react-simple-maps)
     └── Geographies (flag on hover)
-└── AllCountriesTableSection
+└── AllCountriesTableSection (region prop; displayRows filtered by region when set)
     └── Table (General | Financial | Health)
-└── GlobalChartsSection
+└── GlobalChartsSection (region prop; data filtered by region when set)
     └── Unified, economic, health, education, population-structure aggregates (globalAggregates.ts)
     └── Frequency + chart/table view
 ```
@@ -433,7 +437,7 @@ App
 
 ### 7.2 IMF Fallbacks
 
-- **Government debt**: IMF WEO when WB empty
+- **Government debt**: IMF WEO when WB empty; **per-country fallback** (single-country request for any country still missing after batch) ensures broad coverage (e.g. China).
 - **GDP**: IMF NGDPD when WB empty (territories)
 
 ### 7.3 Taiwan

@@ -175,6 +175,20 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ---
 
+### US-5.3 – Filter Global view by region
+
+- **As a** Regional Strategy Lead or Country Economist  
+- **I want to** select a region (e.g. East Asia & Pacific, Sub-Saharan Africa) from a searchable dropdown  
+- **So that** the map, global table, and global charts show only countries in that region for focused comparison  
+
+**Acceptance criteria:**
+- Global Analytics header includes a **region filter**: dynamic, searchable dropdown with "All regions" plus one option per distinct region in the loaded country list
+- When a region is selected, the map shades only countries in that region; the global table shows only those rows; Global Charts aggregates use only those countries
+- When "All regions" is selected, worldwide data is shown
+- Keyboard navigation (e.g. arrow keys, Enter, Escape) and click-outside-to-close work in the region dropdown
+
+---
+
 ## 5b. Global Analytics – Global Charts
 
 ### US-5b.1 – View global aggregate trends
@@ -188,6 +202,7 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 - Global Charts show aggregated series for unified metrics, economic indicators, health indicators, **education indicators** (e.g. out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure), and population structure (age-group shares)
 - Frequency (weekly/monthly/quarterly/yearly) and chart/table view are available
 - Data is built from the same global dataset as the map and table for the selected year
+- When a **region filter** is applied, Global Charts aggregates (unified, economic, health, education, population structure) use only countries in that region
 
 ---
 

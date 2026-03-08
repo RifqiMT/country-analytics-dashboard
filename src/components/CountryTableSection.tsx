@@ -1,9 +1,103 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { formatGrowthChangeShort } from '../utils/growthFormat';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { computeGlobalValue, toGlobalAggregateOption } from '../utils/globalAggregates';
+import {
+  METRIC_METADATA,
+  EDUCATION_SUBCATEGORY_LABELS,
+  EDUCATION_SUBCATEGORY_ORDER,
+} from '../data/metricMetadata';
+import type { MetricMetadata } from '../data/metricMetadata';
+
+/** Row key in GlobalCountryMetricsRow -> metadata id when they differ (e.g. pop shares). */
+const ROW_KEY_TO_METADATA_ID: Partial<Record<keyof GlobalCountryMetricsRow, string>> = {
+  pop0_14Pct: 'pop0_14Share',
+  pop15_64Pct: 'pop15_64Share',
+  pop65PlusPct: 'pop65PlusShare',
+};
+
+type CategoryKey = 'geography' | 'financial' | 'population' | 'health' | 'education';
+type FormatKind = 'compact' | 'percentage' | 'area' | 'gpi';
+
+/** Ordered comparison rows: category and optional education subcategory. */
+const COMPARISON_ORDER: Array<{
+  rowKey: keyof GlobalCountryMetricsRow;
+  category: CategoryKey;
+  educationSubcategory?: NonNullable<MetricMetadata['educationSubcategory']>;
+}> = [
+  { rowKey: 'landAreaKm2', category: 'geography' },
+  { rowKey: 'totalAreaKm2', category: 'geography' },
+  { rowKey: 'eezKm2', category: 'geography' },
+  { rowKey: 'gdpNominal', category: 'financial' },
+  { rowKey: 'gdpPPP', category: 'financial' },
+  { rowKey: 'gdpNominalPerCapita', category: 'financial' },
+  { rowKey: 'gdpPPPPerCapita', category: 'financial' },
+  { rowKey: 'inflationCPI', category: 'financial' },
+  { rowKey: 'unemploymentRate', category: 'financial' },
+  { rowKey: 'unemployedTotal', category: 'financial' },
+  { rowKey: 'labourForceTotal', category: 'financial' },
+  { rowKey: 'interestRate', category: 'financial' },
+  { rowKey: 'povertyHeadcount215', category: 'financial' },
+  { rowKey: 'povertyHeadcountNational', category: 'financial' },
+  { rowKey: 'govDebtPercentGDP', category: 'financial' },
+  { rowKey: 'govDebtUSD', category: 'financial' },
+  { rowKey: 'populationTotal', category: 'population' },
+  { rowKey: 'pop0_14Pct', category: 'population' },
+  { rowKey: 'pop15_64Pct', category: 'population' },
+  { rowKey: 'pop65PlusPct', category: 'population' },
+  { rowKey: 'lifeExpectancy', category: 'health' },
+  { rowKey: 'maternalMortalityRatio', category: 'health' },
+  { rowKey: 'under5MortalityRate', category: 'health' },
+  { rowKey: 'undernourishmentPrevalence', category: 'health' },
+  { rowKey: 'outOfSchoolPrimaryPct', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'primaryCompletionRate', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'minProficiencyReadingPct', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'primaryPupilsTotal', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'primaryEnrollmentPct', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'primarySchoolsTotal', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'outOfSchoolSecondaryPct', category: 'education', educationSubcategory: 'secondary' },
+  { rowKey: 'secondaryCompletionRate', category: 'education', educationSubcategory: 'secondary' },
+  { rowKey: 'secondaryPupilsTotal', category: 'education', educationSubcategory: 'secondary' },
+  { rowKey: 'secondaryEnrollmentPct', category: 'education', educationSubcategory: 'secondary' },
+  { rowKey: 'secondarySchoolsTotal', category: 'education', educationSubcategory: 'secondary' },
+  { rowKey: 'outOfSchoolTertiaryPct', category: 'education', educationSubcategory: 'tertiary' },
+  { rowKey: 'tertiaryCompletionRate', category: 'education', educationSubcategory: 'tertiary' },
+  { rowKey: 'tertiaryEnrollmentPct', category: 'education', educationSubcategory: 'tertiary' },
+  { rowKey: 'tertiaryEnrollmentTotal', category: 'education', educationSubcategory: 'tertiary' },
+  { rowKey: 'tertiaryInstitutionsTotal', category: 'education', educationSubcategory: 'tertiary' },
+  { rowKey: 'literacyRateAdultPct', category: 'education', educationSubcategory: 'literacy_attainment' },
+  { rowKey: 'genderParityIndexPrimary', category: 'education', educationSubcategory: 'equity_quality_investment' },
+  { rowKey: 'genderParityIndexSecondary', category: 'education', educationSubcategory: 'equity_quality_investment' },
+  { rowKey: 'genderParityIndexTertiary', category: 'education', educationSubcategory: 'equity_quality_investment' },
+  { rowKey: 'trainedTeachersPrimaryPct', category: 'education', educationSubcategory: 'equity_quality_investment' },
+  { rowKey: 'trainedTeachersSecondaryPct', category: 'education', educationSubcategory: 'equity_quality_investment' },
+  { rowKey: 'trainedTeachersTertiaryPct', category: 'education', educationSubcategory: 'equity_quality_investment' },
+  { rowKey: 'publicExpenditureEducationPctGDP', category: 'education', educationSubcategory: 'equity_quality_investment' },
+];
+
+const CATEGORY_LABELS: Record<CategoryKey, string> = {
+  geography: 'Geography',
+  financial: 'Financial',
+  population: 'Population',
+  health: 'Health',
+  education: 'Education',
+};
+
+function getLabel(rowKey: keyof GlobalCountryMetricsRow): string {
+  const id = ROW_KEY_TO_METADATA_ID[rowKey] ?? rowKey;
+  return METRIC_METADATA.find((m) => m.id === id)?.label ?? String(rowKey);
+}
+
+function getFormat(meta: MetricMetadata | undefined): FormatKind {
+  if (!meta) return 'compact';
+  const u = meta.unit.toLowerCase();
+  if (u.includes('%') || u.includes('percentage')) return 'percentage';
+  if (u.includes('km²') || u === 'km²') return 'area';
+  if (u === 'ratio') return 'gpi';
+  return 'compact';
+}
 
 interface Props {
   data?: CountryDashboardData;
@@ -321,19 +415,34 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     'outOfSchoolPrimaryPct',
     { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
+  const outOfSchoolSecondaryPctAgg = computeAggregates(
+    'outOfSchoolSecondaryPct',
+    'outOfSchoolSecondaryPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const outOfSchoolTertiaryPctAgg = computeAggregates(
+    'outOfSchoolTertiaryPct',
+    'outOfSchoolTertiaryPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
   const primaryCompletionRateAgg = computeAggregates(
     'primaryCompletionRate',
     'primaryCompletionRate',
     { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
+  const secondaryCompletionRateAgg = computeAggregates(
+    'secondaryCompletionRate',
+    'secondaryCompletionRate',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const tertiaryCompletionRateAgg = computeAggregates(
+    'tertiaryCompletionRate',
+    'tertiaryCompletionRate',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
   const minProficiencyReadingPctAgg = computeAggregates(
     'minProficiencyReadingPct',
     'minProficiencyReadingPct',
-    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
-  );
-  const preprimaryEnrollmentPctAgg = computeAggregates(
-    'preprimaryEnrollmentPct',
-    'preprimaryEnrollmentPct',
     { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
   const literacyRateAdultPctAgg = computeAggregates(
@@ -346,9 +455,29 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     'genderParityIndexPrimary',
     { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
+  const genderParityIndexSecondaryAgg = computeAggregates(
+    'genderParityIndexSecondary',
+    'genderParityIndexSecondary',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const genderParityIndexTertiaryAgg = computeAggregates(
+    'genderParityIndexTertiary',
+    'genderParityIndexTertiary',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
   const trainedTeachersPrimaryPctAgg = computeAggregates(
     'trainedTeachersPrimaryPct',
     'trainedTeachersPrimaryPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const trainedTeachersSecondaryPctAgg = computeAggregates(
+    'trainedTeachersSecondaryPct',
+    'trainedTeachersSecondaryPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const trainedTeachersTertiaryPctAgg = computeAggregates(
+    'trainedTeachersTertiaryPct',
+    'trainedTeachersTertiaryPct',
     { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
   const publicExpenditureEducationPctGDPAgg = computeAggregates(
@@ -356,19 +485,110 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     'publicExpenditureEducationPctGDP',
     { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
   );
+  const primaryEnrollmentPctAgg = computeAggregates(
+    'primaryEnrollmentPct',
+    'primaryEnrollmentPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const secondaryEnrollmentPctAgg = computeAggregates(
+    'secondaryEnrollmentPct',
+    'secondaryEnrollmentPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const tertiaryEnrollmentPctAgg = computeAggregates(
+    'tertiaryEnrollmentPct',
+    'tertiaryEnrollmentPct',
+    { globalFromWeightedAverage: { weightKey: 'populationTotal' } },
+  );
+  const primaryPupilsTotalAgg = computeAggregates(
+    'primaryPupilsTotal',
+    'primaryPupilsTotal',
+  );
+  const secondaryPupilsTotalAgg = computeAggregates(
+    'secondaryPupilsTotal',
+    'secondaryPupilsTotal',
+  );
+  const tertiaryEnrollmentTotalAgg = computeAggregates(
+    'tertiaryEnrollmentTotal',
+    'tertiaryEnrollmentTotal',
+  );
+  const primarySchoolsTotalAgg = computeAggregates(
+    'primarySchoolsTotal',
+    'primarySchoolsTotal',
+  );
+  const secondarySchoolsTotalAgg = computeAggregates(
+    'secondarySchoolsTotal',
+    'secondarySchoolsTotal',
+  );
+  const tertiaryInstitutionsTotalAgg = computeAggregates(
+    'tertiaryInstitutionsTotal',
+    'tertiaryInstitutionsTotal',
+  );
 
   const [expandedGroups, setExpandedGroups] = useState({
-    general: true,
+    geography: true,
     financial: true,
+    population: true,
     health: true,
     education: true,
   });
 
-  const toggleGroup = (group: 'general' | 'financial' | 'health' | 'education') => {
+  const toggleGroup = (group: CategoryKey) => {
     setExpandedGroups((prev) => ({ ...prev, [group]: !prev[group] }));
   };
 
   type Agg = ReturnType<typeof computeAggregates>;
+  const aggsByKey: Record<string, Agg> = {
+    gdpNominal: gdpNominalAgg,
+    gdpPPP: gdpPPPAgg,
+    gdpNominalPerCapita: gdpNominalPerCapitaAgg,
+    gdpPPPPerCapita: gdpPPPPerCapitaAgg,
+    inflationCPI: inflationCPIAgg,
+    govDebtPercentGDP: govDebtPercentGDPAgg,
+    govDebtUSD: govDebtUSDAgg,
+    interestRate: interestRateAgg,
+    unemploymentRate: unemploymentRateAgg,
+    unemployedTotal: unemployedTotalAgg,
+    labourForceTotal: labourForceTotalAgg,
+    povertyHeadcount215: poverty215Agg,
+    povertyHeadcountNational: povertyNationalAgg,
+    populationTotal: populationAgg,
+    pop0_14Pct: pop0_14Agg,
+    pop15_64Pct: pop15_64Agg,
+    pop65PlusPct: pop65PlusAgg,
+    lifeExpectancy: lifeExpectancyAgg,
+    maternalMortalityRatio: maternalMortalityAgg,
+    under5MortalityRate: under5MortalityAgg,
+    undernourishmentPrevalence: undernourishmentAgg,
+    landAreaKm2: landAreaAgg,
+    totalAreaKm2: totalAreaAgg,
+    eezKm2: eezAgg,
+    outOfSchoolPrimaryPct: outOfSchoolPrimaryPctAgg,
+    outOfSchoolSecondaryPct: outOfSchoolSecondaryPctAgg,
+    outOfSchoolTertiaryPct: outOfSchoolTertiaryPctAgg,
+    primaryCompletionRate: primaryCompletionRateAgg,
+    secondaryCompletionRate: secondaryCompletionRateAgg,
+    tertiaryCompletionRate: tertiaryCompletionRateAgg,
+    minProficiencyReadingPct: minProficiencyReadingPctAgg,
+    literacyRateAdultPct: literacyRateAdultPctAgg,
+    genderParityIndexPrimary: genderParityIndexPrimaryAgg,
+    genderParityIndexSecondary: genderParityIndexSecondaryAgg,
+    genderParityIndexTertiary: genderParityIndexTertiaryAgg,
+    trainedTeachersPrimaryPct: trainedTeachersPrimaryPctAgg,
+    trainedTeachersSecondaryPct: trainedTeachersSecondaryPctAgg,
+    trainedTeachersTertiaryPct: trainedTeachersTertiaryPctAgg,
+    publicExpenditureEducationPctGDP: publicExpenditureEducationPctGDPAgg,
+    primaryEnrollmentPct: primaryEnrollmentPctAgg,
+    secondaryEnrollmentPct: secondaryEnrollmentPctAgg,
+    tertiaryEnrollmentPct: tertiaryEnrollmentPctAgg,
+    primaryPupilsTotal: primaryPupilsTotalAgg,
+    secondaryPupilsTotal: secondaryPupilsTotalAgg,
+    tertiaryEnrollmentTotal: tertiaryEnrollmentTotalAgg,
+    primarySchoolsTotal: primarySchoolsTotalAgg,
+    secondarySchoolsTotal: secondarySchoolsTotalAgg,
+    tertiaryInstitutionsTotal: tertiaryInstitutionsTotalAgg,
+  };
+
   const renderRow = (
     label: string,
     agg: Agg,
@@ -428,109 +648,73 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
             </tr>
           </thead>
           <tbody>
-            <tr
-              className="table-group-header table-group-header-clickable"
-              onClick={() => toggleGroup('general')}
-            >
-              <td colSpan={4}>
-                <span className="table-group-header-inner">
-                  <span className="table-group-chevron">
-                    {expandedGroups.general ? '▾' : '▸'}
-                  </span>
-                  <span>General</span>
-                </span>
-              </td>
-            </tr>
-            {expandedGroups.general && (
-              <>
-                {renderRow('Total population', populationAgg, 'compact')}
-                {renderRow('Land area (km²)', landAreaAgg, 'area')}
-                {renderRow('Total area (km²)', totalAreaAgg, 'area')}
-                {renderRow('EEZ (km²)', eezAgg, 'area')}
-              </>
-            )}
-
-            <tr
-              className="table-group-header table-group-header-clickable"
-              onClick={() => toggleGroup('financial')}
-            >
-              <td colSpan={4}>
-                <span className="table-group-header-inner">
-                  <span className="table-group-chevron">
-                    {expandedGroups.financial ? '▾' : '▸'}
-                  </span>
-                  <span>Financial metrics</span>
-                </span>
-              </td>
-            </tr>
-            {expandedGroups.financial && (
-              <>
-                {renderRow('GDP (Nominal, US$)', gdpNominalAgg, 'compact')}
-                {renderRow('GDP (PPP, Intl$)', gdpPPPAgg, 'compact')}
-                {renderRow('GDP per capita (Nominal, US$)', gdpNominalPerCapitaAgg, 'compact')}
-                {renderRow('GDP per capita (PPP, Intl$)', gdpPPPPerCapitaAgg, 'compact')}
-                {renderRow('Government debt (USD)', govDebtUSDAgg, 'compact')}
-                {renderRow('Inflation (CPI, %)', inflationCPIAgg, 'percentage')}
-                {renderRow('Government debt (% of GDP)', govDebtPercentGDPAgg, 'percentage')}
-                {renderRow('Lending interest rate (%)', interestRateAgg, 'percentage')}
-                {renderRow('Unemployment rate (% of labour force)', unemploymentRateAgg, 'percentage')}
-                {renderRow('Unemployed (number of people)', unemployedTotalAgg, 'compact')}
-                {renderRow('Labour force (total)', labourForceTotalAgg, 'compact')}
-                {renderRow('Poverty headcount ($2.15/day, %)', poverty215Agg, 'percentage')}
-                {renderRow('Poverty headcount (national line, %)', povertyNationalAgg, 'percentage')}
-              </>
-            )}
-
-            <tr
-              className="table-group-header table-group-header-clickable"
-              onClick={() => toggleGroup('health')}
-            >
-              <td colSpan={4}>
-                <span className="table-group-header-inner">
-                  <span className="table-group-chevron">
-                    {expandedGroups.health ? '▾' : '▸'}
-                  </span>
-                  <span>Health &amp; demographics</span>
-                </span>
-              </td>
-            </tr>
-            {expandedGroups.health && (
-              <>
-                {renderRow('Life expectancy at birth (years)', lifeExpectancyAgg, 'compact')}
-                {renderRow('Maternal mortality ratio (per 100,000 live births)', maternalMortalityAgg, 'compact')}
-                {renderRow('Under-5 mortality rate (per 1,000 live births)', under5MortalityAgg, 'compact')}
-                {renderRow('Prevalence of undernourishment (% of population)', undernourishmentAgg, 'percentage')}
-                {renderRow('Population 0–14 (% of total)', pop0_14Agg, 'percentage')}
-                {renderRow('Population 15–64 (% of total)', pop15_64Agg, 'percentage')}
-                {renderRow('Population 65+ (% of total)', pop65PlusAgg, 'percentage')}
-              </>
-            )}
-
-            <tr
-              className="table-group-header table-group-header-clickable"
-              onClick={() => toggleGroup('education')}
-            >
-              <td colSpan={4}>
-                <span className="table-group-header-inner">
-                  <span className="table-group-chevron">
-                    {expandedGroups.education ? '▾' : '▸'}
-                  </span>
-                  <span>Education</span>
-                </span>
-              </td>
-            </tr>
-            {expandedGroups.education && (
-              <>
-                {renderRow('Out-of-school rate (primary, % of primary school age)', outOfSchoolPrimaryPctAgg, 'percentage')}
-                {renderRow('Primary completion rate (% of relevant age group)', primaryCompletionRateAgg, 'percentage')}
-                {renderRow('Minimum reading proficiency (% at end of primary)', minProficiencyReadingPctAgg, 'percentage')}
-                {renderRow('Preprimary enrollment (% gross)', preprimaryEnrollmentPctAgg, 'percentage')}
-                {renderRow('Adult literacy rate (% ages 15+)', literacyRateAdultPctAgg, 'percentage')}
-                {renderRow('Gender parity index (GPI), primary enrollment', genderParityIndexPrimaryAgg, 'gpi')}
-                {renderRow('Trained teachers in primary (% of total teachers)', trainedTeachersPrimaryPctAgg, 'percentage')}
-                {renderRow('Public expenditure on education (% of GDP)', publicExpenditureEducationPctGDPAgg, 'percentage')}
-              </>
-            )}
+            {(['geography', 'financial', 'population', 'health', 'education'] as CategoryKey[]).map((category) => {
+              const rows = COMPARISON_ORDER.filter((r) => r.category === category);
+              if (!rows.length) return null;
+              const expanded = expandedGroups[category];
+              return (
+                <React.Fragment key={category}>
+                  <tr
+                    className="table-group-header table-group-header-clickable"
+                    onClick={() => toggleGroup(category)}
+                  >
+                    <td colSpan={4}>
+                      <span className="table-group-header-inner">
+                        <span className="table-group-chevron">
+                          {expanded ? '▾' : '▸'}
+                        </span>
+                        <span>{CATEGORY_LABELS[category]}</span>
+                      </span>
+                    </td>
+                  </tr>
+                  {expanded &&
+                    (category !== 'education'
+                      ? rows.map(({ rowKey }) => {
+                          const agg = aggsByKey[rowKey];
+                          const meta = METRIC_METADATA.find(
+                            (m) => m.id === (ROW_KEY_TO_METADATA_ID[rowKey] ?? rowKey),
+                          );
+                          if (!agg) return null;
+                          return (
+                            <React.Fragment key={rowKey}>
+                              {renderRow(getLabel(rowKey), agg, getFormat(meta))}
+                            </React.Fragment>
+                          );
+                        })
+                      : (() => {
+                          const bySub = new Map<NonNullable<MetricMetadata['educationSubcategory']>, typeof rows>();
+                          for (const r of rows) {
+                            const sub = r.educationSubcategory ?? ('primary' as const);
+                            if (!bySub.has(sub)) bySub.set(sub, []);
+                            bySub.get(sub)!.push(r);
+                          }
+                          return EDUCATION_SUBCATEGORY_ORDER.filter((sub) => bySub.has(sub)).map((sub) => (
+                            <React.Fragment key={sub}>
+                              <tr className="table-subgroup-header">
+                                <td colSpan={4}>
+                                  <span className="table-subgroup-header-inner">
+                                    {EDUCATION_SUBCATEGORY_LABELS[sub]}
+                                  </span>
+                                </td>
+                              </tr>
+                              {bySub.get(sub)!.map(({ rowKey }) => {
+                                const agg = aggsByKey[rowKey];
+                                const meta = METRIC_METADATA.find(
+                                  (m) => m.id === (ROW_KEY_TO_METADATA_ID[rowKey] ?? rowKey),
+                                );
+                                if (!agg) return null;
+                                return (
+                                  <React.Fragment key={rowKey}>
+                                    {renderRow(getLabel(rowKey), agg, getFormat(meta))}
+                                  </React.Fragment>
+                                );
+                              })}
+                            </React.Fragment>
+                          ));
+                        })())}
+                </React.Fragment>
+              );
+            })}
           </tbody>
         </table>
       </div>

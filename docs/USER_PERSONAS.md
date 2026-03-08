@@ -36,6 +36,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 - Starts with Country dashboard for a key market
 - Switches to Global analytics (map, table, or **global charts**—unified, economic, health, **education**, population structure) to compare regions and aggregates
+- Uses the **region filter** (dynamic, searchable) to limit the map, table, and charts to one region (e.g. East Asia & Pacific) for focused board materials
 - Uses **Porter 5 Forces** tab to generate competitive analysis for a specific country and industry (e.g. Indonesia food manufacturing) for strategy or board materials; reviews **chart**, **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each with 5 bullets) in separate cards
 - Sorts global table by GDP or population for rankings
 - Uses Analytics assistant for quick comparisons (e.g. "Compare Indonesia to Malaysia")
@@ -79,7 +80,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 - Uses **Business Analytics** tab: year range (start–end), X/Y metrics, optional **exclude IQR outliers**, correlation scatter (cleaned data, trend line, 95% CI), **data preparation summary**, **executive summary table** (r, p-value, R², Beta), **residuals vs fitted**, **subgroup by region**, causation disclaimer, **actionable insight**, and **next steps** when causation is not supported
 - Uses **PESTEL** tab to generate structured Political, Economic, Social, Technological, Environmental, Legal analysis using **most up-to-date** global data and current-year web supplement, with sources
 - Uses **Porter 5 Forces** tab to generate industry-level competitive analysis for the selected country and a chosen ILO/ISIC sector (e.g. food manufacturing, construction), with **chart** (five bullet points per force), **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each 5 bullets) and inline citations
-- Checks Source tab for government debt formula and IMF fallback
+- Checks Source tab for government debt formula and **IMF fallback** (e.g. China when World Bank has no debt series)
 - Asks Analytics assistant about methodology and data sources; relies on source attribution (Dashboard data, TAVILY/Web search, GROQ, other LLMs) to assess answer provenance
 - Asks Analytics assistant **location/geography** questions when needed for narrative context (e.g. "Where is X located?") and expects general-knowledge sources (not dashboard metrics)
 
@@ -167,7 +168,7 @@ This document describes the **target audiences** for the Country Analytics Platf
 
 | Persona | Primary Tab | Key Features |
 |---------|-------------|--------------|
-| Strategy Lead | Country + Global + **Porter 5 Forces** + Business Analytics + Chat | Map, global table sort, Porter 5 Forces (country + industry), correlation scatter (Business Analytics), comparison, Analytics assistant |
-| Economist | Country + Global + PESTEL + **Porter 5 Forces** + Business Analytics + Source + Chat | Timeline, year range, correlation scatter & causation (Business Analytics), PESTEL and Porter 5 Forces (latest data), metric definitions, methodology questions |
+| Strategy Lead | Country + Global + **Porter 5 Forces** + Business Analytics + Chat | Map, **region filter**, global table sort, Porter 5 Forces (country + industry), correlation scatter (Business Analytics), comparison, Analytics assistant |
+| Economist | Country + Global + PESTEL + **Porter 5 Forces** + Business Analytics + Source + Chat | Timeline, year range, **region filter**, correlation scatter & causation (Business Analytics), PESTEL and Porter 5 Forces (latest data), metric definitions, methodology questions |
 | Market Manager | Country + Chat | Summary, Population Structure timeline (age groups + absolute), age breakdown, quick comparisons |
 | BI Analyst | All | Global table, Global charts (unified, economic, health, **education**, population structure), Business Analytics (correlation scatter), PESTEL, **Porter 5 Forces**, Source tab, sorting, Analytics assistant |

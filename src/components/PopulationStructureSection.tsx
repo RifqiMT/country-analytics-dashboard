@@ -43,6 +43,8 @@ interface Props {
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
   resampledSeries?: CountryDashboardData['series'];
+  /** When provided (e.g. from Graphs section), used as the section heading for alignment with subsection name. */
+  sectionTitle?: string;
 }
 
 export function PopulationStructureSection({
@@ -50,6 +52,7 @@ export function PopulationStructureSection({
   frequency,
   setFrequency,
   resampledSeries,
+  sectionTitle = 'Population structure',
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
@@ -61,7 +64,7 @@ export function PopulationStructureSection({
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Population structure</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
@@ -312,7 +315,7 @@ export function PopulationStructureSection({
     <section className="card timeseries-section dashboard-grid-full">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Population structure</h2>
+          <h2 className="section-title">{sectionTitle}</h2>
           <p className="muted">
             Population by age group (0–14, 15–64, 65+) and their share of total
             population over time. World Bank WDI.

@@ -11,7 +11,7 @@ This document provides a **comprehensive reference** for all **data metrics** di
 The same data metrics are used across the product in different ways:
 
 - **Country dashboard**: Summary cards (latest values + YoY), unified time-series (core structural metrics), macro indicators timeline (economic & financial and health, separate sections), **Education indicators** timeline (out-of-school, completion, minimum proficiency, early childhood, literacy, GPI, trained teachers, public expenditure), unemployed & labour force timeline, **Population Structure** timeline (age-group shares and absolute counts over time), and country comparison table.
-- **Global analytics**: Choropleth map (one metric per view; zoom; hover with flag on shape), global tables (General, Financial, Health & demographics, **Education** with YoY), and **Global Charts** (aggregated global time-series: unified, economic, health, **education**, population structure). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
+- **Global analytics**: Choropleth map (one metric per view; zoom; hover with flag on shape), **region filter** (dynamic, searchable dropdown; limits map, global table, and Global Charts to the selected region or "All regions"), global tables (General, Financial, Health & demographics, **Education** with YoY), and **Global Charts** (aggregated global time-series: unified, economic, health, **education**, population structure). Correlation scatter (X/Y metrics) lives in the **Business Analytics** tab.
 - **Business Analytics**: Correlation scatter uses two metrics from the global dataset over a **year range** (start–end); **data preparation** removes missing and optionally **IQR outliers** (1.5×IQR rule). Correlation & causation analysis includes **Pearson r**, **p-value**, **R²**, **Beta**, **executive summary table**, **residuals vs fitted** plot, **subgroup-by-region** table, **actionable insight**, and explicit **causation disclaimer** with **next steps** when causation is not supported. Logic is implemented in `src/utils/correlationAnalysis.ts` and rendered in `BusinessAnalyticsSection.tsx` and `CorrelationScatterPlot.tsx`.
 - **Porter 5 Forces**: Uses selected country context and global data (DATA_MAX_YEAR) plus a chosen ILO/ISIC industry division; supplemental web search (TAVILY first, then GROQ) enriches the analysis. Output is displayed in five distinct sections: **Porter's Five Forces chart** (standard cross layout with five bullet points per force), **Comprehensive Analysis** (Executive Summary + five forces narrative), **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets). All citations and sources are inline in the narrative.
 - **Source tab**: Each metric is documented with label, description, formula, unit, and source links; metadata comes from `src/data/metricMetadata.ts`. Categories: Financial, Population, Health, **Education**, Geography, **Country metadata & context** (region, income level, government type, head of government, capital, currency). Section "Where metrics and information appear" describes usage across Country Dashboard, Global view, PESTEL, **Porter 5 Forces**, Business Analytics, and Analytics Assistant.
@@ -26,7 +26,7 @@ The same data metrics are used across the product in different ways:
 | **Financial** | GDP, Government debt, Inflation, Interest rate, Unemployment, Poverty headcount | World Bank WDI, IMF WEO |
 | **Population** | Total, Age groups (0–14, 15–64, 65+) | World Bank WDI |
 | **Health** | Life expectancy, Maternal mortality, Under‑5 mortality, Prevalence of undernourishment | World Bank WDI (WHO/UN/FAO sourced) |
-| **Education** | Out-of-school (primary), Primary completion, Min. reading proficiency, Preprimary enrollment, Adult literacy, Gender parity index (GPI), Trained teachers (primary), Public expenditure on education (% GDP) | UNESCO UIS via World Bank WDI |
+| **Education** | Out-of-school (primary), Primary completion, Min. reading proficiency, Adult literacy, Gender parity index (GPI), Trained teachers (primary), Public expenditure on education (% GDP) | UNESCO UIS via World Bank WDI |
 | **Geography** | Land area, Total area, EEZ | World Bank WDI, Sea Around Us, Marine Regions |
 | **Context / metadata** | Region, Income level, Government type, Head of government, Capital, Currency | World Bank, REST Countries |
 
@@ -83,7 +83,6 @@ The same data metrics are used across the product in different ways:
 | `outOfSchoolPrimaryPct` | Out-of-school rate (primary, %) | % | 100 − Primary net enrollment rate |
 | `primaryCompletionRate` | Primary completion rate | % | Percentage of cohort completing primary education |
 | `minProficiencyReadingPct` | Minimum reading proficiency | % | 100 − Learning poverty (%); share of children at end of primary who read at min. proficiency |
-| `preprimaryEnrollmentPct` | Preprimary enrollment (gross) | % | Gross enrollment in preprimary / official age group × 100 |
 | `literacyRateAdultPct` | Adult literacy rate | % | Percentage of population aged 15+ who can read and write |
 | `genderParityIndexPrimary` | Gender parity index (GPI), primary | Ratio | Girls’ enrollment / Boys’ enrollment (primary) |
 | `trainedTeachersPrimaryPct` | Trained teachers in primary (%) | % | Percentage of primary teachers with minimum required training |
@@ -162,7 +161,7 @@ These are documented in the Source tab under **Country metadata & context** and 
 - **Latest non-null**: Dashboard uses latest non-null value up to selected end year
 - **Year fallback**: Global loader steps backwards when a year has no data
 - **Territory fallback**: 30+ territories use parent country for inflation/interest
-- **IMF fallback**: Gov debt and GDP when World Bank returns empty
+- **IMF fallback**: Gov debt and GDP when World Bank returns empty; **per-country fallback** for government debt (single-country IMF request for any economy still missing after batch, e.g. China) for broad coverage
 - **Missing display**: "–" for null; no NaN or broken charts
 
 ---

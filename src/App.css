@@ -633,16 +633,103 @@
 
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 6px;
+}
+
+/* General and Education cards span full width (own row) like Education */
+.summary-grid .general-card,
+.summary-grid .education-card {
+  grid-column: 1 / -1;
 }
 
 .summary-card {
   background: var(--bg-elevated);
   border-radius: var(--radius-md);
-  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.summary-card-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 16px;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.summary-card-toggle:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+.summary-card-toggle:focus-visible {
+  outline: 2px solid var(--accent-blue, #3b82f6);
+  outline-offset: 2px;
+}
+
+.summary-card-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+.summary-card-chevron svg {
+  display: block;
+}
+
+.summary-card-toggle h3 {
+  margin: 0;
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+}
+
+.summary-card-content {
+  padding: 8px 16px 14px;
+}
+.summary-card-content[hidden] {
+  display: none !important;
+}
+
+.summary-section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  margin: 0 0 6px 0;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.summary-section-toggle:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+.summary-section-toggle:focus-visible {
+  outline: 2px solid var(--accent-blue, #3b82f6);
+  outline-offset: 2px;
+}
+.summary-section-toggle-label {
+  flex: 1;
 }
 
 .summary-card h3 {
@@ -653,10 +740,9 @@
 
 /* General card – dynamic, responsive, professional layout */
 .general-card {
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .general-card-title {
@@ -819,10 +905,9 @@
 
 /* Financial card – dynamic, responsive, professional layout */
 .financial-card {
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .financial-card-title {
@@ -940,10 +1025,9 @@
 
 /* Health card – dynamic, responsive, professional layout */
 .health-card {
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .health-card-title {
@@ -1061,10 +1145,9 @@
 
 /* Education card – same layout pattern as health card */
 .education-card {
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 .education-card-title {
@@ -1185,6 +1268,177 @@
   grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.1fr);
   gap: var(--space-5);
   align-items: stretch;
+}
+
+/* Graphs section – collapsible section with sub-sections */
+.graphs-section {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.graphs-section-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-weight: 700;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  background: var(--bg-muted);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.graphs-section-header:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.graphs-section-chevron {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.graphs-section-content {
+  margin-top: var(--space-3);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.graphs-section-content[hidden] {
+  display: none;
+}
+
+.graphs-section-methodology {
+  margin: 0 0 var(--space-3) 0;
+  font-size: 0.85rem;
+  max-width: 56rem;
+}
+
+.graphs-section-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+}
+
+.graphs-section-toolbar-btn {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.graphs-section-toolbar-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  border-color: var(--border-strong);
+}
+
+.graphs-subsections {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-5);
+  align-items: stretch;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.graphs-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.graphs-subsection-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  background: var(--bg-subtle, var(--bg-elevated));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+  margin-bottom: var(--space-2);
+}
+
+.graphs-subsection-header:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+}
+
+.graphs-subsection-chevron {
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.graphs-subsection-content {
+  min-height: 0;
+  min-width: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.graphs-subsection-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.graphs-subsection-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.graphs-subsection-content::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+.graphs-subsection-content[hidden] {
+  display: none;
+}
+
+.graphs-subsection-content.is-expanded {
+  display: block;
+}
+
+/* Constrain card/section to subsection width so table scrolls inside, never overflows */
+.graphs-subsection-content > .card,
+.graphs-subsection-content > .timeseries-section,
+.graphs-subsection-content > .macro-indicators-section,
+.graphs-subsection-content > section {
+  margin-bottom: 0;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-grid-full {
@@ -1701,6 +1955,180 @@
   overflow: auto;
 }
 
+/* Graphs section: ensure all chart tables scroll horizontally and vertically */
+.graphs-section .chart-table-wrapper {
+  margin-top: var(--space-2);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-subtle);
+  box-sizing: border-box;
+}
+
+.graphs-section .chart-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  max-height: 55vh;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  box-sizing: border-box;
+}
+
+.graphs-section .chart-table-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.graphs-section .chart-table-scroll::-webkit-scrollbar-track {
+  background: var(--bg-muted);
+  border-radius: 4px;
+}
+
+.graphs-section .chart-table-scroll::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+.graphs-section .chart-table-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.graphs-section .chart-table {
+  width: 100%;
+  min-width: max-content;
+  font-size: 0.8rem;
+}
+
+/* Professional table styling inside Graphs: sticky header and first column */
+.graphs-section .chart-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-elevated);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  box-shadow: 0 1px 0 0 var(--border-subtle);
+}
+
+.graphs-section .chart-table thead th:first-child,
+.graphs-section .chart-table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--bg-elevated);
+  box-shadow: 1px 0 0 0 var(--border-subtle);
+  padding-left: var(--space-3);
+}
+
+.graphs-section .chart-table thead th:first-child {
+  z-index: 3;
+}
+
+.graphs-section .chart-table tbody td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+.graphs-section .chart-table tbody td:first-child {
+  background: var(--bg-elevated);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.graphs-section .chart-table tbody tr:nth-child(even) td:first-child {
+  background: var(--bg-muted);
+}
+
+.graphs-section .chart-table tbody tr:hover td:first-child {
+  background: var(--bg-card-hover);
+}
+
+.graphs-section .chart-table tbody tr:nth-child(even) {
+  background: var(--bg-muted);
+}
+
+.graphs-section .chart-table tbody tr:hover {
+  background: var(--bg-card-hover);
+}
+
+/* Compact section header and controls inside Graphs */
+.graphs-section .section-header {
+  margin-bottom: var(--space-3);
+  gap: var(--space-2);
+}
+
+.graphs-section .section-title {
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+
+.graphs-section .section-header .muted {
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.graphs-section .section-header-controls {
+  gap: var(--space-2);
+}
+
+.graphs-section .metric-toggle-row-header {
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.graphs-section .metric-toggle-row {
+  margin: 6px 0 10px;
+  padding-bottom: 6px;
+  min-height: 0;
+}
+
+.graphs-section .card,
+.graphs-section .timeseries-section,
+.graphs-section .macro-indicators-section {
+  padding: var(--space-4);
+}
+
+.graphs-section .card:hover {
+  transform: none;
+}
+
+@media (max-width: 768px) {
+  .graphs-subsection-content {
+    max-height: 80vh;
+  }
+
+  .graphs-section .chart-table-scroll {
+    max-height: 50vh;
+  }
+
+  .graphs-section .section-title {
+    font-size: 0.88rem;
+  }
+
+  .graphs-section .chart-table thead th,
+  .graphs-section .chart-table tbody td {
+    padding: var(--space-1) var(--space-2);
+    font-size: 0.75rem;
+  }
+}
+
 .chart-table {
   width: 100%;
   border-collapse: collapse;
@@ -1876,6 +2304,19 @@ tbody tr:hover {
 
 .table-group-header:first-child td {
   border-top: none;
+}
+
+.table-subgroup-header td {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  background: var(--bg-subtle, var(--bg-elevated));
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-6);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.table-subgroup-header-inner {
+  display: inline-block;
 }
 
 /* PESTEL tab */
@@ -3704,8 +4145,21 @@ tbody tr:hover {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
-  margin: 0;
-  padding-bottom: var(--space-2);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.source-education-subcategory {
+  margin-top: var(--space-4);
+}
+.source-education-subcategory:first-of-type {
+  margin-top: 0;
+}
+.source-subcategory-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-2) 0;
+  padding-bottom: var(--space-1);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -3713,6 +4167,9 @@ tbody tr:hover {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .source-metric-card {
@@ -4439,6 +4896,87 @@ tbody tr:hover {
   gap: 6px;
   font-size: 0.76rem;
   color: var(--text-muted);
+}
+
+/* Region filter (Global Analytics): dynamic, searchable, suggestive combobox */
+.region-filter {
+  position: relative;
+}
+
+.region-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+}
+
+.region-filter-combobox {
+  position: relative;
+  display: inline-block;
+}
+
+.region-filter-input {
+  padding: 4px 28px 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: #f9fafb;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  min-width: 140px;
+  max-width: 220px;
+}
+
+.region-filter-input:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  background: #fff;
+}
+
+.region-filter-chevron {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.region-filter-chevron svg.open {
+  transform: rotate(180deg);
+}
+
+.region-filter-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin: 4px 0 0;
+  padding: 4px 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 100;
+  min-width: 180px;
+}
+
+.region-filter-option {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.region-filter-option:hover,
+.region-filter-option.region-filter-option-active {
+  background: var(--bg-subtle);
 }
 
 .country-search {

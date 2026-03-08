@@ -90,13 +90,15 @@ export function buildChatSystemPrompt(
       }).join('\n');
 
   const dataSourceSummary = compact
-    ? `Sources: World Bank WDI, IMF WEO, Sea Around Us. Data: ${DATA_MIN_YEAR}–${DATA_MAX_YEAR} (current year minus 2).`
+    ? `Sources: World Bank WDI, IMF WEO (gov debt when WB missing), UNESCO UIS (education), Sea Around Us. Data: ${DATA_MIN_YEAR}–${DATA_MAX_YEAR} (current year minus 2).`
     : `
 ## Data sources in this application
-- **World Bank WDI**: World Development Indicators (GDP, population, inflation, debt, health, geography)
-- **IMF World Economic Outlook**: GDP and government debt data
+- **World Bank WDI**: World Development Indicators (GDP, population, inflation, government debt where available, health, geography, education indicators from UNESCO UIS)
+- **IMF World Economic Outlook**: GDP and government debt data; government debt is used when World Bank has no series for a country (e.g. China)
 - **UN / WHO**: Population and health statistics
+- **UNESCO UIS** (via World Bank WDI): Education metrics (enrollment, completion, literacy, parity, expenditure)
 - **Sea Around Us / Marine Regions**: Exclusive Economic Zone (EEZ) data
+- **REST Countries**: Region, government type, capital, currency
 - Data coverage: ${DATA_MIN_YEAR} to ${DATA_MAX_YEAR} (current year minus 2).
 `;
 
@@ -156,13 +158,29 @@ export function buildChatSystemPrompt(
         }
         if (e) {
           countryContext += `- Out-of-school (primary, %): ${formatValue(e.outOfSchoolPrimaryPct ?? null, '%')}
-- Primary completion rate: ${formatValue(e.primaryCompletionRate ?? null, '%')}
+- Out-of-school (secondary, %): ${formatValue(e.outOfSchoolSecondaryPct ?? null, '%')}
+- Out-of-school (tertiary, %): ${formatValue(e.outOfSchoolTertiaryPct ?? null, '%')}
+- Primary completion rate (gross): ${formatValue(e.primaryCompletionRate ?? null, '%')}
+- Secondary completion rate (gross): ${formatValue(e.secondaryCompletionRate ?? null, '%')}
+- Tertiary completion rate (gross): ${formatValue(e.tertiaryCompletionRate ?? null, '%')}
 - Min. reading proficiency: ${formatValue(e.minProficiencyReadingPct ?? null, '%')}
-- Preprimary enrollment: ${formatValue(e.preprimaryEnrollmentPct ?? null, '%')}
 - Adult literacy: ${formatValue(e.literacyRateAdultPct ?? null, '%')}
 - Gender parity index (primary): ${e.genderParityIndexPrimary != null ? (e.genderParityIndexPrimary >= 10 ? (e.genderParityIndexPrimary / 100).toFixed(2) : e.genderParityIndexPrimary.toFixed(2)) : 'N/A'}
+- Gender parity index (secondary): ${e.genderParityIndexSecondary != null ? (e.genderParityIndexSecondary >= 10 ? (e.genderParityIndexSecondary / 100).toFixed(2) : e.genderParityIndexSecondary.toFixed(2)) : 'N/A'}
+- Gender parity index (tertiary): ${e.genderParityIndexTertiary != null ? (e.genderParityIndexTertiary >= 10 ? (e.genderParityIndexTertiary / 100).toFixed(2) : e.genderParityIndexTertiary.toFixed(2)) : 'N/A'}
 - Trained teachers (primary): ${formatValue(e.trainedTeachersPrimaryPct ?? null, '%')}
+- Trained teachers (secondary): ${formatValue(e.trainedTeachersSecondaryPct ?? null, '%')}
+- Trained teachers (tertiary): ${formatValue(e.trainedTeachersTertiaryPct ?? null, '%')}
 - Public expenditure on education (% GDP): ${formatValue(e.publicExpenditureEducationPctGDP ?? null, '%')}
+- Primary enrollment (total): ${formatValue(e.primaryPupilsTotal ?? null, 'People')}
+- Primary enrollment (% gross): ${formatValue(e.primaryEnrollmentPct ?? null, '%')}
+- Secondary enrollment (total): ${formatValue(e.secondaryPupilsTotal ?? null, 'People')}
+- Secondary enrollment (% gross): ${formatValue(e.secondaryEnrollmentPct ?? null, '%')}
+- Tertiary enrollment (% gross): ${formatValue(e.tertiaryEnrollmentPct ?? null, '%')}
+- Tertiary enrollment (total): ${formatValue(e.tertiaryEnrollmentTotal ?? null, 'People')}
+- Primary education, teachers (total): ${formatValue(e.primarySchoolsTotal ?? null, 'Teachers')}
+- Secondary education, teachers (total): ${formatValue(e.secondarySchoolsTotal ?? null, 'Teachers')}
+- Tertiary education, teachers (total): ${formatValue(e.tertiaryInstitutionsTotal ?? null, 'Teachers')}
 `;
         }
       }

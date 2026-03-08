@@ -1,12 +1,7 @@
 import './App.css';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCountryDashboard } from './hooks/useCountryDashboard';
 import { SummarySection } from './components/SummarySection';
-import { TimeSeriesSection } from './components/TimeSeriesSection';
-import { MacroIndicatorsTimelineSection } from './components/MacroIndicatorsTimelineSection';
-import { EducationTimelineSection } from './components/EducationTimelineSection';
-import { LabourUnemploymentTimelineSection } from './components/LabourUnemploymentTimelineSection';
-import { PopulationStructureSection } from './components/PopulationStructureSection';
 import { CountryTableSection } from './components/CountryTableSection';
 import { WorldMapSection } from './components/WorldMapSection';
 import { CountrySelector } from './components/CountrySelector';
@@ -19,8 +14,10 @@ import { BusinessAnalyticsSection } from './components/BusinessAnalyticsSection'
 import { YearRangeSelector } from './components/YearRangeSelector';
 import { MapMetricToolbar, type MapMetricId } from './components/MapMetricToolbar';
 import { GlobalChartsSection } from './components/GlobalChartsSection';
+import { GraphsSection } from './components/GraphsSection';
+import { RegionFilter } from './components/RegionFilter';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
-import { clearGlobalCountryMetricsCache } from './api/worldBank';
+import { clearGlobalCountryMetricsCache, fetchAllCountries } from './api/worldBank';
 
 function App() {
   const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0);
@@ -36,6 +33,10 @@ function App() {
     setMacroFrequency,
     macroHealthFrequency,
     setMacroHealthFrequency,
+    educationOOSFrequency,
+    setEducationOOSFrequency,
+    educationEnrollmentStaffFrequency,
+    setEducationEnrollmentStaffFrequency,
     labourFrequency,
     setLabourFrequency,
     populationStructureFrequency,
@@ -47,6 +48,8 @@ function App() {
     resampled,
     resampledMacro,
     resampledMacroHealth,
+    resampledEducationOOS,
+    resampledEducationEnrollmentStaff,
     resampledLabour,
     resampledPopulationStructure,
   } = useCountryDashboard({ refreshTrigger: dataRefreshTrigger });
@@ -56,11 +59,32 @@ function App() {
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
   const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
   const [globalYearInput, setGlobalYearInput] = useState<number>(DATA_MAX_YEAR);
+  const [globalRegion, setGlobalRegion] = useState<string | null>(null);
+  const [globalRegions, setGlobalRegions] = useState<string[]>([]);
 
   const handleRefreshAllData = () => {
     clearGlobalCountryMetricsCache();
     setDataRefreshTrigger((t) => t + 1);
   };
+
+  useEffect(() => {
+    if (mainTab !== 'global') return;
+    let cancelled = false;
+    fetchAllCountries()
+      .then((list) => {
+        if (cancelled) return;
+        const regions = Array.from(
+          new Set(list.map((c) => c.region).filter((r): r is string => Boolean(r))),
+        ).sort((a, b) => a.localeCompare(b));
+        setGlobalRegions(regions);
+      })
+      .catch(() => {
+        if (!cancelled) setGlobalRegions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mainTab]);
 
   return (
     <div className="app-root">
@@ -230,43 +254,29 @@ function App() {
             <SummarySection data={data} loading={loading} countryCode={countryCode} />
 
             <section className="dashboard-grid">
-            <TimeSeriesSection
-              data={data}
-              frequency={frequency}
-              setFrequency={setFrequency}
-              resampledSeries={resampled}
-            />
-              <MacroIndicatorsTimelineSection
-                variant="economic"
+              <GraphsSection
                 data={data}
-                frequency={macroFrequency}
-                setFrequency={setMacroFrequency}
-                resampledSeries={resampledMacro}
-              />
-              <MacroIndicatorsTimelineSection
-                variant="health"
-                data={data}
-                frequency={macroHealthFrequency}
-                setFrequency={setMacroHealthFrequency}
-                resampledSeries={resampledMacroHealth}
-              />
-              <EducationTimelineSection
-                data={data}
-                frequency={macroFrequency}
-                setFrequency={setMacroFrequency}
-                resampledSeries={resampledMacro}
-              />
-              <LabourUnemploymentTimelineSection
-                data={data}
-                frequency={labourFrequency}
-                setFrequency={setLabourFrequency}
-                resampledSeries={resampledLabour}
-              />
-              <PopulationStructureSection
-                data={data}
-                frequency={populationStructureFrequency}
-                setFrequency={setPopulationStructureFrequency}
-                resampledSeries={resampledPopulationStructure}
+                frequency={frequency}
+                setFrequency={setFrequency}
+                macroFrequency={macroFrequency}
+                setMacroFrequency={setMacroFrequency}
+                macroHealthFrequency={macroHealthFrequency}
+                setMacroHealthFrequency={setMacroHealthFrequency}
+                educationOOSFrequency={educationOOSFrequency}
+                setEducationOOSFrequency={setEducationOOSFrequency}
+                educationEnrollmentStaffFrequency={educationEnrollmentStaffFrequency}
+                setEducationEnrollmentStaffFrequency={setEducationEnrollmentStaffFrequency}
+                labourFrequency={labourFrequency}
+                setLabourFrequency={setLabourFrequency}
+                populationStructureFrequency={populationStructureFrequency}
+                setPopulationStructureFrequency={setPopulationStructureFrequency}
+                resampledSeries={resampled}
+                resampledMacro={resampledMacro}
+                resampledMacroHealth={resampledMacroHealth}
+                resampledEducationOOS={resampledEducationOOS}
+                resampledEducationEnrollmentStaff={resampledEducationEnrollmentStaff}
+                resampledLabour={resampledLabour}
+                resampledPopulationStructure={resampledPopulationStructure}
               />
             </section>
 
@@ -328,8 +338,14 @@ function App() {
                         </svg>
                       </span>
                     </div>
-                  </label>
+                      </label>
                 </div>
+                <RegionFilter
+                  regions={globalRegions}
+                  value={globalRegion}
+                  onChange={setGlobalRegion}
+                  placeholder="All regions"
+                />
                 <div className="tab-group">
                   <button
                     type="button"
@@ -384,6 +400,7 @@ function App() {
                   data={data}
                   selectedMetricId={mapMetricId}
                   year={globalYear}
+                  region={globalRegion}
                   refreshTrigger={dataRefreshTrigger}
                 />
               </>
@@ -391,11 +408,13 @@ function App() {
               <AllCountriesTableSection
                 year={globalYear}
                 setYear={setGlobalYear}
+                region={globalRegion}
                 refreshTrigger={dataRefreshTrigger}
               />
             ) : (
               <GlobalChartsSection
                 maxYear={globalYear}
+                region={globalRegion}
                 refreshTrigger={dataRefreshTrigger}
               />
             )}

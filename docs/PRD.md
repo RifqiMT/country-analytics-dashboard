@@ -120,7 +120,7 @@ Seven main tabs:
 
 #### 4.2.8 Macro Indicators Timeline – Education
 
-- **Metrics** (UNESCO Institute for Statistics via World Bank WDI; coverage from 2000 to latest available, at least current year minus 2): Out-of-school rate (primary, %), Primary completion rate (%), Minimum reading proficiency (%), Early childhood – Preprimary enrollment (% gross), Adult literacy rate (%), Gender parity index (GPI) primary, Trained teachers in primary education (%), Public expenditure on education (% of GDP).
+- **Metrics** (UNESCO Institute for Statistics via World Bank WDI; coverage from 2000 to latest available, at least current year minus 2): Out-of-school rate (primary, %), Primary completion rate (%), Minimum reading proficiency (%), Adult literacy rate (%), Gender parity index (GPI) primary, Trained teachers in primary education (%), Public expenditure on education (% of GDP).
 - **Summary**: Education card in Country Dashboard with latest values and YoY for each metric.
 - **Timeline**: Dedicated Education section with frequency dropdown (weekly/monthly/quarterly/yearly), chart/table view, and metric chips to show/hide series. Same UI pattern as Macro Indicators.
 - **Derived**: Out-of-school rate = 100 − Primary net enrollment rate; Minimum reading proficiency = 100 − Learning poverty (%).
@@ -130,7 +130,8 @@ Seven main tabs:
 #### 4.3.1 Common Behaviour
 
 - Year filter independent of country dashboard
-- Tabs: Map vs Global table
+- **Region filter**: A dynamic, searchable region dropdown (e.g. East Asia & Pacific, Sub-Saharan Africa) limits the map, global table, and global charts to the selected region; "All regions" shows worldwide data. Region options are derived from the loaded country list (unique, sorted). When a region is selected, only countries in that region appear in the map, table, and global charts aggregates.
+- Tabs: Map vs Global table vs Global Charts
 
 #### 4.3.2 Global Map
 
@@ -143,7 +144,7 @@ Seven main tabs:
 - **General**: Country (with flag emoji), Code, Region, Government type, Head of government, Total area, EEZ
 - **Financial**: Country (with flag emoji), GDP Nominal, GDP PPP, GDP/Capita, GDP/Capita PPP, Gov. debt (USD), Inflation, Gov. debt (% GDP), Lending rate, Unemployment rate, Poverty headcount ($2.15/day and national line) + YoY
 - **Health & demographics**: Country (with flag emoji), Pop total, Pop 0–14, Pop 15–64, Pop 65+, Life expectancy, Under‑5 mortality, Maternal mortality, Prevalence of undernourishment + YoY
-- **Education**: Country (with flag emoji), Out-of-school (primary, %), Primary completion (%), Min. reading proficiency (%), Preprimary enrollment (%), Adult literacy (%), GPI (primary), Trained teachers (%), Education expenditure (% GDP) + YoY where applicable
+- **Education**: Country (with flag emoji), Out-of-school (primary, %), Primary completion (%), Min. reading proficiency (%), Adult literacy (%), GPI (primary), Trained teachers (%), Education expenditure (% GDP) + YoY where applicable
 - All numeric columns sortable asc/desc
 - Code column hidden in Financial and Health views
 
@@ -259,14 +260,15 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 
 | Source | Purpose |
 |--------|---------|
-| World Bank WDI | Primary: GDP, population, health, geography, inflation, interest, gov debt |
-| IMF WEO | Fallback for GDP and government debt when WB empty |
+| World Bank WDI | Primary: GDP, population, health, geography, inflation, interest, gov debt (where available) |
+| IMF WEO | Fallback for GDP and government debt when WB empty; **per-country fallback** ensures broad coverage (e.g. China) |
 | REST Countries | Timezone, currency, area, government type, head of government |
 | Sea Around Us / Marine Regions | EEZ (static data) |
+| UNESCO UIS (via WDI) | Education metrics (enrollment, completion, literacy, GPI, trained teachers, expenditure) |
 
 ### 5.2 Fallbacks
 
-- **IMF**: Government debt (% GDP), GDP (Nominal) when World Bank returns empty
+- **IMF**: Government debt (% GDP) and GDP (Nominal) when World Bank returns empty. Government debt uses batch requests plus **per-country fallback** (single-country IMF request for any country still missing after batch) so that economies such as **China** (which often lack World Bank debt series) receive data from IMF WEO automatically.
 - **Territory parent**: 30+ territories (e.g. American Samoa, Andorra, British Virgin Islands) use parent country for inflation and interest rate when WB empty
 
 ### 5.3 Missing Data

@@ -17,6 +17,8 @@ export interface MetricMetadata {
   unit: string;
   sources: MetricSource[];
   category: 'financial' | 'population' | 'health' | 'geography' | 'context' | 'education';
+  /** When category is 'education', used to group metrics in Source tab and align with standard level/type taxonomy. */
+  educationSubcategory?: 'early_childhood' | 'primary' | 'secondary' | 'tertiary' | 'literacy_attainment' | 'equity_quality_investment';
 }
 
 const WORLD_BANK_WDI = 'World Bank WDI';
@@ -27,6 +29,26 @@ const IMF_DATAMAPPER = 'https://www.imf.org/external/datamapper';
 const REST_COUNTRIES = 'https://restcountries.com';
 const UNESCO_UIS = 'UNESCO Institute for Statistics';
 const UNESCO_UIS_URL = 'http://data.uis.unesco.org/';
+
+/** Labels for education subcategories used in the Source tab and documentation. */
+export const EDUCATION_SUBCATEGORY_LABELS: Record<NonNullable<MetricMetadata['educationSubcategory']>, string> = {
+  early_childhood: 'Early childhood',
+  primary: 'Primary education',
+  secondary: 'Secondary education',
+  tertiary: 'Tertiary education',
+  literacy_attainment: 'Literacy & attainment',
+  equity_quality_investment: 'Quality, equity & investment',
+};
+
+/** Display order for education subcategories in the Source tab. */
+export const EDUCATION_SUBCATEGORY_ORDER: NonNullable<MetricMetadata['educationSubcategory']>[] = [
+  'early_childhood',
+  'primary',
+  'secondary',
+  'tertiary',
+  'literacy_attainment',
+  'equity_quality_investment',
+];
 
 export const METRIC_METADATA: MetricMetadata[] = [
   // Financial – GDP
@@ -429,7 +451,8 @@ export const METRIC_METADATA: MetricMetadata[] = [
       { name: 'CIA World Factbook', url: 'https://www.cia.gov/the-world-factbook/' },
     ],
   },
-  // Education – UNESCO Institute for Statistics via World Bank WDI (2000 to latest)
+  // ─── Education – UNESCO UIS / World Bank WDI (2000 to latest). Grouped by level and type.
+  // Primary education
   {
     id: 'outOfSchoolPrimaryPct',
     label: 'Out-of-school rate (primary, % of primary school age)',
@@ -438,21 +461,79 @@ export const METRIC_METADATA: MetricMetadata[] = [
     formula: 'Out-of-school rate (primary) = 100 − Primary net enrollment rate (%)',
     unit: '% of primary school age',
     category: 'education',
+    educationSubcategory: 'primary',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.NENR` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
   {
-    id: 'primaryCompletionRate',
-    label: 'Primary completion rate (% of relevant age group)',
+    id: 'outOfSchoolSecondaryPct',
+    label: 'Out-of-school rate (secondary, % of secondary school age)',
     description:
-      'Percentage of the relevant age group that completes the last year of primary education. Key indicator for SDG 4.1.1. Sourced from UNESCO Institute for Statistics via World Bank WDI.',
-    formula: 'Primary completion rate = (Number completing last grade of primary / Population of official completion age) × 100',
+      'Percentage of children of official secondary school age who are not enrolled in secondary or tertiary education. Derived as 100 minus the secondary net enrollment rate. Sourced from UNESCO UIS via World Bank WDI (SE.SEC.NENR).',
+    formula: 'Out-of-school rate (secondary) = 100 − Secondary net enrollment rate (%)',
+    unit: '% of secondary school age',
+    category: 'education',
+    educationSubcategory: 'secondary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.NENR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'outOfSchoolTertiaryPct',
+    label: 'Out-of-school rate (tertiary, %)',
+    description:
+      'Approximate share of the official tertiary education age group not enrolled in tertiary education. Derived as 100 minus the tertiary gross enrollment ratio (capped at 100). WDI does not report tertiary net enrollment; this proxy uses gross enrollment. Sourced from UNESCO UIS via World Bank WDI (SE.TER.ENRR).',
+    formula: 'Out-of-school rate (tertiary) = max(0, 100 − Tertiary gross enrollment ratio (%))',
+    unit: '%',
+    category: 'education',
+    educationSubcategory: 'tertiary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.TER.ENRR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'primaryCompletionRate',
+    label: 'Primary completion rate (gross, % of relevant age group)',
+    description:
+      'Primary completion rate: gross intake ratio to the last grade of primary education, as a percentage of the population at the official completion age. It is a gross ratio (completers can include overage and underage students), so values can exceed 100%. Sourced from UNESCO UIS via World Bank WDI (SE.PRM.CMPT.ZS).',
+    formula: 'Primary completion rate (gross) = (New entrants in last grade of primary / Population at completion age) × 100',
     unit: '% of relevant age group',
     category: 'education',
+    educationSubcategory: 'primary',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.CMPT.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'secondaryCompletionRate',
+    label: 'Secondary completion rate (gross, % of relevant age group)',
+    description:
+      'Lower secondary completion rate: gross intake ratio to the last grade of lower secondary education, as a percentage of the population at the entrance age for that grade. It is a gross ratio (completers can include overage and underage students), so values can exceed 100%. Sourced from UNESCO UIS via World Bank WDI (SE.SEC.CMPT.LO.ZS).',
+    formula: 'Secondary completion rate (gross) = (New entrants in last grade of lower secondary / Population at entrance age) × 100',
+    unit: '% of relevant age group',
+    category: 'education',
+    educationSubcategory: 'secondary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.CMPT.LO.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'tertiaryCompletionRate',
+    label: 'Tertiary completion rate (gross, %)',
+    description:
+      'Gross graduation ratio for tertiary education: number of graduates from first degree programmes (ISCED 6 and 7) as a percentage of the population of the theoretical graduation age. It is a gross ratio (graduates can include overage students), so values can exceed 100%. Sourced from UNESCO UIS via World Bank WDI (SE.TER.CMPL.ZS).',
+    formula: 'Tertiary completion (graduation) rate (gross) = (Graduates from first degree programmes / Population of theoretical graduation age) × 100',
+    unit: '%',
+    category: 'education',
+    educationSubcategory: 'tertiary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.TER.CMPL.ZS` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
@@ -464,24 +545,140 @@ export const METRIC_METADATA: MetricMetadata[] = [
     formula: 'Minimum reading proficiency (%) = 100 − Learning poverty (% below minimum proficiency)',
     unit: '%',
     category: 'education',
+    educationSubcategory: 'primary',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.LPV.PRIM` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
   {
-    id: 'preprimaryEnrollmentPct',
-    label: 'Early childhood education – Preprimary enrollment (% gross)',
+    id: 'primaryPupilsTotal',
+    label: 'Primary enrollment (total)',
     description:
-      'Gross enrollment ratio for preprimary education: total enrollment in preprimary education regardless of age, expressed as a percentage of the population of official preprimary age. Supports SDG 4.2.2.',
-    formula: 'Preprimary gross enrollment = (Total enrollment in preprimary / Population of preprimary age) × 100',
-    unit: '% gross',
+      'Total number of pupils enrolled at primary level in public and private schools. Includes all individuals officially registered in primary education regardless of age. Sourced from UNESCO Institute for Statistics via World Bank WDI. Supports SDG 4 and cross-country comparison of education scale.',
+    formula: 'Sum of primary-level enrollment across all institutions.',
+    unit: 'Students',
     category: 'education',
+    educationSubcategory: 'primary',
     sources: [
-      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRE.ENRR` },
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.ENRL` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
+  {
+    id: 'primaryEnrollmentPct',
+    label: 'School enrollment, primary (% gross)',
+    description:
+      'Gross enrollment ratio for primary education: total enrollment in primary education regardless of age, expressed as a percentage of the population of the official primary education age group. Supports SDG 4 and cross-country comparison of primary access.',
+    formula: 'Primary gross enrollment = (Total enrollment in primary / Population of official primary age) × 100',
+    unit: '% gross',
+    category: 'education',
+    educationSubcategory: 'primary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.ENRR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'primarySchoolsTotal',
+    label: 'Primary education, teachers (total)',
+    description:
+      'Number of teachers in primary education (both sexes). Sourced from UNESCO Institute for Statistics via World Bank WDI (SE.PRM.TCHR). Data from 2000 to latest available. Used as a proxy for primary education system size when school counts are not consistently reported.',
+    formula: 'Count of teachers in primary education (ISCED 1).',
+    unit: 'Teachers',
+    category: 'education',
+    educationSubcategory: 'primary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.SCHL` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  // Secondary education
+  {
+    id: 'secondaryPupilsTotal',
+    label: 'Secondary enrollment (total)',
+    description:
+      'Total number of pupils enrolled at secondary level (lower and upper secondary, ISCED 2 and 3) in public and private schools. Sourced from UNESCO Institute for Statistics via World Bank WDI.',
+    formula: 'Sum of secondary-level enrollment across all institutions.',
+    unit: 'Students',
+    category: 'education',
+    educationSubcategory: 'secondary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.ENRL` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'secondaryEnrollmentPct',
+    label: 'School enrollment, secondary (% gross)',
+    description:
+      'Gross enrollment ratio for secondary education: total enrollment in secondary education regardless of age, expressed as a percentage of the population of the official secondary education age group. Supports SDG 4 and cross-country comparison of secondary access.',
+    formula: 'Secondary gross enrollment = (Total enrollment in secondary / Population of official secondary age) × 100',
+    unit: '% gross',
+    category: 'education',
+    educationSubcategory: 'secondary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.ENRR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'secondarySchoolsTotal',
+    label: 'Secondary education, teachers (total)',
+    description:
+      'Number of teachers in secondary education (both sexes). Sourced from UNESCO Institute for Statistics via World Bank WDI (SE.SEC.TCHR). Data from 2000 to latest available. Used as a proxy for secondary education system size when school counts are not consistently reported.',
+    formula: 'Count of teachers in secondary education (ISCED 2–3).',
+    unit: 'Teachers',
+    category: 'education',
+    educationSubcategory: 'secondary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.SCHL` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  // Tertiary education
+  {
+    id: 'tertiaryEnrollmentPct',
+    label: 'School enrollment, tertiary (% gross)',
+    description:
+      'Gross enrollment ratio for tertiary education: total enrollment in tertiary education regardless of age, expressed as a percentage of the population of the official tertiary education age group (typically the five-year age group following upper secondary). Supports SDG 4.3.1.',
+    formula: 'Tertiary gross enrollment = (Total enrollment in tertiary / Population of official tertiary age) × 100',
+    unit: '% gross',
+    category: 'education',
+    educationSubcategory: 'tertiary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.TER.ENRR` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'tertiaryEnrollmentTotal',
+    label: 'Tertiary enrollment (total)',
+    description:
+      'Total number of students enrolled in tertiary education (all programmes, both sexes). Includes ISCED levels 5–8 (short-cycle tertiary, bachelor, master, doctoral). Sourced from UNESCO Institute for Statistics via World Bank WDI. Complements primary and secondary pupil counts for education scale by level.',
+    formula: 'Sum of tertiary-level enrollment across all institutions.',
+    unit: 'Students',
+    category: 'education',
+    educationSubcategory: 'tertiary',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.TER.ENRL` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'tertiaryInstitutionsTotal',
+    label: 'Tertiary education, teachers (total)',
+    description:
+      'Number of teachers in tertiary education programmes (both sexes). Sourced from UNESCO Institute for Statistics (UIS) Data API (indicator 25003). Data from 2000 to latest available. Used as a proxy for higher education system size when institution counts are not consistently reported.',
+    formula: 'Count of teachers in tertiary education (ISCED levels 5–8).',
+    unit: 'Teachers',
+    category: 'education',
+    educationSubcategory: 'tertiary',
+    sources: [
+      { name: UNESCO_UIS, url: 'https://api.uis.unesco.org/api/public/documentation' },
+    ],
+  },
+  // Literacy & attainment
   {
     id: 'literacyRateAdultPct',
     label: 'Literacy rate, adult (% of people ages 15+)',
@@ -490,24 +687,59 @@ export const METRIC_METADATA: MetricMetadata[] = [
     formula: 'Adult literacy rate = (Literate population aged 15+ / Total population aged 15+) × 100',
     unit: '% of people ages 15+',
     category: 'education',
+    educationSubcategory: 'literacy_attainment',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.ADT.LITR.ZS` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
+  // Equity (gender parity)
   {
     id: 'genderParityIndexPrimary',
     label: 'Gender parity index (GPI), primary enrollment',
     description:
-      'Ratio of female to male gross enrollment in primary education. A value of 1 indicates parity; &lt;1 indicates more boys enrolled; &gt;1 indicates more girls enrolled. SDG 4.5.1.',
-    formula: 'GPI = (Female primary gross enrollment rate / Male primary gross enrollment rate); WDI reports ratio × 100.',
+      'Compares how many girls versus boys are enrolled in primary school. Equal enrollment gives a value of 1 (parity). Below 1 means more boys than girls are enrolled; above 1 means more girls than boys. Used to track gender balance in education (SDG 4.5.1).',
+    formula:
+      'GPI = (Female gross enrollment ratio in primary education) ÷ (Male gross enrollment ratio in primary education). Gross enrollment ratio = total enrollment in that level (all ages) ÷ population of official primary-school age × 100. Data from UNESCO UIS; unit is a ratio (1 = parity). WDI may report the ratio or ratio × 100; this dashboard displays the ratio.',
     unit: 'ratio',
     category: 'education',
+    educationSubcategory: 'equity_quality_investment',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.ENR.PRIM.FM.ZS` },
-      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+      { name: UNESCO_UIS, url: 'https://uis.unesco.org/bdds' },
     ],
   },
+  {
+    id: 'genderParityIndexSecondary',
+    label: 'Gender parity index (GPI), secondary enrollment',
+    description:
+      'Compares how many girls versus boys are enrolled in secondary school. Equal enrollment gives a value of 1 (parity). Below 1 means more boys than girls are enrolled; above 1 means more girls than boys. Used to track gender balance in education (SDG 4.5.1).',
+    formula:
+      'GPI = (Female gross enrollment ratio in secondary education) ÷ (Male gross enrollment ratio in secondary education). Gross enrollment ratio = total enrollment in that level (all ages) ÷ population of official secondary-school age × 100. Data from UNESCO UIS; unit is a ratio (1 = parity). WDI may report the ratio or ratio × 100; this dashboard displays the ratio.',
+    unit: 'ratio',
+    category: 'education',
+    educationSubcategory: 'equity_quality_investment',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.ENR.SECO.FM.ZS` },
+      { name: UNESCO_UIS, url: 'https://uis.unesco.org/bdds' },
+    ],
+  },
+  {
+    id: 'genderParityIndexTertiary',
+    label: 'Gender parity index (GPI), tertiary enrollment',
+    description:
+      'Compares how many women versus men are enrolled in higher education (university and similar). Equal enrollment gives a value of 1 (parity). Below 1 means more men than women are enrolled; above 1 means more women than men. Used to track gender balance in education (SDG 4.5.1).',
+    formula:
+      'GPI = (Female gross enrollment ratio in tertiary education) ÷ (Male gross enrollment ratio in tertiary education). Gross enrollment ratio = total enrollment in tertiary (all ages) ÷ population of official tertiary age (typically the five-year age group following upper secondary) × 100. Data from UNESCO UIS; unit is a ratio (1 = parity). WDI may report the ratio or ratio × 100; this dashboard displays the ratio.',
+    unit: 'ratio',
+    category: 'education',
+    educationSubcategory: 'equity_quality_investment',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.ENR.TERT.FM.ZS` },
+      { name: UNESCO_UIS, url: 'https://api.uis.unesco.org/api/public/documentation' },
+    ],
+  },
+  // Quality & investment
   {
     id: 'trainedTeachersPrimaryPct',
     label: 'Trained teachers in primary education (% of total teachers)',
@@ -516,8 +748,37 @@ export const METRIC_METADATA: MetricMetadata[] = [
     formula: 'Trained teachers (%) = (Teachers with minimum training / Total primary teachers) × 100',
     unit: '% of total teachers',
     category: 'education',
+    educationSubcategory: 'equity_quality_investment',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.TCAQ.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'trainedTeachersSecondaryPct',
+    label: 'Trained teachers in secondary education (% of total teachers)',
+    description:
+      'Percentage of secondary school teachers who have received the minimum organized teacher training (pre-service or in-service) required for teaching at the relevant level. UNESCO UIS via World Bank WDI.',
+    formula: 'Trained teachers (%) = (Teachers with minimum training / Total secondary teachers) × 100',
+    unit: '% of total teachers',
+    category: 'education',
+    educationSubcategory: 'equity_quality_investment',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.TCAQ.ZS` },
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'trainedTeachersTertiaryPct',
+    label: 'Trained teachers in tertiary education (% of total teachers)',
+    description:
+      'Percentage of tertiary education teachers who have received the minimum organized teacher training required for teaching at the relevant level. UNESCO UIS via World Bank WDI; coverage may be sparse.',
+    formula: 'Trained teachers (%) = (Teachers with minimum training / Total tertiary teachers) × 100',
+    unit: '% of total teachers',
+    category: 'education',
+    educationSubcategory: 'equity_quality_investment',
+    sources: [
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.TER.TCAQ.ZS` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
     ],
   },
@@ -529,6 +790,7 @@ export const METRIC_METADATA: MetricMetadata[] = [
     formula: 'Public expenditure on education (% GDP) = (Government expenditure on education / GDP) × 100',
     unit: '% of GDP',
     category: 'education',
+    educationSubcategory: 'equity_quality_investment',
     sources: [
       { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.XPD.TOTL.GD.ZS` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },

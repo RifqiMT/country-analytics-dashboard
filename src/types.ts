@@ -28,13 +28,29 @@ export type HealthMetricId =
 
 export type EducationMetricId =
   | 'outOfSchoolPrimaryPct'
+  | 'outOfSchoolSecondaryPct'
+  | 'outOfSchoolTertiaryPct'
   | 'primaryCompletionRate'
+  | 'secondaryCompletionRate'
+  | 'tertiaryCompletionRate'
   | 'minProficiencyReadingPct'
-  | 'preprimaryEnrollmentPct'
   | 'literacyRateAdultPct'
   | 'genderParityIndexPrimary'
+  | 'genderParityIndexSecondary'
+  | 'genderParityIndexTertiary'
   | 'trainedTeachersPrimaryPct'
-  | 'publicExpenditureEducationPctGDP';
+  | 'trainedTeachersSecondaryPct'
+  | 'trainedTeachersTertiaryPct'
+  | 'publicExpenditureEducationPctGDP'
+  | 'primaryPupilsTotal'
+  | 'secondaryPupilsTotal'
+  | 'primaryEnrollmentPct'
+  | 'secondaryEnrollmentPct'
+  | 'tertiaryEnrollmentPct'
+  | 'tertiaryEnrollmentTotal'
+  | 'primarySchoolsTotal'
+  | 'secondarySchoolsTotal'
+  | 'tertiaryInstitutionsTotal';
 
 export type MetricId = FinancialMetricId | PopulationMetricId | HealthMetricId | EducationMetricId;
 
@@ -119,13 +135,29 @@ export interface CountryYearSnapshot {
     };
     education?: {
       outOfSchoolPrimaryPct?: number | null;
+      outOfSchoolSecondaryPct?: number | null;
+      outOfSchoolTertiaryPct?: number | null;
       primaryCompletionRate?: number | null;
+      secondaryCompletionRate?: number | null;
+      tertiaryCompletionRate?: number | null;
       minProficiencyReadingPct?: number | null;
-      preprimaryEnrollmentPct?: number | null;
       literacyRateAdultPct?: number | null;
       genderParityIndexPrimary?: number | null;
+      genderParityIndexSecondary?: number | null;
+      genderParityIndexTertiary?: number | null;
       trainedTeachersPrimaryPct?: number | null;
+      trainedTeachersSecondaryPct?: number | null;
+      trainedTeachersTertiaryPct?: number | null;
       publicExpenditureEducationPctGDP?: number | null;
+      primaryPupilsTotal?: number | null;
+      secondaryPupilsTotal?: number | null;
+      primaryEnrollmentPct?: number | null;
+      secondaryEnrollmentPct?: number | null;
+      tertiaryEnrollmentPct?: number | null;
+      tertiaryEnrollmentTotal?: number | null;
+      primarySchoolsTotal?: number | null;
+      secondarySchoolsTotal?: number | null;
+      tertiaryInstitutionsTotal?: number | null;
     };
     geography?: {
       landAreaKm2?: number | null;
@@ -183,13 +215,29 @@ export interface GlobalCountryMetricsRow {
   pop65PlusPct?: number | null;
   // Education (UNESCO/World Bank WDI, from 2000 to latest)
   outOfSchoolPrimaryPct?: number | null;
+  outOfSchoolSecondaryPct?: number | null;
+  outOfSchoolTertiaryPct?: number | null;
   primaryCompletionRate?: number | null;
+  secondaryCompletionRate?: number | null;
+  tertiaryCompletionRate?: number | null;
   minProficiencyReadingPct?: number | null;
-  preprimaryEnrollmentPct?: number | null;
   literacyRateAdultPct?: number | null;
   genderParityIndexPrimary?: number | null;
+  genderParityIndexSecondary?: number | null;
+  genderParityIndexTertiary?: number | null;
   trainedTeachersPrimaryPct?: number | null;
+  trainedTeachersSecondaryPct?: number | null;
+  trainedTeachersTertiaryPct?: number | null;
   publicExpenditureEducationPctGDP?: number | null;
+  primaryPupilsTotal?: number | null;
+  secondaryPupilsTotal?: number | null;
+  primaryEnrollmentPct?: number | null;
+  secondaryEnrollmentPct?: number | null;
+  tertiaryEnrollmentPct?: number | null;
+  tertiaryEnrollmentTotal?: number | null;
+  primarySchoolsTotal?: number | null;
+  secondarySchoolsTotal?: number | null;
+  tertiaryInstitutionsTotal?: number | null;
   // Area metrics (sq. km)
   landAreaKm2?: number | null;
   totalAreaKm2?: number | null;

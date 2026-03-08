@@ -22,7 +22,7 @@ These variables correspond to metrics shown in the Country Dashboard, Global vie
 | `gdpPPPPerCapita` | GDP per Capita (PPP, Intl$) | Average purchasing power per person in PPP terms. | GDP (PPP) / Population. | Summary (Financial), Unified Timeline, Country Comparison, Global map/table/charts, Business Analytics, Source tab. | 15,200 Intl$. |
 | `inflationCPI` | Inflation (CPI, %) | Annual percentage change in the consumer price index. Measures the rate at which prices of a basket of consumer goods and services change. | ((CPI_t − CPI_{t−1}) / CPI_{t−1}) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 3.5%. |
 | `interestRate` | Lending interest rate (%) | The rate charged by banks on loans to prime customers. Reflects cost of borrowing and monetary policy stance. | Reported as annual average of bank lending rates. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 8.2%. |
-| `govDebtPercentGDP` | Government debt (% of GDP) | General government gross debt as a percentage of GDP. Measures the government's total debt relative to the size of the economy. | (Total government debt / GDP) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 39.2%. |
+| `govDebtPercentGDP` | Government debt (% of GDP) | General government gross debt as a percentage of GDP. Measures the government's total debt relative to the size of the economy. **When World Bank has no data for a country (e.g. China), the value is filled automatically from IMF World Economic Outlook (WEO).** | (Total government debt / GDP) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Global map/table/charts, Source tab. | 39.2%. |
 | `govDebtUSD` | Government debt (USD) | Total government gross debt in current US dollars. Derived from GDP and government debt as percentage of GDP. | GDP × (Gov. debt % GDP / 100). | Summary (Financial), Country Comparison, Global map/table/charts, Source tab. | 548B USD. |
 | `unemploymentRate` | Unemployment rate (% of labour force) | Share of the labour force that is without work but available for and seeking employment. | (Unemployed / Labour force) × 100. | Summary (Financial), Macro Indicators Timeline (economic), Labour timeline, Global map/table/charts, Source tab. | 5.4%. |
 | `unemployedTotal` | Unemployed (number of people) | Total number of people without work but available for and seeking employment. Based on ILO-modelled estimates. | Labour force × (Unemployment rate / 100) or ILO-modelled estimate. | Unemployed & Labour Force Timeline, Global table/charts, Source tab. | 7.2M people. |
@@ -58,7 +58,6 @@ All education metrics are sourced from UNESCO Institute for Statistics via World
 | `outOfSchoolPrimaryPct` | Out-of-school rate (primary, % of primary school age) | Percentage of children of primary school age not enrolled in primary or secondary school. Derived as 100 − primary net enrollment rate. | Out-of-school rate = 100 − Primary net enrollment (%). | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 5.2%. |
 | `primaryCompletionRate` | Primary completion rate (% of relevant age group) | Percentage of the relevant age group that completes the last year of primary education. | (Number completing last grade of primary / Population of official completion age) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 94.1%. |
 | `minProficiencyReadingPct` | Minimum reading proficiency (% of children at end of primary) | Percentage of children at end of primary who achieve at least minimum proficiency in reading. Derived as 100 − learning poverty (%). | Min. proficiency = 100 − Learning poverty (% below minimum). | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 72.0%. |
-| `preprimaryEnrollmentPct` | Early childhood education – Preprimary enrollment (% gross) | Gross enrollment ratio for preprimary education. | (Total enrollment in preprimary / Population of preprimary age) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 45.3%. |
 | `literacyRateAdultPct` | Literacy rate, adult (% of people ages 15+) | Percentage of the population aged 15 and above who can read and write a short statement on everyday life. | (Literate population 15+ / Total population 15+) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 96.0%. |
 | `genderParityIndexPrimary` | Gender parity index (GPI), primary enrollment | Ratio of female to male gross enrollment in primary. Value 1 = parity; &lt;1 more boys; &gt;1 more girls. WDI reports ratio × 100. | GPI = Female primary gross enrollment rate / Male primary gross enrollment rate. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 0.99. |
 | `trainedTeachersPrimaryPct` | Trained teachers in primary education (% of total teachers) | Percentage of primary teachers who have received the minimum organized teacher training required. | (Teachers with minimum training / Total primary teachers) × 100. | Summary (Education), Education Timeline, Global map/table (Education), Business Analytics, Source tab. | 88.5%. |
@@ -76,7 +75,7 @@ All education metrics are sourced from UNESCO Institute for Statistics via World
 
 | Variable name | Friendly name | Definition | Formula | Location in app | Example |
 |---------------|---------------|------------|---------|-----------------|---------|
-| `region` | Region | Geographic or economic region of the country (e.g. East Asia & Pacific, Sub-Saharan Africa). Used for filtering, peer comparison, and PESTEL. | World Bank regional classification. | Summary (General), Global table (General), Map metric selector, PESTEL/Assistant context, Source tab. | East Asia & Pacific. |
+| `region` | Region | Geographic or economic region of the country (e.g. East Asia & Pacific, Sub-Saharan Africa). Used for filtering, peer comparison, and PESTEL. | World Bank regional classification. | Summary (General), Global table (General), Map metric selector, **Global Analytics region filter** (dropdown options), PESTEL/Assistant context, Source tab. | East Asia & Pacific. |
 | `incomeLevel` | Income level | World Bank income classification (e.g. High income, Upper middle income, Low income). Based on GNI per capita; updated annually. | World Bank analytical classification (GNI per capita). | Summary (General), Global table, PESTEL/Assistant context, Source tab. | Upper middle income. |
 | `governmentType` | Government type | Form of government or political system (e.g. Federal republic, Parliamentary democracy). | — | Summary (General), Global table (General), Map metric selector, PESTEL/Assistant context, Source tab. | Presidential republic. |
 | `headOfGovernmentType` | Head of government | Title of the chief executive (e.g. President, Prime Minister, Monarch). | — | Summary (General), Global table (General), Assistant context, Source tab. | President. |
@@ -84,6 +83,13 @@ All education metrics are sourced from UNESCO Institute for Statistics via World
 | `currency` | Currency | Official currency: name, ISO code (e.g. IDR, USD), and symbol where available. | — | Summary (General – Economy), Assistant context, Source tab. | Indonesian rupiah (IDR), symbol Rp. |
 | `timezone` | Timezone | Primary timezone of the country (e.g. Asia/Jakarta, Europe/Paris). IANA timezone database. | — | Summary (General), Assistant context, Source tab. | Asia/Jakarta. |
 | `locationAndGeography` | Location & geographic context | Where a country is located, which continent or region it belongs to, and its neighbouring or bordering countries. Not stored as a dashboard metric; answered by the Analytics Assistant via LLM and web search. | — | Analytics Assistant only (e.g. "Where is Indonesia located?", "Neighbouring countries of France"); documented in Source tab under Country metadata & context. | "Indonesia is in Southeast Asia; neighbours: Malaysia, Papua New Guinea, Timor-Leste." |
+
+**Global Analytics – Region filter (UI state):**
+
+| Variable name | Friendly name | Definition | Formula | Location in app | Example |
+|---------------|---------------|------------|---------|----------------|---------|
+| `globalRegion` | Selected region (Global Analytics) | The region currently selected in the Global Analytics region filter. When set, the map, global table, and global charts show only countries whose `region` matches this value; when null or "All regions", worldwide data is shown. | User selection from dynamic list of distinct `region` values in the loaded country list. | App.tsx (state); RegionFilter component; passed as `region` prop to WorldMapSection, AllCountriesTableSection, GlobalChartsSection. | "East Asia & Pacific". |
+| `globalRegions` | Available region options | Sorted list of distinct region names derived from the global country list. Used to populate the region filter dropdown. | Unique `region` values from fetched global rows; sorted. | App.tsx (state, populated when mainTab === 'global'); RegionFilter `regions` prop. | ["All regions", "East Asia & Pacific", "Europe & Central Asia", …]. |
 
 ### 1.7 Porter 5 Forces / Industry Context
 
@@ -210,7 +216,7 @@ From `src/types.ts`; these type names represent structured data used across the 
 - **Latest non-null:** The dashboard uses the latest non-null value up to the selected end year.
 - **Year fallback:** The global loader steps backwards when a chosen year has no data.
 - **Territory fallback:** 30+ territories use the parent country for inflation and interest rate (see `TERRITORY_FALLBACK_PARENT` in `worldBank.ts`).
-- **IMF fallback:** Government debt (% GDP) and GDP (nominal) when World Bank returns empty.
+- **IMF fallback:** Government debt (% GDP) and GDP (nominal) when World Bank returns empty. **Per-country fallback**: after batch IMF request, any country still missing gov debt (e.g. China) is requested individually from IMF WEO so that coverage is broad.
 - **Missing display:** "–" for null; no NaN or broken charts.
 
 For full business rules and edge cases, see `docs/PRD.md` (Section 5) and `docs/PRODUCT_METRICS.md` (Section 9).
@@ -326,6 +332,8 @@ flowchart TB
 
 **Legend:** **CountryDashboardData** feeds the Country Dashboard (Summary, Timelines, Country Comparison), PESTEL context, **Porter 5 Forces** context, and Analytics Assistant context. **GlobalCountryMetricsRow** feeds the Global map, table, Global Charts, and Business Analytics scatter. **metricMetadata.ts** feeds the Source tab and Assistant system prompt.
 
+**Global Analytics region filter:** The list of distinct **region** values from the loaded global rows is used to build **globalRegions** (with "All regions" as first option). The user selects a region in **RegionFilter**; the selection is stored as **globalRegion**. This value is passed as the **region** prop to WorldMapSection, AllCountriesTableSection, and GlobalChartsSection. When **globalRegion** is set (i.e. not "All regions"), each component filters its **displayRows** to rows whose **region** matches **globalRegion**, so the map, table, and charts show only countries in that region.
+
 ### 7.4 Quick Reference: Variable → App Area
 
 | App area | Variables used (key) |
@@ -333,17 +341,17 @@ flowchart TB
 | **Summary (General)** | region, incomeLevel, governmentType, headOfGovernmentType, capitalCity, currency, timezone, landAreaKm2, totalAreaKm2, eezKm2 |
 | **Summary (Financial)** | gdpNominal, gdpPPP, gdpNominalPerCapita, gdpPPPPerCapita, govDebtPercentGDP, govDebtUSD, inflationCPI, interestRate, unemploymentRate, povertyHeadcount215, povertyHeadcountNational |
 | **Summary (Health & demographics)** | populationTotal, pop0_14Share, pop15_64Share, pop65PlusShare, lifeExpectancy, maternalMortalityRatio, under5MortalityRate, undernourishmentPrevalence |
-| **Summary (Education)** | outOfSchoolPrimaryPct, primaryCompletionRate, minProficiencyReadingPct, preprimaryEnrollmentPct, literacyRateAdultPct, genderParityIndexPrimary, trainedTeachersPrimaryPct, publicExpenditureEducationPctGDP |
+| **Summary (Education)** | outOfSchoolPrimaryPct, primaryCompletionRate, minProficiencyReadingPct, literacyRateAdultPct, genderParityIndexPrimary, trainedTeachersPrimaryPct, publicExpenditureEducationPctGDP |
 | **Unified Timeline** | gdpNominal, gdpPPP, gdpNominalPerCapita, gdpPPPPerCapita, populationTotal, lifeExpectancy |
 | **Macro Indicators (economic)** | inflationCPI, interestRate, govDebtPercentGDP, unemploymentRate, povertyHeadcount215, povertyHeadcountNational |
 | **Macro Indicators (health)** | maternalMortalityRatio, under5MortalityRate, undernourishmentPrevalence |
-| **Education Timeline** | outOfSchoolPrimaryPct, primaryCompletionRate, minProficiencyReadingPct, preprimaryEnrollmentPct, literacyRateAdultPct, genderParityIndexPrimary, trainedTeachersPrimaryPct, publicExpenditureEducationPctGDP |
+| **Education Timeline** | outOfSchoolPrimaryPct, primaryCompletionRate, minProficiencyReadingPct, literacyRateAdultPct, genderParityIndexPrimary, trainedTeachersPrimaryPct, publicExpenditureEducationPctGDP |
 | **Labour timeline** | unemployedTotal, labourForceTotal |
 | **Population Structure** | populationTotal, pop0_14Share, pop15_64Share, pop65PlusShare, populationByAgeAbsolute |
 | **Country Comparison** | All financial, population, health, geography (selected country vs average vs global) |
-| **Global map** | Any numeric metric + region, governmentType (from Map metric selector; includes Education category) |
-| **Global table** | All metrics per country-year (General, Financial, Health & demographics, **Education** columns) |
-| **Global Charts** | Same as Global table, aggregated (unified, economic, health, **education**, population-structure series) |
+| **Global map** | Any numeric metric + region, governmentType (from Map metric selector; includes Education category); **respects region filter** (`globalRegion`) |
+| **Global table** | All metrics per country-year (General, Financial, Health & demographics, **Education** columns); **respects region filter** |
+| **Global Charts** | Same as Global table, aggregated (unified, economic, health, **education**, population-structure series); **respects region filter** |
 | **Business Analytics** | Any two numeric metrics as X and Y (from global dataset; includes Education group); **startYear**, **endYear** (year range); **excludeOutliers**; correlation outputs: **r**, **rSquared**, **betaCoefficient**, **strengthLabel**, **regressionCI**, **dataPrep**, **subgroupResults**, **executiveSummaryTable**, **actionableInsight**, **causationNextSteps**; **fitted** / **residuals** for residuals plot |
 | **PESTEL / Analytics Assistant** | Country context (summary + metrics) and global data; location/geography from LLM and web search, not stored variables |
 | **Porter 5 Forces** | Country context (summary + metrics), global data (DATA_MAX_YEAR), **industrySectorId** / industry division label; **chartData**, **newMarketBullets**, **keyTakeawaysBullets**, **recommendationsBullets** (parsed from LLM); supplemental web search for country + industry |

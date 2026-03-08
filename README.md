@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite)](https://vitejs.dev/)
 
-An **analyst-grade web application** for exploring country-level financial, demographic, and health metrics from 2000 to the latest available year. Powered by **World Bank WDI**, **IMF WEO**, **REST Countries**, **Sea Around Us**, and other trusted public data sources.
+An **analyst-grade web application** for exploring country-level financial, demographic, health, and education metrics from 2000 to the latest available year. Powered by **World Bank WDI**, **IMF WEO**, **UNESCO UIS** (via WDI), **REST Countries**, **Sea Around Us**, and other trusted public data sources. Government debt (% of GDP) is filled automatically from **IMF WEO** when World Bank has no data (e.g. China).
 
 ---
 
@@ -48,7 +48,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | View | Description |
 |------|-------------|
 | **Country dashboard** | Deep dive on a single country with summary cards, timelines, macro indicators, labour/unemployment, and comparison |
-| **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, **education**, population structure aggregates) for cross-country comparison |
+| **Global analytics** | Interactive choropleth map, full global country table, and **global macro charts** (unified, economic, health, **education**, population structure aggregates). **Region filter**: dynamic, searchable filter limits map, table, and charts to one region (or "All regions") for focused comparison. |
 | **PESTEL** | Generate and view PESTEL analysis: PESTEL chart, SWOT Analysis (sentence-level bullets), Comprehensive Analysis, Strategic Implications (PESTEL–SWOT), New Market Analysis, Key Takeaways, Recommendations (≥5 bullets each). Uses **most up-to-date** global data (DATA_MAX_YEAR) and current-year web supplement; **download PESTEL and SWOT charts as PNG** |
 | **Porter 5 Forces** | Generate Porter Five Forces analysis by country and ILO/ISIC industry division; **Porter's Five Forces chart** (standard cross layout with five bullet points per force); **Comprehensive Analysis**; **New Market Analysis** (5 bullets); **Key Takeaways** (5 bullets); **Recommendations** (5 bullets); inline citations only; TAVILY → GROQ → others |
 | **Business Analytics** | **Year range** (start–end, inclusive); multi-metric correlation scatter (X/Y axes, highlight country); **data preparation** (missing removed, IQR outliers flagged or excluded); scatter **title** "Scatter Plot: [X] vs [Y] | Corr = [r]" with **trend line and 95% CI**; **correlation & causation analysis**: executive summary table (Pearson r, P-value, R², Beta), strength band (weak/moderate/strong), **residuals vs fitted** plot, **subgroup by region** table, explicit "Correlation does NOT imply causation" disclaimer, **actionable insight**, and **next steps** when causation is not supported |
@@ -88,10 +88,11 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Geography, and Government. **Zoom** in/out and reset; **hover** shows country name, flag (proportionally on shape), metric value, effective year. |
+| **Region filter** | Dynamic, searchable region dropdown (e.g. East Asia & Pacific, Sub-Saharan Africa). Limits map, global table, and global charts to the selected region; "All regions" shows worldwide data. |
+| **Map view** | Choropleth with 20+ metrics across Financial (GDP, debt, inflation, interest, unemployment, poverty), Demographics & Health (population, age structure, life expectancy), Education, Geography, and Government. **Zoom** in/out and reset; **hover** shows country name, flag (proportionally on shape), metric value, effective year. Respects region filter. |
 | **Year selector** | Independent of country dashboard |
-| **Global table** | General (area, region, government type, head of government), Financial (GDP, debt, inflation, lending rate, unemployment, poverty + YoY), Health & demographics (population, age groups, life expectancy, under‑5 mortality, maternal mortality, undernourishment + YoY) |
-| **Global charts** | Aggregated global time-series: unified (GDP, GDP per capita, population, life expectancy), economic (inflation, debt, interest, unemployment, poverty), health (under‑5, maternal mortality, undernourishment), **education** (out-of-school, completion, proficiency, preprimary, literacy, GPI, trained teachers, education expenditure), population structure (age-group shares). Frequency and chart/table view. |
+| **Global table** | General (area, region, government type, head of government), Financial (GDP, debt, inflation, lending rate, unemployment, poverty + YoY), Health & demographics (population, age groups, life expectancy, under‑5 mortality, maternal mortality, undernourishment + YoY). Sortable columns; respects region filter. |
+| **Global charts** | Aggregated global time-series: unified (GDP, GDP per capita, population, life expectancy), economic (inflation, debt, interest, unemployment, poverty), health (under‑5, maternal mortality, undernourishment), **education** (out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure), population structure (age-group shares). Frequency and chart/table view. Data respects region filter. |
 | **Sorting** | All numeric columns sortable asc/desc; flag emojis in country column |
 
 ### 3.3 PESTEL
@@ -151,7 +152,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 ### 3.8 Data Fallbacks
 
-- **IMF WEO** – Government debt and GDP when World Bank has no data
+- **IMF WEO** – Government debt (% of GDP) and GDP when World Bank has no data. Government debt is filled via batch and per-country fallback so that countries such as **China** (which often lack World Bank debt series) receive data from IMF WEO automatically.
 - **Territory fallbacks** – Inflation and interest rate from parent country (e.g. American Samoa → US) for 30+ territories
 - **Taiwan** – Synthetic country entry in the country list; metrics use fallback to parent (e.g. China) or regional/global medians when World Bank WDI has no direct coverage. Metadata from REST Countries where available.
 
@@ -204,8 +205,8 @@ User → App.tsx (tabs: Country | Global | PESTEL | Porter 5 Forces | Business A
 | `src/App.tsx` | Layout, main tabs (Country / Global / PESTEL / Business Analytics / Chat / Source), footer |
 | `src/hooks/useCountryDashboard.ts` | Data loading, country/year/frequency state (including macro economic, macro health, labour, population-structure frequencies) |
 | `src/api/worldBank.ts` | WDI API, global metrics, territory and Taiwan fallbacks |
-| `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt, GDP) |
-| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health), EducationTimelineSection, LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, AllCountriesTableSection, GlobalChartsSection (unified, economic, health, education, population structure), PESTELSection, **Porter5ForcesSection**, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
+| `src/api/imf.ts` | IMF DataMapper fallbacks (gov debt with per-country fallback for broad coverage, GDP) |
+| `src/components/*` | SummarySection, TimeSeriesSection, MacroIndicatorsTimelineSection (economic & health), EducationTimelineSection, LabourUnemploymentTimelineSection, PopulationStructureSection, CountryTableSection, WorldMapSection, MapMetricToolbar, **RegionFilter**, AllCountriesTableSection, GlobalChartsSection (unified, economic, health, education, population structure), PESTELSection, **Porter5ForcesSection**, BusinessAnalyticsSection, CorrelationScatterPlot, SourceSection, ChatbotSection |
 | `src/utils/porter5ForcesContext.ts` | Porter 5 Forces system prompt (country, industry division, global data, Executive Summary + 2 paras per force; inline citations only) |
 | `src/utils/chatContext.ts` | System prompt builder for LLM |
 | `src/utils/chatFallback.ts` | Rule-based fallback for dashboard-style questions |
@@ -226,8 +227,8 @@ See `docs/ARCHITECTURE.md` for detailed data flow and component boundaries.
 
 | Source | Purpose |
 |--------|---------|
-| **World Bank WDI** | GDP, population, health, geography, inflation, interest, gov debt, education (UNESCO UIS via WDI) |
-| **IMF WEO** | Fallback for GDP and government debt |
+| **World Bank WDI** | GDP, population, health, geography, inflation, interest, gov debt (where available), education (UNESCO UIS via WDI) |
+| **IMF WEO** | Fallback for GDP and government debt when World Bank has no data (e.g. China); per-country request ensures broad coverage |
 | **REST Countries** | Timezone, currency, area, government type, head of government |
 | **Sea Around Us / Marine Regions** | EEZ (Exclusive Economic Zone) |
 | **FlagCDN** | Country flags |

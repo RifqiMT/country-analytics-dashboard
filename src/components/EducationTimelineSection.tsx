@@ -20,19 +20,36 @@ import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
 const EDUCATION_METRIC_IDS: MetricId[] = [
   'outOfSchoolPrimaryPct',
+  'outOfSchoolSecondaryPct',
+  'outOfSchoolTertiaryPct',
   'primaryCompletionRate',
+  'secondaryCompletionRate',
+  'tertiaryCompletionRate',
   'minProficiencyReadingPct',
-  'preprimaryEnrollmentPct',
   'literacyRateAdultPct',
   'genderParityIndexPrimary',
+  'genderParityIndexSecondary',
+  'genderParityIndexTertiary',
   'trainedTeachersPrimaryPct',
+  'trainedTeachersSecondaryPct',
+  'trainedTeachersTertiaryPct',
   'publicExpenditureEducationPctGDP',
+  'primaryPupilsTotal',
+  'primaryEnrollmentPct',
+  'secondaryPupilsTotal',
+  'secondaryEnrollmentPct',
+  'tertiaryEnrollmentPct',
+  'tertiaryEnrollmentTotal',
+  'primarySchoolsTotal',
+  'secondarySchoolsTotal',
+  'tertiaryInstitutionsTotal',
 ];
 
-/** Metrics that are 0–100% and should be displayed capped at 100. */
+/** Metrics that are 0–100% and should be displayed capped at 100. Completion rates are not capped so gross intake ratios >100% show correctly. */
 const EDUCATION_PCT_DISPLAY_CAP = new Set([
-  'outOfSchoolPrimaryPct', 'primaryCompletionRate', 'minProficiencyReadingPct',
-  'preprimaryEnrollmentPct', 'literacyRateAdultPct', 'trainedTeachersPrimaryPct',
+  'outOfSchoolPrimaryPct', 'outOfSchoolSecondaryPct', 'outOfSchoolTertiaryPct', 'minProficiencyReadingPct',
+  'literacyRateAdultPct', 'trainedTeachersPrimaryPct', 'trainedTeachersSecondaryPct', 'trainedTeachersTertiaryPct',
+  'primaryEnrollmentPct', 'secondaryEnrollmentPct', 'tertiaryEnrollmentPct',
 ]);
 
 function displayValueForEducation(id: string, value: number | null | undefined): number | null {
@@ -43,13 +60,29 @@ function displayValueForEducation(id: string, value: number | null | undefined):
 
 const METRIC_COLORS: Record<string, string> = {
   outOfSchoolPrimaryPct: '#dc2626',
+  outOfSchoolSecondaryPct: '#b91c1c',
+  outOfSchoolTertiaryPct: '#991b1b',
   primaryCompletionRate: '#16a34a',
+  secondaryCompletionRate: '#15803d',
+  tertiaryCompletionRate: '#166534',
   minProficiencyReadingPct: '#0f766e',
-  preprimaryEnrollmentPct: '#7c3aed',
   literacyRateAdultPct: '#0369a1',
   genderParityIndexPrimary: '#b45309',
+  genderParityIndexSecondary: '#c2410c',
+  genderParityIndexTertiary: '#9a3412',
   trainedTeachersPrimaryPct: '#059669',
+  trainedTeachersSecondaryPct: '#047857',
+  trainedTeachersTertiaryPct: '#065f46',
   publicExpenditureEducationPctGDP: '#1d4ed8',
+  primaryPupilsTotal: '#0d9488',
+  primaryEnrollmentPct: '#0f766e',
+  secondaryPupilsTotal: '#ca8a04',
+  secondaryEnrollmentPct: '#a16207',
+  tertiaryEnrollmentPct: '#2563eb',
+  tertiaryEnrollmentTotal: '#4f46e5',
+  primarySchoolsTotal: '#0d9488',
+  secondarySchoolsTotal: '#ca8a04',
+  tertiaryInstitutionsTotal: '#7c3aed',
 };
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -73,8 +106,14 @@ function formatEducationValue(
   if (id === 'genderParityIndexPrimary') {
     return v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2);
   }
+  if (id === 'genderParityIndexSecondary' || id === 'genderParityIndexTertiary') {
+    return v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2);
+  }
   if (id === 'publicExpenditureEducationPctGDP') {
     return (v).toFixed(2);
+  }
+  if (id === 'primaryPupilsTotal' || id === 'secondaryPupilsTotal' || id === 'tertiaryEnrollmentTotal' || id === 'primarySchoolsTotal' || id === 'secondarySchoolsTotal' || id === 'tertiaryInstitutionsTotal') {
+    return formatCompactNumber(v);
   }
   return formatCompactNumber(v);
 }
@@ -299,7 +338,8 @@ export function EducationTimelineSection({
           <p className="muted">
             Switch between weekly, monthly, quarterly, and annual views. Sub-annual views are smoothly
             interpolated from annual observations. Includes out-of-school rate, primary completion,
-            minimum reading proficiency, preprimary enrollment, adult literacy, gender parity index (GPI),
+            primary and secondary pupils and teachers, tertiary enrollment and teachers,
+            minimum reading proficiency, adult literacy, gender parity index (GPI),
             trained teachers in primary, and public expenditure on education (% of GDP).
           </p>
         </div>
@@ -529,7 +569,7 @@ export function EducationTimelineSection({
                         }
                       }
 
-                      const isGPI = id === 'genderParityIndexPrimary';
+                      const isGPI = id === 'genderParityIndexPrimary' || id === 'genderParityIndexSecondary' || id === 'genderParityIndexTertiary';
                       const cappedVal = displayValueForEducation(id, v as number | null);
                       const displayValue =
                         cappedVal == null

@@ -14,12 +14,20 @@ export const PERCENTAGE_METRIC_IDS = new Set<string>([
   'povertyHeadcount215',
   'povertyHeadcountNational',
   'outOfSchoolPrimaryPct',
+  'outOfSchoolSecondaryPct',
+  'outOfSchoolTertiaryPct',
   'primaryCompletionRate',
+  'secondaryCompletionRate',
+  'tertiaryCompletionRate',
   'minProficiencyReadingPct',
-  'preprimaryEnrollmentPct',
   'literacyRateAdultPct',
   'trainedTeachersPrimaryPct',
+  'trainedTeachersSecondaryPct',
+  'trainedTeachersTertiaryPct',
   'publicExpenditureEducationPctGDP',
+  'primaryEnrollmentPct',
+  'secondaryEnrollmentPct',
+  'tertiaryEnrollmentPct',
   'pop0_14Pct',
   'pop15_64Pct',
   'pop65PlusPct',
@@ -28,6 +36,8 @@ export const PERCENTAGE_METRIC_IDS = new Set<string>([
   'pop65PlusShare',
   'undernourishmentPrevalence',
   'genderParityIndexPrimary', // ratio but change in pp → bps
+  'genderParityIndexSecondary',
+  'genderParityIndexTertiary',
 ]);
 
 export function isPercentageMetric(metricId: string): boolean {

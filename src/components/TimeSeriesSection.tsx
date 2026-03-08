@@ -23,6 +23,8 @@ interface Props {
   frequency: Frequency;
   setFrequency: (f: Frequency) => void;
   resampledSeries?: CountryDashboardData['series'];
+  /** When provided (e.g. from Graphs section), used as the section heading for alignment with subsection name. */
+  sectionTitle?: string;
 }
 
 const UNIFIED_TIMELINE_METRIC_IDS: MetricId[] = [
@@ -58,13 +60,29 @@ const METRIC_COLORS: Record<MetricId, string> = {
   unemployedTotal: '#15803d',
   lifeExpectancy: '#0f766e',
   outOfSchoolPrimaryPct: '#dc2626',
+  outOfSchoolSecondaryPct: '#b91c1c',
+  outOfSchoolTertiaryPct: '#991b1b',
   primaryCompletionRate: '#16a34a',
+  secondaryCompletionRate: '#15803d',
+  tertiaryCompletionRate: '#166534',
   minProficiencyReadingPct: '#0f766e',
-  preprimaryEnrollmentPct: '#7c3aed',
   literacyRateAdultPct: '#0369a1',
   genderParityIndexPrimary: '#b45309',
+  genderParityIndexSecondary: '#c2410c',
+  genderParityIndexTertiary: '#9a3412',
   trainedTeachersPrimaryPct: '#059669',
+  trainedTeachersSecondaryPct: '#047857',
+  trainedTeachersTertiaryPct: '#065f46',
   publicExpenditureEducationPctGDP: '#1d4ed8',
+  primaryPupilsTotal: '#0d9488',
+  primaryEnrollmentPct: '#0f766e',
+  secondaryPupilsTotal: '#ca8a04',
+  secondaryEnrollmentPct: '#a16207',
+  tertiaryEnrollmentPct: '#2563eb',
+  tertiaryEnrollmentTotal: '#4f46e5',
+  primarySchoolsTotal: '#0d9488',
+  secondarySchoolsTotal: '#ca8a04',
+  tertiaryInstitutionsTotal: '#7c3aed',
 };
 
 const RIGHT_AXIS_METRICS: MetricId[] = ['populationTotal'];
@@ -81,6 +99,7 @@ export function TimeSeriesSection({
   frequency,
   setFrequency,
   resampledSeries,
+  sectionTitle = 'Unified financial & population timeline',
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
@@ -92,7 +111,7 @@ export function TimeSeriesSection({
   if (!data || !finalSeries) {
     return (
       <section className="card">
-        <h2 className="section-title">Unified financial & population timeline</h2>
+        <h2 className="section-title">{sectionTitle}</h2>
         <p className="muted">Loading time-series data...</p>
       </section>
     );
@@ -312,7 +331,7 @@ export function TimeSeriesSection({
     <section className="card timeseries-section dashboard-grid-full">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Unified financial & population timeline</h2>
+          <h2 className="section-title">{sectionTitle}</h2>
           <p className="muted">
             GDP, GDP per capita, government debt, and population over time. Switch between
             weekly, monthly, quarterly, and annual views; sub-annual views are interpolated from annual observations.

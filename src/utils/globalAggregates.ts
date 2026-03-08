@@ -152,6 +152,15 @@ export const GLOBAL_POP_STRUCTURE_AGGREGATES: Record<
   },
 };
 
+/** Labour: world totals (sum across countries). */
+export const GLOBAL_LABOUR_AGGREGATES: Record<
+  string,
+  { valueKey: keyof GlobalCountryMetricsRow; option: GlobalAggregateOption }
+> = {
+  unemployedTotal: { valueKey: 'unemployedTotal', option: { kind: 'sum' } },
+  labourForceTotal: { valueKey: 'labourForceTotal', option: { kind: 'sum' } },
+};
+
 /** Education metrics: global = population-weighted average (same as health/demographics). */
 export const GLOBAL_EDUCATION_AGGREGATES: Record<
   string,
@@ -161,16 +170,28 @@ export const GLOBAL_EDUCATION_AGGREGATES: Record<
     valueKey: 'outOfSchoolPrimaryPct',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
   },
+  outOfSchoolSecondaryPct: {
+    valueKey: 'outOfSchoolSecondaryPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  outOfSchoolTertiaryPct: {
+    valueKey: 'outOfSchoolTertiaryPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
   primaryCompletionRate: {
     valueKey: 'primaryCompletionRate',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
   },
-  minProficiencyReadingPct: {
-    valueKey: 'minProficiencyReadingPct',
+  secondaryCompletionRate: {
+    valueKey: 'secondaryCompletionRate',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
   },
-  preprimaryEnrollmentPct: {
-    valueKey: 'preprimaryEnrollmentPct',
+  tertiaryCompletionRate: {
+    valueKey: 'tertiaryCompletionRate',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  minProficiencyReadingPct: {
+    valueKey: 'minProficiencyReadingPct',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
   },
   literacyRateAdultPct: {
@@ -181,13 +202,65 @@ export const GLOBAL_EDUCATION_AGGREGATES: Record<
     valueKey: 'genderParityIndexPrimary',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
   },
+  genderParityIndexSecondary: {
+    valueKey: 'genderParityIndexSecondary',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  genderParityIndexTertiary: {
+    valueKey: 'genderParityIndexTertiary',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
   trainedTeachersPrimaryPct: {
     valueKey: 'trainedTeachersPrimaryPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  trainedTeachersSecondaryPct: {
+    valueKey: 'trainedTeachersSecondaryPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  trainedTeachersTertiaryPct: {
+    valueKey: 'trainedTeachersTertiaryPct',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
   },
   publicExpenditureEducationPctGDP: {
     valueKey: 'publicExpenditureEducationPctGDP',
     option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  primaryPupilsTotal: {
+    valueKey: 'primaryPupilsTotal',
+    option: { kind: 'sum' },
+  },
+  secondaryPupilsTotal: {
+    valueKey: 'secondaryPupilsTotal',
+    option: { kind: 'sum' },
+  },
+  primaryEnrollmentPct: {
+    valueKey: 'primaryEnrollmentPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  secondaryEnrollmentPct: {
+    valueKey: 'secondaryEnrollmentPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  tertiaryEnrollmentPct: {
+    valueKey: 'tertiaryEnrollmentPct',
+    option: { kind: 'weighted', weightKey: 'populationTotal' },
+  },
+  tertiaryEnrollmentTotal: {
+    valueKey: 'tertiaryEnrollmentTotal',
+    option: { kind: 'sum' },
+  },
+  primarySchoolsTotal: {
+    valueKey: 'primarySchoolsTotal',
+    option: { kind: 'sum' },
+  },
+  secondarySchoolsTotal: {
+    valueKey: 'secondarySchoolsTotal',
+    option: { kind: 'sum' },
+  },
+  tertiaryInstitutionsTotal: {
+    valueKey: 'tertiaryInstitutionsTotal',
+    option: { kind: 'sum' },
   },
 };
 

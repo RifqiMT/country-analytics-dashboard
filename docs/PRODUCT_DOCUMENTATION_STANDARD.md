@@ -58,9 +58,10 @@ All product and technical documentation should cover the following where applica
 
 - Per-tab feature lists with clear descriptions
 - Country Dashboard (summary, year range, unified timeline, macro indicators, labour timeline, population structure, comparison table)
-- Global Analytics (map, global table, Global Charts)
+- Global Analytics (map, global table, **region filter**, Global Charts)
 - PESTEL (generate, section order, chart exports, data recency)
 - **Porter 5 Forces** (country + ILO/ISIC industry division, generate, **chart with 5 bullets per force** (standard cross layout), **Comprehensive Analysis**, **New Market Analysis** (5 bullets), **Key Takeaways** (5 bullets), **Recommendations** (5 bullets), inline citations only, TAVILY → GROQ → others)
+- **Region filter**: Dynamic, searchable region dropdown in Global Analytics; limits map, table, and Global Charts to one region (or "All regions").
 - Business Analytics (correlation scatter, **year range** start–end, **data preparation** missing + IQR outliers, **exclude IQR outliers** option, **executive summary table**, **residuals vs fitted**, **subgroup by region**, **actionable insight**, **causation disclaimer** and **next steps**)
 - Source tab (where metrics appear, search, filter chips, metric cards)
 - Analytics Assistant (cascading flow, source attribution, model selection, out-of-scope handling)
@@ -68,7 +69,7 @@ All product and technical documentation should cover the following where applica
 ### 3.4 Logics
 
 - **Product logic**: What the product does, why, and how features behave (filters, defaults, fallbacks)
-- **Data logic**: Latest non-null, year fallback, territory/IMF fallbacks, Taiwan handling
+- **Data logic**: Latest non-null, year fallback, territory/IMF fallbacks (including **per-country IMF gov debt fallback** for economies like China when World Bank has no debt series), Taiwan handling
 - **Analytics Assistant logic**: Dashboard data first for in-scope metrics; then **TAVILY (web search) first** for latest supplementary information; **GROQ second** as the primary LLM; then other LLMs. Year-based routing; out-of-scope (location/geography, leaders, etc.) never answered with dashboard metrics.
 
 ### 3.5 Business Guidelines
@@ -198,9 +199,9 @@ For every feature PR that changes user-visible behaviour:
 | Time-series & macro | TimeSeriesSection, MacroIndicatorsTimelineSection (economic, health), **EducationTimelineSection**, LabourUnemploymentTimelineSection, PopulationStructureSection | worldBank.ts, timeSeries.ts |
 | Population structure | PopulationStructureSection (age-group shares + absolute over time) | worldBank.ts, timeSeries.ts |
 | Country comparison | CountryTableSection | worldBank.ts |
-| Global map | WorldMapSection, MapMetricToolbar | worldBank.ts |
-| Global tables | AllCountriesTableSection | worldBank.ts |
-| Global charts | GlobalChartsSection (unified, economic, health, **education**, population structure) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
+| Global map | WorldMapSection, RegionFilter (region filter), MapMetricToolbar | worldBank.ts |
+| Global tables | AllCountriesTableSection (region prop; respects region filter) | worldBank.ts |
+| Global charts | GlobalChartsSection (region prop; unified, economic, health, **education**, population structure; respects region filter) | worldBank.ts, globalAggregates.ts, timeSeries.ts |
 | Business Analytics | BusinessAnalyticsSection, CorrelationScatterPlot | worldBank.ts, correlationAnalysis.ts |
 | **Porter 5 Forces** | **Porter5ForcesSection** (country + industry selector, **Porter5Chart** with standard cross layout, generate; **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, **Recommendations** in separate cards; inline citations) | **porter5ForcesContext.ts**, **iloIndustrySectors.ts**, LLM via chat API (TAVILY supplement, then GROQ); chart and block parsing (`parsePorter5ChartSummary`, `parseNewMarketAnalysis`, `parseKeyTakeaways`, `parseRecommendations`) and rendering in section |
 | PESTEL | PESTELSection (DATA_MAX_YEAR for global data; current year for web supplement) | pestelContext.ts, LLM via chat API; PESTEL/SWOT charts export via html2canvas |

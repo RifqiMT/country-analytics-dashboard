@@ -44,6 +44,12 @@ This document defines how the **Country Analytics Platform** measures success an
 | **GM-1** | Map engagement rate | Percentage of sessions that open the Global view and stay on the map for at least 10 seconds |
 | **GM-2** | Metric diversity (map) | Number of unique metrics selected on the map per session |
 
+### 2.2a Global Analytics – Region Filter
+
+| ID | Metric | Definition |
+|----|--------|------------|
+| **GR-1** | Region filter usage | Percentage of Global Analytics sessions where the user changes the region from "All regions" to a specific region (e.g. East Asia & Pacific) |
+
 ### 2.3 Global Analytics – Global Charts
 
 | ID | Metric | Definition |
@@ -157,6 +163,7 @@ Use a `product_area.action` pattern:
 | `timeline.metric_toggled` | User toggles a metric chip |
 | `dashboard.population_structure_viewed` | User views Population Structure section (chart or table) |
 | `global.map_metric_changed` | User changes map metric |
+| `global.region_filter_changed` | User changes region filter (payload: `region` or "All regions") |
 | `business_analytics.tab_viewed` | User opens Business Analytics tab |
 | `business_analytics.correlation_axes_changed` | User changes X or Y metric in correlation scatter |
 | `business_analytics.year_range_changed` | User changes start or end year in Business Analytics |
@@ -186,6 +193,7 @@ Each event should include where relevant:
 - `year` or `year_range`
 - `metric_id` (for timeline, map, or tables)
 - `view` (country_dashboard \| global_map \| global_table \| global_charts \| business_analytics \| pestel \| source \| chat)
+- `region` (for `global.region_filter_changed`: selected region or "All regions")
 
 ### 4.3 Privacy & PII
 
