@@ -4567,6 +4567,13 @@ tbody tr:hover {
   letter-spacing: 0.01em;
 }
 
+.map-tooltip-metric-description {
+  margin: var(--space-1) 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
 /* Toasts (bottom-right) */
 .toast-container {
   position: fixed;

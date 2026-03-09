@@ -280,7 +280,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                           <div className="table-cell-main">
                             {row.eezKm2 != null
                               ? `${formatCompactNumber(row.eezKm2)} km²`
-                              : '–'}
+                              : 'No EEZ data'}
                           </div>
                         </td>
                       </tr>
@@ -424,7 +424,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.gdpNominal ?? null)}
+                            {row.gdpNominal != null ? formatCompactNumber(row.gdpNominal) : 'No data'}
                           </div>
                           {gdpNominalYoY && (
                             <div className="table-cell-yoy">
@@ -434,7 +434,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.gdpPPP ?? null)}
+                            {row.gdpPPP != null ? formatCompactNumber(row.gdpPPP) : 'No data'}
                           </div>
                           {gdpPPPYoy && (
                             <div className="table-cell-yoy">{gdpPPPYoy}</div>
@@ -442,9 +442,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(
-                              row.gdpNominalPerCapita ?? null,
-                            )}
+                            {row.gdpNominalPerCapita != null ? formatCompactNumber(row.gdpNominalPerCapita) : 'No data'}
                           </div>
                           {gdpNominalPerCapitaYoY && (
                             <div className="table-cell-yoy">
@@ -454,9 +452,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(
-                              row.gdpPPPPerCapita ?? null,
-                            )}
+                            {row.gdpPPPPerCapita != null ? formatCompactNumber(row.gdpPPPPerCapita) : 'No data'}
                           </div>
                           {gdpPPPPerCapitaYoY && (
                             <div className="table-cell-yoy">
@@ -466,7 +462,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.govDebtUSD ?? null)}
+                            {row.govDebtUSD != null ? formatCompactNumber(row.govDebtUSD) : 'No data'}
                           </div>
                           {govDebtUSDYoY && (
                             <div className="table-cell-yoy">{govDebtUSDYoY}</div>
@@ -474,7 +470,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatPercentage(row.inflationCPI ?? null)}
+                            {row.inflationCPI != null ? formatPercentage(row.inflationCPI) : 'No data'}
                           </div>
                           {inflationYoY && (
                             <div className="table-cell-yoy">
@@ -484,7 +480,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatPercentage(row.govDebtPercentGDP ?? null)}
+                            {row.govDebtPercentGDP != null ? formatPercentage(row.govDebtPercentGDP) : 'No data'}
                           </div>
                           {govDebtYoY && (
                             <div className="table-cell-yoy">{govDebtYoY}</div>
@@ -492,7 +488,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatPercentage(row.interestRate ?? null)}
+                            {row.interestRate != null ? formatPercentage(row.interestRate) : 'No data'}
                           </div>
                           {interestYoY && (
                             <div className="table-cell-yoy">{interestYoY}</div>
@@ -500,7 +496,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatPercentage(row.unemploymentRate ?? null)}
+                            {row.unemploymentRate != null ? formatPercentage(row.unemploymentRate) : 'No data'}
                           </div>
                           {unemploymentYoY && (
                             <div className="table-cell-yoy">
@@ -510,7 +506,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.unemployedTotal ?? null)}
+                            {row.unemployedTotal != null ? formatCompactNumber(row.unemployedTotal) : 'No data'}
                           </div>
                           {unemployedTotalYoY && (
                             <div className="table-cell-yoy">
@@ -520,7 +516,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.labourForceTotal ?? null)}
+                            {row.labourForceTotal != null ? formatCompactNumber(row.labourForceTotal) : 'No data'}
                           </div>
                           {labourForceTotalYoY && (
                             <div className="table-cell-yoy">
@@ -642,7 +638,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.populationTotal ?? null)}
+                            {row.populationTotal != null ? formatCompactNumber(row.populationTotal) : 'No data'}
                           </div>
                           {popTotalYoY && (
                             <div className="table-cell-yoy">{popTotalYoY}</div>
@@ -650,7 +646,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.population0_14 ?? null)}
+                            {row.population0_14 != null ? formatCompactNumber(row.population0_14) : 'No data'}
                           </div>
                           {pop0_14YoY && (
                             <div className="table-cell-yoy">{pop0_14YoY}</div>
@@ -658,7 +654,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.population15_64 ?? null)}
+                            {row.population15_64 != null ? formatCompactNumber(row.population15_64) : 'No data'}
                           </div>
                           {pop15_64YoY && (
                             <div className="table-cell-yoy">{pop15_64YoY}</div>
@@ -666,7 +662,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {formatCompactNumber(row.population65Plus ?? null)}
+                            {row.population65Plus != null ? formatCompactNumber(row.population65Plus) : 'No data'}
                           </div>
                           {pop65PlusYoY && (
                             <div className="table-cell-yoy">
@@ -678,7 +674,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                           <div className="table-cell-main">
                             {row.lifeExpectancy != null
                               ? row.lifeExpectancy.toFixed(1)
-                              : '–'}
+                              : 'No data'}
                           </div>
                           {lifeYoY && (
                             <div className="table-cell-yoy">{lifeYoY}</div>
@@ -688,7 +684,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                           <div className="table-cell-main">
                             {row.under5MortalityRate != null
                               ? row.under5MortalityRate.toFixed(1)
-                              : '–'}
+                              : 'No data'}
                           </div>
                           {under5YoY && (
                             <div className="table-cell-yoy">{under5YoY}</div>
@@ -698,7 +694,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                           <div className="table-cell-main">
                             {row.maternalMortalityRatio != null
                               ? row.maternalMortalityRatio.toFixed(0)
-                              : '–'}
+                              : 'No data'}
                           </div>
                           {maternalYoY && (
                             <div className="table-cell-yoy">{maternalYoY}</div>
@@ -756,9 +752,9 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                 <tbody>
                   {sorted.map((row) => {
                     const fmtPct = (v: number | null | undefined) =>
-                      v != null ? v.toFixed(1) + '%' : '–';
+                      v != null ? v.toFixed(1) + '%' : 'No data';
                     const fmtGPI = (v: number | null | undefined) =>
-                      v != null ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : '–';
+                      v != null ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : 'No data';
                     return (
                       <tr key={row.iso2Code}>
                         <td>

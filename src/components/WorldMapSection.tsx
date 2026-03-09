@@ -5,6 +5,7 @@ import type {
   GlobalCountryMetricsRow,
   MetricId,
 } from '../types';
+import { METRIC_METADATA } from '../data/metricMetadata';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { getNumericCountryCodeMap, type CountryCodeInfo } from '../api/countryCodes';
@@ -342,6 +343,7 @@ interface MapTooltipState {
   iso2?: string;
   metricLabel: string;
   metricValue: string;
+  metricDescription?: string;
 }
 
 function getFlagBaseColor(iso2?: string): string {
@@ -511,6 +513,11 @@ export function WorldMapSection({ data, selectedMetricId, year, region = null, r
     return Array.from(seen).sort((a, b) => a.localeCompare(b));
   }, [displayRows, selectedMetricId, isCategorical]);
 
+  function getMetricDescription(metricId: MapMetricId): string | undefined {
+    const meta = METRIC_METADATA.find((m) => m.id === metricId);
+    return meta?.description;
+  }
+
   const getFillColor = (metricValue: number | string | null) => {
     if (metricValue == null) {
       return '#e5e7eb'; // light gray for no data
@@ -558,8 +565,8 @@ export function WorldMapSection({ data, selectedMetricId, year, region = null, r
     <section className="card map-section">
       <h2 className="section-title">Interactive country map</h2>
       <p className="muted">
-        Hover to see country name, flag, and the currently selected metric. Values are shown for year{' '}
-        {effectiveYear}.
+        Hover to see country name, flag, and the currently selected metric with a short description. Values are
+        shown for year {effectiveYear}.
       </p>
       <div className={`map-legend ${isCategorical ? 'map-legend-categorical' : ''}`}>
         {isCategorical ? (
@@ -682,6 +689,7 @@ export function WorldMapSection({ data, selectedMetricId, year, region = null, r
                 const row = iso3 ? byIso3.get(iso3.toUpperCase()) : undefined;
                 const metricValue = getMetricFromRow(row, selectedMetricId);
                 const metricLabel = getMetricLabel(selectedMetricId);
+                const metricDescription = getMetricDescription(selectedMetricId);
 
                 const iso2 = mapping?.iso2 || geo.properties.ISO_A2;
                 const normalizedIso2 =
@@ -753,10 +761,11 @@ export function WorldMapSection({ data, selectedMetricId, year, region = null, r
                         name,
                         iso2: iso2Hover && iso2Hover !== '-99' ? iso2Hover : undefined,
                         metricLabel,
-                        metricValue: formatMetricValue(
-                          selectedMetricId,
-                          metricValue,
-                        ),
+                        metricValue:
+                          selectedMetricId === 'eezKm2' && (metricValue == null || Number.isNaN(metricValue as any))
+                            ? 'No EEZ data'
+                            : formatMetricValue(selectedMetricId, metricValue),
+                        metricDescription,
                       });
                     }}
                     onMouseMove={(evt: React.MouseEvent<SVGPathElement>) => {
@@ -820,6 +829,11 @@ export function WorldMapSection({ data, selectedMetricId, year, region = null, r
                   {tooltip.metricValue}
                 </strong>
               </div>
+              {tooltip.metricDescription && (
+                <p className="map-tooltip-metric-description">
+                  {tooltip.metricDescription}
+                </p>
+              )}
             </div>
           </div>
         )}

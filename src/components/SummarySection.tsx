@@ -81,7 +81,14 @@ function GeneralCard({
       items: [
         { icon: 'M3 4.25A1.25 1.25 0 0 1 4.25 3h7.5A1.25 1.25 0 0 1 13 4.25v7.5A1.25 1.25 0 0 1 11.75 13h-7.5A1.25 1.25 0 0 1 3 11.75v-7.5Zm1.5.25v7h7v-7h-7Z', label: 'Land area', value: geo?.landAreaKm2 != null ? `${formatCompactNumber(geo.landAreaKm2)} km²` : '–' },
         { icon: 'M2.75 4A1.75 1.75 0 0 1 4.5 2.25h7A1.75 1.75 0 0 1 13.25 4v7A1.75 1.75 0 0 1 11.5 12.75h-7A1.75 1.75 0 0 1 2.75 11V4Zm1.75-.25a.25.25 0 0 0-.25.25v7c0 .14.11.25.25.25h7a.25.25 0 0 0 .25-.25v-7a.25.25 0 0 0-.25-.25h-7Z', label: 'Total area', value: geo?.totalAreaKm2 != null ? `${formatCompactNumber(geo.totalAreaKm2)} km²` : '–' },
-        { icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z', label: 'EEZ', value: geo?.eezKm2 != null ? `${formatCompactNumber(geo.eezKm2)} km²` : '–' },
+        {
+          icon: 'M2 4.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5zm0 3a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11a.5.5 0 0 1-.5-.5z',
+          label: 'EEZ',
+          value:
+            geo?.eezKm2 != null
+              ? `${formatCompactNumber(geo.eezKm2)} km²`
+              : 'No EEZ data',
+        },
       ],
     },
   ];
@@ -178,35 +185,85 @@ function FinancialCard({
     {
       label: 'GDP',
       items: [
-        { icon: 'M3 11.5a.75.75 0 0 1 .75-.75h2V4.5a.75.75 0 0 1 1.5 0v6.25h2l.1.01a.75.75 0 0 1-.1 1.49h-2v.75a.75.75 0 0 1-1.5 0V12.5h-2A.75.75 0 0 1 3 11.5Z', label: 'GDP (Nominal)', value: formatCompactNumber(g?.gdpNominal ?? null), yoy: getYoY(series, 'gdpNominal') },
-        { icon: 'M4 3.25A1.25 1.25 0 0 1 5.25 2h5.5A1.25 1.25 0 0 1 12 3.25v9.5a.75.75 0 0 1-1.2.6L8 11.5l-2.8 1.85A.75.75 0 0 1 4 12.75v-9.5Z', label: 'GDP (PPP)', value: formatCompactNumber(g?.gdpPPP ?? null), yoy: getYoY(series, 'gdpPPP') },
-        { icon: 'M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z', label: 'GDP / Capita (Nominal)', value: formatCompactNumber(g?.gdpNominalPerCapita ?? null), yoy: getYoY(series, 'gdpNominalPerCapita') },
-        { icon: 'M3.25 3A.75.75 0 0 1 4 2.25h8A.75.75 0 0 1 12.75 3v2A2.75 2.75 0 0 1 10 7.75H8.5v1H11a.75.75 0 0 1 0 1.5H8.5v1.5a.75.75 0 0 1-1.5 0V10.25H5a.75.75 0 0 1 0-1.5h2V7.75H6A2.75 2.75 0 0 1 3.25 5V3Z', label: 'GDP / Capita (PPP)', value: formatCompactNumber(g?.gdpPPPPerCapita ?? null), yoy: getYoY(series, 'gdpPPPPerCapita') },
+        {
+          icon: 'M3 11.5a.75.75 0 0 1 .75-.75h2V4.5a.75.75 0 0 1 1.5 0v6.25h2l.1.01a.75.75 0 0 1-.1 1.49h-2v.75a.75.75 0 0 1-1.5 0V12.5h-2A.75.75 0 0 1 3 11.5Z',
+          label: 'GDP (Nominal)',
+          value: g?.gdpNominal != null ? formatCompactNumber(g.gdpNominal) : 'No data',
+          yoy: getYoY(series, 'gdpNominal'),
+        },
+        {
+          icon: 'M4 3.25A1.25 1.25 0 0 1 5.25 2h5.5A1.25 1.25 0 0 1 12 3.25v9.5a.75.75 0 0 1-1.2.6L8 11.5l-2.8 1.85A.75.75 0 0 1 4 12.75v-9.5Z',
+          label: 'GDP (PPP)',
+          value: g?.gdpPPP != null ? formatCompactNumber(g.gdpPPP) : 'No data',
+          yoy: getYoY(series, 'gdpPPP'),
+        },
+        {
+          icon: 'M8 2.25a2.25 2.25 0 1 1 0 4.5 2.25 2.25 0 0 1 0-4.5Zm0 5.5a4.25 4.25 0 0 1 4.24 3.8.75.75 0 0 1-.74.7H4.5a.75.75 0 0 1-.74-.7A4.25 4.25 0 0 1 8 7.75Z',
+          label: 'GDP / Capita (Nominal)',
+          value: g?.gdpNominalPerCapita != null ? formatCompactNumber(g.gdpNominalPerCapita) : 'No data',
+          yoy: getYoY(series, 'gdpNominalPerCapita'),
+        },
+        {
+          icon: 'M3.25 3A.75.75 0 0 1 4 2.25h8A.75.75 0 0 1 12.75 3v2A2.75 2.75 0 0 1 10 7.75H8.5v1H11a.75.75 0 0 1 0 1.5H8.5v1.5a.75.75 0 0 1-1.5 0V10.25H5a.75.75 0 0 1 0-1.5h2V7.75H6A2.75 2.75 0 0 1 3.25 5V3Z',
+          label: 'GDP / Capita (PPP)',
+          value: g?.gdpPPPPerCapita != null ? formatCompactNumber(g.gdpPPPPerCapita) : 'No data',
+          yoy: getYoY(series, 'gdpPPPPerCapita'),
+        },
       ],
     },
     {
       label: 'Debt',
       items: [
-        { icon: 'M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z', label: 'Gov. debt (USD)', value: formatCompactNumber(g?.govDebtUSD ?? null), yoy: getYoY(series, 'govDebtUSD') },
-        { icon: 'M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .14.11.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z', label: 'Gov. debt (% GDP)', value: g?.govDebtPercentGDP != null ? `${g.govDebtPercentGDP.toFixed(1)}%` : '–', yoy: getYoY(series, 'govDebtPercentGDP') },
+        {
+          icon: 'M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z',
+          label: 'Gov. debt (USD)',
+          value: g?.govDebtUSD != null ? formatCompactNumber(g.govDebtUSD) : 'No data',
+          yoy: getYoY(series, 'govDebtUSD'),
+        },
+        {
+          icon: 'M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .14.11.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-6.5Z',
+          label: 'Gov. debt (% GDP)',
+          value: g?.govDebtPercentGDP != null ? `${g.govDebtPercentGDP.toFixed(1)}%` : 'No data',
+          yoy: getYoY(series, 'govDebtPercentGDP'),
+        },
       ],
     },
     {
       label: 'Inflation & rates',
       items: [
-        { icon: 'M3.25 8A4.75 4.75 0 0 1 8 3.25a.75.75 0 0 1 0 1.5A3.25 3.25 0 1 0 11.25 8a.75.75 0 0 1 1.5 0A4.75 4.75 0 1 1 3.25 8Z', label: 'Inflation (CPI, %)', value: g?.inflationCPI != null ? `${g.inflationCPI.toFixed(1)}%` : '–', yoy: getYoY(series, 'inflationCPI') },
-        { icon: 'M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5ZM6 5v6l4-3-4-3Z', label: 'Lending interest rate', value: g?.interestRate != null ? `${g.interestRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'interestRate') },
+        {
+          icon: 'M3.25 8A4.75 4.75 0 0 1 8 3.25a.75.75 0 0 1 0 1.5A3.25 3.25 0 1 0 11.25 8a.75.75 0 0 1 1.5 0A4.75 4.75 0 1 1 3.25 8Z',
+          label: 'Inflation (CPI, %)',
+          value: g?.inflationCPI != null ? `${g.inflationCPI.toFixed(1)}%` : 'No data',
+          yoy: getYoY(series, 'inflationCPI'),
+        },
+        {
+          icon: 'M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5ZM6 5v6l4-3-4-3Z',
+          label: 'Lending interest rate',
+          value: g?.interestRate != null ? `${g.interestRate.toFixed(1)}%` : 'No data',
+          yoy: getYoY(series, 'interestRate'),
+        },
         {
           icon: 'M8 1.5a5 5 0 0 0-5 5c0 3.25 3.5 6 4.4 6.7.36.28.84.28 1.2 0C9.5 12.5 13 9.75 13 6.5a5 5 0 0 0-5-5Zm0 2.25a2.75 2.75 0 1 1 0 5.5 2.75 2.75 0 0 1 0-5.5Z',
           label: 'Unemployment rate (% of labour force)',
           value:
             g?.unemploymentRate != null
               ? `${g.unemploymentRate.toFixed(1)}%`
-              : '–',
+              : 'No data',
           yoy: getYoY(series, 'unemploymentRate'),
         },
-        { icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z', label: 'Unemployed (number)', value: formatCompactNumber(g?.unemployedTotal ?? null), yoy: getYoY(series, 'unemployedTotal') },
-        { icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z', label: 'Labour force (total)', value: formatCompactNumber(g?.labourForceTotal ?? null), yoy: getYoY(series, 'labourForceTotal') },
+        {
+          icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z',
+          label: 'Unemployed (number)',
+          value: g?.unemployedTotal != null ? formatCompactNumber(g.unemployedTotal) : 'No data',
+          yoy: getYoY(series, 'unemployedTotal'),
+        },
+        {
+          icon: 'M8 4.25a1.75 1.75 0 1 1-3.5 0A1.75 1.75 0 0 1 8 4.25Zm-.5 3.5a3.25 3.25 0 0 0-3.2 2.6.75.75 0 0 0 .73.9h5.84a.75.75 0 0 0 .73-.9 3.25 3.25 0 0 0-3.2-2.6H7.5Z',
+          label: 'Labour force (total)',
+          value: g?.labourForceTotal != null ? formatCompactNumber(g.labourForceTotal) : 'No data',
+          yoy: getYoY(series, 'labourForceTotal'),
+        },
       ],
     },
     {
@@ -306,7 +363,7 @@ function HealthCard({
         {
           icon: 'M4.75 2A1.75 1.75 0 0 0 3 3.75v8.5c0 .97.78 1.75 1.75 1.75h6.5A1.75 1.75 0 0 0 13 12.25v-8.5A1.75 1.75 0 0 0 11.25 2h-6.5Z',
           label: 'Life expectancy',
-          value: h?.lifeExpectancy != null ? `${h.lifeExpectancy.toFixed(1)} years` : '–',
+          value: h?.lifeExpectancy != null ? `${h.lifeExpectancy.toFixed(1)} years` : 'No data',
           yoy: getYoY(series.health, 'lifeExpectancy'),
         },
         {
@@ -315,7 +372,7 @@ function HealthCard({
           value:
             h?.under5MortalityRate != null
               ? `${h.under5MortalityRate.toFixed(1)}`
-              : '–',
+              : 'No data',
           yoy: getYoY(series.health, 'under5MortalityRate'),
         },
         {
@@ -324,7 +381,7 @@ function HealthCard({
           value:
             h?.maternalMortalityRatio != null
               ? `${h.maternalMortalityRatio.toFixed(0)}`
-              : '–',
+              : 'No data',
           yoy: getYoY(series.health, 'maternalMortalityRatio'),
         },
         {
@@ -333,7 +390,7 @@ function HealthCard({
           value:
             h?.undernourishmentPrevalence != null
               ? `${h.undernourishmentPrevalence.toFixed(1)}%`
-              : '–',
+              : 'No data',
           yoy: getYoY(series.health, 'undernourishmentPrevalence'),
         },
       ],
@@ -411,7 +468,7 @@ function EducationCard({
   onToggle: () => void;
 }) {
   const formatGPI = (v: number | null | undefined) =>
-    v != null && Number.isFinite(v) ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : '–';
+    v != null && Number.isFinite(v) ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : 'No data';
 
   const groups: {
     label: string;
@@ -425,19 +482,19 @@ function EducationCard({
     {
       label: 'Out-of-school & completion',
       items: [
-        { icon: getMetricIconPath('outOfSchoolPrimaryPct'), label: 'Out-of-school rate (primary, %)', value: e?.outOfSchoolPrimaryPct != null ? `${e.outOfSchoolPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolPrimaryPct') },
-        { icon: getMetricIconPath('outOfSchoolSecondaryPct'), label: 'Out-of-school rate (secondary, %)', value: e?.outOfSchoolSecondaryPct != null ? `${e.outOfSchoolSecondaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolSecondaryPct') },
-        { icon: getMetricIconPath('outOfSchoolTertiaryPct'), label: 'Out-of-school rate (tertiary, %)', value: e?.outOfSchoolTertiaryPct != null ? `${e.outOfSchoolTertiaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'outOfSchoolTertiaryPct') },
-        { icon: getMetricIconPath('primaryCompletionRate'), label: 'Primary completion rate (gross, %)', value: e?.primaryCompletionRate != null ? `${e.primaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'primaryCompletionRate') },
-        { icon: getMetricIconPath('secondaryCompletionRate'), label: 'Secondary completion rate (gross, %)', value: e?.secondaryCompletionRate != null ? `${e.secondaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'secondaryCompletionRate') },
-        { icon: getMetricIconPath('tertiaryCompletionRate'), label: 'Tertiary completion rate (gross, %)', value: e?.tertiaryCompletionRate != null ? `${e.tertiaryCompletionRate.toFixed(1)}%` : '–', yoy: getYoY(series, 'tertiaryCompletionRate') },
+        { icon: getMetricIconPath('outOfSchoolPrimaryPct'), label: 'Out-of-school rate (primary, %)', value: e?.outOfSchoolPrimaryPct != null ? `${e.outOfSchoolPrimaryPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'outOfSchoolPrimaryPct') },
+        { icon: getMetricIconPath('outOfSchoolSecondaryPct'), label: 'Out-of-school rate (secondary, %)', value: e?.outOfSchoolSecondaryPct != null ? `${e.outOfSchoolSecondaryPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'outOfSchoolSecondaryPct') },
+        { icon: getMetricIconPath('outOfSchoolTertiaryPct'), label: 'Out-of-school rate (tertiary, %)', value: e?.outOfSchoolTertiaryPct != null ? `${e.outOfSchoolTertiaryPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'outOfSchoolTertiaryPct') },
+        { icon: getMetricIconPath('primaryCompletionRate'), label: 'Primary completion rate (gross, %)', value: e?.primaryCompletionRate != null ? `${e.primaryCompletionRate.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'primaryCompletionRate') },
+        { icon: getMetricIconPath('secondaryCompletionRate'), label: 'Secondary completion rate (gross, %)', value: e?.secondaryCompletionRate != null ? `${e.secondaryCompletionRate.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'secondaryCompletionRate') },
+        { icon: getMetricIconPath('tertiaryCompletionRate'), label: 'Tertiary completion rate (gross, %)', value: e?.tertiaryCompletionRate != null ? `${e.tertiaryCompletionRate.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'tertiaryCompletionRate') },
       ],
     },
     {
       label: 'Learning & literacy',
       items: [
-        { icon: getMetricIconPath('minProficiencyReadingPct'), label: 'Minimum reading proficiency (%)', value: e?.minProficiencyReadingPct != null ? `${e.minProficiencyReadingPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'minProficiencyReadingPct') },
-        { icon: getMetricIconPath('literacyRateAdultPct'), label: 'Adult literacy rate (%)', value: e?.literacyRateAdultPct != null ? `${e.literacyRateAdultPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'literacyRateAdultPct') },
+        { icon: getMetricIconPath('minProficiencyReadingPct'), label: 'Minimum reading proficiency (%)', value: e?.minProficiencyReadingPct != null ? `${e.minProficiencyReadingPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'minProficiencyReadingPct') },
+        { icon: getMetricIconPath('literacyRateAdultPct'), label: 'Adult literacy rate (%)', value: e?.literacyRateAdultPct != null ? `${e.literacyRateAdultPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'literacyRateAdultPct') },
       ],
     },
     {
@@ -446,24 +503,24 @@ function EducationCard({
         { icon: getMetricIconPath('genderParityIndexPrimary'), label: 'Gender parity index (GPI), primary', value: formatGPI(e?.genderParityIndexPrimary), yoy: getYoY(series, 'genderParityIndexPrimary') },
         { icon: getMetricIconPath('genderParityIndexSecondary'), label: 'Gender parity index (GPI), secondary', value: formatGPI(e?.genderParityIndexSecondary), yoy: getYoY(series, 'genderParityIndexSecondary') },
         { icon: getMetricIconPath('genderParityIndexTertiary'), label: 'Gender parity index (GPI), tertiary', value: formatGPI(e?.genderParityIndexTertiary), yoy: getYoY(series, 'genderParityIndexTertiary') },
-        { icon: getMetricIconPath('trainedTeachersPrimaryPct'), label: 'Trained teachers primary (%)', value: e?.trainedTeachersPrimaryPct != null ? `${e.trainedTeachersPrimaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersPrimaryPct') },
-        { icon: getMetricIconPath('trainedTeachersSecondaryPct'), label: 'Trained teachers secondary (%)', value: e?.trainedTeachersSecondaryPct != null ? `${e.trainedTeachersSecondaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersSecondaryPct') },
-        { icon: getMetricIconPath('trainedTeachersTertiaryPct'), label: 'Trained teachers tertiary (%)', value: e?.trainedTeachersTertiaryPct != null ? `${e.trainedTeachersTertiaryPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'trainedTeachersTertiaryPct') },
-        { icon: getMetricIconPath('publicExpenditureEducationPctGDP'), label: 'Public expenditure on education (% GDP)', value: e?.publicExpenditureEducationPctGDP != null ? `${e.publicExpenditureEducationPctGDP.toFixed(2)}%` : '–', yoy: getYoY(series, 'publicExpenditureEducationPctGDP') },
+        { icon: getMetricIconPath('trainedTeachersPrimaryPct'), label: 'Trained teachers primary (%)', value: e?.trainedTeachersPrimaryPct != null ? `${e.trainedTeachersPrimaryPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'trainedTeachersPrimaryPct') },
+        { icon: getMetricIconPath('trainedTeachersSecondaryPct'), label: 'Trained teachers secondary (%)', value: e?.trainedTeachersSecondaryPct != null ? `${e.trainedTeachersSecondaryPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'trainedTeachersSecondaryPct') },
+        { icon: getMetricIconPath('trainedTeachersTertiaryPct'), label: 'Trained teachers tertiary (%)', value: e?.trainedTeachersTertiaryPct != null ? `${e.trainedTeachersTertiaryPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'trainedTeachersTertiaryPct') },
+        { icon: getMetricIconPath('publicExpenditureEducationPctGDP'), label: 'Public expenditure on education (% GDP)', value: e?.publicExpenditureEducationPctGDP != null ? `${e.publicExpenditureEducationPctGDP.toFixed(2)}%` : 'No data', yoy: getYoY(series, 'publicExpenditureEducationPctGDP') },
       ],
     },
     {
       label: 'Enrollment & staff',
       items: [
-        { icon: getMetricIconPath('primaryPupilsTotal'), label: 'Primary enrollment (total)', value: e?.primaryPupilsTotal != null ? formatCompactNumber(e.primaryPupilsTotal) : '–', yoy: getYoY(series, 'primaryPupilsTotal') },
-        { icon: getMetricIconPath('secondaryPupilsTotal'), label: 'Secondary enrollment (total)', value: e?.secondaryPupilsTotal != null ? formatCompactNumber(e.secondaryPupilsTotal) : '–', yoy: getYoY(series, 'secondaryPupilsTotal') },
-        { icon: getMetricIconPath('tertiaryEnrollmentTotal'), label: 'Tertiary enrollment (total)', value: e?.tertiaryEnrollmentTotal != null ? formatCompactNumber(e.tertiaryEnrollmentTotal) : '–', yoy: getYoY(series, 'tertiaryEnrollmentTotal') },
-        { icon: getMetricIconPath('primaryEnrollmentPct'), label: 'Primary enrollment (% gross)', value: e?.primaryEnrollmentPct != null ? `${e.primaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'primaryEnrollmentPct') },
-        { icon: getMetricIconPath('secondaryEnrollmentPct'), label: 'Secondary enrollment (% gross)', value: e?.secondaryEnrollmentPct != null ? `${e.secondaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'secondaryEnrollmentPct') },
-        { icon: getMetricIconPath('tertiaryEnrollmentPct'), label: 'Tertiary enrollment (% gross)', value: e?.tertiaryEnrollmentPct != null ? `${e.tertiaryEnrollmentPct.toFixed(1)}%` : '–', yoy: getYoY(series, 'tertiaryEnrollmentPct') },
-        { icon: getMetricIconPath('primarySchoolsTotal'), label: 'Primary education, teachers (total)', value: e?.primarySchoolsTotal != null ? formatCompactNumber(e.primarySchoolsTotal) : '–', yoy: getYoY(series, 'primarySchoolsTotal') },
-        { icon: getMetricIconPath('secondarySchoolsTotal'), label: 'Secondary education, teachers (total)', value: e?.secondarySchoolsTotal != null ? formatCompactNumber(e.secondarySchoolsTotal) : '–', yoy: getYoY(series, 'secondarySchoolsTotal') },
-        { icon: getMetricIconPath('tertiaryInstitutionsTotal'), label: 'Tertiary education, teachers (total)', value: e?.tertiaryInstitutionsTotal != null ? formatCompactNumber(e.tertiaryInstitutionsTotal) : '–', yoy: getYoY(series, 'tertiaryInstitutionsTotal') },
+        { icon: getMetricIconPath('primaryPupilsTotal'), label: 'Primary enrollment (total)', value: e?.primaryPupilsTotal != null ? formatCompactNumber(e.primaryPupilsTotal) : 'No data', yoy: getYoY(series, 'primaryPupilsTotal') },
+        { icon: getMetricIconPath('secondaryPupilsTotal'), label: 'Secondary enrollment (total)', value: e?.secondaryPupilsTotal != null ? formatCompactNumber(e.secondaryPupilsTotal) : 'No data', yoy: getYoY(series, 'secondaryPupilsTotal') },
+        { icon: getMetricIconPath('tertiaryEnrollmentTotal'), label: 'Tertiary enrollment (total)', value: e?.tertiaryEnrollmentTotal != null ? formatCompactNumber(e.tertiaryEnrollmentTotal) : 'No data', yoy: getYoY(series, 'tertiaryEnrollmentTotal') },
+        { icon: getMetricIconPath('primaryEnrollmentPct'), label: 'Primary enrollment (% gross)', value: e?.primaryEnrollmentPct != null ? `${e.primaryEnrollmentPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'primaryEnrollmentPct') },
+        { icon: getMetricIconPath('secondaryEnrollmentPct'), label: 'Secondary enrollment (% gross)', value: e?.secondaryEnrollmentPct != null ? `${e.secondaryEnrollmentPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'secondaryEnrollmentPct') },
+        { icon: getMetricIconPath('tertiaryEnrollmentPct'), label: 'Tertiary enrollment (% gross)', value: e?.tertiaryEnrollmentPct != null ? `${e.tertiaryEnrollmentPct.toFixed(1)}%` : 'No data', yoy: getYoY(series, 'tertiaryEnrollmentPct') },
+        { icon: getMetricIconPath('primarySchoolsTotal'), label: 'Primary education, teachers (total)', value: e?.primarySchoolsTotal != null ? formatCompactNumber(e.primarySchoolsTotal) : 'No data', yoy: getYoY(series, 'primarySchoolsTotal') },
+        { icon: getMetricIconPath('secondarySchoolsTotal'), label: 'Secondary education, teachers (total)', value: e?.secondarySchoolsTotal != null ? formatCompactNumber(e.secondarySchoolsTotal) : 'No data', yoy: getYoY(series, 'secondarySchoolsTotal') },
+        { icon: getMetricIconPath('tertiaryInstitutionsTotal'), label: 'Tertiary education, teachers (total)', value: e?.tertiaryInstitutionsTotal != null ? formatCompactNumber(e.tertiaryInstitutionsTotal) : 'No data', yoy: getYoY(series, 'tertiaryInstitutionsTotal') },
       ],
     },
   ];

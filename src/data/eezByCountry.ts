@@ -47,4 +47,6 @@ export const EEZ_BY_ISO3: Record<string, number> = {
   ESH: 0, YEM: 552669,   ZMB: 0, ZWE: 0,
   // Additional territories
   XKX: 0, CXR: 325000, CCK: 322000, NFK: 290000,
+  // Explicit landlocked or no-EEZ entries for completeness
+  MKD: 0, // North Macedonia (landlocked)
 };

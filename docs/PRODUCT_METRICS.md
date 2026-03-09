@@ -160,9 +160,9 @@ These are documented in the Source tab under **Country metadata & context** and 
 
 - **Latest non-null**: Dashboard uses latest non-null value up to selected end year
 - **Year fallback**: Global loader steps backwards when a year has no data
-- **Territory fallback**: 30+ territories use parent country for inflation/interest
+- **Territory fallback**: 30+ territories use parent country for inflation/interest, and for some **health & demographics** metrics (life expectancy, under‑5 mortality, maternal mortality, undernourishment) when WDI has no direct series (e.g. Monaco, Channel Islands, San Marino).
 - **IMF fallback**: Gov debt and GDP when World Bank returns empty; **per-country fallback** for government debt (single-country IMF request for any economy still missing after batch, e.g. China) for broad coverage
-- **Missing display**: "–" for null; no NaN or broken charts
+- **Missing display**: "–" for null; no NaN or broken charts. For some micro-territories and landlocked economies where Sea Around Us / Marine Regions do not publish a standalone EEZ polygon, the platform displays **"No EEZ data"** rather than a numeric EEZ area. For **financial** and **health & demographics** metrics where neither World Bank WDI, IMF WEO, WHO/UN estimates, nor territory fallbacks provide a reliable time series (e.g. some small island states), the UI shows **"No data"** instead of a numeric value; the platform does not impute from regional averages.
 
 ---
 
