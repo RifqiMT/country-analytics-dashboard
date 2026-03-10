@@ -87,7 +87,7 @@ export function GraphsSection(props: GraphsSectionProps) {
         <span className="graphs-section-chevron" aria-hidden>
           {sectionExpanded ? '▾' : '▸'}
         </span>
-        <span className="graphs-section-title">Graphs</span>
+        <span className="graphs-section-title">Country trends & timelines</span>
       </button>
       <div id="graphs-section-content" className="graphs-section-content" hidden={!sectionExpanded}>
         <div className="graphs-subsections">

@@ -1,0 +1,241 @@
+
+<!doctype html>
+<html lang="en">
+
+<head>
+    <title>Code coverage report for src/data/eezByCountry.ts</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../../prettify.css" />
+    <link rel="stylesheet" href="../../base.css" />
+    <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style type='text/css'>
+        .coverage-summary .sorter {
+            background-image: url(../../sort-arrow-sprite.png);
+        }
+    </style>
+</head>
+    
+<body>
+<div class='wrapper'>
+    <div class='pad1'>
+        <h1><a href="../../index.html">All files</a> / <a href="index.html">src/data</a> eezByCountry.ts</h1>
+        <div class='clearfix'>
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Statements</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Branches</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Functions</span>
+                <span class='fraction'>0/0</span>
+            </div>
+        
+            
+            <div class='fl pad1y space-right2'>
+                <span class="strong">100% </span>
+                <span class="quiet">Lines</span>
+                <span class='fraction'>1/1</span>
+            </div>
+        
+            
+        </div>
+        <p class="quiet">
+            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+        </p>
+        <template id="filterTemplate">
+            <div class="quiet">
+                Filter:
+                <input type="search" id="fileSearch">
+            </div>
+        </template>
+    </div>
+    <div class='status-line high'></div>
+    <pre><table class="coverage">
+<tr><td class="line-count quiet"><a name='L1'></a><a href='#L1'>1</a>
+<a name='L2'></a><a href='#L2'>2</a>
+<a name='L3'></a><a href='#L3'>3</a>
+<a name='L4'></a><a href='#L4'>4</a>
+<a name='L5'></a><a href='#L5'>5</a>
+<a name='L6'></a><a href='#L6'>6</a>
+<a name='L7'></a><a href='#L7'>7</a>
+<a name='L8'></a><a href='#L8'>8</a>
+<a name='L9'></a><a href='#L9'>9</a>
+<a name='L10'></a><a href='#L10'>10</a>
+<a name='L11'></a><a href='#L11'>11</a>
+<a name='L12'></a><a href='#L12'>12</a>
+<a name='L13'></a><a href='#L13'>13</a>
+<a name='L14'></a><a href='#L14'>14</a>
+<a name='L15'></a><a href='#L15'>15</a>
+<a name='L16'></a><a href='#L16'>16</a>
+<a name='L17'></a><a href='#L17'>17</a>
+<a name='L18'></a><a href='#L18'>18</a>
+<a name='L19'></a><a href='#L19'>19</a>
+<a name='L20'></a><a href='#L20'>20</a>
+<a name='L21'></a><a href='#L21'>21</a>
+<a name='L22'></a><a href='#L22'>22</a>
+<a name='L23'></a><a href='#L23'>23</a>
+<a name='L24'></a><a href='#L24'>24</a>
+<a name='L25'></a><a href='#L25'>25</a>
+<a name='L26'></a><a href='#L26'>26</a>
+<a name='L27'></a><a href='#L27'>27</a>
+<a name='L28'></a><a href='#L28'>28</a>
+<a name='L29'></a><a href='#L29'>29</a>
+<a name='L30'></a><a href='#L30'>30</a>
+<a name='L31'></a><a href='#L31'>31</a>
+<a name='L32'></a><a href='#L32'>32</a>
+<a name='L33'></a><a href='#L33'>33</a>
+<a name='L34'></a><a href='#L34'>34</a>
+<a name='L35'></a><a href='#L35'>35</a>
+<a name='L36'></a><a href='#L36'>36</a>
+<a name='L37'></a><a href='#L37'>37</a>
+<a name='L38'></a><a href='#L38'>38</a>
+<a name='L39'></a><a href='#L39'>39</a>
+<a name='L40'></a><a href='#L40'>40</a>
+<a name='L41'></a><a href='#L41'>41</a>
+<a name='L42'></a><a href='#L42'>42</a>
+<a name='L43'></a><a href='#L43'>43</a>
+<a name='L44'></a><a href='#L44'>44</a>
+<a name='L45'></a><a href='#L45'>45</a>
+<a name='L46'></a><a href='#L46'>46</a>
+<a name='L47'></a><a href='#L47'>47</a>
+<a name='L48'></a><a href='#L48'>48</a>
+<a name='L49'></a><a href='#L49'>49</a>
+<a name='L50'></a><a href='#L50'>50</a>
+<a name='L51'></a><a href='#L51'>51</a>
+<a name='L52'></a><a href='#L52'>52</a>
+<a name='L53'></a><a href='#L53'>53</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">/**
+ * Exclusive Economic Zone (EEZ) area in km² by country ISO3 code.
+ * Source: Marine Regions / Flanders Marine Institute (VLIZ), UN FAO.
+ * Landlocked countries: 0. Missing: null/undefined.
+ */
+export const EEZ_BY_ISO3: Record&lt;string, number&gt; = {
+  AFG: 0, ALB: 13980, DZA: 126353, ASM: 404390, AND: 0, AGO: 518433,
+  ATG: 110089, ARG: 1168394, ARM: 0, ABW: 29441, AUS: 6871622, AUT: 0,
+  AZE: 0, BHS: 654715, BHR: 8222, BGD: 207000, BRB: 186898, BLR: 0,
+  BEL: 3454, BLZ: 32253, BEN: 2700, BMU: 450370, BTN: 0, BOL: 0,
+  BES: 0, BIH: 0, BWA: 0, BRA: 3205149, VGB: 79858, BRN: 10126,
+  BGR: 4200, BFA: 0, BDI: 0, KHM: 55523, CMR: 11500, CAN: 5740544,
+  CPV: 734265, CYM: 119159, CAF: 0, TCD: 0, CHL: 3520138, CHN: 877019,
+  COL: 808158, COM: 163752, COG: 50320, COD: 0, COK: 1836123,
+  CRI: 574725, CIV: 98493, HRV: 59518, CUB: 350751, CUW: 0, CYP: 98592,
+  CZE: 0, DNK: 105989, DJI: 7020, DMA: 28822, DOM: 255898, ECU: 1036931,
+  EGY: 263386, SLV: 96237, GNQ: 303509, ERI: 77600, EST: 36420,
+  SWZ: 0, ETH: 0, FLK: 550829, FRO: 263318, FJI: 1298900, FIN: 87400,
+  FRA: 11691269, GUF: 0, PYF: 4766890, GAB: 235000, GMB: 23112,
+  GEO: 21540, DEU: 57485, GHA: 235349, GIB: 0, GRC: 505572,
+  GRL: 2134800, GRD: 27542, GLP: 0, GUM: 221504, GTM: 149422,
+  GGY: 0, GIN: 54937, GNB: 59326, GUY: 137765, HTI: 126760, HND: 249542,
+  HKG: 1658, HUN: 0, ISL: 758000, IND: 2305143, IDN: 6020917, IRN: 168718,
+  IRQ: 4715, IRL: 410310, IMN: 0, ISR: 26429, ITA: 541915, JAM: 258137,
+  JPN: 4066533, JEY: 0, JOR: 0, KAZ: 0, KEN: 116942, KIR: 3489900,
+  PRK: 214196, KOR: 300851, KWT: 11526, KGZ: 0, LAO: 0, LVA: 28120,
+  LBN: 19630, LSO: 0, LBR: 249734, LBY: 77517, LIE: 0, LTU: 18200,
+  LUX: 0, MAC: 0, MDG: 1225000, MWI: 0, MYS: 334671, MDV: 923322,
+  MLI: 0, MLT: 54259, MHL: 1994781, MTQ: 0, MRT: 234000, MUS: 2251033,
+  MYT: 0, MEX: 3187131, FSM: 2994200, MDA: 0, MCO: 288, MNG: 0,
+  MNE: 13867, MSR: 0, MAR: 575230, MOZ: 578986, MMR: 532775, NAM: 564748,
+  NRU: 308538, NPL: 0, NLD: 77066, NCL: 1368250, NZL: 4104551, NIC: 123881,
+  NER: 0, NGA: 217313, NIU: 390000, MNP: 479493, NOR: 2739878, OMN: 533180,
+  PAK: 290000, PLW: 603978, PSE: 6226, PAN: 335646, PNG: 2403848,
+  PRY: 0, PER: 906454, PHL: 2666543, PCN: 0, POL: 34277, PRT: 1728406,
+  PRI: 177000, QAT: 31900, REU: 0, ROU: 23637, RUS: 7734809, RWA: 0,
+  BLM: 0, SHN: 0, KNA: 10168, LCA: 16584, MAF: 0, SPM: 0, VCT: 36829,
+  WSM: 120000, SMR: 0, STP: 213639, SAU: 2078278, SEN: 158861, SRB: 0,
+  SYC: 1336000, SLE: 167620, SGP: 1106, SXM: 0, SVK: 0, SVN: 220,
+  SLB: 1609000, SOM: 831059, ZAF: 1544167, SGS: 0, SSD: 0, ESP: 1035612,
+  LKA: 532619, SDN: 0, SUR: 80002, SJM: 0, SWE: 154604, CHE: 0,
+  SYR: 67108, TWN: 69471, TJK: 0, TZA: 241888, THA: 299397, TLS: 67000,
+  TGO: 56785, TKL: 319000, TON: 659389, TTO: 74940, TUN: 101152,
+  TUR: 261654, TKM: 0, TCA: 154068, TUV: 749790, UGA: 0, UKR: 147318,
+  ARE: 58218, GBR: 6805586, USA: 11351800, UMI: 0, URY: 142166,
+  UZB: 0, VUT: 663251, VAT: 0, VEN: 471507, VNM: 417663, WLF: 266000,
+  ESH: 0, YEM: 552669,   ZMB: 0, ZWE: 0,
+  // Additional territories
+  XKX: 0, CXR: 325000, CCK: 322000, NFK: 290000,
+  // Explicit landlocked or no-EEZ entries for completeness
+  MKD: 0, // North Macedonia (landlocked)
+};
+&nbsp;</pre></td></tr></table></pre>
+
+                <div class='push'></div><!-- for sticky footer -->
+            </div><!-- /wrapper -->
+            <div class='footer quiet pad2 space-top1 center small'>
+                Code coverage generated by
+                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
+                at 2026-03-10T10:20:15.631Z
+            </div>
+        <script src="../../prettify.js"></script>
+        <script>
+            window.onload = function () {
+                prettyPrint();
+            };
+        </script>
+        <script src="../../sorter.js"></script>
+        <script src="../../block-navigation.js"></script>
+    </body>
+</html>
+    

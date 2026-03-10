@@ -7,7 +7,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import type {
   CountryDashboardData,
   Frequency,
@@ -18,6 +18,8 @@ import { formatCompactNumber } from '../utils/numberFormat';
 import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
+import html2canvas from 'html2canvas';
+import { sanitizeFilenameSegment } from '../utils/filename';
 
 /** Education – Out-of-school & completion: same 6 metrics as in Summary category. */
 const OUT_OF_SCHOOL_COMPLETION_METRIC_IDS: MetricId[] = [
@@ -36,6 +38,15 @@ const METRIC_COLORS: Record<string, string> = {
   primaryCompletionRate: '#16a34a',
   secondaryCompletionRate: '#15803d',
   tertiaryCompletionRate: '#166534',
+};
+
+const EDUCATION_OOS_LEGEND_LABELS: Record<string, string> = {
+  outOfSchoolPrimaryPct: 'Out of school – primary',
+  outOfSchoolSecondaryPct: 'Out of school – secondary',
+  outOfSchoolTertiaryPct: 'Out of school – tertiary',
+  primaryCompletionRate: 'Completion – primary',
+  secondaryCompletionRate: 'Completion – secondary',
+  tertiaryCompletionRate: 'Completion – tertiary',
 };
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
@@ -67,6 +78,59 @@ export function EducationOutOfSchoolCompletionTimelineSection({
   );
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
+
+  const handleDownloadChartPng = async () => {
+    if (!chartRef.current) return;
+    try {
+      const canvas = await html2canvas(chartRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      const countryLabel = sanitizeFilenameSegment(data?.summary?.name ?? 'Country');
+      const latestYear =
+        data?.latestSnapshot?.year ?? data?.range?.endYear ?? DATA_MAX_YEAR;
+      const sectionSegment = sanitizeFilenameSegment(sectionTitle);
+      link.download = `${countryLabel}-${sectionSegment}-${latestYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Education OOS chart export failed:', err);
+    }
+  };
+
+  const handleDownloadTableCsv = () => {
+    const rows: string[] = [];
+    const header = ['Period', ...OUT_OF_SCHOOL_COMPLETION_METRIC_IDS.map((id) => labelByMetricId[id] ?? id)];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    merged.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(formatAxisLabel(row[xKey] as string | number)).replace(/"/g, '""')}"`,
+      );
+      OUT_OF_SCHOOL_COMPLETION_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const countryLabel = sanitizeFilenameSegment(data?.summary?.name ?? 'Country');
+    const latestYear =
+      data?.latestSnapshot?.year ?? data?.range?.endYear ?? DATA_MAX_YEAR;
+    link.href = url;
+    const sectionSegment = sanitizeFilenameSegment(sectionTitle);
+    const modeSegment = viewMode === 'table' ? 'table' : 'data';
+    link.setAttribute('download', `${countryLabel}-${sectionSegment}-${latestYear}-${modeSegment}.csv`);
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  const chartRef = useRef<HTMLDivElement | null>(null);
 
   if (!data || !finalSeries) {
     return (
@@ -415,34 +479,69 @@ export function EducationOutOfSchoolCompletionTimelineSection({
               </button>
             </div>
           </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">Export</div>
+            <div className="pill-group pill-group-secondary">
+              {viewMode === 'chart' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={handleDownloadChartPng}
+                  title="Download chart view as high-resolution PNG"
+                  aria-label="Download chart view as high-resolution PNG"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+              {viewMode === 'table' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={handleDownloadTableCsv}
+                  title="Export table data as CSV"
+                  aria-label="Export table data as CSV"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-      <div className="metric-toggle-row-header">
-        <div className="metric-toggle-title">Metrics displayed</div>
-        <div className="metric-toggle-hint">Tap to show or hide indicators</div>
-      </div>
-      <div className="metric-toggle-row">
-        {OUT_OF_SCHOOL_COMPLETION_METRIC_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            className={`tag ${selectedMetricIds.includes(id) ? 'tag-active' : ''}`}
-            onClick={() => {
-              if (selectedMetricIds.includes(id)) {
-                setSelectedMetricIds(selectedMetricIds.filter((m) => m !== id));
-              } else {
-                setSelectedMetricIds([...selectedMetricIds, id]);
-              }
-            }}
-          >
-            <span
-              className="tag-swatch"
-              style={{ backgroundColor: METRIC_COLORS[id] }}
-            />
-            {labelByMetricId[id] ?? id}
-          </button>
-        ))}
-      </div>
+      <div ref={chartRef}>
+        <div className="metric-toggle-row-header">
+          <div className="metric-toggle-title">Metrics displayed</div>
+          <div className="metric-toggle-hint">Tap to show or hide indicators</div>
+        </div>
+        <div className="metric-toggle-row">
+          {OUT_OF_SCHOOL_COMPLETION_METRIC_IDS.map((id) => (
+            <button
+              key={id}
+              type="button"
+              className={`tag ${selectedMetricIds.includes(id) ? 'tag-active' : ''}`}
+              onClick={() => {
+                if (selectedMetricIds.includes(id)) {
+                  setSelectedMetricIds(selectedMetricIds.filter((m) => m !== id));
+                } else {
+                  setSelectedMetricIds([...selectedMetricIds, id]);
+                }
+              }}
+            >
+              <span className="tag-swatch" style={{ backgroundColor: METRIC_COLORS[id] }} />
+              {EDUCATION_OOS_LEGEND_LABELS[id] ?? labelByMetricId[id] ?? id}
+            </button>
+          ))}
+        </div>
 
       {viewMode === 'chart' ? (
         <div className="chart-wrapper">
@@ -578,6 +677,7 @@ export function EducationOutOfSchoolCompletionTimelineSection({
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

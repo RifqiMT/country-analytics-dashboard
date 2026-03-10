@@ -8,6 +8,8 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useEffect, useState } from 'react';
+import html2canvas from 'html2canvas';
+import { sanitizeFilenameSegment } from '../utils/filename';
 import type { Frequency, MetricId, MetricSeries, TimePoint, GlobalCountryMetricsRow } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
 import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
@@ -107,6 +109,15 @@ const GLOBAL_UNIFIED_LABELS: Record<string, string> = {
   populationTotal: 'Total population',
 };
 
+const GLOBAL_UNIFIED_LEGEND_LABELS: Record<string, string> = {
+  gdpNominal: 'GDP – nominal',
+  gdpPPP: 'GDP – PPP',
+  gdpNominalPerCapita: 'GDP per capita – nominal',
+  gdpPPPPerCapita: 'GDP per capita – PPP',
+  govDebtUSD: 'Government debt',
+  populationTotal: 'Population',
+};
+
 const HEALTH_METRIC_IDS: MetricId[] = [
   'maternalMortalityRatio',
   'under5MortalityRate',
@@ -128,6 +139,13 @@ const GLOBAL_HEALTH_LABELS: Record<string, string> = {
   lifeExpectancy: 'Life expectancy at birth (years)',
 };
 
+const GLOBAL_HEALTH_LEGEND_LABELS: Record<string, string> = {
+  maternalMortalityRatio: 'Maternal mortality',
+  under5MortalityRate: 'Under-5 mortality',
+  undernourishmentPrevalence: 'Undernourishment',
+  lifeExpectancy: 'Life expectancy',
+};
+
 const POP_STRUCTURE_METRIC_IDS: MetricId[] = [
   'pop0_14Share',
   'pop15_64Share',
@@ -144,6 +162,12 @@ const GLOBAL_POP_STRUCTURE_LABELS: Record<string, string> = {
   pop0_14Share: 'Population 0–14 (% of total)',
   pop15_64Share: 'Population 15–64 (% of total)',
   pop65PlusShare: 'Population 65+ (% of total)',
+};
+
+const GLOBAL_POP_STRUCTURE_LEGEND_LABELS: Record<string, string> = {
+  pop0_14Share: 'Age 0–14',
+  pop15_64Share: 'Age 15–64',
+  pop65PlusShare: 'Age 65+',
 };
 
 const EDUCATION_OOS_METRIC_IDS: MetricId[] = [
@@ -173,6 +197,15 @@ const GLOBAL_EDUCATION_OOS_LABELS: Record<string, string> = {
   tertiaryCompletionRate: 'Tertiary completion rate (%)',
 };
 
+const GLOBAL_EDUCATION_OOS_LEGEND_LABELS: Record<string, string> = {
+  outOfSchoolPrimaryPct: 'Out of school – primary',
+  outOfSchoolSecondaryPct: 'Out of school – secondary',
+  outOfSchoolTertiaryPct: 'Out of school – tertiary',
+  primaryCompletionRate: 'Completion – primary',
+  secondaryCompletionRate: 'Completion – secondary',
+  tertiaryCompletionRate: 'Completion – tertiary',
+};
+
 const EDUCATION_ENROLLMENT_METRIC_IDS: MetricId[] = [
   'primaryPupilsTotal',
   'secondaryPupilsTotal',
@@ -197,6 +230,18 @@ const EDUCATION_ENROLLMENT_COLORS: Record<string, string> = {
   tertiaryInstitutionsTotal: '#7c3aed',
 };
 
+const GLOBAL_EDUCATION_ENROLLMENT_LEGEND_LABELS: Record<string, string> = {
+  primaryPupilsTotal: 'Primary enrollment',
+  secondaryPupilsTotal: 'Secondary enrollment',
+  tertiaryEnrollmentTotal: 'Tertiary enrollment',
+  primaryEnrollmentPct: 'Enrollment rate – primary',
+  secondaryEnrollmentPct: 'Enrollment rate – secondary',
+  tertiaryEnrollmentPct: 'Enrollment rate – tertiary',
+  primarySchoolsTotal: 'Primary schools',
+  secondarySchoolsTotal: 'Secondary schools',
+  tertiaryInstitutionsTotal: 'Tertiary institutions',
+};
+
 const GLOBAL_EDUCATION_ENROLLMENT_LABELS: Record<string, string> = {
   primaryPupilsTotal: 'Primary pupils (total)',
   secondaryPupilsTotal: 'Secondary pupils (total)',
@@ -219,6 +264,11 @@ const LABOUR_COLORS: Record<string, string> = {
 const GLOBAL_LABOUR_LABELS: Record<string, string> = {
   unemployedTotal: 'Unemployed (number)',
   labourForceTotal: 'Labour force (total)',
+};
+
+const GLOBAL_LABOUR_LEGEND_LABELS: Record<string, string> = {
+  unemployedTotal: 'Unemployed',
+  labourForceTotal: 'Labour force',
 };
 
 interface Props {
@@ -596,6 +646,349 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
     monthly: 'MoM',
     quarterly: 'QoQ',
     yearly: 'YoY',
+  };
+
+  const scopeLabel = sanitizeFilenameSegment(region ?? 'Global');
+
+  const downloadUnifiedChartPng = async () => {
+    const el = document.getElementById('global-unified-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-unified-gdp-debt-population-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global unified chart export failed:', err);
+    }
+  };
+
+  const downloadUnifiedCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyUnified === 'yearly' ? 'Year' : 'Period',
+      ...UNIFIED_TIMELINE_METRIC_IDS.map((id) => labelByMetricIdUnified[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    mergedUnified.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(formatAxisLabelUnified(row[xKeyUnified] as string | number)).replace(
+          /"/g,
+          '""',
+        )}"`,
+      );
+      UNIFIED_TIMELINE_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-unified-gdp-debt-population-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadEconomicChartPng = async () => {
+    const el = document.getElementById('global-economic-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-macro-economic-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global economic chart export failed:', err);
+    }
+  };
+
+  const downloadEconomicCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequency === 'yearly' ? 'Year' : 'Period',
+      ...ECONOMIC_METRIC_IDS.map((id) => labelByMetricId[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    merged.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(formatAxisLabel(row[xKey] as string | number)).replace(/"/g, '""')}"`,
+      );
+      ECONOMIC_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-macro-economic-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadHealthChartPng = async () => {
+    const el = document.getElementById('global-health-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-health-mortality-nutrition-life-expectancy-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global health chart export failed:', err);
+    }
+  };
+
+  const downloadHealthCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyHealth === 'yearly' ? 'Year' : 'Period',
+      ...HEALTH_METRIC_IDS.map((id) => GLOBAL_HEALTH_LABELS[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    mergedHealth.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(formatAxisLabelHealth(row[xKeyHealth] as string | number)).replace(
+          /"/g,
+          '""',
+        )}"`,
+      );
+      HEALTH_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-health-mortality-nutrition-life-expectancy-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadPopChartPng = async () => {
+    const el = document.getElementById('global-population-structure-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-population-age-structure-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global population structure chart export failed:', err);
+    }
+  };
+
+  const downloadPopCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyPop === 'yearly' ? 'Year' : 'Period',
+      ...POP_STRUCTURE_METRIC_IDS.map((id) => GLOBAL_POP_STRUCTURE_LABELS[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    mergedPop.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(formatAxisLabelPop(row[xKeyPop] as string | number)).replace(/"/g, '""')}"`,
+      );
+      POP_STRUCTURE_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-population-age-structure-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadEduEnrollChartPng = async () => {
+    const el = document.getElementById('global-education-enrollment-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-education-enrollment-teaching-workforce-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global education enrollment chart export failed:', err);
+    }
+  };
+
+  const downloadEduEnrollCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyEduEnroll === 'yearly' ? 'Year' : 'Period',
+      ...EDUCATION_ENROLLMENT_METRIC_IDS.map((id) => eduEnrollData.labelByMetricId[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    eduEnrollData.merged.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(
+          eduEnrollData.formatAxisLabel(row[eduEnrollData.xKey] as string | number),
+        ).replace(/"/g, '""')}"`,
+      );
+      EDUCATION_ENROLLMENT_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-education-enrollment-teaching-workforce-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadEduOOSChartPng = async () => {
+    const el = document.getElementById('global-education-oos-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-education-access-completion-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global education OOS/completion chart export failed:', err);
+    }
+  };
+
+  const downloadEduOOSCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyEduOOS === 'yearly' ? 'Year' : 'Period',
+      ...EDUCATION_OOS_METRIC_IDS.map((id) => eduOOSData.labelByMetricId[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    eduOOSData.merged.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(
+          eduOOSData.formatAxisLabel(row[eduOOSData.xKey] as string | number),
+        ).replace(/"/g, '""')}"`,
+      );
+      EDUCATION_OOS_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-education-access-completion-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const downloadLabourChartPng = async () => {
+    const el = document.getElementById('global-labour-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-labour-force-unemployment-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global labour chart export failed:', err);
+    }
+  };
+
+  const downloadLabourCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyLabour === 'yearly' ? 'Year' : 'Period',
+      ...LABOUR_METRIC_IDS.map((id) => labourData.labelByMetricId[id] ?? id),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    labourData.merged.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(
+          labourData.formatAxisLabel(row[labourData.xKey] as string | number),
+        ).replace(/"/g, '""')}"`,
+      );
+      LABOUR_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-labour-force-unemployment-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const allHealthSeries = globalHealthSeries;
@@ -1206,6 +1599,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               </button>
             </div>
           </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">Export</div>
+            <div className="pill-group pill-group-secondary">
+              {viewModeUnified === 'chart' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadUnifiedChartPng}
+                  title="Download chart view as high-resolution PNG"
+                  aria-label="Download chart view as high-resolution PNG"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+              {viewModeUnified === 'table' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadUnifiedCsv}
+                  title="Export table data as CSV"
+                  aria-label="Export table data as CSV"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="metric-toggle-row-header">
@@ -1230,11 +1660,12 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               className="tag-swatch"
               style={{ backgroundColor: UNIFIED_TIMELINE_COLORS[id] }}
             />
-            {labelByMetricIdUnified[id] ?? id}
+            {GLOBAL_UNIFIED_LEGEND_LABELS[id] ?? labelByMetricIdUnified[id] ?? id}
           </button>
         ))}
       </div>
 
+      <div id="global-unified-chart-wrapper">
       {viewModeUnified === 'chart' ? (
         <div className="chart-wrapper">
           <ResponsiveContainer width="100%" height={320}>
@@ -1379,6 +1810,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
           </div>
         </div>
       )}
+      </div>
 
                     </div>
                   )}
@@ -1496,6 +1928,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               </button>
             </div>
           </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">Export</div>
+            <div className="pill-group pill-group-secondary">
+              {viewMode === 'chart' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadEconomicChartPng}
+                  title="Download chart view as high-resolution PNG"
+                  aria-label="Download chart view as high-resolution PNG"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+              {viewMode === 'table' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadEconomicCsv}
+                  title="Export table data as CSV"
+                  aria-label="Export table data as CSV"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="metric-toggle-row-header">
@@ -1520,11 +1989,22 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               className="tag-swatch"
               style={{ backgroundColor: METRIC_COLORS[id] }}
             />
-            {labelByMetricId[id] ?? id}
+            {GLOBAL_ECONOMIC_LABELS[id] === undefined
+              ? labelByMetricId[id] ?? id
+              : // simplified legend text
+                ({
+                  inflationCPI: 'Inflation',
+                  govDebtPercentGDP: 'Gov. debt / GDP',
+                  interestRate: 'Lending rate',
+                  unemploymentRate: 'Unemployment rate',
+                  povertyHeadcount215: 'Poverty at $2.15',
+                  povertyHeadcountNational: 'Poverty (national line)',
+                } as Record<string, string>)[id] ?? GLOBAL_ECONOMIC_LABELS[id]}
           </button>
         ))}
       </div>
 
+      <div id="global-economic-chart-wrapper">
       {viewMode === 'chart' ? (
         <div className="chart-wrapper">
           <ResponsiveContainer width="100%" height={320}>
@@ -1650,6 +2130,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
           </div>
         </div>
       )}
+      </div>
 
                     </div>
                   )}
@@ -1763,6 +2244,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               </button>
             </div>
           </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">Export</div>
+            <div className="pill-group pill-group-secondary">
+              {viewModeHealth === 'chart' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadHealthChartPng}
+                  title="Download chart view as high-resolution PNG"
+                  aria-label="Download chart view as high-resolution PNG"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+              {viewModeHealth === 'table' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadHealthCsv}
+                  title="Export table data as CSV"
+                  aria-label="Export table data as CSV"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="metric-toggle-row-header">
@@ -1787,11 +2305,12 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               className="tag-swatch"
               style={{ backgroundColor: HEALTH_COLORS[id] }}
             />
-            {GLOBAL_HEALTH_LABELS[id] ?? id}
+            {GLOBAL_HEALTH_LEGEND_LABELS[id] ?? GLOBAL_HEALTH_LABELS[id] ?? id}
           </button>
         ))}
       </div>
 
+      <div id="global-health-chart-wrapper">
       {viewModeHealth === 'chart' ? (
         <div className="chart-wrapper">
           <ResponsiveContainer width="100%" height={320}>
@@ -1948,6 +2467,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
           </div>
         </div>
       )}
+      </div>
 
                     </div>
                   )}
@@ -2061,6 +2581,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               </button>
             </div>
           </div>
+          <div className="section-header-control-group">
+            <div className="section-control-label">Export</div>
+            <div className="pill-group pill-group-secondary">
+              {viewModePop === 'chart' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadPopChartPng}
+                  title="Download chart view as high-resolution PNG"
+                  aria-label="Download chart view as high-resolution PNG"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+              {viewModePop === 'table' && (
+                <button
+                  type="button"
+                  className="pestel-chart-download-btn summary-download-icon-btn"
+                  onClick={downloadPopCsv}
+                  title="Export table data as CSV"
+                  aria-label="Export table data as CSV"
+                >
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
       <div className="metric-toggle-row-header">
@@ -2085,11 +2642,12 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
               className="tag-swatch"
               style={{ backgroundColor: POP_STRUCTURE_COLORS[id] }}
             />
-            {GLOBAL_POP_STRUCTURE_LABELS[id] ?? id}
+            {GLOBAL_POP_STRUCTURE_LEGEND_LABELS[id] ?? GLOBAL_POP_STRUCTURE_LABELS[id] ?? id}
           </button>
         ))}
       </div>
 
+      <div id="global-population-structure-chart-wrapper">
       {viewModePop === 'chart' ? (
         <div className="chart-wrapper">
           <ResponsiveContainer width="100%" height={320}>
@@ -2234,6 +2792,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
           </div>
         </div>
       )}
+      </div>
 
                     </div>
                   )}
@@ -2277,6 +2836,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                               <button type="button" className={`pill ${viewModeEduOOS === 'table' ? 'pill-active' : ''}`} onClick={() => setViewModeEduOOS('table')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" /></svg></span><span>Table view</span></button>
                             </div>
                           </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Export</div>
+                            <div className="pill-group pill-group-secondary">
+                              {viewModeEduOOS === 'chart' && (
+                                <button
+                                  type="button"
+                                  className="pestel-chart-download-btn summary-download-icon-btn"
+                                  onClick={downloadEduOOSChartPng}
+                                  title="Download chart view as high-resolution PNG"
+                                  aria-label="Download chart view as high-resolution PNG"
+                                >
+                                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                              {viewModeEduOOS === 'table' && (
+                                <button
+                                  type="button"
+                                  className="pestel-chart-download-btn summary-download-icon-btn"
+                                  onClick={downloadEduOOSCsv}
+                                  title="Export table data as CSV"
+                                  aria-label="Export table data as CSV"
+                                >
+                                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="metric-toggle-row-header"><div className="metric-toggle-title">Metrics displayed</div><div className="metric-toggle-hint">Tap to show or hide indicators</div></div>
@@ -2284,10 +2880,11 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                         {EDUCATION_OOS_METRIC_IDS.map((mid) => (
                           <button key={mid} type="button" className={`tag ${selectedEduOOSMetricIds.includes(mid) ? 'tag-active' : ''}`} onClick={() => setSelectedEduOOSMetricIds(selectedEduOOSMetricIds.includes(mid) ? selectedEduOOSMetricIds.filter((m) => m !== mid) : [...selectedEduOOSMetricIds, mid])}>
                             <span className="tag-swatch" style={{ backgroundColor: EDUCATION_OOS_COLORS[mid] }} />
-                            {eduOOSData.labelByMetricId[mid] ?? mid}
+                            {GLOBAL_EDUCATION_OOS_LEGEND_LABELS[mid] ?? eduOOSData.labelByMetricId[mid] ?? mid}
                           </button>
                         ))}
                       </div>
+                      <div id="global-education-oos-chart-wrapper">
                       {viewModeEduOOS === 'chart' ? (
                         <div className="chart-wrapper">
                           <ResponsiveContainer width="100%" height={320}>
@@ -2348,6 +2945,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                           </div>
                         </div>
                       )}
+                      </div>
                     </div>
                   )}
                   {isExpanded && id === 'educationEnrollment' && (
@@ -2390,6 +2988,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                               <button type="button" className={`pill ${viewModeEduEnroll === 'table' ? 'pill-active' : ''}`} onClick={() => setViewModeEduEnroll('table')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" /></svg></span><span>Table view</span></button>
                             </div>
                           </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Export</div>
+                            <div className="pill-group pill-group-secondary">
+                              {viewModeEduEnroll === 'chart' && (
+                                <button
+                                  type="button"
+                                  className="pestel-chart-download-btn summary-download-icon-btn"
+                                  onClick={downloadEduEnrollChartPng}
+                                  title="Download chart view as high-resolution PNG"
+                                  aria-label="Download chart view as high-resolution PNG"
+                                >
+                                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                              {viewModeEduEnroll === 'table' && (
+                                <button
+                                  type="button"
+                                  className="pestel-chart-download-btn summary-download-icon-btn"
+                                  onClick={downloadEduEnrollCsv}
+                                  title="Export table data as CSV"
+                                  aria-label="Export table data as CSV"
+                                >
+                                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="metric-toggle-row-header"><div className="metric-toggle-title">Metrics displayed</div><div className="metric-toggle-hint">Tap to show or hide indicators</div></div>
@@ -2397,10 +3032,11 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                         {EDUCATION_ENROLLMENT_METRIC_IDS.map((mid) => (
                           <button key={mid} type="button" className={`tag ${selectedEduEnrollMetricIds.includes(mid) ? 'tag-active' : ''}`} onClick={() => setSelectedEduEnrollMetricIds(selectedEduEnrollMetricIds.includes(mid) ? selectedEduEnrollMetricIds.filter((m) => m !== mid) : [...selectedEduEnrollMetricIds, mid])}>
                             <span className="tag-swatch" style={{ backgroundColor: EDUCATION_ENROLLMENT_COLORS[mid] }} />
-                            {eduEnrollData.labelByMetricId[mid] ?? mid}
+                            {GLOBAL_EDUCATION_ENROLLMENT_LEGEND_LABELS[mid] ?? eduEnrollData.labelByMetricId[mid] ?? mid}
                           </button>
                         ))}
                       </div>
+                      <div id="global-education-enrollment-chart-wrapper">
                       {viewModeEduEnroll === 'chart' ? (
                         <div className="chart-wrapper">
                           <ResponsiveContainer width="100%" height={320}>
@@ -2463,6 +3099,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                           </div>
                         </div>
                       )}
+                      </div>
                     </div>
                   )}
                   {isExpanded && id === 'labour' && (
@@ -2505,6 +3142,43 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                               <button type="button" className={`pill ${viewModeLabour === 'table' ? 'pill-active' : ''}`} onClick={() => setViewModeLabour('table')}><span className="icon-12"><svg viewBox="0 0 16 16"><path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" /></svg></span><span>Table view</span></button>
                             </div>
                           </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Export</div>
+                            <div className="pill-group pill-group-secondary">
+                              {viewModeLabour === 'chart' && (
+                                <button
+                                  type="button"
+                                  className="pestel-chart-download-btn summary-download-icon-btn"
+                                  onClick={downloadLabourChartPng}
+                                  title="Download chart view as high-resolution PNG"
+                                  aria-label="Download chart view as high-resolution PNG"
+                                >
+                                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                              {viewModeLabour === 'table' && (
+                                <button
+                                  type="button"
+                                  className="pestel-chart-download-btn summary-download-icon-btn"
+                                  onClick={downloadLabourCsv}
+                                  title="Export table data as CSV"
+                                  aria-label="Export table data as CSV"
+                                >
+                                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                                    <path
+                                      fill="currentColor"
+                                      d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                       <div className="metric-toggle-row-header"><div className="metric-toggle-title">Metrics displayed</div><div className="metric-toggle-hint">Tap to show or hide indicators</div></div>
@@ -2512,10 +3186,11 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                         {LABOUR_METRIC_IDS.map((mid) => (
                           <button key={mid} type="button" className={`tag ${selectedLabourMetricIds.includes(mid) ? 'tag-active' : ''}`} onClick={() => setSelectedLabourMetricIds(selectedLabourMetricIds.includes(mid) ? selectedLabourMetricIds.filter((m) => m !== mid) : [...selectedLabourMetricIds, mid])}>
                             <span className="tag-swatch" style={{ backgroundColor: LABOUR_COLORS[mid] }} />
-                            {labourData.labelByMetricId[mid] ?? mid}
+                            {GLOBAL_LABOUR_LEGEND_LABELS[mid] ?? labourData.labelByMetricId[mid] ?? mid}
                           </button>
                         ))}
                       </div>
+                      <div id="global-labour-chart-wrapper">
                       {viewModeLabour === 'chart' ? (
                         <div className="chart-wrapper">
                           <ResponsiveContainer width="100%" height={320}>
@@ -2576,6 +3251,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                           </div>
                         </div>
                       )}
+                      </div>
                     </div>
                   )}
                 </div>

@@ -1,9 +1,11 @@
 import type { CountryDashboardData, CountrySummary, MetricSeries } from '../types';
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { formatCompactNumber, formatPercentage, formatYearRange } from '../utils/numberFormat';
+import { sanitizeFilenameSegment } from '../utils/filename';
 import { formatGrowthChange } from '../utils/growthFormat';
 import { DATA_MIN_YEAR, DATA_MAX_YEAR } from '../config';
 import { getMetricIconPath } from '../icons/metricIcons';
+import html2canvas from 'html2canvas';
 
 const SvgIcon = ({ d, className }: { d: string; className?: string }) => (
   <svg viewBox="0 0 16 16" aria-hidden className={className}>
@@ -23,16 +25,29 @@ const ChevronDown = () => (
   </svg>
 );
 
+const DownloadIcon = () => (
+  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+    <path
+      fill="currentColor"
+      d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+    />
+  </svg>
+);
+
 function GeneralCard({
   summary,
   geo,
   expanded,
   onToggle,
+  cardRef,
+  onExport,
 }: {
   summary: CountrySummary;
   geo?: { landAreaKm2?: number | null; totalAreaKm2?: number | null; eezKm2?: number | null };
   expanded: boolean;
   onToggle: () => void;
+  cardRef: React.RefObject<HTMLDivElement>;
+  onExport: () => void;
 }) {
   const groups: { label: string; items: { icon: string; label: string; value: React.ReactNode; badge?: boolean }[] }[] = [
     {
@@ -94,18 +109,32 @@ function GeneralCard({
   ];
 
   return (
-    <div className="summary-card general-card">
-      <button
-        type="button"
-        className="summary-card-toggle"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-controls="general-card-content"
-        id="general-card-toggle"
-      >
-        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
-        <h3 className="general-card-title" id="general-card-label">General</h3>
-      </button>
+    <div className="summary-card general-card" ref={cardRef}>
+      <div className="summary-card-header">
+        <button
+          type="button"
+          className="summary-card-toggle"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls="general-card-content"
+          id="general-card-toggle"
+        >
+          <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+          <h3 className="general-card-title" id="general-card-label">General</h3>
+        </button>
+        <button
+          type="button"
+          className="pestel-chart-download-btn summary-download-icon-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            onExport();
+          }}
+          aria-label="Download General summary as high-resolution image"
+          title="Download General summary as high-resolution PNG"
+        >
+          <DownloadIcon />
+        </button>
+      </div>
       <div id="general-card-content" aria-labelledby="general-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
         <div className="general-groups">
         {groups.map((group) => (
@@ -166,12 +195,16 @@ function FinancialCard({
   series,
   expanded,
   onToggle,
+  cardRef,
+  onExport,
 }: {
   g: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['financial'] | undefined;
   getYoY: (s: MetricSeries[] | undefined, id: string) => string | null;
   series: MetricSeries[] | undefined;
   expanded: boolean;
   onToggle: () => void;
+  cardRef: React.RefObject<HTMLDivElement>;
+  onExport: () => void;
 }) {
   const groups: {
     label: string;
@@ -276,18 +309,32 @@ function FinancialCard({
   ];
 
   return (
-    <div className="summary-card financial-card">
-      <button
-        type="button"
-        className="summary-card-toggle"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-controls="financial-card-content"
-        id="financial-card-toggle"
-      >
-        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
-        <h3 className="financial-card-title" id="financial-card-label">Financial metrics</h3>
-      </button>
+    <div className="summary-card financial-card" ref={cardRef}>
+      <div className="summary-card-header">
+        <button
+          type="button"
+          className="summary-card-toggle"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls="financial-card-content"
+          id="financial-card-toggle"
+        >
+          <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+          <h3 className="financial-card-title" id="financial-card-label">Financial metrics</h3>
+        </button>
+        <button
+          type="button"
+          className="pestel-chart-download-btn summary-download-icon-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            onExport();
+          }}
+          aria-label="Download Financial metrics summary as high-resolution image"
+          title="Download Financial metrics summary as high-resolution PNG"
+        >
+          <DownloadIcon />
+        </button>
+      </div>
       <div id="financial-card-content" aria-labelledby="financial-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
         <div className="financial-groups">
         {groups.map((group) => (
@@ -331,6 +378,8 @@ function HealthCard({
   series,
   expanded,
   onToggle,
+  cardRef,
+  onExport,
 }: {
   p: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['population'] | undefined;
   h: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['health'] | undefined;
@@ -338,6 +387,8 @@ function HealthCard({
   series: { population: MetricSeries[]; health: MetricSeries[] };
   expanded: boolean;
   onToggle: () => void;
+  cardRef: React.RefObject<HTMLDivElement>;
+  onExport: () => void;
 }) {
   const ageGroups = p?.ageBreakdown?.groups ?? [];
   const totalPopulation = p?.total ?? null;
@@ -406,18 +457,32 @@ function HealthCard({
   ];
 
   return (
-    <div className="summary-card health-card">
-      <button
-        type="button"
-        className="summary-card-toggle"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-controls="health-card-content"
-        id="health-card-toggle"
-      >
-        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
-        <h3 className="health-card-title" id="health-card-label">Health & demographics</h3>
-      </button>
+    <div className="summary-card health-card" ref={cardRef}>
+      <div className="summary-card-header">
+        <button
+          type="button"
+          className="summary-card-toggle"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls="health-card-content"
+          id="health-card-toggle"
+        >
+          <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+          <h3 className="health-card-title" id="health-card-label">Health & demographics</h3>
+        </button>
+        <button
+          type="button"
+          className="pestel-chart-download-btn summary-download-icon-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            onExport();
+          }}
+          aria-label="Download Health & demographics summary as high-resolution image"
+          title="Download Health & demographics summary as high-resolution PNG"
+        >
+          <DownloadIcon />
+        </button>
+      </div>
       <div id="health-card-content" aria-labelledby="health-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
         <div className="health-groups">
         {groups.map((group) => (
@@ -460,12 +525,16 @@ function EducationCard({
   series,
   expanded,
   onToggle,
+  cardRef,
+  onExport,
 }: {
   e: NonNullable<CountryDashboardData['latestSnapshot']>['metrics']['education'] | undefined;
   getYoY: (s: MetricSeries[] | undefined, id: string) => string | null;
   series: MetricSeries[] | undefined;
   expanded: boolean;
   onToggle: () => void;
+  cardRef: React.RefObject<HTMLDivElement>;
+  onExport: () => void;
 }) {
   const formatGPI = (v: number | null | undefined) =>
     v != null && Number.isFinite(v) ? (v >= 10 ? (v / 100).toFixed(2) : v.toFixed(2)) : 'No data';
@@ -526,18 +595,32 @@ function EducationCard({
   ];
 
   return (
-    <div className="summary-card education-card">
-      <button
-        type="button"
-        className="summary-card-toggle"
-        onClick={onToggle}
-        aria-expanded={expanded}
-        aria-controls="education-card-content"
-        id="education-card-toggle"
-      >
-        <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
-        <h3 className="education-card-title" id="education-card-label">Education</h3>
-      </button>
+    <div className="summary-card education-card" ref={cardRef}>
+      <div className="summary-card-header">
+        <button
+          type="button"
+          className="summary-card-toggle"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls="education-card-content"
+          id="education-card-toggle"
+        >
+          <span className="summary-card-chevron">{expanded ? <ChevronDown /> : <ChevronRight />}</span>
+          <h3 className="education-card-title" id="education-card-label">Education</h3>
+        </button>
+        <button
+          type="button"
+          className="pestel-chart-download-btn summary-download-icon-btn"
+          onClick={(event) => {
+            event.stopPropagation();
+            onExport();
+          }}
+          aria-label="Download Education summary as high-resolution image"
+          title="Download Education summary as high-resolution PNG"
+        >
+          <DownloadIcon />
+        </button>
+      </div>
       <div id="education-card-content" aria-labelledby="education-card-toggle" role="region" hidden={!expanded} className="summary-card-content">
         <div className="education-groups">
         {groups.map((group) => (
@@ -608,7 +691,7 @@ export function SummarySection({ data, countryCode }: Props) {
   const e = latestSnapshot?.metrics?.education;
   const geo = latestSnapshot?.metrics?.geography;
 
-  const latestYear = latestSnapshot?.year;
+  const latestYear = latestSnapshot?.year ?? range?.endYear ?? DATA_MAX_YEAR;
 
   const getYoY = (series: MetricSeries[] | undefined, id: string): string | null => {
     if (!series || latestYear == null) return null;
@@ -626,6 +709,53 @@ export function SummarySection({ data, countryCode }: Props) {
   const [financialExpanded, setFinancialExpanded] = useState(true);
   const [healthExpanded, setHealthExpanded] = useState(true);
   const [educationExpanded, setEducationExpanded] = useState(true);
+
+  const generalCardRef = useRef<HTMLDivElement>(null as unknown as HTMLDivElement);
+  const financialCardRef = useRef<HTMLDivElement>(null as unknown as HTMLDivElement);
+  const healthCardRef = useRef<HTMLDivElement>(null as unknown as HTMLDivElement);
+  const educationCardRef = useRef<HTMLDivElement>(null as unknown as HTMLDivElement);
+
+  const downloadCardAsImage = useCallback(
+    async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+      const el = ref.current;
+      if (!el) return;
+      try {
+        const canvas = await html2canvas(el, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: null,
+        });
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = filename;
+        link.href = dataUrl;
+        link.click();
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('Summary card export failed:', err);
+      }
+    },
+    [],
+  );
+
+  const baseName = `${sanitizeFilenameSegment(safeSummary.name || 'Country')}-${latestYear}`;
+
+  const handleExportGeneral = useCallback(() => {
+    downloadCardAsImage(generalCardRef, `${baseName}-General.png`);
+  }, [baseName, downloadCardAsImage]);
+
+  const handleExportFinancial = useCallback(() => {
+    downloadCardAsImage(financialCardRef, `${baseName}-Financial-Metrics.png`);
+  }, [baseName, downloadCardAsImage]);
+
+  const handleExportHealth = useCallback(() => {
+    downloadCardAsImage(healthCardRef, `${baseName}-Health-and-Demographics.png`);
+  }, [baseName, downloadCardAsImage]);
+
+  const handleExportEducation = useCallback(() => {
+    downloadCardAsImage(educationCardRef, `${baseName}-Education.png`);
+  }, [baseName, downloadCardAsImage]);
 
   return (
     <section className="summary-section card">
@@ -674,10 +804,42 @@ export function SummarySection({ data, countryCode }: Props) {
 
       {summaryExpanded && (
       <div className="summary-grid" id="summary-grid" role="region" aria-labelledby="summary-section-toggle">
-        <GeneralCard summary={safeSummary} geo={geo} expanded={generalExpanded} onToggle={() => setGeneralExpanded((g) => !g)} />
-        <FinancialCard g={g} getYoY={getYoY} series={data.series?.financial ?? []} expanded={financialExpanded} onToggle={() => setFinancialExpanded((f) => !f)} />
-        <HealthCard p={p} h={h} getYoY={getYoY} series={data.series ?? { financial: [], population: [], health: [] }} expanded={healthExpanded} onToggle={() => setHealthExpanded((h) => !h)} />
-        <EducationCard e={e} getYoY={getYoY} series={data.series?.education ?? []} expanded={educationExpanded} onToggle={() => setEducationExpanded((e) => !e)} />
+        <GeneralCard
+          summary={safeSummary}
+          geo={geo}
+          expanded={generalExpanded}
+          onToggle={() => setGeneralExpanded((g) => !g)}
+          cardRef={generalCardRef}
+          onExport={handleExportGeneral}
+        />
+        <FinancialCard
+          g={g}
+          getYoY={getYoY}
+          series={data.series?.financial ?? []}
+          expanded={financialExpanded}
+          onToggle={() => setFinancialExpanded((f) => !f)}
+          cardRef={financialCardRef}
+          onExport={handleExportFinancial}
+        />
+        <HealthCard
+          p={p}
+          h={h}
+          getYoY={getYoY}
+          series={data.series ?? { financial: [], population: [], health: [] }}
+          expanded={healthExpanded}
+          onToggle={() => setHealthExpanded((h) => !h)}
+          cardRef={healthCardRef}
+          onExport={handleExportHealth}
+        />
+        <EducationCard
+          e={e}
+          getYoY={getYoY}
+          series={data.series?.education ?? []}
+          expanded={educationExpanded}
+          onToggle={() => setEducationExpanded((e) => !e)}
+          cardRef={educationCardRef}
+          onExport={handleExportEducation}
+        />
       </div>
       )}
     </section>

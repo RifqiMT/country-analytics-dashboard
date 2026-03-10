@@ -44,21 +44,20 @@
 .app-refresh-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--text-primary);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-subtle);
+  gap: var(--space-2);
+  padding: 10px 18px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: white;
+  background: var(--accent-red);
+  border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 
 .app-refresh-btn:hover:not(:disabled) {
-  background: var(--bg-hover);
-  border-color: var(--border-default);
+  background: var(--accent-red-dark, #b91c1c);
 }
 
 .app-refresh-btn:disabled {
@@ -649,6 +648,14 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--border-subtle);
   overflow: hidden;
+}
+
+.summary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px 0;
 }
 
 .summary-card-toggle {
@@ -2488,15 +2495,15 @@ tbody tr:hover {
   font-size: 0.9rem;
   font-weight: 600;
   color: white;
-  background: var(--accent-blue, #2563eb);
+  background: var(--accent-red);
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition: background 0.15s ease, transform 0.1s ease;
 }
 
 .porter5-generate-btn:hover:not(:disabled) {
-  background: var(--accent-blue-dark, #1d4ed8);
+  background: var(--accent-red-dark, #b91c1c);
 }
 
 .porter5-generate-btn:disabled {
@@ -3491,6 +3498,14 @@ tbody tr:hover {
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.pestel-chart-download-btn svg {
+  display: block;
+}
+
+.summary-download-icon-btn {
+  padding-inline: var(--space-3);
+  padding-block: var(--space-2);
 }
 .pestel-chart-download-btn:hover {
   background: var(--bg-hover, rgba(0, 0, 0, 0.05));

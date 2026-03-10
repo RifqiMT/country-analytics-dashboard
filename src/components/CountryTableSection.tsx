@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
+import { sanitizeFilenameSegment } from '../utils/filename';
 import { formatGrowthChangeShort } from '../utils/growthFormat';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import { computeGlobalValue, toGlobalAggregateOption } from '../utils/globalAggregates';
@@ -125,12 +126,14 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
   const [globalRowsPrev, setGlobalRowsPrev] = useState<
     GlobalCountryMetricsRow[]
   >([]);
-  const [, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>();
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
+      setError(undefined);
       try {
         const [curr, prev] = await Promise.all([
           fetchGlobalCountryMetricsForYear(snapshot.year),
@@ -139,6 +142,14 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
         if (!cancelled) {
           setGlobalRowsCurr(curr);
           setGlobalRowsPrev(prev);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(
+            e instanceof Error
+              ? e.message
+              : 'Failed to load country comparison table.',
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -149,6 +160,80 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
       cancelled = true;
     };
   }, [snapshot.year, refreshTrigger]);
+
+  function downloadCsv() {
+    const rowsForCsv = COMPARISON_ORDER;
+    const lines: string[] = [];
+
+    function csvEscape(value: unknown): string {
+      const s = String(value ?? '');
+      if (s === '') return '';
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+
+    type ColumnDef = {
+      header: string;
+      value: (row: (typeof COMPARISON_ORDER)[number]) => unknown;
+    };
+
+    const columns: ColumnDef[] = [
+      {
+        header: 'Group',
+        value: (row) => CATEGORY_LABELS[row.category],
+      },
+      {
+        header: 'Education subcategory',
+        value: (row) =>
+          row.educationSubcategory != null
+            ? EDUCATION_SUBCATEGORY_LABELS[row.educationSubcategory]
+            : '',
+      },
+      { header: 'Metric', value: (row) => getLabel(row.rowKey) },
+      {
+        header: `${snapshot.country.name}`,
+        value: (row) => aggsByKey[row.rowKey]?.selected ?? '',
+      },
+      {
+        header: 'Avg country',
+        value: (row) => aggsByKey[row.rowKey]?.avgCountry ?? '',
+      },
+      {
+        header: 'Global',
+        value: (row) => aggsByKey[row.rowKey]?.global ?? '',
+      },
+      {
+        header: `${snapshot.country.name} YoY`,
+        value: (row) => aggsByKey[row.rowKey]?.yoySelected ?? '',
+      },
+      {
+        header: 'Avg country YoY',
+        value: (row) => aggsByKey[row.rowKey]?.yoyAvg ?? '',
+      },
+      {
+        header: 'Global YoY',
+        value: (row) => aggsByKey[row.rowKey]?.yoyGlobal ?? '',
+      },
+    ];
+
+    if (!rowsForCsv.length) return;
+
+    lines.push(columns.map((c) => csvEscape(c.header)).join(','));
+    for (const row of rowsForCsv) {
+      const values = columns.map((c) => csvEscape(c.value(row)));
+      lines.push(values.join(','));
+    }
+
+    const blob = new Blob([lines.join('\n')], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const countryLabel = sanitizeFilenameSegment(snapshot.country.name ?? 'country');
+    link.href = url;
+    link.download = `country-comparison-${countryLabel}-${snapshot.year}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   const latestNonNullUpToYear = (
     points: Array<{ year: number; value: number | null | undefined }> | undefined,
@@ -636,8 +721,31 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
             Selected country versus world average (ratio- or weighted where applicable) and global totals.
           </p>
         </div>
+        <div className="section-header-control-group">
+          <div className="section-control-label">Export</div>
+          <div className="pill-group pill-group-secondary">
+            <button
+              type="button"
+              className="pestel-chart-download-btn summary-download-icon-btn"
+              onClick={downloadCsv}
+              title="Export country comparison as CSV"
+              aria-label="Export country comparison as CSV"
+              disabled={loading || !!error}
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
       <div className="table-wrapper">
+        {loading && !globalRowsCurr.length ? (
+          <p className="muted small">Loading latest country comparison data…</p>
+        ) : (
         <table>
           <thead>
             <tr>
@@ -717,6 +825,7 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
             })}
           </tbody>
         </table>
+        )}
       </div>
       <p className="muted small">
         Figures are illustrative aggregates using available country data. For precise methodology,

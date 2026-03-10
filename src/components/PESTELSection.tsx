@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { buildPestelSystemPrompt } from '../utils/pestelContext';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
+import { sanitizeFilenameSegment } from '../utils/filename';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { getStoredModel, getEffectiveApiKey } from '../config/llm';
 import { DATA_MAX_YEAR } from '../config';
@@ -585,14 +586,24 @@ export function PESTELSection({
   }, []);
 
   const handleDownloadPestelChart = useCallback(() => {
-    const name = dashboardData?.summary?.name ?? 'Country';
-    downloadChartAsImage(pestelChartRef, `PESTEL-Analysis-${name.replace(/\s+/g, '-')}.png`);
-  }, [dashboardData?.summary?.name, downloadChartAsImage]);
+    const name = sanitizeFilenameSegment(dashboardData?.summary?.name ?? 'Country');
+    const latestYear =
+      dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? DATA_MAX_YEAR;
+    downloadChartAsImage(
+      pestelChartRef,
+      `PESTEL-Analysis-${name}-${latestYear}.png`,
+    );
+  }, [dashboardData?.summary?.name, dashboardData?.latestSnapshot?.year, dashboardData?.range, downloadChartAsImage]);
 
   const handleDownloadSwotChart = useCallback(() => {
-    const name = dashboardData?.summary?.name ?? 'Country';
-    downloadChartAsImage(swotChartRef, `SWOT-Analysis-${name.replace(/\s+/g, '-')}.png`);
-  }, [dashboardData?.summary?.name, downloadChartAsImage]);
+    const name = sanitizeFilenameSegment(dashboardData?.summary?.name ?? 'Country');
+    const latestYear =
+      dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? DATA_MAX_YEAR;
+    downloadChartAsImage(
+      swotChartRef,
+      `SWOT-Analysis-${name}-${latestYear}.png`,
+    );
+  }, [dashboardData?.summary?.name, dashboardData?.latestSnapshot?.year, dashboardData?.range, downloadChartAsImage]);
 
   // Always use the most up-to-date global data for PESTEL (peer comparison, etc.).
   const globalDataYear = DATA_MAX_YEAR;
@@ -737,8 +748,15 @@ export function PESTELSection({
                 className="pestel-chart-download-btn"
                 onClick={handleDownloadPestelChart}
                 aria-label="Download PESTEL chart as high-resolution image"
+                title="Download PESTEL chart as high-resolution PNG"
               >
-                Download chart as PNG
+                {/* Reuse the same download icon used in summary cards */}
+                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                  />
+                </svg>
               </button>
             </div>
             <div ref={pestelChartRef} className="pestel-chart-capture-area">
@@ -754,8 +772,14 @@ export function PESTELSection({
                 className="pestel-chart-download-btn"
                 onClick={handleDownloadSwotChart}
                 aria-label="Download SWOT chart as high-resolution image"
+                title="Download SWOT chart as high-resolution PNG"
               >
-                Download chart as PNG
+                <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden>
+                  <path
+                    fill="currentColor"
+                    d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                  />
+                </svg>
               </button>
             </div>
             <div ref={swotChartRef} className="swot-chart-capture-area">

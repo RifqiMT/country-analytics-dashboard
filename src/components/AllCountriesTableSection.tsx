@@ -142,6 +142,96 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
     }
   }
 
+  function downloadCsv() {
+    const rowsForCsv = sorted;
+    const lines: string[] = [];
+
+    function csvEscape(value: unknown): string {
+      const s = String(value ?? '');
+      if (s === '') return '';
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+
+    type ColumnDef = { header: string; value: (row: GlobalCountryMetricsRow) => unknown };
+
+    let columns: ColumnDef[] = [];
+
+    if (view === 'general') {
+      columns = [
+        { header: 'Country', value: (r) => r.name },
+        { header: 'Code', value: (r) => r.iso3Code ?? r.iso2Code ?? '' },
+        { header: 'Region', value: (r) => r.region ?? '' },
+        { header: 'Government type', value: (r) => r.governmentType ?? '' },
+        { header: 'Head of government', value: (r) => r.headOfGovernmentType ?? '' },
+        { header: 'Total area (km2)', value: (r) => r.totalAreaKm2 ?? '' },
+        { header: 'EEZ (km2)', value: (r) => r.eezKm2 ?? '' },
+      ];
+    } else if (view === 'financial') {
+      columns = [
+        { header: 'Country', value: (r) => r.name },
+        { header: 'GDP Nominal', value: (r) => r.gdpNominal ?? '' },
+        { header: 'GDP PPP', value: (r) => r.gdpPPP ?? '' },
+        { header: 'GDP / Capita', value: (r) => r.gdpNominalPerCapita ?? '' },
+        { header: 'GDP / Capita PPP', value: (r) => r.gdpPPPPerCapita ?? '' },
+        { header: 'Gov. debt (USD)', value: (r) => r.govDebtUSD ?? '' },
+        { header: 'Inflation (CPI, %)', value: (r) => r.inflationCPI ?? '' },
+        { header: 'Gov. debt (% GDP)', value: (r) => r.govDebtPercentGDP ?? '' },
+        { header: 'Lending rate (%)', value: (r) => r.interestRate ?? '' },
+        { header: 'Unemployment rate (%)', value: (r) => r.unemploymentRate ?? '' },
+        { header: 'Unemployed (number)', value: (r) => r.unemployedTotal ?? '' },
+        { header: 'Labour force (total)', value: (r) => r.labourForceTotal ?? '' },
+        { header: 'Poverty ($2.15/day, %)', value: (r) => r.povertyHeadcount215 ?? '' },
+        { header: 'Poverty (national line, %)', value: (r) => r.povertyHeadcountNational ?? '' },
+      ];
+    } else if (view === 'health') {
+      columns = [
+        { header: 'Country', value: (r) => r.name },
+        { header: 'Population', value: (r) => r.populationTotal ?? '' },
+        { header: 'Life expectancy', value: (r) => r.lifeExpectancy ?? '' },
+        { header: 'Under-5 mortality', value: (r) => r.under5MortalityRate ?? '' },
+        { header: 'Maternal mortality', value: (r) => r.maternalMortalityRatio ?? '' },
+        { header: 'Undernourishment (%)', value: (r) => r.undernourishmentPrevalence ?? '' },
+        { header: 'Pop 0–14 (%)', value: (r) => r.pop0_14Pct ?? '' },
+        { header: 'Pop 15–64 (%)', value: (r) => r.pop15_64Pct ?? '' },
+        { header: 'Pop 65+ (%)', value: (r) => r.pop65PlusPct ?? '' },
+      ];
+    } else if (view === 'education') {
+      columns = [
+        { header: 'Country', value: (r) => r.name },
+        { header: 'Out-of-school primary (%)', value: (r) => r.outOfSchoolPrimaryPct ?? '' },
+        { header: 'Out-of-school secondary (%)', value: (r) => r.outOfSchoolSecondaryPct ?? '' },
+        { header: 'Out-of-school tertiary (%)', value: (r) => r.outOfSchoolTertiaryPct ?? '' },
+        { header: 'Primary completion rate (%)', value: (r) => r.primaryCompletionRate ?? '' },
+        { header: 'Secondary completion rate (%)', value: (r) => r.secondaryCompletionRate ?? '' },
+        { header: 'Tertiary completion rate (%)', value: (r) => r.tertiaryCompletionRate ?? '' },
+        { header: 'Min reading proficiency (%)', value: (r) => r.minProficiencyReadingPct ?? '' },
+        { header: 'Adult literacy rate (%)', value: (r) => r.literacyRateAdultPct ?? '' },
+        { header: 'Public expenditure on education (% GDP)', value: (r) => r.publicExpenditureEducationPctGDP ?? '' },
+        { header: 'Primary pupils (total)', value: (r) => r.primaryPupilsTotal ?? '' },
+        { header: 'Secondary pupils (total)', value: (r) => r.secondaryPupilsTotal ?? '' },
+        { header: 'Tertiary enrollment (total)', value: (r) => r.tertiaryEnrollmentTotal ?? '' },
+      ];
+    }
+
+    if (!columns.length || !rowsForCsv.length) return;
+
+    lines.push(columns.map((c) => csvEscape(c.header)).join(','));
+    for (const row of rowsForCsv) {
+      const values = columns.map((c) => csvEscape(c.value(row)));
+      lines.push(values.join(','));
+    }
+
+    const blob = new Blob([lines.join('\n')], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `global-table-${view}-${year}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <section className="card all-countries-section">
       <div className="section-header">
@@ -197,6 +287,26 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
           >
             Education
           </button>
+        </div>
+        <div className="section-header-control-group">
+          <div className="section-control-label">Export</div>
+          <div className="pill-group pill-group-secondary">
+            <button
+              type="button"
+              className="pestel-chart-download-btn summary-download-icon-btn"
+              onClick={downloadCsv}
+              title="Export global table as CSV"
+              aria-label="Export global table as CSV"
+              disabled={loading || !!error || !sorted.length}
+            >
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
+                <path
+                  fill="currentColor"
+                  d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
