@@ -1,9 +1,11 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { buildPorter5ForcesSystemPrompt } from '../utils/porter5ForcesContext';
 import { fetchGlobalCountryMetricsForYear } from '../api/worldBank';
 import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { getStoredModel, getEffectiveApiKey } from '../config/llm';
 import { DATA_MAX_YEAR } from '../config';
+import { sanitizeFilenameSegment } from '../utils/filename';
 import { CountrySelector } from './CountrySelector';
 import {
   ILO_INDUSTRY_SECTORS_GRANULAR,
@@ -420,6 +422,7 @@ export function Porter5ForcesSection({
   const [error, setError] = useState<string | null>(null);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
   const [industrySectorId, setIndustrySectorId] = useState<string>(DEFAULT_INDUSTRY_DIVISION_CODE);
+  const porter5ChartRef = useRef<HTMLDivElement | null>(null);
 
   const globalDataYear = DATA_MAX_YEAR;
 
@@ -493,6 +496,38 @@ export function Porter5ForcesSection({
       setIsLoading(false);
     }
   }, [dashboardData, globalMetrics, industrySectorId, globalDataYear]);
+
+  const downloadChartAsImage = useCallback(async (ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
+    const el = ref.current;
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Porter 5 Forces chart export failed:', err);
+    }
+  }, []);
+
+  const handleDownloadPorter5Chart = useCallback(() => {
+    const name = sanitizeFilenameSegment(dashboardData?.summary?.name ?? 'Country');
+    const latestYear = new Date().getFullYear();
+    const industryLabel = getIndustryDivisionLabelShort(industrySectorId);
+    const industrySegment = sanitizeFilenameSegment(industryLabel);
+    downloadChartAsImage(
+      porter5ChartRef,
+      `Porter5-Forces-${name}-${industrySegment}-${latestYear}.png`,
+    );
+  }, [dashboardData?.summary?.name, dashboardData?.latestSnapshot?.year, dashboardData?.range, industrySectorId, downloadChartAsImage]);
 
   return (
     <section className="card porter5-section">
@@ -594,8 +629,28 @@ export function Porter5ForcesSection({
             return (
               <>
                 {chartData && (
-                  <div className="porter5-chart-wrapper">
-                    <Porter5Chart data={chartData} />
+                  <div className="porter5-chart-section" role="region" aria-label="Porter Five Forces Analysis chart">
+                    <div className="porter5-chart-section-toolbar">
+                      <button
+                        type="button"
+                        className="pestel-chart-download-btn summary-download-icon-btn"
+                        onClick={handleDownloadPorter5Chart}
+                        aria-label="Download Porter Five Forces chart as high-resolution PNG"
+                        title="Download chart as high-resolution PNG"
+                      >
+                        <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden focusable="false">
+                          <path
+                            fill="currentColor"
+                            d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                    <div ref={porter5ChartRef} className="porter5-chart-capture-area">
+                      <div className="porter5-chart-wrapper">
+                        <Porter5Chart data={chartData} />
+                      </div>
+                    </div>
                   </div>
                 )}
                 <div className="porter5-sections">

@@ -587,8 +587,7 @@ export function PESTELSection({
 
   const handleDownloadPestelChart = useCallback(() => {
     const name = sanitizeFilenameSegment(dashboardData?.summary?.name ?? 'Country');
-    const latestYear =
-      dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? DATA_MAX_YEAR;
+    const latestYear = new Date().getFullYear();
     downloadChartAsImage(
       pestelChartRef,
       `PESTEL-Analysis-${name}-${latestYear}.png`,
@@ -597,8 +596,7 @@ export function PESTELSection({
 
   const handleDownloadSwotChart = useCallback(() => {
     const name = sanitizeFilenameSegment(dashboardData?.summary?.name ?? 'Country');
-    const latestYear =
-      dashboardData?.latestSnapshot?.year ?? dashboardData?.range?.endYear ?? DATA_MAX_YEAR;
+    const latestYear = new Date().getFullYear();
     downloadChartAsImage(
       swotChartRef,
       `SWOT-Analysis-${name}-${latestYear}.png`,

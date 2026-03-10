@@ -36,6 +36,7 @@ This document defines how the **Country Analytics Platform** measures success an
 | **CD-2** | Timeline metric diversity | Average number of distinct metrics enabled on the unified timeline per session |
 | **CD-3** | Age-group breakdown usage | Percentage of sessions where the age-group comparison toggle is turned on at least once, or Population Structure timeline is viewed |
 | **CD-4** | Population Structure usage | Percentage of sessions where the Population Structure section is viewed (chart or table) |
+| **CD-5** | Country trends & timelines export rate | Percentage of Country Dashboard sessions where user exports at least one timeline subsection as PNG (chart view) or CSV (table view) |
 
 ### 2.2 Global Analytics – Map
 
@@ -57,6 +58,7 @@ This document defines how the **Country Analytics Platform** measures success an
 | **GC-1** | Global Charts view rate | Percentage of sessions that open the Global Charts sub-tab |
 | **GC-2** | Global Charts frequency change | Percentage of Global Charts sessions where user changes frequency or view (chart/table) |
 | **GC-3** | Global Charts education block usage | Percentage of Global Charts sessions where the user views the Education aggregate series (out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure) |
+| **GC-4** | Global Charts export rate | Percentage of Global Charts sessions where user exports at least one subsection as PNG (chart view) or CSV (table view) |
 
 ### 2.4 Global Analytics – Tables
 
@@ -107,6 +109,7 @@ This document defines how the **Country Analytics Platform** measures success an
 | **PF-3** | Porter 5 Forces industry diversity | Number of distinct industry divisions selected per session (when Porter 5 Forces is used) |
 | **PF-4** | Porter 5 chart display rate | Percentage of Porter 5 Forces generations where the chart (five bullets per force) is successfully parsed and displayed |
 | **PF-5** | Porter 5 bullet sections usage | Percentage of Porter 5 Forces generations where at least one of New Market Analysis, Key Takeaways, or Recommendations is parsed and displayed (5 bullets each) |
+| **PF-6** | Porter 5 chart export rate | Percentage of Porter 5 Forces tab sessions where user downloads the Porter's Five Forces chart as PNG |
 
 ---
 
@@ -176,6 +179,9 @@ Use a `product_area.action` pattern:
 | `swot.chart_downloaded` | User downloads SWOT chart as PNG |
 | `porter5.tab_viewed` | User opens Porter 5 Forces tab |
 | `porter5.generate_clicked` | User triggers Porter 5 Forces generate or refresh |
+| `porter5.chart_downloaded` | User downloads Porter's Five Forces chart as PNG |
+| `timeline.section_exported` | User exports a Country trends & timelines subsection as PNG (chart view) or CSV (table view); payload: `section_id`, `type` (chart \| table) |
+| `global.charts_section_exported` | User exports a Global Charts subsection as PNG (chart view) or CSV (table view); payload: `block` (unified \| economic \| health \| education \| population_structure), `type` (chart \| table) |
 | `source.search_used` | User enters search query |
 | `source.filter_chip_clicked` | User clicks a source filter chip |
 | `global.charts_viewed` | User opens Global Charts sub-tab |

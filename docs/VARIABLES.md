@@ -139,6 +139,15 @@ Defined in `src/config.ts` and used for year bounds and data coverage across the
 | `DATA_MIN_YEAR` | Earliest data year | Earliest year allowed for data and filters. Aligns with typical World Bank WDI coverage. | Fixed constant. | Year range selector (Country Dashboard and Business Analytics), global data fetches. | 2000. |
 | `DATA_MAX_YEAR` | Latest data year | Latest year considered "available" given data publication lag. Macro data is typically fully available with up to two years of lag. | currentYear − 2. | Year range selector, global data, PESTEL peer comparison year. | 2023 when current year is 2025. |
 
+### 2.1 Export and Filename Utilities
+
+Export filenames (PNG and CSV) use a **sanitised segment** for country name, scope (e.g. "Global"), and section title so that filenames are filesystem-safe and readable. Implemented in `src/utils/filename.ts` and used by all export actions (Summary cards, Country trends & timelines, Country Comparison, Global Charts, PESTEL/SWOT charts, Porter's Five Forces chart).
+
+| Variable name | Friendly name | Definition | Formula / Rule | Location in app | Example |
+|---------------|---------------|------------|----------------|-----------------|---------|
+| `sanitizeFilenameSegment(raw)` | Filename segment sanitizer | Function that normalises and sanitises a string for use as a single segment in export filenames. Ensures only alphanumeric characters and hyphens remain; avoids filesystem-unsafe and Unicode-heavy names. | 1) Unicode NFKD normalise; 2) strip combining diacritical marks; 3) replace any run of non–A–Z/a–z/0–9 characters with a single hyphen; 4) collapse multiple hyphens; 5) trim leading and trailing hyphens. | `src/utils/filename.ts`. Consumed by all components that build export filenames (e.g. SummarySection, timeline sections, CountryTableSection, GlobalChartsSection, PESTELSection, Porter5ForcesSection). | `sanitizeFilenameSegment("Indonesia")` → `"Indonesia"`; `"East Asia & Pacific"` → `"East-Asia-Pacific"`; `"Macro Indicators"` → `"Macro-Indicators"`. |
+| Export filename pattern | Export file naming convention | The convention used to build the full filename for PNG and CSV exports. Segments are sanitised via `sanitizeFilenameSegment()`. | **Pattern:** `[country or scope]` + `-` + `[section title]` + `-` + `[year]` + `-` + `[chart \| table]` + `.png` or `.csv`. Country/scope and section are sanitised; year is numeric; type is `chart` or `table`. | All export buttons and handlers that call `sanitizeFilenameSegment()` and concatenate segments. Documented in PRD §4.8 and README §3.1. | `Indonesia-Macro-Indicators-2024-chart.png`; `Global-Charts-Unified-2024-table.csv`; `Indonesia-Porter-Five-Forces-2024.png`. |
+
 ---
 
 ## 3. Environment Variables
@@ -330,7 +339,7 @@ flowchart TB
   Meta --> Chat
 ```
 
-**Legend:** **CountryDashboardData** feeds the Country Dashboard (Summary, Timelines, Country Comparison), PESTEL context, **Porter 5 Forces** context, and Analytics Assistant context. **GlobalCountryMetricsRow** feeds the Global map, table, Global Charts, and Business Analytics scatter. **metricMetadata.ts** feeds the Source tab and Assistant system prompt.
+**Legend:** **CountryDashboardData** feeds the Country Dashboard (Summary, Timelines, Country Comparison), PESTEL context, **Porter 5 Forces** context, and Analytics Assistant context. **GlobalCountryMetricsRow** feeds the Global map, table, Global Charts, and Business Analytics scatter. **metricMetadata.ts** feeds the Source tab and Assistant system prompt. **Export filenames** for all PNG and CSV downloads use **sanitizeFilenameSegment()** (Section 2.1) to build the country/scope and section segments; the full filename follows the pattern `[sanitised country/scope]-[sanitised section]-[year]-[chart|table].png|.csv`.
 
 **Global Analytics region filter:** The list of distinct **region** values from the loaded global rows is used to build **globalRegions** (with "All regions" as first option). The user selects a region in **RegionFilter**; the selection is stored as **globalRegion**. This value is passed as the **region** prop to WorldMapSection, AllCountriesTableSection, and GlobalChartsSection. When **globalRegion** is set (i.e. not "All regions"), each component filters its **displayRows** to rows whose **region** matches **globalRegion**, so the map, table, and charts show only countries in that region.
 

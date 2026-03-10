@@ -41,7 +41,7 @@ The **Country Analytics Platform** provides a focused, opinionated UI to:
 ### 2.2 Non-Goals (Current Version)
 
 - No user authentication, multi-tenant features, or saved workspaces
-- No offline mode or CSV/image export from the UI
+- No offline mode; **CSV and PNG exports are implemented** for timelines, global charts, comparison table, summary cards, PESTEL/SWOT, and Porter 5 Forces chart
 - No in-app ETL merging multiple primary providers beyond World Bank + IMF fallbacks
 - Taiwan is included with synthetic country entry and data fallbacks (e.g. parent or regional medians) when World Bank WDI has no direct coverage; not excluded from the product
 
@@ -231,7 +231,7 @@ Queries about religion, culture, leaders, capital, language, independence day, *
   5. **New Market Analysis** – **At least 5 bullet points** (market attractiveness, peer comparison, strategic implications)
   6. **Key Takeaways** – **At least 5 bullet points** summarising opportunities and threats
   7. **Recommendations** – **At least 5 bullet points** (investors, businesses, policymakers, risk mitigation, priority actions)
-- **Exports**: Users can download the **PESTEL chart** and **SWOT chart** as high-resolution PNG images
+- **Exports**: Users can download the **PESTEL chart** and **SWOT chart** as high-resolution PNG images. Filenames use current year and sanitised country name (see §4.8).
 - **Context**: Uses country context and dashboard data; generation via LLM (same infrastructure as Analytics assistant)
 - **Behaviour**: User triggers generate/refresh; response rendered in tab with clear sectioning and attribution
 - **Bullet minimums**: Prompt and guidelines require New Market Analysis, Key Takeaways, and Recommendations each to have at least 5 bullet points
@@ -251,6 +251,12 @@ Queries about religion, culture, leaders, capital, language, independence day, *
   5. **Recommendations** – Exactly **5 summarized, concise bullet points** (actionable recommendations based on the five forces). Parsed from `## Recommendations` block; rendered in its own card.
 - **Citations**: **All citations and sources must be inline** (merged into the narrative with Markdown hyperlinks, e.g. [World Bank WDI](URL)). **No separate "Sources" section, bullet list, or reference list** at the end. Prompt and UI strip any trailing Sources block and do not request or display "---" in the response.
 - **Generate / refresh**: User triggers generation; response shows the **chart** (when chart summary is present and parsed successfully), then **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** in separate, clearly separated cards, and source attribution (e.g. model label). Context: `buildPorter5ForcesSystemPrompt()` in `src/utils/porter5ForcesContext.ts`; parsing: `parsePorter5ChartSummary()`, `parseNewMarketAnalysis()`, `parseKeyTakeaways()`, `parseRecommendations()` in `src/components/Porter5ForcesSection.tsx`; chart rendering: `Porter5Chart` in the same file.
+- **Export**: Users can download the **Porter's Five Forces Analysis** chart as a high-resolution PNG (same style as PESTEL/SWOT). Filename includes current year and is sanitised (see §4.8).
+
+### 4.8 Export Behaviour and Filename Convention
+
+- **What is exported**: Summary cards (PNG, CSV), **Country trends & timelines** subsections (chart view → PNG; table view → CSV), Country Comparison table (CSV), **Global Charts** subsections (chart → PNG; table → CSV), PESTEL chart and SWOT chart (PNG), Porter's Five Forces chart (PNG).
+- **Filename rule**: Exports use a **sanitised segment** for country/scope and section name: only alphanumeric characters and hyphens are kept (implemented in `src/utils/filename.ts` as `sanitizeFilenameSegment()`). Pattern: **country or scope** + **section title** + **year** + **type** (e.g. `Indonesia-Macro-Indicators-2024-chart.png`, `Global-Charts-Unified-2024-table.csv`). This avoids filesystem-unsafe characters and keeps filenames readable.
 
 ---
 
@@ -330,7 +336,7 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 
 ## 9. Future Work (Not Yet Implemented)
 
-- Export (CSV, image)
 - Extended correlation views (e.g. correlation matrix, clustering, advanced filtering) building on the current scatterplot
 - Additional providers (OECD, WHO) with ETL precedence rules
 - Saved dashboards and shareable URLs
+- Offline mode (CSV/PNG export is already implemented; see §4.8)

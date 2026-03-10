@@ -3481,7 +3481,8 @@ tbody tr:hover {
 }
 
 .pestel-chart-section-toolbar,
-.swot-chart-section-toolbar {
+.swot-chart-section-toolbar,
+.porter5-chart-section-toolbar {
   display: flex;
   justify-content: flex-end;
   margin-bottom: var(--space-3);
@@ -3513,7 +3514,8 @@ tbody tr:hover {
 }
 
 .pestel-chart-capture-area,
-.swot-chart-capture-area {
+.swot-chart-capture-area,
+.porter5-chart-capture-area {
   background: var(--bg-elevated);
   border-radius: var(--radius-md);
   padding: var(--space-4);

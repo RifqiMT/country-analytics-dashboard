@@ -96,6 +96,19 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ---
 
+### US-2.5 – Export Country trends & timelines as PNG or CSV
+
+- **As a** Strategy Lead or Country Economist  
+- **I want to** download the current **Country trends & timelines** subsection (e.g. Unified timeline, Macro Indicators, Education, Labour/Unemployed, Population Structure) as PNG when in chart view or as CSV when in table view  
+- **So that** I can reuse the visual or data in reports and spreadsheets  
+
+**Acceptance criteria:**
+- Each timeline subsection in the Country dashboard offers an export action (e.g. "Download as PNG" / "Download as CSV") depending on current view (chart vs table)
+- Exported PNG reflects the visible chart; exported CSV reflects the visible table columns and rows
+- Filename uses sanitised country and section name (alphanumeric and hyphens only), e.g. `Indonesia-Macro-Indicators-2024-chart.png` or `-table.csv`
+
+---
+
 ## 3. Population & Age Structure
 
 ### US-3.1 – See age group breakdown
@@ -203,6 +216,19 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 - Frequency (weekly/monthly/quarterly/yearly) and chart/table view are available
 - Data is built from the same global dataset as the map and table for the selected year
 - When a **region filter** is applied, Global Charts aggregates (unified, economic, health, education, population structure) use only countries in that region
+
+---
+
+### US-5b.2 – Export Global Charts subsection as PNG or CSV
+
+- **As a** Policy Analyst or Strategy Lead  
+- **I want to** download the current **Global Charts** subsection (e.g. Unified, Economic, Health, Education, Population Structure) as PNG when in chart view or as CSV when in table view  
+- **So that** I can include global aggregate trends in presentations or further analysis  
+
+**Acceptance criteria:**
+- Each Global Charts subsection offers an export action (e.g. "Download as PNG" / "Download as CSV") depending on current view (chart vs table)
+- Exported PNG reflects the visible chart; exported CSV reflects the visible table
+- Filename uses sanitised scope and section name (e.g. `Global-Charts-Unified-2024-chart.png` or `-table.csv`)
 
 ---
 
@@ -514,6 +540,19 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 **Acceptance criteria:**
 - Changing the country in the Country dashboard updates the context for Porter 5 Forces; user can click Generate to regenerate for the new country and (optionally) same or different industry
+
+---
+
+### US-9b.5 – Download Porter's Five Forces chart as PNG
+
+- **As a** Strategy Lead or Market Expansion Manager  
+- **I want to** download the **Porter's Five Forces Analysis** chart as a high-resolution PNG image  
+- **So that** I can paste it into slides and strategy documents  
+
+**Acceptance criteria:**
+- Porter 5 Forces tab shows a "Download chart as PNG" (or equivalent) control for the Porter's Five Forces chart
+- Exported image is high resolution and includes the standard cross layout (centre = Competitive Rivalry; five forces with five bullets each)
+- Filename uses sanitised country name and current year (e.g. `Indonesia-Porter-Five-Forces-2024.png`)
 
 ---
 

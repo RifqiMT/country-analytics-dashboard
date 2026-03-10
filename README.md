@@ -84,6 +84,8 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Population structure** | Timeline of population by age group (0–14, 15–64, 65+): shares (% of total) and simplified absolute counts (derived from total × share). Frequency dropdown, chart/table view, metric chips; tooltip and table show % and absolute (e.g. 25.3% · 65.2 Mn). World Bank WDI. |
 | **Country comparison table** | Selected country vs average vs global total; optional age breakdown; YoY for each metric |
 
+**Country trends & timelines** (the timeline subsections above) and **Global Charts** support **chart view → PNG export** and **table view → CSV export**. Summary cards and Country Comparison table also support PNG/CSV. PESTEL and SWOT charts, and the Porter's Five Forces chart, support **PNG download**. All export filenames use a **sanitised segment** (alphanumeric and hyphens only) for country/scope and section name (e.g. `Indonesia-Macro-Indicators-2024-chart.png`); see `src/utils/filename.ts` (`sanitizeFilenameSegment`) and PRD §4.8.
+
 ### 3.2 Global Analytics
 
 | Feature | Description |
@@ -99,7 +101,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 
 | Feature | Description |
 |---------|-------------|
-| **PESTEL tab** | Dedicated view for PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis of the selected country; **download PESTEL and SWOT charts as PNG** |
+| **PESTEL tab** | Dedicated view for PESTEL (Political, Economic, Social, Technological, Environmental, Legal) analysis of the selected country; **download PESTEL and SWOT charts as PNG** (filenames sanitised; see export convention above) |
 | **Section order** | PESTEL Analysis (chart), SWOT Analysis (one bullet per sentence), Comprehensive Analysis (full report), Strategic Implications for Business (PESTEL-SWOT), New Market Analysis, Key Takeaways, Recommendations |
 | **Bullet minimums** | New Market Analysis, Key Takeaways, and Recommendations each have at least 5 bullet points (enforced via prompt) |
 | **Generate / refresh** | Trigger generation with current country context; responses include sources and hyperlinks where applicable |
@@ -115,7 +117,7 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Country + industry selector** | Same country as Country dashboard; **industry dropdown** grouped by ILO section (A–U) with division-level options (2-digit division code + label). Default division: 10 (Manufacture of food products). |
 | **Narrative structure** | **Chart summary** (5 bullets per force, parsed for the chart) then **Executive Summary** (1 paragraph) and **five forces**, each with exactly two paragraphs; then **New Market Analysis**, **Key Takeaways**, and **Recommendations**, each with exactly 5 summarized bullet points. No horizontal rule (---) in output. |
 | **Citations** | **All citations and sources are inline** (merged into the narrative with Markdown hyperlinks). No separate "Sources" section or bullet list at the end. |
-| **Generate / refresh** | User triggers generation; response shows the chart (if parsed), then Comprehensive Analysis, New Market Analysis, Key Takeaways, and Recommendations in separate cards, plus source attribution (e.g. Llama 3.1 8B (Groq)). |
+| **Generate / refresh** | User triggers generation; response shows the chart (if parsed), then Comprehensive Analysis, New Market Analysis, Key Takeaways, and Recommendations in separate cards, plus source attribution (e.g. Llama 3.1 8B (Groq)). **Download Porter's Five Forces chart as PNG** (sanitised filename; see export convention in §3.1). |
 
 ### 3.5 Business Analytics
 
