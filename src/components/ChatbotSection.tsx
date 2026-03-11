@@ -30,14 +30,68 @@ interface ChatbotSectionProps {
   refreshTrigger?: number;
 }
 
-const SUGGESTIONS = [
-  'Give me an overview of the selected country',
-  'Compare Indonesia to Malaysia',
-  'Top 10 countries by GDP',
-  'Where is Indonesia located?',
-  'Which continent is Ukraine in?',
-  'Indonesia and Ukraine from 2023',
-  'Summary of key metrics',
+const SUGGESTION_GROUPS: Array<{ title: string; items: string[] }> = [
+  {
+    title: 'Country overview',
+    items: [
+      'Give me an overview of the selected country',
+      'Summary of key metrics',
+      'Show all education metrics for the selected country in 2020',
+      'Show all available metrics for Indonesia in 2024',
+      'What are the key risks and opportunities for the selected country based on the dashboard data?',
+    ],
+  },
+  {
+    title: 'Comparisons & rankings',
+    items: [
+      'Compare Indonesia to Malaysia',
+      'Compare GDP per capita and life expectancy between Indonesia, Malaysia, and Thailand in 2022',
+      'Top 10 countries by GDP',
+      'Top 5 Asian countries by poverty rate at $2.15/day',
+      'Indonesia and Ukraine on 2024 in terms of Unemployment Rate',
+      'Rank the G20 countries by GDP per capita and life expectancy',
+      'Compare unemployment rate and labour force between Indonesia and Vietnam from 2015 to 2024',
+    ],
+  },
+  {
+    title: 'Time series',
+    items: [
+      'Show me the time series of GDP, inflation, and unemployment for the selected country from 2010 to 2024',
+      'Show yearly GDP and population for Indonesia and Malaysia from 2000 to latest',
+      'Show the trend of poverty rate and life expectancy for the selected country from 2000 to latest',
+      'Show the time series of education expenditure (% of GDP) and literacy rate for the selected country',
+    ],
+  },
+  {
+    title: 'Definitions & methodology',
+    items: [
+      'What is the definition of government debt and how is it calculated?',
+      'Explain the definition of unemployment rate and labour force using the data sources in this app',
+      'Explain the definition of poverty at $2.15/day and national poverty line in this dashboard',
+      'What education metrics are available in this app and what are their definitions?',
+      'Explain the definition of GDP (nominal), GDP (PPP), and GDP per capita in this dashboard',
+      'How are maternal mortality and under-5 mortality defined and measured in this app?',
+    ],
+  },
+  {
+    title: 'Geography & general knowledge',
+    items: [
+      'Where is Indonesia located and which countries border it?',
+      'Which continent is Ukraine in?',
+      'Who is the current president of Indonesia?',
+      'What is the capital city, currency, and government type of the selected country?',
+      'Which countries in Europe have the largest EEZ (Exclusive Economic Zone)?',
+    ],
+  },
+  {
+    title: 'Business & strategy',
+    items: [
+      'Generate a PESTEL analysis for Indonesia in the construction sector',
+      'Generate a Porter Five Forces analysis for Vietnam in the food manufacturing sector',
+      'Which countries look most attractive for expanding a food manufacturing business, based on GDP growth, population, and poverty data?',
+      'Based on the dashboard data, which Asian countries look attractive for labour-intensive manufacturing?',
+    ],
+  },
 ];
 
 export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSectionProps) {
@@ -615,19 +669,28 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
                 Ask about dashboard data, metrics, and sources — or general knowledge such as a country&apos;s location.
               </p>
               <p className="chatbot-welcome-hint muted">
-                Try one of these (metrics, comparisons, or location) or type your own:
+                Use the toolbar below (grouped by use case) or type your own question:
               </p>
-              <div className="chatbot-suggestions">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    className="chatbot-suggestion"
-                    onClick={() => handleSuggestionClick(s)}
-                    disabled={isLoading}
-                  >
-                    {s}
-                  </button>
+              <div className="chatbot-suggestions-toolbar">
+                {SUGGESTION_GROUPS.map((group) => (
+                  <div key={group.title} className="chatbot-suggestions-group">
+                    <div className="chatbot-suggestions-group-title">
+                      {group.title}
+                    </div>
+                    <div className="chatbot-suggestions">
+                      {group.items.map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          className="chatbot-suggestion"
+                          onClick={() => handleSuggestionClick(s)}
+                          disabled={isLoading}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

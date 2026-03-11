@@ -641,6 +641,28 @@ export function getFallbackResponse(
 ): string {
   const q = normalizeQuery(userMessage);
 
+  // PESTEL / Porter 5 Forces style questions must be answered by an LLM
+  // (potentially with web search), not by the rule-based dashboard fallback.
+  if (/\bpestel\b|porter\s+five\s+forces|five\s+forces\b/.test(q)) {
+    return FALLBACK_GENERIC_HELP_MARKER;
+  }
+
+  // Qualitative "risks and opportunities" questions are strategy-style prompts
+  // and should be answered by the LLM using the dashboard data as context.
+  if (/\brisks?\b|\bopportunit(?:y|ies)\b/.test(q)) {
+    return FALLBACK_GENERIC_HELP_MARKER;
+  }
+
+  // Lists of companies / businesses are outside the dashboard metrics;
+  // they should be answered by the LLM (with web search) instead of
+  // returning generic metrics guidance.
+  if (
+    /\b(companies|company|businesses|firms|corporations|employers)\b/.test(q) &&
+    /\b(list|lists|show|give|tell)\b/.test(q)
+  ) {
+    return FALLBACK_GENERIC_HELP_MARKER;
+  }
+
   // Location/geography/neighbor questions are answered by the LLM – do not return guidance here; let the API route to LLM.
   if (isLocationOrGeographyQuery(q)) {
     return FALLBACK_GENERIC_HELP_MARKER;
@@ -672,6 +694,57 @@ export function getFallbackResponse(
 
   const isSelectedCountry = dashboardSnapshot && requestedCountries.length === 1
     && requestedCountries[0].toLowerCase() === dashboardSnapshot.countryName.toLowerCase();
+
+  // Education metrics for the selected country (by year), e.g.
+  // "Show all education metrics for the selected country in 2020".
+  if (
+    dashboardSnapshot &&
+    /education|school|literacy|enrollment|completion/.test(q) &&
+    /selected\s+country/.test(q)
+  ) {
+    const countryName = dashboardSnapshot.countryName;
+    const yearForEdu =
+      requestedYear && dataByYear?.[requestedYear]
+        ? requestedYear
+        : effectiveYear;
+    const rowsForYear = dataByYear?.[yearForEdu] ?? null;
+    const row = rowsForYear
+      ? rowsForYear.find((r) => (r.name ?? '').toLowerCase() === countryName.toLowerCase())
+      : null;
+    if (row) {
+      const lines = [
+        `**${countryName} – Education metrics (${yearForEdu})**`,
+        '',
+      ];
+      const pushIf = (label: string, value: string) => {
+        if (value !== 'N/A') lines.push(`- ${label}: ${value}`);
+      };
+      pushIf('Out-of-school (primary, %)', formatPercentage(row.outOfSchoolPrimaryPct ?? null));
+      pushIf('Out-of-school (secondary, %)', formatPercentage(row.outOfSchoolSecondaryPct ?? null));
+      pushIf('Out-of-school (tertiary, %)', formatPercentage(row.outOfSchoolTertiaryPct ?? null));
+      pushIf('Primary completion rate (%)', formatPercentage(row.primaryCompletionRate ?? null));
+      pushIf('Secondary completion rate (%)', formatPercentage(row.secondaryCompletionRate ?? null));
+      pushIf('Tertiary completion rate (%)', formatPercentage(row.tertiaryCompletionRate ?? null));
+      pushIf('Minimum reading proficiency (%)', formatPercentage(row.minProficiencyReadingPct ?? null));
+      pushIf('Adult literacy rate (%)', formatPercentage(row.literacyRateAdultPct ?? null));
+      pushIf('Gender parity index (primary)', row.genderParityIndexPrimary != null ? formatVal(row.genderParityIndexPrimary, '') : 'N/A');
+      pushIf('Gender parity index (secondary)', row.genderParityIndexSecondary != null ? formatVal(row.genderParityIndexSecondary, '') : 'N/A');
+      pushIf('Gender parity index (tertiary)', row.genderParityIndexTertiary != null ? formatVal(row.genderParityIndexTertiary, '') : 'N/A');
+      pushIf('Trained teachers, primary (% of total)', formatPercentage(row.trainedTeachersPrimaryPct ?? null));
+      pushIf('Trained teachers, secondary (% of total)', formatPercentage(row.trainedTeachersSecondaryPct ?? null));
+      pushIf('Trained teachers, tertiary (% of total)', formatPercentage(row.trainedTeachersTertiaryPct ?? null));
+      pushIf('Public expenditure on education (% of GDP)', formatPercentage(row.publicExpenditureEducationPctGDP ?? null));
+      pushIf('Primary enrollment (total)', row.primaryPupilsTotal != null ? `${formatVal(row.primaryPupilsTotal, '')} people` : 'N/A');
+      pushIf('Secondary enrollment (total)', row.secondaryPupilsTotal != null ? `${formatVal(row.secondaryPupilsTotal, '')} people` : 'N/A');
+      pushIf('Tertiary enrollment (total)', row.tertiaryEnrollmentTotal != null ? `${formatVal(row.tertiaryEnrollmentTotal, '')} people` : 'N/A');
+      pushIf('Estimated number of primary schools', row.primarySchoolCount != null ? `${formatVal(row.primarySchoolCount, '')} schools` : 'N/A');
+      pushIf('Estimated number of secondary schools', row.secondarySchoolCount != null ? `${formatVal(row.secondarySchoolCount, '')} schools` : 'N/A');
+      pushIf('Estimated number of universities & tertiary institutions', row.tertiaryInstitutionCount != null ? `${formatVal(row.tertiaryInstitutionCount, '')} institutions` : 'N/A');
+      if (lines.length > 2) {
+        return lines.join('\n');
+      }
+    }
+  }
 
   const singleMetricIntent = parseSingleMetricIntent(q);
 
@@ -711,19 +784,105 @@ export function getFallbackResponse(
         }
       }
   }
-    const countriesToShow =
-      requestedCountries.length >= 1
-        ? requestedCountries
-        : /all\s*(data|countries?|metrics?)|every\s*country|show\s*all/i.test(userMessage)
-          ? [...new Set(Object.values(dataByYear).flatMap((rows) => rows.map((r) => r.name)))].slice(0, 20)
-          : [];
-    const keyMetrics = [
-      { key: 'gdpNominal' as const, label: 'GDP', format: (v: number | null) => formatVal(v, '') + ' USD' },
-      { key: 'populationTotal' as const, label: 'Population', format: (v: number | null) => formatVal(v, '') + ' people' },
-      { key: 'lifeExpectancy' as const, label: 'LifeExp', format: (v: number | null) => (v != null && !Number.isNaN(v) ? formatVal(v, '') + ' years' : 'N/A') },
-      { key: 'inflationCPI' as const, label: 'Inflation', format: (v: number | null) => formatPercentage(v) },
-      { key: 'govDebtPercentGDP' as const, label: 'Debt', format: (v: number | null) => formatPercentage(v) },
-    ];
+    let countriesToShow: string[];
+    const refersToSelectedCountry = /selected\s+country/i.test(userMessage) && dashboardSnapshot?.countryName;
+
+    if (refersToSelectedCountry) {
+      // When the user explicitly says "selected country", only show the
+      // time series for that country – never the full global list.
+      countriesToShow = [dashboardSnapshot!.countryName];
+    } else if (requestedCountries.length >= 1) {
+      countriesToShow = requestedCountries;
+    } else if (/all\s*(data|countries?|metrics?)|every\s*country|show\s*all/i.test(userMessage)) {
+      countriesToShow = [...new Set(Object.values(dataByYear).flatMap((rows) => rows.map((r) => r.name)))].slice(0, 20);
+    } else {
+      countriesToShow = [];
+    }
+
+    // Pick time-series metrics based on the question text so users can ask
+    // for arbitrary combinations (e.g. "GDP and population", "unemployment
+    // and labour force", "GDP, inflation, and debt").
+    const wantsGdp = /\bgdp\b/i.test(q);
+    const wantsPopulation = /\bpopulation|pop\b/i.test(q);
+    const wantsLifeExp = /\blife\s*expectancy|life\s*exp\b/i.test(q);
+    const wantsInflation = /\binflation|cpi\b/i.test(q);
+    const wantsDebt = /\bdebt\b/i.test(q);
+    const wantsUnemployment = /\bunemployment|unemployed\b/i.test(q);
+    const wantsLabour = /\blabour\s+force|labor\s+force|workforce\b/i.test(q);
+
+    type SeriesMetricDef = {
+      key: keyof GlobalCountryRowForFallback;
+      label: string;
+      format: (v: number | null) => string;
+    };
+
+    const seriesMetrics: SeriesMetricDef[] = [];
+
+    if (wantsGdp) {
+      seriesMetrics.push({
+        key: 'gdpNominal',
+        label: 'GDP',
+        format: (v) => formatVal(v, '') + ' USD',
+      });
+    }
+    if (wantsPopulation) {
+      seriesMetrics.push({
+        key: 'populationTotal',
+        label: 'Population',
+        format: (v) => formatVal(v, '') + ' people',
+      });
+    }
+    if (wantsLifeExp) {
+      seriesMetrics.push({
+        key: 'lifeExpectancy',
+        label: 'LifeExp',
+        format: (v) => (v != null && !Number.isNaN(v) ? formatVal(v, '') + ' years' : 'N/A'),
+      });
+    }
+    if (wantsInflation) {
+      seriesMetrics.push({
+        key: 'inflationCPI',
+        label: 'Inflation',
+        format: (v) => formatPercentage(v),
+      });
+    }
+    if (wantsDebt) {
+      seriesMetrics.push({
+        key: 'govDebtPercentGDP',
+        label: 'Debt',
+        format: (v) => formatPercentage(v),
+      });
+    }
+    if (wantsUnemployment) {
+      seriesMetrics.push({
+        key: 'unemploymentRate',
+        label: 'Unemployment rate',
+        format: (v) => formatPercentage(v),
+      });
+    }
+    if (wantsLabour) {
+      seriesMetrics.push({
+        key: 'labourForceTotal',
+        label: 'Labour force',
+        format: (v) => (v != null ? `${formatVal(v, '')} people` : 'N/A'),
+      });
+    }
+
+    // Default when no specific metrics are mentioned: a balanced macro set.
+    const keyMetrics: SeriesMetricDef[] =
+      seriesMetrics.length > 0
+        ? seriesMetrics
+        : [
+            { key: 'gdpNominal', label: 'GDP', format: (v) => formatVal(v, '') + ' USD' },
+            { key: 'populationTotal', label: 'Population', format: (v) => formatVal(v, '') + ' people' },
+            {
+              key: 'lifeExpectancy',
+              label: 'LifeExp',
+              format: (v) => (v != null && !Number.isNaN(v) ? formatVal(v, '') + ' years' : 'N/A'),
+            },
+            { key: 'inflationCPI', label: 'Inflation', format: (v) => formatPercentage(v) },
+            { key: 'govDebtPercentGDP', label: 'Debt', format: (v) => formatPercentage(v) },
+          ];
     const lines: string[] = [];
     if (subAnnualPattern.test(q)) {
       lines.push(
@@ -750,7 +909,11 @@ export function getFallbackResponse(
         const r = findRow(rows, countryName);
         if (r) {
           hasAnyForCountry = true;
-          const parts = keyMetrics.map((m) => `${m.label}: ${m.format(r[m.key] ?? null)}`);
+          const parts = keyMetrics.map((m) => {
+            const raw = r[m.key];
+            const num = typeof raw === 'number' ? raw : raw == null ? null : Number(raw);
+            return `${m.label}: ${m.format(Number.isNaN(num as number) ? null : (num as number | null))}`;
+          });
           const hasAny = parts.some((s) => !s.endsWith(': N/A'));
           if (hasAny) {
             lines.push(`**${y}:** ${parts.join(' | ')}`);
@@ -772,6 +935,57 @@ export function getFallbackResponse(
   }
   const requestedMetrics = parseAllRequestedMetrics(q);
   const wantsSpecificMetrics = requestedMetrics.length > 0 && requestedMetrics.length < ALL_METRIC_DEFS.length;
+
+  // "Show all available metrics for [country] in [year]" – return a full
+  // metrics card for that specific country and year instead of generic help.
+  if (
+    requestedCountries.length === 1 &&
+    effectiveData &&
+    effectiveData.length > 0 &&
+    /all\s+(available\s+)?metrics/.test(q)
+  ) {
+    const countryName = requestedCountries[0];
+    let targetYear = effectiveYear;
+    let r: GlobalCountryRowForFallback | undefined;
+
+    // Prefer the explicitly requested year when data is available for it.
+    if (requestedYear && dataByYear?.[requestedYear]) {
+      targetYear = requestedYear;
+      r = dataByYear[requestedYear].find(
+        (x) => (x.name ?? '').toLowerCase() === countryName.toLowerCase(),
+      );
+    }
+
+    // Otherwise, fall back to the effectiveYear (typically latest available),
+    // but we will add an explicit note when this differs from the requested year.
+    if (!r) {
+      r = effectiveData.find(
+        (x) => (x.name ?? '').toLowerCase() === countryName.toLowerCase(),
+      );
+    }
+
+    if (r) {
+      const lines: string[] = [
+        `**${r.name} – All available metrics (${targetYear})**`,
+        '',
+      ];
+      for (const m of ALL_METRIC_DEFS) {
+        const value = m.format(r);
+        if (value && value !== 'N/A') {
+          lines.push(`- ${m.label}: ${value}`);
+        }
+      }
+      if (requestedYear && requestedYear !== targetYear) {
+        lines.push(
+          '',
+          `_Note: No complete data was available for ${requestedYear}. Showing the closest year with data instead (${targetYear})._`,
+        );
+      }
+      if (lines.length > 3) {
+        return lines.join('\n');
+      }
+    }
+  }
 
   if (
     requestedCountries.length === 1 &&
@@ -1421,7 +1635,13 @@ export function getFallbackResponse(
     }
   }
 
-  if (effectiveData && effectiveData.length > 0 && /all\s*(data|countries?|metrics?)|show\s*all|every\s*country/i.test(q)) {
+  if (
+    effectiveData &&
+    effectiveData.length > 0 &&
+    /(?:all\s*(data|countries?|metrics?)|show\s*all|every\s*country)/i.test(q) &&
+    !/selected\s+country/i.test(q) &&
+    requestedCountries.length === 0
+  ) {
     const topRows = effectiveData.slice(0, 15);
     const metricsToShow = ALL_METRIC_DEFS.filter((m) => m.key !== 'region').slice(0, 8);
     const lines = [`**Available data** (${effectiveYear}, ${effectiveData.length} countries)`, ''];

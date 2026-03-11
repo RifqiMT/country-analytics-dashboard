@@ -5414,6 +5414,28 @@ tbody tr:hover {
   color: var(--text-muted);
 }
 
+.chatbot-suggestions-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.chatbot-suggestions-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chatbot-suggestions-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-align: left;
+}
+
 .chatbot-suggestions {
   display: flex;
   flex-wrap: wrap;

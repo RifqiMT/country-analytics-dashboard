@@ -272,7 +272,7 @@ All documentation is structured according to the **Product Documentation Standar
 ### Install & Run
 
 ```bash
-cd country-analytics-dashboard
+cd country-analytics-platform
 npm install
 npm run setup   # creates .env from .env.example if missing
 npm run dev

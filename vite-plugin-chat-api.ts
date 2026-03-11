@@ -49,7 +49,7 @@ const SETUP_HINT = `
 ---
 _To answer general questions (e.g. "who is the president of X"), add the required server env key to your \`.env\` file. Obtain keys from each provider's developer console. Then restart the dev server._`;
 
-/** Queries the rule-based fallback cannot answer – use free LLM instead. Geography, location, neighbour (and typos) are excluded so the LLM answers them. */
+/** Queries the rule-based fallback cannot answer – use free LLM instead. Geography, location, neighbour (and typos) and business/companies queries are excluded so the LLM answers them. */
 const OUT_OF_SCOPE_PATTERNS = [
   // Leaders & government
   /who\s+is\s+(?:the\s+)?(?:president|prime\s+minister|leader|king|queen|head\s+of\s+state|ruler)/i,
@@ -84,6 +84,9 @@ const OUT_OF_SCOPE_PATTERNS = [
   /(?:education|school|university)\s+in/i,
   /(?:healthcare|health\s+system)\s+in/i,
   /(?:economy|economic)\s+overview|economic\s+situation/i,
+  // Lists of companies / businesses – use LLM + web search
+  /(?:list|lists|show|give|tell)\s+(?:me\s+)?(?:the\s+)?(?:list\s+of\s+)?(?:food\s+|tech\s+|technology\s+|manufacturing\s+|construction\s+|banking\s+|finance\s+|all\s+)?(?:companies|company|businesses|firms|corporations|employers)\s+(?:in|from)\s+/i,
+  /\b(?:companies|company|businesses|firms|corporations|employers)\s+(?:in|from)\s+[a-z]/i,
 ];
 
 // Geography, location, neighbour (and common typos) – excluded from out-of-scope; LLM answers these.
@@ -99,12 +102,27 @@ const IN_SCOPE_TERMS = /\b(gdp|population|inflation|debt|life\s+expectancy|area|
 function isGeneralKnowledgeQuery(content: string): boolean {
   const q = (content ?? '').trim();
   if (q.length < 6) return false;
+  // PESTEL / Porter 5 Forces / strategy-style questions should always go to an LLM,
+  // not the rule-based dashboard metrics fallback.
+  if (/\bpestel\b|porter\s+five\s+forces|five\s+forces\b/i.test(q)) return true;
+  // Risk/opportunity style questions are qualitative strategy questions and
+  // should also be handled by the LLM with dashboard context.
+  if (/\brisks?\b|\bopportunit(?:y|ies)\b/i.test(q)) return true;
   if (OUT_OF_SCOPE_PATTERNS.some((p) => p.test(q))) return true;
   const looksLikeMetricQuestion = IN_SCOPE_TERMS.test(q) ||
     /^(?:what|how|show|give|list|compare|top|ranking)/i.test(q) && /gdp|pop|inflation|debt|metric|data|ranking|compare|top/i.test(q);
   if (looksLikeMetricQuestion) return false;
   if (/^what\s+is\s+(?:the\s+)?\w+\s+of\b/i.test(q) && !IN_SCOPE_TERMS.test(q)) return true;
   return false;
+}
+
+/** True when the question is about current leaders / presidents / prime ministers. */
+function isLeaderOrPresidentQuestion(content: string): boolean {
+  const q = (content ?? '').trim().toLowerCase();
+  if (!q) return false;
+  return /\b(current|present)\s+(president|prime\s+minister|leader)\b/.test(q)
+    || /\bwho\s+is\s+(the\s+)?(president|prime\s+minister|leader)\s+of\b/.test(q)
+    || /\bhead\s+of\s+state\b/.test(q);
 }
 
 type ChatMessage = { role: string; content: string };
@@ -634,65 +652,113 @@ async function handleChatRequest(
             return fetchOpenAICompatible(PROVIDER_URLS[prov], key, mod, toSend);
           };
 
+          const applyWebSearchAnswer = async (): Promise<{ content: string; used: boolean }> => {
+            const result = await fetchWebSearch(userQuery);
+            if (!result) return { content: '', used: false };
+            if (result.directAnswer) {
+              const country = extractCountryForWiki(userQuery);
+              const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
+              const wikiLink = `For more: [${country} – Wikipedia](https://en.wikipedia.org/wiki/${wikiSlug})`;
+              const answer = result.directAnswer.includes('Wikipedia') || result.directAnswer.includes('http')
+                ? result.directAnswer
+                : `${result.directAnswer} ${wikiLink}`;
+              return { content: answer, used: true };
+            }
+            if (result.context) {
+              const snippetMatch =
+                result.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) ||
+                result.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
+              if (snippetMatch) {
+                const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
+                const text = snippetMatch[2] ?? snippetMatch[1];
+                const answer = url
+                  ? `Based on web search: ${text}\n\nSource: [${url}](${url})`
+                  : `Based on web search: ${text}`;
+                return { content: answer, used: true };
+              }
+            }
+            return { content: '', used: false };
+          };
+
           let content: string = '';
           let llmError: string | null = null;
           let usedModelId: string | null = null;
           let usedWebSearch = false;
 
-          // PESTEL and Porter 5 Forces must use the LLM with the full system prompt (supplement already added above).
-          // LLM order: TAVILY (web supplement) first – done above; GROQ second; other LLMs last.
-          // Do not try user's model before GROQ for PESTEL or Porter 5 Forces.
-          if (!isPestelRequest && !isPorter5ForcesRequest) {
-            // Non-PESTEL: try user's chosen model first when they have an API key (saves Groq free-tier tokens).
-            const pestelUserKey = apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
-            if (pestelUserKey && !isValidLlmResponse(content)) {
+          const isLeaderQuestion = isLeaderOrPresidentQuestion(userQuery);
+
+          const prov = getProviderForModel(model);
+          const userHasNonGroqKey =
+            !isPestelRequest &&
+            !isPorter5ForcesRequest &&
+            !!apiKey &&
+            prov !== 'groq' &&
+            prov !== 'tavily';
+
+          // ─────────────────────────────────────────────
+          // LLM routing
+          // - PESTEL / Porter: GROQ (or chosen LLM) with web supplement already in system prompt.
+          // - General knowledge (definitions, geography, leaders, current events): GROQ → Tavily/web search → other LLMs.
+          // - Pure dashboard/metrics questions: keep existing cost-aware routing (user model first when provided).
+          // ─────────────────────────────────────────────
+
+          // For "current leader / president" questions, prefer **web search first**
+          // to avoid stale training data. If Tavily succeeds we will not call Groq.
+          if (isLeaderQuestion) {
+            const web = await applyWebSearchAnswer();
+            if (web.used) {
+              content = web.content;
+              usedWebSearch = true;
+            }
+          }
+
+          if (!isPestelRequest && !isPorter5ForcesRequest && !isGeneralKnowledge) {
+            // Non-PESTEL, non-general-knowledge: try user's chosen model first when they have an API key
+            // to save free-tier Groq tokens.
+            if (userHasNonGroqKey && !isValidLlmResponse(content)) {
               try {
-                content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+                content = await tryLlm(apiKey, prov ?? 'openai', model, openaiFormatMessages);
                 if (isValidLlmResponse(content)) usedModelId = model;
               } catch (err) {
                 llmError = err instanceof Error ? err.message : String(err);
                 content = '';
               }
             }
-          }
 
-          // Step 2: Groq for questions within period until current year minus 2 (when global data couldn't answer)
-          // When user selected Tavily as model, try Tavily first (so they get web search right after global data).
-          // Skip for PESTEL and Porter 5 Forces: they require the LLM to produce the structured report from the system prompt.
-          if (model === 'tavily-web-search' && !isPestelRequest && !isPorter5ForcesRequest && !isValidLlmResponse(content)) {
-            const webResult = await fetchWebSearch(userQuery);
-            if (webResult?.directAnswer) {
-              const country = extractCountryForWiki(userQuery);
-              const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
-              const wikiLink = `For more: [${country} – Wikipedia](https://en.wikipedia.org/wiki/${wikiSlug})`;
-              content = webResult.directAnswer.includes('Wikipedia') || webResult.directAnswer.includes('http')
-                ? webResult.directAnswer
-                : `${webResult.directAnswer} ${wikiLink}`;
-              usedWebSearch = true;
-            } else if (webResult?.context) {
-              const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
-              if (snippetMatch) {
-                const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
-                const text = snippetMatch[2] ?? snippetMatch[1];
-                content = url ? `Based on web search: ${text}\n\nSource: [${url}](${url})` : `Based on web search: ${text}`;
+            // When user explicitly selected Tavily as the "model", honour that choice before Groq.
+            if (
+              model === 'tavily-web-search' &&
+              !isValidLlmResponse(content)
+            ) {
+              const web = await applyWebSearchAnswer();
+              if (web.used) {
+                content = web.content;
                 usedWebSearch = true;
               }
             }
           }
 
-          if (!isValidLlmResponse(content) && tryGroqFirst) {
-            // For PESTEL: GROQ is the first LLM tried (TAVILY supplement already in system prompt).
+          // GROQ first (smartest affordable LLM) for:
+          // - All PESTEL / Porter 5 Forces requests (web supplement already injected above)
+          // - All general-knowledge and out-of-scope questions
+          // - Metric questions where rule-based could not answer and user model / Tavily did not succeed
+          if (!isLeaderQuestion && !isValidLlmResponse(content) && tryGroqFirst) {
             const groqKey = getServerApiKey('groq');
             if (groqKey) {
               try {
                 content = await tryLlm(groqKey, 'groq', 'llama-3.3-70b-versatile', openaiFormatMessages);
-                if (isValidLlmResponse(content)) usedModelId = 'llama-3.3-70b-versatile';
+                if (isValidLlmResponse(content)) {
+                  usedModelId = 'llama-3.3-70b-versatile';
+                }
               } catch (err) {
                 if (isRateLimitError(err)) {
                   try {
                     content = await tryLlm(groqKey, 'groq', GROQ_SMALL_MODEL, openaiFormatMessages);
-                    if (isValidLlmResponse(content)) usedModelId = GROQ_SMALL_MODEL;
-                    else llmError = err instanceof Error ? err.message : String(err);
+                    if (isValidLlmResponse(content)) {
+                      usedModelId = GROQ_SMALL_MODEL;
+                    } else {
+                      llmError = err instanceof Error ? err.message : String(err);
+                    }
                   } catch (retryErr) {
                     llmError = err instanceof Error ? err.message : String(err);
                     content = '';
@@ -705,36 +771,42 @@ async function handleChatRequest(
             }
           }
 
-          // Step 3: Tavily for latest data / "now" (when not covered by global data or Groq)
-          // Skip for PESTEL and Porter 5 Forces: only the LLM should produce the structured analysis.
-          const tryTavilyNow =
-            (model === 'tavily-web-search' || !isValidLlmResponse(content)) && !isPestelRequest && !isPorter5ForcesRequest;
-          if (tryTavilyNow && !isValidLlmResponse(content)) {
-            const webResult = await fetchWebSearch(userQuery);
-            if (webResult?.directAnswer) {
-              const country = extractCountryForWiki(userQuery);
-              const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
-              const wikiLink = `For more: [${country} – Wikipedia](https://en.wikipedia.org/wiki/${wikiSlug})`;
-              content = webResult.directAnswer.includes('Wikipedia') || webResult.directAnswer.includes('http')
-                ? webResult.directAnswer
-                : `${webResult.directAnswer} ${wikiLink}`;
+          // For general-knowledge / out-of-scope queries, use Tavily (web search) **after** Groq
+          // when Groq could not produce a usable answer.
+          if (
+            isGeneralKnowledge &&
+            !isPestelRequest &&
+            !isPorter5ForcesRequest &&
+            !isValidLlmResponse(content)
+          ) {
+            const web = await applyWebSearchAnswer();
+            if (web.used) {
+              content = web.content;
               usedWebSearch = true;
-            } else if (webResult?.context) {
-              const snippetMatch = webResult.context.match(/- \*\*(?:[^*]+)\*\* \(([^)]+)\): ([^\n]+)/) || webResult.context.match(/- \*\*(?:[^*]+)\*\*: ([^\n]+)/);
-              if (snippetMatch) {
-                const url = snippetMatch[1]?.startsWith('http') ? snippetMatch[1] : undefined;
-                const text = snippetMatch[2] ?? snippetMatch[1];
-                content = url ? `Based on web search: ${text}\n\nSource: [${url}](${url})` : `Based on web search: ${text}`;
-                usedWebSearch = true;
-              }
             }
           }
 
-          // PESTEL / Porter 5 Forces: user's model is not tried before GROQ (already handled above).
-          const userHasNonGroqKey = !isPestelRequest && !isPorter5ForcesRequest && apiKey && getProviderForModel(model) !== 'groq' && getProviderForModel(model) !== 'tavily';
-          if (userHasNonGroqKey && !isValidLlmResponse(content)) {
+          // For purely dashboard/metric questions (non-general-knowledge),
+          // try Tavily only as a late fallback (e.g. "now" questions beyond DATA_MAX_YEAR)
+          // when neither Groq nor user LLMs produced a valid answer.
+          if (
+            !isGeneralKnowledge &&
+            !isPestelRequest &&
+            !isPorter5ForcesRequest &&
+            !isValidLlmResponse(content)
+          ) {
+            const web = await applyWebSearchAnswer();
+            if (web.used) {
+              content = web.content;
+              usedWebSearch = true;
+            }
+          }
+
+          // After Groq and web search, try user-provided non-Groq models (OpenAI, Anthropic, Google, OpenRouter)
+          // as an additional option for richer or organisation-specific behaviour.
+          if (!isPestelRequest && !isPorter5ForcesRequest && userHasNonGroqKey && !isValidLlmResponse(content)) {
             try {
-              content = await tryLlm(apiKey, getProviderForModel(model) ?? 'openai', model, openaiFormatMessages);
+              content = await tryLlm(apiKey, prov ?? 'openai', model, openaiFormatMessages);
               if (isValidLlmResponse(content)) usedModelId = model;
             } catch (err) {
               llmError = err instanceof Error ? err.message : String(err);
@@ -742,18 +814,10 @@ async function handleChatRequest(
             }
           }
 
-          // Step 4: Other LLMs (user-selected or fallback list) when still no content
-          const prov = getProviderForModel(model);
-          if (apiKey && prov !== 'groq' && prov !== 'tavily') {
-            try {
-              content = await tryLlm(apiKey, prov ?? 'openai', model, openaiFormatMessages);
-              if (isValidLlmResponse(content)) usedModelId = model;
-            } catch (err) {
-              llmError = err instanceof Error ? err.message : String(err);
-            }
-          }
+          // Finally, fall back to other free/available LLMs when everything else failed.
           if (!isValidLlmResponse(content)) {
             for (const { provider: p, model: m } of FREE_LLM_FALLBACK_PRIORITY) {
+              // GROQ has already been tried above.
               if (p === 'groq') continue;
               const key = getServerApiKey(p);
               if (!key) continue;
