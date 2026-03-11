@@ -218,6 +218,12 @@ const EDUCATION_ENROLLMENT_METRIC_IDS: MetricId[] = [
   'tertiaryInstitutionsTotal',
 ];
 
+const EDUCATION_INSTITUTION_METRIC_IDS: MetricId[] = [
+  'primarySchoolCount',
+  'secondarySchoolCount',
+  'tertiaryInstitutionCount',
+];
+
 const EDUCATION_ENROLLMENT_COLORS: Record<string, string> = {
   primaryPupilsTotal: '#0d9488',
   secondaryPupilsTotal: '#ca8a04',
@@ -230,6 +236,12 @@ const EDUCATION_ENROLLMENT_COLORS: Record<string, string> = {
   tertiaryInstitutionsTotal: '#7c3aed',
 };
 
+const EDUCATION_INSTITUTION_COLORS: Record<string, string> = {
+  primarySchoolCount: '#059669',
+  secondarySchoolCount: '#b45309',
+  tertiaryInstitutionCount: '#5b21b6',
+};
+
 const GLOBAL_EDUCATION_ENROLLMENT_LEGEND_LABELS: Record<string, string> = {
   primaryPupilsTotal: 'Primary enrollment',
   secondaryPupilsTotal: 'Secondary enrollment',
@@ -237,9 +249,16 @@ const GLOBAL_EDUCATION_ENROLLMENT_LEGEND_LABELS: Record<string, string> = {
   primaryEnrollmentPct: 'Enrollment rate – primary',
   secondaryEnrollmentPct: 'Enrollment rate – secondary',
   tertiaryEnrollmentPct: 'Enrollment rate – tertiary',
-  primarySchoolsTotal: 'Primary schools',
-  secondarySchoolsTotal: 'Secondary schools',
-  tertiaryInstitutionsTotal: 'Tertiary institutions',
+  // Match Country Dashboard: these are teacher counts, not school counts
+  primarySchoolsTotal: 'Primary teachers',
+  secondarySchoolsTotal: 'Secondary teachers',
+  tertiaryInstitutionsTotal: 'Tertiary teachers',
+};
+
+const GLOBAL_EDUCATION_INSTITUTION_LEGEND_LABELS: Record<string, string> = {
+  primarySchoolCount: 'Primary schools',
+  secondarySchoolCount: 'Secondary schools',
+  tertiaryInstitutionCount: 'Universities',
 };
 
 const GLOBAL_EDUCATION_ENROLLMENT_LABELS: Record<string, string> = {
@@ -249,9 +268,16 @@ const GLOBAL_EDUCATION_ENROLLMENT_LABELS: Record<string, string> = {
   primaryEnrollmentPct: 'Primary enrollment (% gross)',
   secondaryEnrollmentPct: 'Secondary enrollment (% gross)',
   tertiaryEnrollmentPct: 'Tertiary enrollment (% gross)',
-  primarySchoolsTotal: 'Primary schools (total)',
-  secondarySchoolsTotal: 'Secondary schools (total)',
-  tertiaryInstitutionsTotal: 'Tertiary institutions (total)',
+  // Match Country Dashboard: teacher totals for each level
+  primarySchoolsTotal: 'Primary education, teachers (total)',
+  secondarySchoolsTotal: 'Secondary education, teachers (total)',
+  tertiaryInstitutionsTotal: 'Tertiary education, teachers (total)',
+};
+
+const GLOBAL_EDUCATION_INSTITUTION_LABELS: Record<string, string> = {
+  primarySchoolCount: 'Number of primary schools',
+  secondarySchoolCount: 'Number of secondary schools',
+  tertiaryInstitutionCount: 'Number of universities and tertiary institutions',
 };
 
 const LABOUR_METRIC_IDS: MetricId[] = ['unemployedTotal', 'labourForceTotal'];
@@ -305,6 +331,19 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
   const [globalPopStructureSeries, setGlobalPopStructureSeries] = useState<MetricSeries[]>([]);
   const [worldPopByYear, setWorldPopByYear] = useState<Record<number, number>>({});
   const [selectedPopMetricIds, setSelectedPopMetricIds] = useState<MetricId[]>(POP_STRUCTURE_METRIC_IDS);
+
+  const [globalEducationEnrollmentSeries, setGlobalEducationEnrollmentSeries] = useState<MetricSeries[]>([]);
+  const [frequencyEduEnroll, setFrequencyEduEnroll] = useState<Frequency>('yearly');
+  const [selectedEduEnrollMetricIds, setSelectedEduEnrollMetricIds] = useState<MetricId[]>(EDUCATION_ENROLLMENT_METRIC_IDS);
+  const [viewModeEduEnroll, setViewModeEduEnroll] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpenEduEnroll, setIsFrequencyOpenEduEnroll] = useState(false);
+
+  const [globalEducationInstitutionSeries, setGlobalEducationInstitutionSeries] = useState<MetricSeries[]>([]);
+  const [frequencyEduInst, setFrequencyEduInst] = useState<Frequency>('yearly');
+  const [selectedEduInstMetricIds, setSelectedEduInstMetricIds] = useState<MetricId[]>(EDUCATION_INSTITUTION_METRIC_IDS);
+  const [viewModeEduInst, setViewModeEduInst] = useState<'chart' | 'table'>('chart');
+  const [isFrequencyOpenEduInst, setIsFrequencyOpenEduInst] = useState(false);
+
   const [viewModePop, setViewModePop] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpenPop, setIsFrequencyOpenPop] = useState(false);
 
@@ -313,12 +352,6 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
   const [selectedEduOOSMetricIds, setSelectedEduOOSMetricIds] = useState<MetricId[]>(EDUCATION_OOS_METRIC_IDS);
   const [viewModeEduOOS, setViewModeEduOOS] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpenEduOOS, setIsFrequencyOpenEduOOS] = useState(false);
-
-  const [globalEducationEnrollmentSeries, setGlobalEducationEnrollmentSeries] = useState<MetricSeries[]>([]);
-  const [frequencyEduEnroll, setFrequencyEduEnroll] = useState<Frequency>('yearly');
-  const [selectedEduEnrollMetricIds, setSelectedEduEnrollMetricIds] = useState<MetricId[]>(EDUCATION_ENROLLMENT_METRIC_IDS);
-  const [viewModeEduEnroll, setViewModeEduEnroll] = useState<'chart' | 'table'>('chart');
-  const [isFrequencyOpenEduEnroll, setIsFrequencyOpenEduEnroll] = useState(false);
 
   const [globalLabourSeries, setGlobalLabourSeries] = useState<MetricSeries[]>([]);
   const [frequencyLabour, setFrequencyLabour] = useState<Frequency>('yearly');
@@ -495,6 +528,24 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
           };
         });
         setGlobalEducationEnrollmentSeries(educationEnrollmentSeriesList);
+
+        const educationInstitutionSeriesList: MetricSeries[] = EDUCATION_INSTITUTION_METRIC_IDS.map((id) => {
+          const config = GLOBAL_EDUCATION_AGGREGATES[id];
+          const points: TimePoint[] = rowsPerYear.map((rows, i) => {
+            const year = years[i];
+            const value = config
+              ? computeGlobalValue(filterByRegion(rows), config.valueKey, config.option)
+              : null;
+            return { date: `${year}-01-01`, year, value };
+          });
+          return {
+            id,
+            label: GLOBAL_EDUCATION_INSTITUTION_LABELS[id] ?? id,
+            unit: '',
+            points: fillSeriesPoints(points),
+          };
+        });
+        setGlobalEducationInstitutionSeries(educationInstitutionSeriesList);
 
         const labourSeriesList: MetricSeries[] = LABOUR_METRIC_IDS.map((id) => {
           const config = GLOBAL_LABOUR_AGGREGATES[id];
@@ -893,6 +944,59 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
     URL.revokeObjectURL(url);
   };
 
+  const downloadEduInstChartPng = async () => {
+    const el = document.getElementById('global-education-institutions-chart-wrapper');
+    if (!el) return;
+    try {
+      const canvas = await html2canvas(el, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+      });
+      const link = document.createElement('a');
+      link.download = `${scopeLabel}-schools-universities-institution-counts-${maxYear}-chart.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Global education institutions chart export failed:', err);
+    }
+  };
+
+  const downloadEduInstCsv = () => {
+    const rows: string[] = [];
+    const header = [
+      frequencyEduInst === 'yearly' ? 'Year' : 'Period',
+      ...EDUCATION_INSTITUTION_METRIC_IDS.map(
+        (id) => eduInstData.labelByMetricId[id] ?? id,
+      ),
+    ];
+    rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
+    eduInstData.merged.forEach((row) => {
+      const cells: string[] = [];
+      cells.push(
+        `"${String(
+          eduInstData.formatAxisLabel(row[eduInstData.xKey] as string | number),
+        ).replace(/"/g, '""')}"`,
+      );
+      EDUCATION_INSTITUTION_METRIC_IDS.forEach((id) => {
+        const v = row[id];
+        cells.push(v == null ? '' : String(v));
+      });
+      rows.push(cells.join(','));
+    });
+    const blob = new Blob([rows.join('\n')], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${scopeLabel}-schools-universities-institution-counts-${maxYear}-data.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const downloadEduOOSChartPng = async () => {
     const el = document.getElementById('global-education-oos-chart-wrapper');
     if (!el) return;
@@ -1200,6 +1304,11 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
   const eduOOSData = buildBlockData(globalEducationOOSSeries, frequencyEduOOS, EDUCATION_OOS_METRIC_IDS);
   const eduEnrollData = buildBlockData(globalEducationEnrollmentSeries, frequencyEduEnroll, EDUCATION_ENROLLMENT_METRIC_IDS);
   const labourData = buildBlockData(globalLabourSeries, frequencyLabour, LABOUR_METRIC_IDS);
+  const eduInstData = buildBlockData(
+    globalEducationInstitutionSeries,
+    frequencyEduInst,
+    EDUCATION_INSTITUTION_METRIC_IDS,
+  );
 
   const xKey = frequency === 'yearly' ? 'year' : 'date';
 
@@ -2953,7 +3062,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                       <div className="section-header" style={{ marginTop: 0 }}>
                         <div>
                           <h2 className="section-title">{label}</h2>
-                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels.</p>
+                          <p className="muted">Global aggregates: weighted averages for rates/shares; world totals for levels. Includes enrollment (total and % gross) and teaching workforce (teachers).</p>
                         </div>
                         <div className="section-header-controls">
                           <div className="section-header-control-group">
@@ -2969,7 +3078,7 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                                   <div className="map-metric-category">
                                     <div className="map-metric-category-header"><span className="map-metric-category-icon"><svg viewBox="0 0 16 16"><path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" /></svg></span><span>Sampling cadence</span></div>
                                     <div className="map-metric-category-items">
-                                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                                          {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
                                         <button key={f} type="button" className={`map-metric-option ${frequencyEduEnroll === f ? 'selected' : ''}`} onClick={() => { setFrequencyEduEnroll(f); setIsFrequencyOpenEduEnroll(false); }}>
                                           <span className="map-metric-option-icon">{frequencyEduEnroll === f && <svg viewBox="0 0 16 16"><path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" /></svg>}</span>
                                           <span>{FREQUENCY_LABELS[f]}</span>
@@ -3246,6 +3355,373 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
                                     })}
                                   </tr>
                                 ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+                      </div>
+                    </div>
+                  )}
+
+                  {isExpanded && id === 'educationInstitutions' && (
+                    <div className="card timeseries-section dashboard-grid-full">
+                      <div className="section-header" style={{ marginTop: 0 }}>
+                        <div>
+                          <h2 className="section-title">{label}</h2>
+                          <p className="muted">
+                            Global estimated counts of schools and universities, derived from UNESCO UIS / World Bank enrollment data using typical institution sizes. Intended for high-level system-size comparisons only.
+                          </p>
+                        </div>
+                        <div className="section-header-controls">
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">Frequency</div>
+                            <div
+                              className="frequency-toolbar"
+                              tabIndex={-1}
+                              onBlur={(e) => {
+                                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                                  setIsFrequencyOpenEduInst(false);
+                                }
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="map-metric-trigger"
+                                aria-haspopup="listbox"
+                                aria-expanded={isFrequencyOpenEduInst}
+                                onClick={() => setIsFrequencyOpenEduInst((o) => !o)}
+                              >
+                                <span className="map-metric-trigger-icon">
+                                  <svg viewBox="0 0 16 16">
+                                    <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Z" />
+                                  </svg>
+                                </span>
+                                <span className="map-metric-trigger-label">
+                                  {FREQUENCY_LABELS[frequencyEduInst]}
+                                </span>
+                                <span
+                                  className={`map-metric-trigger-chevron ${
+                                    isFrequencyOpenEduInst ? 'open' : ''
+                                  }`}
+                                  aria-hidden="true"
+                                >
+                                  <svg viewBox="0 0 16 16">
+                                    <path d="M4.22 6.22a.75.75 0 0 1 1.06 0L8 8.94l2.72-2.72a.75.75 0 1 1 1.06 1.06L8.53 10.53a.75.75 0 0 1-1.06 0L4.22 7.28a.75.75 0 0 1 0-1.06Z" />
+                                  </svg>
+                                </span>
+                              </button>
+                              {isFrequencyOpenEduInst && (
+                                <div className="map-metric-dropdown" role="listbox">
+                                  <div className="map-metric-category">
+                                    <div className="map-metric-category-header">
+                                      <span className="map-metric-category-icon">
+                                        <svg viewBox="0 0 16 16">
+                                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" />
+                                        </svg>
+                                      </span>
+                                      <span>Sampling cadence</span>
+                                    </div>
+                                    <div className="map-metric-category-items">
+                                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
+                                        <button
+                                          key={f}
+                                          type="button"
+                                          className={`map-metric-option ${
+                                            frequencyEduInst === f ? 'selected' : ''
+                                          }`}
+                                          onClick={() => {
+                                            setFrequencyEduInst(f);
+                                            setIsFrequencyOpenEduInst(false);
+                                          }}
+                                        >
+                                          <span className="map-metric-option-icon">
+                                            {frequencyEduInst === f && (
+                                              <svg viewBox="0 0 16 16">
+                                                <path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" />
+                                              </svg>
+                                            )}
+                                          </span>
+                                          <span>{FREQUENCY_LABELS[f]}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="section-header-control-group">
+                            <div className="section-control-label">View</div>
+                            <div className="pill-group pill-group-secondary">
+                              <button
+                                type="button"
+                                className={`pill ${
+                                  viewModeEduInst === 'chart' ? 'pill-active' : ''
+                                }`}
+                                onClick={() => setViewModeEduInst('chart')}
+                              >
+                                <span className="icon-12">
+                                  <svg viewBox="0 0 16 16">
+                                    <path d="M2.75 3A.75.75 0 0 0 2 3.75v8.5c0 .414.336.75.75.75h11.5a.75.75 0 0 0 .75-.75v-8.5A.75.75 0 0 0 14.25 3h-11.5Z" />
+                                  </svg>
+                                </span>
+                                <span>Chart view</span>
+                              </button>
+                              <button
+                                type="button"
+                                className={`pill ${
+                                  viewModeEduInst === 'table' ? 'pill-active' : ''
+                                }`}
+                                onClick={() => setViewModeEduInst('table')}
+                              >
+                                <span className="icon-12">
+                                  <svg viewBox="0 0 16 16">
+                                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" />
+                                  </svg>
+                                </span>
+                                <span>Table view</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="section-header-control-group">
+                        <div className="section-control-label">Export</div>
+                        <div className="pill-group pill-group-secondary">
+                          {viewModeEduInst === 'chart' && (
+                            <button
+                              type="button"
+                              className="pestel-chart-download-btn summary-download-icon-btn"
+                              onClick={downloadEduInstChartPng}
+                              title="Download chart view as high-resolution PNG"
+                              aria-label="Download chart view as high-resolution PNG"
+                            >
+                              <svg
+                                viewBox="0 0 16 16"
+                                width="16"
+                                height="16"
+                                aria-hidden="true"
+                                focusable="false"
+                              >
+                                <path
+                                  fill="currentColor"
+                                  d="M8 1.5a.75.75 0 0 1 .75.75v6.19l2.22-2.22a.75.75 0 0 1 1.06 1.06l-3.5 3.5a.75.75 0 0 1-1.06 0l-3.5-3.5a.75.75 0 1 1 1.06-1.06L7.25 8.44V2.25A.75.75 0 0 1 8 1.5Zm-4 9a.75.75 0 0 1 .75.75v1.25c0 .14.11.25.25.25h6a.25.25 0 0 0 .25-.25v-1.25a.75.75 0 0 1 1.5 0v1.25A1.75 1.75 0 0 1 11 14.5H5A1.75 1.75 0 0 1 3.25 12.75v-1.25A.75.75 0 0 1 4 10.5Z"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                          {viewModeEduInst === 'table' && (
+                            <button
+                              type="button"
+                              className="pestel-chart-download-btn summary-download-icon-btn"
+                              onClick={downloadEduInstCsv}
+                              title="Export table data as CSV"
+                              aria-label="Export table data as CSV"
+                            >
+                              <svg
+                                viewBox="0 0 16 16"
+                                width="16"
+                                height="16"
+                                aria-hidden="true"
+                                focusable="false"
+                              >
+                                <path
+                                  fill="currentColor"
+                                  d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="metric-toggle-row-header">
+                        <div className="metric-toggle-title">Metrics displayed</div>
+                        <div className="metric-toggle-hint">
+                          Tap to show or hide indicators
+                        </div>
+                      </div>
+                      <div className="metric-toggle-row">
+                        {EDUCATION_INSTITUTION_METRIC_IDS.map((id) => (
+                          <button
+                            key={id}
+                            type="button"
+                            className={`tag ${
+                              selectedEduInstMetricIds.includes(id) ? 'tag-active' : ''
+                            }`}
+                            onClick={() => {
+                              if (selectedEduInstMetricIds.includes(id)) {
+                                setSelectedEduInstMetricIds(
+                                  selectedEduInstMetricIds.filter((m) => m !== id),
+                                );
+                              } else {
+                                setSelectedEduInstMetricIds([
+                                  ...selectedEduInstMetricIds,
+                                  id,
+                                ]);
+                              }
+                            }}
+                          >
+                            <span
+                              className="tag-swatch"
+                              style={{ backgroundColor: EDUCATION_INSTITUTION_COLORS[id] }}
+                            />
+                            {GLOBAL_EDUCATION_INSTITUTION_LEGEND_LABELS[id] ?? id}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div id="global-education-institutions-chart-wrapper">
+                      {viewModeEduInst === 'chart' ? (
+                        <div className="chart-wrapper">
+                          <ResponsiveContainer width="100%" height={320}>
+                            <LineChart
+                              data={eduInstData.merged}
+                              margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
+                            >
+                              <CartesianGrid
+                                stroke="rgba(148,163,184,0.25)"
+                                vertical={false}
+                              />
+                              <XAxis
+                                dataKey={eduInstData.xKey}
+                                ticks={eduInstData.xTicks}
+                                tickFormatter={eduInstData.formatAxisLabel}
+                                tickLine={false}
+                                tickMargin={8}
+                                stroke="rgba(148,163,184,0.9)"
+                                tick={{
+                                  fontSize: 10,
+                                  fill: 'rgba(55,65,81,0.9)',
+                                }}
+                              />
+                              <YAxis
+                                tickFormatter={(v) => formatCompactNumber(v as number)}
+                                tickLine={false}
+                                tickMargin={8}
+                                stroke="rgba(148,163,184,0.9)"
+                              />
+                              <Tooltip
+                                contentStyle={{
+                                  background: '#ffffff',
+                                  border: '1px solid rgba(148,163,184,0.6)',
+                                  borderRadius: 8,
+                                  boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
+                                }}
+                                content={
+                                  <CustomTooltip
+                                    mergedOverride={eduInstData.merged}
+                                    xKeyOverride={eduInstData.xKey}
+                                    labelByMetricIdOverride={eduInstData.labelByMetricId}
+                                    selectedMetricIdsOverride={selectedEduInstMetricIds}
+                                    frequencyOverride={frequencyEduInst}
+                                    formatAxisLabelOverride={eduInstData.formatAxisLabel}
+                                    metricIdsOverride={EDUCATION_INSTITUTION_METRIC_IDS}
+                                    freqLabelOverride={eduInstData.freqLabel}
+                                    formatValueOverride={(_, val) =>
+                                      val != null ? formatCompactNumber(val) : '–'
+                                    }
+                                  />
+                                }
+                              />
+                              {EDUCATION_INSTITUTION_METRIC_IDS.map((metricId) => (
+                                <Line
+                                  key={metricId}
+                                  type="monotone"
+                                  dataKey={metricId}
+                                  stroke={EDUCATION_INSTITUTION_COLORS[metricId]}
+                                  strokeWidth={2}
+                                  dot={false}
+                                  hide={
+                                    !selectedEduInstMetricIds.includes(metricId) ||
+                                    !eduInstData.merged.some((row) => row[metricId] != null)
+                                  }
+                                  yAxisId="left"
+                                />
+                              ))}
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="chart-table-wrapper">
+                          <div className="chart-table-scroll">
+                            <table className="chart-table">
+                              <thead>
+                                <tr>
+                                  <th>Year</th>
+                                  {selectedEduInstMetricIds.map((id) => (
+                                    <th key={id}>
+                                      {GLOBAL_EDUCATION_INSTITUTION_LABELS[id] ?? id}
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {eduInstData.merged.map((row, rowIndex) => (
+                                    <tr key={row[eduInstData.xKey] as string | number}>
+                                      <td>
+                                        {eduInstData.formatAxisLabel(
+                                          row[eduInstData.xKey] as string | number,
+                                        )}
+                                      </td>
+                                      {selectedEduInstMetricIds.map((id) => {
+                                        const v = row[id] as number | null;
+                                        const prevRow =
+                                          rowIndex > 0
+                                            ? (eduInstData.merged[rowIndex - 1] as any)
+                                            : undefined;
+                                        const prev =
+                                          prevRow && prevRow[id] != null
+                                            ? (prevRow[id] as number)
+                                            : null;
+
+                                        let changeText: string | null = null;
+                                        let changeDir: 'up' | 'down' | 'flat' | null = null;
+                                        if (v != null) {
+                                          changeText = formatGrowthChange(
+                                            v,
+                                            prev ?? null,
+                                            eduInstData.freqLabel[frequencyEduInst],
+                                            id,
+                                          );
+                                          if (changeText) {
+                                            const diff = v - (prev ?? 0);
+                                            if (prev != null && prev !== 0) {
+                                              const pct = (diff / Math.abs(prev)) * 100;
+                                              if (pct > 0.05) changeDir = 'up';
+                                              else if (pct < -0.05) changeDir = 'down';
+                                              else changeDir = 'flat';
+                                            } else {
+                                              changeDir = diff > 0 ? 'up' : diff < 0 ? 'down' : 'flat';
+                                            }
+                                          }
+                                        }
+
+                                        return (
+                                          <td key={id}>
+                                            {v == null ? (
+                                              '–'
+                                            ) : (
+                                              <div className="table-metric-cell">
+                                                <div className="table-metric-value">
+                                                  {formatCompactNumber(v)}
+                                                </div>
+                                                {changeText && changeDir && (
+                                                  <div
+                                                    className={`table-metric-change table-metric-change-${changeDir}`}
+                                                  >
+                                                    {changeText}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  ))}
                               </tbody>
                             </table>
                           </div>

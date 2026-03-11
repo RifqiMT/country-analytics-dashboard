@@ -68,6 +68,9 @@ const COMPARISON_ORDER: Array<{
   { rowKey: 'tertiaryEnrollmentPct', category: 'education', educationSubcategory: 'tertiary' },
   { rowKey: 'tertiaryEnrollmentTotal', category: 'education', educationSubcategory: 'tertiary' },
   { rowKey: 'tertiaryInstitutionsTotal', category: 'education', educationSubcategory: 'tertiary' },
+  { rowKey: 'primarySchoolCount', category: 'education', educationSubcategory: 'primary' },
+  { rowKey: 'secondarySchoolCount', category: 'education', educationSubcategory: 'secondary' },
+  { rowKey: 'tertiaryInstitutionCount', category: 'education', educationSubcategory: 'tertiary' },
   { rowKey: 'literacyRateAdultPct', category: 'education', educationSubcategory: 'literacy_attainment' },
   { rowKey: 'genderParityIndexPrimary', category: 'education', educationSubcategory: 'equity_quality_investment' },
   { rowKey: 'genderParityIndexSecondary', category: 'education', educationSubcategory: 'equity_quality_investment' },
@@ -609,6 +612,18 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     'tertiaryInstitutionsTotal',
     'tertiaryInstitutionsTotal',
   );
+  const primarySchoolCountAgg = computeAggregates(
+    'primarySchoolCount',
+    'primarySchoolCount',
+  );
+  const secondarySchoolCountAgg = computeAggregates(
+    'secondarySchoolCount',
+    'secondarySchoolCount',
+  );
+  const tertiaryInstitutionCountAgg = computeAggregates(
+    'tertiaryInstitutionCount',
+    'tertiaryInstitutionCount',
+  );
 
   const [expandedGroups, setExpandedGroups] = useState({
     geography: true,
@@ -672,6 +687,9 @@ export function CountryTableSection({ data, refreshTrigger = 0 }: Props) {
     primarySchoolsTotal: primarySchoolsTotalAgg,
     secondarySchoolsTotal: secondarySchoolsTotalAgg,
     tertiaryInstitutionsTotal: tertiaryInstitutionsTotalAgg,
+    primarySchoolCount: primarySchoolCountAgg,
+    secondarySchoolCount: secondarySchoolCountAgg,
+    tertiaryInstitutionCount: tertiaryInstitutionCountAgg,
   };
 
   const renderRow = (

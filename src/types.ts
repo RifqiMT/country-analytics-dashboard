@@ -50,7 +50,10 @@ export type EducationMetricId =
   | 'tertiaryEnrollmentTotal'
   | 'primarySchoolsTotal'
   | 'secondarySchoolsTotal'
-  | 'tertiaryInstitutionsTotal';
+  | 'tertiaryInstitutionsTotal'
+  | 'primarySchoolCount'
+  | 'secondarySchoolCount'
+  | 'tertiaryInstitutionCount';
 
 export type MetricId = FinancialMetricId | PopulationMetricId | HealthMetricId | EducationMetricId;
 
@@ -158,6 +161,9 @@ export interface CountryYearSnapshot {
       primarySchoolsTotal?: number | null;
       secondarySchoolsTotal?: number | null;
       tertiaryInstitutionsTotal?: number | null;
+      primarySchoolCount?: number | null;
+      secondarySchoolCount?: number | null;
+      tertiaryInstitutionCount?: number | null;
     };
     geography?: {
       landAreaKm2?: number | null;
@@ -238,6 +244,9 @@ export interface GlobalCountryMetricsRow {
   primarySchoolsTotal?: number | null;
   secondarySchoolsTotal?: number | null;
   tertiaryInstitutionsTotal?: number | null;
+  primarySchoolCount?: number | null;
+  secondarySchoolCount?: number | null;
+  tertiaryInstitutionCount?: number | null;
   // Area metrics (sq. km)
   landAreaKm2?: number | null;
   totalAreaKm2?: number | null;

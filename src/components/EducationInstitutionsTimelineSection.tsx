@@ -16,57 +16,29 @@ import type {
   MetricId,
   MetricSeries,
 } from '../types';
-import { formatCompactNumber, formatPercentage } from '../utils/numberFormat';
+import { formatCompactNumber } from '../utils/numberFormat';
 import { formatGrowthChange, isPercentageMetric } from '../utils/growthFormat';
 import type { TooltipProps } from 'recharts';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 
-/** Education – Enrollment & staff: enrollment (total), enrollment (% gross), teachers (total), ordered by level (primary, secondary, tertiary). */
-const ENROLLMENT_STAFF_METRIC_IDS: MetricId[] = [
-  'primaryPupilsTotal',
-  'secondaryPupilsTotal',
-  'tertiaryEnrollmentTotal',
-  'primaryEnrollmentPct',
-  'secondaryEnrollmentPct',
-  'tertiaryEnrollmentPct',
-  'primarySchoolsTotal',
-  'secondarySchoolsTotal',
-  'tertiaryInstitutionsTotal',
+/** Education – Institutions: estimated number of schools and universities (primary, secondary, tertiary). */
+const INSTITUTION_METRIC_IDS: MetricId[] = [
+  'primarySchoolCount',
+  'secondarySchoolCount',
+  'tertiaryInstitutionCount',
 ];
 
-const METRIC_COLORS: Record<string, string> = {
-  primaryPupilsTotal: '#0d9488',
-  secondaryPupilsTotal: '#ca8a04',
-  tertiaryEnrollmentTotal: '#4f46e5',
-  primaryEnrollmentPct: '#0f766e',
-  secondaryEnrollmentPct: '#a16207',
-  tertiaryEnrollmentPct: '#2563eb',
-  primarySchoolsTotal: '#0d9488',
-  secondarySchoolsTotal: '#ca8a04',
-  tertiaryInstitutionsTotal: '#7c3aed',
+const INSTITUTION_COLORS: Record<string, string> = {
   primarySchoolCount: '#059669',
   secondarySchoolCount: '#b45309',
   tertiaryInstitutionCount: '#5b21b6',
 };
 
-const ENROLLMENT_LEGEND_LABELS: Record<string, string> = {
-  primaryPupilsTotal: 'Primary enrollment',
-  secondaryPupilsTotal: 'Secondary enrollment',
-  tertiaryEnrollmentTotal: 'Tertiary enrollment',
-  primaryEnrollmentPct: 'Enrollment rate – primary',
-  secondaryEnrollmentPct: 'Enrollment rate – secondary',
-  tertiaryEnrollmentPct: 'Enrollment rate – tertiary',
-  primarySchoolsTotal: 'Primary teachers',
-  secondarySchoolsTotal: 'Secondary teachers',
-  tertiaryInstitutionsTotal: 'Tertiary teachers',
+const INSTITUTION_LEGEND_LABELS: Record<string, string> = {
+  primarySchoolCount: 'Primary schools',
+  secondarySchoolCount: 'Secondary schools',
+  tertiaryInstitutionCount: 'Universities & tertiary institutions',
 };
-
-/** Percentage-based metrics use the right Y-axis (0–100%); all others use the left (absolute counts). */
-const ENROLLMENT_STAFF_RIGHT_AXIS_METRICS: MetricId[] = [
-  'primaryEnrollmentPct',
-  'secondaryEnrollmentPct',
-  'tertiaryEnrollmentPct',
-];
 
 const FREQUENCY_LABELS: Record<Frequency, string> = {
   weekly: 'Weekly (interpolated)',
@@ -84,19 +56,18 @@ interface Props {
   sectionTitle?: string;
 }
 
-export function EducationEnrollmentStaffTimelineSection({
+export function EducationInstitutionsTimelineSection({
   data,
   frequency,
   setFrequency,
   resampledSeries,
-  sectionTitle = 'Education – Enrollment & staff',
+  sectionTitle = 'Schools & universities',
 }: Props) {
   const finalSeries = resampledSeries ?? data?.series;
-  const [selectedMetricIds, setSelectedMetricIds] = useState<MetricId[]>(
-    ENROLLMENT_STAFF_METRIC_IDS,
-  );
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [isFrequencyOpen, setIsFrequencyOpen] = useState(false);
+  const [selectedMetricIds, setSelectedMetricIds] =
+    useState<MetricId[]>(INSTITUTION_METRIC_IDS);
   const chartRef = useRef<HTMLDivElement | null>(null);
 
   const handleDownloadChartPng = async () => {
@@ -118,23 +89,20 @@ export function EducationEnrollmentStaffTimelineSection({
       link.click();
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error('Education enrollment & staff chart export failed:', err);
+      console.error('Education institutions chart export failed:', err);
     }
   };
 
   const handleDownloadTableCsv = () => {
     const rows: string[] = [];
-    const header = [
-      'Period',
-      ...ENROLLMENT_STAFF_METRIC_IDS.map((id) => labelByMetricId[id] ?? id),
-    ];
+    const header = ['Period', ...INSTITUTION_METRIC_IDS];
     rows.push(header.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(','));
     merged.forEach((row) => {
       const cells: string[] = [];
       cells.push(
         `"${String(formatAxisLabel(row[xKey] as string | number)).replace(/"/g, '""')}"`,
       );
-      ENROLLMENT_STAFF_METRIC_IDS.forEach((id) => {
+      INSTITUTION_METRIC_IDS.forEach((id) => {
         const v = row[id];
         cells.push(v == null ? '' : String(v));
       });
@@ -151,7 +119,10 @@ export function EducationEnrollmentStaffTimelineSection({
     link.href = url;
     const sectionSegment = sanitizeFilenameSegment(sectionTitle);
     const modeSegment = viewMode === 'table' ? 'table' : 'data';
-    link.setAttribute('download', `${countryLabel}-${sectionSegment}-${latestYear}-${modeSegment}.csv`);
+    link.setAttribute(
+      'download',
+      `${countryLabel}-${sectionSegment}-${latestYear}-${modeSegment}.csv`,
+    );
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -165,18 +136,16 @@ export function EducationEnrollmentStaffTimelineSection({
     );
   }
 
-  const allSeries: MetricSeries[] = (finalSeries.education ?? []).filter(
-    (s) => ENROLLMENT_STAFF_METRIC_IDS.includes(s.id),
+  const allSeries: MetricSeries[] = (finalSeries.education ?? []).filter((s) =>
+    INSTITUTION_METRIC_IDS.includes(s.id),
   );
 
-  const displayStartYear =
-    data.range
-      ? Math.max(data.range.startYear, DATA_MIN_YEAR)
-      : DATA_MIN_YEAR;
-  const displayEndYear =
-    data.range
-      ? Math.min(data.range.endYear, DATA_MAX_YEAR)
-      : DATA_MAX_YEAR;
+  const displayStartYear = data.range
+    ? Math.max(data.range.startYear, DATA_MIN_YEAR)
+    : DATA_MIN_YEAR;
+  const displayEndYear = data.range
+    ? Math.min(data.range.endYear, DATA_MAX_YEAR)
+    : DATA_MAX_YEAR;
 
   const labelByMetricId = allSeries.reduce<Record<string, string>>(
     (acc, series) => {
@@ -194,31 +163,22 @@ export function EducationEnrollmentStaffTimelineSection({
       dateSet.set(p.date, p.year);
     }
   }
-  const sortedDates = [...dateSet.entries()].sort(
-    (a, b) => (a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0])),
+  const sortedDates = [...dateSet.entries()].sort((a, b) =>
+    a[1] !== b[1] ? a[1] - b[1] : a[0].localeCompare(b[0]),
   );
   const baseData = sortedDates.map(([date, year]) => ({ date, year }));
-
-  const seriesById = new Map<string, MetricSeries>();
-  for (const s of allSeries) {
-    seriesById.set(s.id, s);
-  }
-
-  const getMetricValueAtDate = (metricId: MetricId, date: string): number | null => {
-    const seriesForMetric = seriesById.get(metricId);
-    if (!seriesForMetric?.points) return null;
-    return (
-      seriesForMetric.points.find((sp) => sp.date === date)?.value ?? null
-    );
-  };
 
   const merged = baseData.map((p) => {
     const row: Record<string, string | number | null> = {
       date: p.date,
       year: p.year,
     };
-    for (const metricId of ENROLLMENT_STAFF_METRIC_IDS) {
-      row[metricId] = getMetricValueAtDate(metricId, p.date);
+    for (const metricId of INSTITUTION_METRIC_IDS) {
+      const seriesForMetric = allSeries.find((s) => s.id === metricId);
+      const value =
+        seriesForMetric?.points?.find((sp) => sp.date === p.date)?.value ??
+        null;
+      row[metricId] = value;
     }
     return row;
   });
@@ -280,7 +240,6 @@ export function EducationEnrollmentStaffTimelineSection({
         color: string;
         change?: string;
         changeDirection?: 'up' | 'down' | 'flat';
-        dataKey: string;
       }
     >();
     const index = merged.findIndex((row) => row[xKey] === label);
@@ -322,22 +281,16 @@ export function EducationEnrollmentStaffTimelineSection({
         color: p.color ?? '#6b7280',
         change,
         changeDirection,
-        dataKey: id,
       });
     });
 
-    const rowsByCategory = [
-      {
-        label: '',
-        rows: ENROLLMENT_STAFF_METRIC_IDS.filter((id) =>
-          selectedMetricIds.includes(id),
-        )
-          .map((id) => byMetricId.get(id))
-          .filter((r): r is NonNullable<typeof r> => r != null),
-      },
-    ].filter((g) => g.rows.length > 0);
+    const rows = INSTITUTION_METRIC_IDS.filter(
+      (id) => selectedMetricIds.includes(id) && byMetricId.has(id),
+    )
+      .map((id) => byMetricId.get(id)!)
+      .filter(Boolean);
 
-    if (!rowsByCategory.some((g) => g.rows.length > 0)) return null;
+    if (!rows.length) return null;
 
     return (
       <div className="chart-tooltip">
@@ -347,38 +300,29 @@ export function EducationEnrollmentStaffTimelineSection({
             : String(formatAxisLabel(label as string | number))}
         </div>
         <div className="chart-tooltip-body">
-          {rowsByCategory.map((group) => (
-            <div key={group.label || 'metrics'} className="chart-tooltip-category">
-              {group.label ? (
-                <div className="chart-tooltip-category-label">{group.label}</div>
-              ) : null}
-              {group.rows.map((row) => (
-                <div key={row.name} className="chart-tooltip-row">
-                  <span
-                    className="chart-tooltip-dot"
-                    style={{ backgroundColor: row.color }}
-                  />
-                  <div className="chart-tooltip-label">{row.name}</div>
-                  <div className="chart-tooltip-value">
-                    {ENROLLMENT_STAFF_RIGHT_AXIS_METRICS.includes(row.dataKey as MetricId)
-                      ? formatPercentage(row.value)
-                      : formatCompactNumber(row.value)}
-                  </div>
-                  {row.change && (
-                    <div
-                      className={`chart-tooltip-change ${
-                        row.changeDirection === 'up'
-                          ? 'chart-tooltip-change-up'
-                          : row.changeDirection === 'down'
-                            ? 'chart-tooltip-change-down'
-                            : 'chart-tooltip-change-flat'
-                      }`}
-                    >
-                      {row.change}
-                    </div>
-                  )}
+          {rows.map((row) => (
+            <div key={row.name} className="chart-tooltip-row">
+              <span
+                className="chart-tooltip-dot"
+                style={{ backgroundColor: row.color }}
+              />
+              <div className="chart-tooltip-label">{row.name}</div>
+              <div className="chart-tooltip-value">
+                {formatCompactNumber(row.value)}
+              </div>
+              {row.change && (
+                <div
+                  className={`chart-tooltip-change ${
+                    row.changeDirection === 'up'
+                      ? 'chart-tooltip-change-up'
+                      : row.changeDirection === 'down'
+                        ? 'chart-tooltip-change-down'
+                        : 'chart-tooltip-change-flat'
+                  }`}
+                >
+                  {row.change}
                 </div>
-              ))}
+              )}
             </div>
           ))}
         </div>
@@ -390,14 +334,11 @@ export function EducationEnrollmentStaffTimelineSection({
     <section className="card timeseries-section dashboard-grid-full">
       <div className="section-header">
         <div>
-          <h2 className="section-title">
-            {sectionTitle}
-          </h2>
+          <h2 className="section-title">{sectionTitle}</h2>
           <p className="muted">
-            Switch between weekly, monthly, quarterly, and annual views. Sub-annual
-            views are smoothly interpolated from annual observations. Includes
-            enrollment (total and % gross) for primary, secondary, and tertiary
-            education, and total teachers (primary, secondary, tertiary).
+            Estimated number of schools and universities over time, derived from
+            UNESCO UIS / World Bank enrollment data using typical institution
+            sizes. Use for high-level system-size comparisons only.
           </p>
         </div>
         <div className="section-header-controls">
@@ -421,14 +362,16 @@ export function EducationEnrollmentStaffTimelineSection({
               >
                 <span className="map-metric-trigger-icon">
                   <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" />
+                    <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Z" />
                   </svg>
                 </span>
                 <span className="map-metric-trigger-label">
                   {FREQUENCY_LABELS[frequency]}
                 </span>
                 <span
-                  className={`map-metric-trigger-chevron ${isFrequencyOpen ? 'open' : ''}`}
+                  className={`map-metric-trigger-chevron ${
+                    isFrequencyOpen ? 'open' : ''
+                  }`}
                   aria-hidden="true"
                 >
                   <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
@@ -441,37 +384,45 @@ export function EducationEnrollmentStaffTimelineSection({
                   <div className="map-metric-category">
                     <div className="map-metric-category-header">
                       <span className="map-metric-category-icon">
-                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Zm1.75-.25a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h6.5a.25.25 0 0 0 .25-.25v-8.5a.25.25 0 0 0-.25-.25h-8.5Z" />
+                        <svg
+                          viewBox="0 0 16 16"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M3 3.75A1.75 1.75 0 0 1 4.75 2h6.5A1.75 1.75 0 0 1 13 3.75v8.5A1.75 1.75 0 0 1 11.25 14h-6.5A1.75 1.75 0 0 1 3 12.25v-8.5Z" />
                         </svg>
                       </span>
                       <span>Sampling cadence</span>
                     </div>
                     <div className="map-metric-category-items">
-                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map((f) => (
-                        <button
-                          key={f}
-                          type="button"
-                          className={`map-metric-option ${frequency === f ? 'selected' : ''}`}
-                          onClick={() => {
-                            setFrequency(f);
-                            setIsFrequencyOpen(false);
-                          }}
-                        >
-                          <span className="map-metric-option-icon">
-                            {frequency === f && (
-                              <svg
-                                viewBox="0 0 16 16"
-                                aria-hidden="true"
-                                focusable="false"
-                              >
-                                <path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" />
-                              </svg>
-                            )}
-                          </span>
-                          <span>{FREQUENCY_LABELS[f]}</span>
-                        </button>
-                      ))}
+                      {(Object.keys(FREQUENCY_LABELS) as Frequency[]).map(
+                        (f) => (
+                          <button
+                            key={f}
+                            type="button"
+                            className={`map-metric-option ${
+                              frequency === f ? 'selected' : ''
+                            }`}
+                            onClick={() => {
+                              setFrequency(f);
+                              setIsFrequencyOpen(false);
+                            }}
+                          >
+                            <span className="map-metric-option-icon">
+                              {frequency === f && (
+                                <svg
+                                  viewBox="0 0 16 16"
+                                  aria-hidden="true"
+                                  focusable="false"
+                                >
+                                  <path d="M6.5 10.293 4.354 8.146a.5.5 0 1 0-.708.708l2.5 2.5a.5.5 0 0 0 .708 0l5-5a.5.5 0 0 0-.708-.708L6.5 10.293Z" />
+                                </svg>
+                              )}
+                            </span>
+                            <span>{FREQUENCY_LABELS[f]}</span>
+                          </button>
+                        ),
+                      )}
                     </div>
                   </div>
                 </div>
@@ -500,7 +451,7 @@ export function EducationEnrollmentStaffTimelineSection({
               >
                 <span className="icon-12">
                   <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25ZM4.5 4v2.5h3V4h-3Zm4.5 0v2.5h3V4h-3Zm3 3.5h-3V10h3V7.5Zm-4.5 0h-3V10h3V7.5Z" />
+                    <path d="M3 2.75A.75.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v8.5a.75.75 0 0 1-.75.75h-9.5A1.75 1.75 0 0 1 2 11.25v-7.5A.75.75 0 0 1 2.75 3h.25v-.25Z" />
                   </svg>
                 </span>
                 <span>Table view</span>
@@ -558,13 +509,14 @@ export function EducationEnrollmentStaffTimelineSection({
           </div>
         </div>
       </div>
+
       <div ref={chartRef}>
         <div className="metric-toggle-row-header">
           <div className="metric-toggle-title">Metrics displayed</div>
           <div className="metric-toggle-hint">Tap to show or hide indicators</div>
         </div>
         <div className="metric-toggle-row">
-          {ENROLLMENT_STAFF_METRIC_IDS.map((id) => (
+          {INSTITUTION_METRIC_IDS.map((id) => (
             <button
               key={id}
               type="button"
@@ -577,157 +529,151 @@ export function EducationEnrollmentStaffTimelineSection({
                 }
               }}
             >
-              <span className="tag-swatch" style={{ backgroundColor: METRIC_COLORS[id] }} />
-              {ENROLLMENT_LEGEND_LABELS[id] ?? labelByMetricId[id] ?? id}
+              <span
+                className="tag-swatch"
+                style={{ backgroundColor: INSTITUTION_COLORS[id] }}
+              />
+              {INSTITUTION_LEGEND_LABELS[id] ?? labelByMetricId[id] ?? id}
             </button>
           ))}
         </div>
 
-      {viewMode === 'chart' ? (
-        <div className="chart-wrapper">
-          <ResponsiveContainer width="100%" height={320}>
-            <LineChart
-              data={merged}
-              margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
-            >
-              <CartesianGrid
-                stroke="rgba(148,163,184,0.25)"
-                vertical={false}
-              />
-              <XAxis
-                dataKey={xKey}
-                ticks={xTicks}
-                tickFormatter={formatAxisLabel}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.9)"
-                tick={{
-                  fontSize: 10,
-                  fill: 'rgba(55,65,81,0.9)',
-                }}
-              />
-              <YAxis
-                yAxisId="left"
-                tickFormatter={(v) => formatCompactNumber(v as number)}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.9)"
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tickFormatter={(v) => formatPercentage(v as number)}
-                tickLine={false}
-                tickMargin={8}
-                stroke="rgba(148,163,184,0.6)"
-              />
-              <Tooltip
-                contentStyle={{
-                  background: '#ffffff',
-                  border: '1px solid rgba(148,163,184,0.6)',
-                  borderRadius: 8,
-                  boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
-                }}
-                content={<CustomTooltip />}
-              />
-              {ENROLLMENT_STAFF_METRIC_IDS.map((metricId) => (
-                <Line
-                  key={metricId}
-                  type="monotone"
-                  dataKey={metricId}
-                  stroke={METRIC_COLORS[metricId]}
-                  strokeWidth={2}
-                  dot={false}
-                  hide={
-                    !selectedMetricIds.includes(metricId) ||
-                    !merged.some((row) => row[metricId] != null)
-                  }
-                  yAxisId={
-                    ENROLLMENT_STAFF_RIGHT_AXIS_METRICS.includes(metricId) ? 'right' : 'left'
-                  }
+        {viewMode === 'chart' ? (
+          <div className="chart-wrapper">
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart
+                data={merged}
+                margin={{ top: 12, right: 24, bottom: 24, left: 8 }}
+              >
+                <CartesianGrid
+                  stroke="rgba(148,163,184,0.25)"
+                  vertical={false}
                 />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="chart-table-wrapper">
-          <div className="chart-table-scroll">
-            <table className="chart-table">
-              <thead>
-                <tr>
-                  <th>{frequency === 'yearly' ? 'Year' : 'Period'}</th>
-                  {selectedMetricIds.map((id) => (
-                    <th key={id}>{labelByMetricId[id] ?? id}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {merged.map((row, rowIndex) => (
-                  <tr key={String(row[xKey])}>
-                    <td>{formatAxisLabel(row[xKey] as string | number)}</td>
-                    {selectedMetricIds.map((id) => {
-                      const v = row[id];
-                      const prevRow =
-                        rowIndex > 0 ? merged[rowIndex - 1] : undefined;
-                      const prev =
-                        prevRow && prevRow[id] != null
-                          ? (prevRow[id] as number)
-                          : null;
+                <XAxis
+                  dataKey={xKey}
+                  ticks={xTicks}
+                  tickFormatter={formatAxisLabel}
+                  tickLine={false}
+                  tickMargin={8}
+                  stroke="rgba(148,163,184,0.9)"
+                  tick={{
+                    fontSize: 10,
+                    fill: 'rgba(55,65,81,0.9)',
+                  }}
+                />
+                <YAxis
+                  yAxisId="left"
+                  tickFormatter={(v) => formatCompactNumber(v as number)}
+                  tickLine={false}
+                  tickMargin={8}
+                  stroke="rgba(148,163,184,0.9)"
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: '#ffffff',
+                    border: '1px solid rgba(148,163,184,0.6)',
+                    borderRadius: 8,
+                    boxShadow: '0 10px 30px rgba(15,23,42,0.16)',
+                  }}
+                  content={<CustomTooltip />}
+                />
+                {INSTITUTION_METRIC_IDS.map((metricId) => (
+                  <Line
+                    key={metricId}
+                    type="monotone"
+                    dataKey={metricId}
+                    stroke={INSTITUTION_COLORS[metricId]}
+                    strokeWidth={2}
+                    dot={false}
+                    hide={
+                      !selectedMetricIds.includes(metricId) ||
+                      !merged.some((row) => row[metricId] != null)
+                    }
+                    yAxisId="left"
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="chart-table-wrapper">
+            <div className="chart-table-scroll">
+              <table className="chart-table">
+                <thead>
+                  <tr>
+                    <th>{frequency === 'yearly' ? 'Year' : 'Period'}</th>
+                    {selectedMetricIds.map((id) => (
+                      <th key={id}>{labelByMetricId[id] ?? id}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {merged.map((row, rowIndex) => (
+                    <tr key={String(row[xKey])}>
+                      <td>{formatAxisLabel(row[xKey] as string | number)}</td>
+                      {selectedMetricIds.map((id) => {
+                        const v = row[id];
+                        const prevRow =
+                          rowIndex > 0 ? merged[rowIndex - 1] : undefined;
+                        const prev =
+                          prevRow && prevRow[id] != null
+                            ? (prevRow[id] as number)
+                            : null;
 
-                      let changeText: string | null = null;
-                      let changeDir: 'up' | 'down' | 'flat' | null = null;
-                      if (v != null) {
-                        changeText = formatGrowthChange(
-                          v as number,
-                          prev ?? null,
-                          freqLabel[frequency],
-                          id,
-                        );
-                        if (changeText) {
-                          const diff = (v as number) - (prev ?? 0);
-                          if (isPercentageMetric(id)) {
-                            if (diff > 0.05) changeDir = 'up';
-                            else if (diff < -0.05) changeDir = 'down';
-                            else changeDir = 'flat';
-                          } else if (prev != null && prev !== 0) {
-                            const pct = (diff / Math.abs(prev)) * 100;
-                            if (pct > 0.05) changeDir = 'up';
-                            else if (pct < -0.05) changeDir = 'down';
-                            else changeDir = 'flat';
+                        let changeText: string | null = null;
+                        let changeDir: 'up' | 'down' | 'flat' | null = null;
+                        if (v != null) {
+                          changeText = formatGrowthChange(
+                            v as number,
+                            prev ?? null,
+                            freqLabel[frequency],
+                            id,
+                          );
+                          if (changeText) {
+                            const diff = (v as number) - (prev ?? 0);
+                            if (isPercentageMetric(id)) {
+                              if (diff > 0.05) changeDir = 'up';
+                              else if (diff < -0.05) changeDir = 'down';
+                              else changeDir = 'flat';
+                            } else if (prev != null && prev !== 0) {
+                              const pct = (diff / Math.abs(prev)) * 100;
+                              if (pct > 0.05) changeDir = 'up';
+                              else if (pct < -0.05) changeDir = 'down';
+                              else changeDir = 'flat';
+                            }
                           }
                         }
-                      }
 
-                      return (
-                        <td key={id}>
-                          {v == null ? (
-                            '–'
-                          ) : (
-                            <div className="table-metric-cell">
-                              <div className="table-metric-value">
-                                {formatCompactNumber(v as number)}
-                              </div>
-                              {changeText && changeDir && (
-                                <div
-                                  className={`table-metric-change table-metric-change-${changeDir}`}
-                                >
-                                  {changeText}
+                        return (
+                          <td key={id}>
+                            {v == null ? (
+                              '–'
+                            ) : (
+                              <div className="table-metric-cell">
+                                <div className="table-metric-value">
+                                  {formatCompactNumber(v as number)}
                                 </div>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                                {changeText && changeDir && (
+                                  <div
+                                    className={`table-metric-change table-metric-change-${changeDir}`}
+                                  >
+                                    {changeText}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </section>
   );
 }
+

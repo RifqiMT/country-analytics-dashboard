@@ -87,8 +87,12 @@ The same data metrics are used across the product in different ways:
 | `genderParityIndexPrimary` | Gender parity index (GPI), primary | Ratio | Girls’ enrollment / Boys’ enrollment (primary) |
 | `trainedTeachersPrimaryPct` | Trained teachers in primary (%) | % | Percentage of primary teachers with minimum required training |
 | `publicExpenditureEducationPctGDP` | Public expenditure on education (% GDP) | % of GDP | (Public expenditure on education / GDP) × 100 |
+| `primarySchoolCount` | Number of primary schools (estimated) | Count (institutions) | Estimated primary schools = Total primary pupils ÷ 250 (assumed pupils per primary school). |
+| `secondarySchoolCount` | Number of secondary schools (estimated) | Count (institutions) | Estimated secondary schools = Total secondary pupils ÷ 500 (assumed pupils per secondary school). |
+| `tertiaryInstitutionCount` | Number of universities and tertiary institutions (estimated) | Count (institutions) | Estimated tertiary institutions = Total tertiary students ÷ 5,000 (assumed students per institution). |
 
-**Sources:** UNESCO Institute for Statistics via World Bank WDI. Coverage from 2000 to latest (at least current year minus 2). See §8 for WDI indicator codes.
+**Sources:** UNESCO Institute for Statistics via World Bank WDI. Coverage from 2000 to latest (at least current year minus 2). See §8 for WDI indicator codes.  
+**Institution counts:** `primarySchoolCount`, `secondarySchoolCount`, and `tertiaryInstitutionCount` are **derived estimates** based on enrollment data and typical average institution sizes (250/500/5,000). There are no public WDI/UIS indicators for “number of schools” or “number of universities”; these metrics exist to provide an approximate sense of education infrastructure and are clearly labelled as estimates in the UI and Source tab.
 
 ---
 

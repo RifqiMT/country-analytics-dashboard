@@ -857,6 +857,9 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                     <th onClick={() => changeSort('primarySchoolsTotal')} className="sortable">Primary teachers</th>
                     <th onClick={() => changeSort('secondarySchoolsTotal')} className="sortable">Secondary teachers</th>
                     <th onClick={() => changeSort('tertiaryInstitutionsTotal')} className="sortable">Tertiary teachers</th>
+                    <th onClick={() => changeSort('primarySchoolCount')} className="sortable">Primary schools</th>
+                    <th onClick={() => changeSort('secondarySchoolCount')} className="sortable">Secondary schools</th>
+                    <th onClick={() => changeSort('tertiaryInstitutionCount')} className="sortable">Universities</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1012,6 +1015,30 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                           </div>
                           {getYoYValue(row, 'tertiaryInstitutionsTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryInstitutionsTotal')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.primarySchoolCount != null ? formatCompactNumber(row.primarySchoolCount) : '–'}
+                          </div>
+                          {getYoYValue(row, 'primarySchoolCount') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'primarySchoolCount')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.secondarySchoolCount != null ? formatCompactNumber(row.secondarySchoolCount) : '–'}
+                          </div>
+                          {getYoYValue(row, 'secondarySchoolCount') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'secondarySchoolCount')}</div>
+                          )}
+                        </td>
+                        <td className="numeric-cell">
+                          <div className="table-cell-main">
+                            {row.tertiaryInstitutionCount != null ? formatCompactNumber(row.tertiaryInstitutionCount) : '–'}
+                          </div>
+                          {getYoYValue(row, 'tertiaryInstitutionCount') && (
+                            <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryInstitutionCount')}</div>
                           )}
                         </td>
                       </tr>

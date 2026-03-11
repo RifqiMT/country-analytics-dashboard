@@ -589,8 +589,23 @@ export const METRIC_METADATA: MetricMetadata[] = [
     category: 'education',
     educationSubcategory: 'primary',
     sources: [
-      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.SCHL` },
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.PRM.TCHR` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'primarySchoolCount',
+    label: 'Number of primary schools (estimated)',
+    description:
+      'Estimated number of primary education institutions (schools) offering ISCED level 1 programmes. This metric is derived from total primary enrollment (UNESCO UIS via World Bank WDI) using a typical average school size and is not an official UIS “number of schools” indicator. Intended for high-level system-size comparisons when direct institution-count data is not available via public APIs.',
+    formula: 'Estimated primary schools = Total primary pupils (SE.PRM.ENRL) ÷ 250 (assumed pupils per primary school).',
+    unit: 'Schools',
+    category: 'education',
+    educationSubcategory: 'primary',
+    sources: [
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+      { name: 'World Bank – Education Statistics', url: 'https://data.worldbank.org/topic/education' },
+      { name: 'UN SDG 4', url: 'https://sdg4-data.uis.unesco.org/' },
     ],
   },
   // Secondary education
@@ -632,8 +647,23 @@ export const METRIC_METADATA: MetricMetadata[] = [
     category: 'education',
     educationSubcategory: 'secondary',
     sources: [
-      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.SCHL` },
+      { name: WORLD_BANK_WDI, url: `${WORLD_BANK_WDI_BASE}/SE.SEC.TCHR` },
       { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+    ],
+  },
+  {
+    id: 'secondarySchoolCount',
+    label: 'Number of secondary schools (estimated)',
+    description:
+      'Estimated number of secondary education institutions (schools) offering ISCED levels 2 and 3 (lower and upper secondary). This metric is derived from total secondary enrollment (UNESCO UIS via World Bank WDI) using a typical average school size and is not an official UIS “number of schools” indicator. Intended for high-level system-size comparisons when direct institution-count data is not available via public APIs.',
+    formula: 'Estimated secondary schools = Total secondary pupils (SE.SEC.ENRL) ÷ 500 (assumed pupils per secondary school).',
+    unit: 'Schools',
+    category: 'education',
+    educationSubcategory: 'secondary',
+    sources: [
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+      { name: 'World Bank – Education Statistics', url: 'https://data.worldbank.org/topic/education' },
+      { name: 'UN SDG 4', url: 'https://sdg4-data.uis.unesco.org/' },
     ],
   },
   // Tertiary education
@@ -676,6 +706,21 @@ export const METRIC_METADATA: MetricMetadata[] = [
     educationSubcategory: 'tertiary',
     sources: [
       { name: UNESCO_UIS, url: 'https://api.uis.unesco.org/api/public/documentation' },
+    ],
+  },
+  {
+    id: 'tertiaryInstitutionCount',
+    label: 'Number of universities and tertiary institutions (estimated)',
+    description:
+      'Estimated number of tertiary education institutions (universities, colleges, and other higher education institutions) offering ISCED levels 5–8. This metric is derived from total tertiary enrollment (UNESCO UIS via World Bank WDI) using a typical average institution size and is not an official UIS “number of institutions” indicator. Intended for high-level system-size comparisons when direct institution-count data is not available via public APIs.',
+    formula: 'Estimated tertiary institutions = Total tertiary students (SE.TER.ENRL) ÷ 5,000 (assumed students per institution).',
+    unit: 'Institutions',
+    category: 'education',
+    educationSubcategory: 'tertiary',
+    sources: [
+      { name: UNESCO_UIS, url: UNESCO_UIS_URL },
+      { name: 'World Bank – Education Statistics', url: 'https://data.worldbank.org/topic/education' },
+      { name: 'UN SDG 4', url: 'https://sdg4-data.uis.unesco.org/' },
     ],
   },
   // Literacy & attainment

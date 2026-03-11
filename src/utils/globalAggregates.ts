@@ -262,6 +262,18 @@ export const GLOBAL_EDUCATION_AGGREGATES: Record<
     valueKey: 'tertiaryInstitutionsTotal',
     option: { kind: 'sum' },
   },
+  primarySchoolCount: {
+    valueKey: 'primarySchoolCount',
+    option: { kind: 'sum' },
+  },
+  secondarySchoolCount: {
+    valueKey: 'secondarySchoolCount',
+    option: { kind: 'sum' },
+  },
+  tertiaryInstitutionCount: {
+    valueKey: 'tertiaryInstitutionCount',
+    option: { kind: 'sum' },
+  },
 };
 
 /** Unified timeline: totals as sum, per-capita as ratio (same as Country Comparison). */

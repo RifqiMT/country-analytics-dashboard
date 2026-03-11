@@ -118,12 +118,28 @@ Seven main tabs:
 - Toggle: Core metrics vs + Population age breakdown
 - YoY for each metric
 
-#### 4.2.8 Macro Indicators Timeline – Education
+#### 4.2.8 Education – Enrollment & Teaching Workforce
 
 - **Metrics** (UNESCO Institute for Statistics via World Bank WDI; coverage from 2000 to latest available, at least current year minus 2): Out-of-school rate (primary, %), Primary completion rate (%), Minimum reading proficiency (%), Adult literacy rate (%), Gender parity index (GPI) primary, Trained teachers in primary education (%), Public expenditure on education (% of GDP).
 - **Summary**: Education card in Country Dashboard with latest values and YoY for each metric.
-- **Timeline**: Dedicated Education section with frequency dropdown (weekly/monthly/quarterly/yearly), chart/table view, and metric chips to show/hide series. Same UI pattern as Macro Indicators.
+- **Timeline**: Dedicated **Education Enrollment & Teaching Workforce** section with frequency dropdown (weekly/monthly/quarterly/yearly), chart/table view, and metric chips to show/hide series. Same UI pattern as Macro Indicators. Teacher-focused series (primary, secondary, tertiary) are labelled explicitly as **teachers**, not institutions.
 - **Derived**: Out-of-school rate = 100 − Primary net enrollment rate; Minimum reading proficiency = 100 − Learning poverty (%).
+
+#### 4.2.9 Education – Schools & Universities (Institution Counts)
+
+- **Purpose**: Provide an analyst-friendly view of **estimated numbers of institutions** (schools and universities) alongside education quality and access metrics, while being transparent that these are **modelled estimates**, not official institution tallies.
+- **Metrics (derived)**:
+  - `primarySchoolCount` – Estimated number of primary schools.
+  - `secondarySchoolCount` – Estimated number of secondary schools.
+  - `tertiaryInstitutionCount` – Estimated number of tertiary institutions (universities, colleges, etc.).
+- **Derivation rules** (UNESCO UIS enrollment via World Bank WDI; see `worldBank.ts` and `VARIABLES.md`):
+  - Estimated primary schools = `primaryPupilsTotal` ÷ **250** (assumed pupils per primary school).
+  - Estimated secondary schools = `secondaryPupilsTotal` ÷ **500** (assumed pupils per secondary school).
+  - Estimated tertiary institutions = `tertiaryEnrollmentTotal` ÷ **5,000** (assumed students per tertiary institution).
+- **UI behaviour**:
+  - Dedicated **Schools & universities** subsection in the Country dashboard graphs, visually mirroring the **Unemployed & labour force** timeline (independent frequency dropdown; chart/table view toggle; metric chips; YoY in tooltip and table; export to PNG or CSV following the filename convention in §4.8).
+  - Labels, tooltips, and Source entries clearly state that these counts are **estimated** using enrollment data and average institution sizes, and that there are **no direct World Bank/UNESCO public indicators** for counts of schools or universities.
+  - Education Enrollment & Teaching Workforce and Schools & universities are **logically separated**: the former focuses on enrollment, literacy, and teacher indicators; the latter focuses on institution counts.
 
 ### 4.3 Global Analytics
 
@@ -151,7 +167,7 @@ Seven main tabs:
 #### 4.3.4 Global Charts
 
 - **Location**: Global analytics tab, sub-tab "Global Charts"
-- **Content**: Aggregated global time-series for: unified metrics (GDP, GDP per capita, population, life expectancy); economic indicators (inflation, debt, interest, unemployment, poverty); health indicators (under‑5 mortality, maternal mortality, undernourishment); **education indicators** (out-of-school primary %, primary completion %, minimum reading proficiency %, preprimary enrollment %, adult literacy %, GPI primary, trained teachers %, education expenditure % GDP); and population structure (age-group shares). Built from `fetchGlobalCountryMetricsForYear` and `globalAggregates.ts`; frequency (weekly/monthly/quarterly/yearly) and chart/table view supported.
+- **Content**: Aggregated global time-series for: unified metrics (GDP, GDP per capita, population, life expectancy); economic indicators (inflation, debt, interest, unemployment, poverty); health indicators (under‑5 mortality, maternal mortality, undernourishment); **Education Enrollment & Teaching Workforce** indicators (out-of-school primary %, primary completion %, minimum reading proficiency %, preprimary enrollment %, adult literacy %, GPI primary, trained teachers %, education expenditure % GDP); **Schools & Universities (Institution Counts)** (estimated global sums of primary schools, secondary schools, tertiary institutions using the 250/500/5,000 denominators); and population structure (age-group shares). Built from `fetchGlobalCountryMetricsForYear` and `globalAggregates.ts`; frequency (weekly/monthly/quarterly/yearly) and chart/table view supported. All exports follow the filename convention in §4.8.
 - **Use case**: Cross-country aggregate trends without selecting a single country.
 
 #### 4.3.5 Business Analytics (Dedicated Tab)

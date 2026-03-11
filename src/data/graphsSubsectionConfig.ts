@@ -9,6 +9,7 @@ export type GraphsSubsectionId =
   | 'macroHealth'
   | 'educationOOS'
   | 'educationEnrollment'
+  | 'educationInstitutions'
   | 'labour'
   | 'populationStructure';
 
@@ -18,6 +19,7 @@ export const GRAPHS_SUBSECTION_CONFIG: Array<{ id: GraphsSubsectionId; label: st
   { id: 'macroHealth', label: 'Health: mortality, nutrition & life expectancy' },
   { id: 'educationOOS', label: 'Education access & completion' },
   { id: 'educationEnrollment', label: 'Education enrollment & teaching workforce' },
+  { id: 'educationInstitutions', label: 'Schools & universities' },
   { id: 'labour', label: 'Labour force & unemployment levels' },
   { id: 'populationStructure', label: 'Population age structure' },
 ];

@@ -37,6 +37,7 @@ This document defines how the **Country Analytics Platform** measures success an
 | **CD-3** | Age-group breakdown usage | Percentage of sessions where the age-group comparison toggle is turned on at least once, or Population Structure timeline is viewed |
 | **CD-4** | Population Structure usage | Percentage of sessions where the Population Structure section is viewed (chart or table) |
 | **CD-5** | Country trends & timelines export rate | Percentage of Country Dashboard sessions where user exports at least one timeline subsection as PNG (chart view) or CSV (table view) |
+| **CD-6** | Schools & universities subsection usage | Percentage of Country Dashboard sessions where the **Schools & universities** subsection (institution counts) is viewed (chart or table) or at least one institution metric chip is toggled. |
 
 ### 2.2 Global Analytics – Map
 
@@ -57,7 +58,8 @@ This document defines how the **Country Analytics Platform** measures success an
 |----|--------|------------|
 | **GC-1** | Global Charts view rate | Percentage of sessions that open the Global Charts sub-tab |
 | **GC-2** | Global Charts frequency change | Percentage of Global Charts sessions where user changes frequency or view (chart/table) |
-| **GC-3** | Global Charts education block usage | Percentage of Global Charts sessions where the user views the Education aggregate series (out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure) |
+| **GC-3** | Global Charts education block usage | Percentage of Global Charts sessions where the user views the **Education Enrollment & Teaching Workforce** aggregate series (out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure) |
+| **GC-3b** | Global Charts Schools & Universities block usage | Percentage of Global Charts sessions where the user views the **Schools & Universities (Institution Counts)** aggregate block (estimated counts of primary schools, secondary schools, tertiary institutions). |
 | **GC-4** | Global Charts export rate | Percentage of Global Charts sessions where user exports at least one subsection as PNG (chart view) or CSV (table view) |
 
 ### 2.4 Global Analytics – Tables

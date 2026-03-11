@@ -52,7 +52,10 @@ export type MapMetricId =
   | 'tertiaryEnrollmentTotal'
   | 'primarySchoolsTotal'
   | 'secondarySchoolsTotal'
-  | 'tertiaryInstitutionsTotal';
+  | 'tertiaryInstitutionsTotal'
+  | 'primarySchoolCount'
+  | 'secondarySchoolCount'
+  | 'tertiaryInstitutionCount';
 
 interface MapMetricOption {
   id: MapMetricId;
@@ -158,6 +161,9 @@ const MAP_METRIC_CATEGORIES: MapMetricCategory[] = [
       { id: 'primarySchoolsTotal', label: 'Primary education, teachers (total)', icon: <SvgIcon d={getMetricIconPath('primarySchoolsTotal')} /> },
       { id: 'secondarySchoolsTotal', label: 'Secondary education, teachers (total)', icon: <SvgIcon d={getMetricIconPath('secondarySchoolsTotal')} /> },
       { id: 'tertiaryInstitutionsTotal', label: 'Tertiary education, teachers (total)', icon: <SvgIcon d={getMetricIconPath('tertiaryInstitutionsTotal')} /> },
+      { id: 'primarySchoolCount', label: 'Number of primary schools', icon: <SvgIcon d={getMetricIconPath('primarySchoolCount')} /> },
+      { id: 'secondarySchoolCount', label: 'Number of secondary schools', icon: <SvgIcon d={getMetricIconPath('secondarySchoolCount')} /> },
+      { id: 'tertiaryInstitutionCount', label: 'Number of universities and tertiary institutions', icon: <SvgIcon d={getMetricIconPath('tertiaryInstitutionCount')} /> },
     ],
   },
 ];

@@ -85,6 +85,9 @@ const METRIC_COLORS: Record<MetricId, string> = {
   primarySchoolsTotal: '#0d9488',
   secondarySchoolsTotal: '#ca8a04',
   tertiaryInstitutionsTotal: '#7c3aed',
+  primarySchoolCount: '#059669',
+  secondarySchoolCount: '#b45309',
+  tertiaryInstitutionCount: '#5b21b6',
 };
 
 const UNIFIED_LEGEND_LABELS: Partial<Record<MetricId, string>> = {

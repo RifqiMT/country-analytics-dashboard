@@ -181,6 +181,9 @@ export function buildChatSystemPrompt(
 - Primary education, teachers (total): ${formatValue(e.primarySchoolsTotal ?? null, 'Teachers')}
 - Secondary education, teachers (total): ${formatValue(e.secondarySchoolsTotal ?? null, 'Teachers')}
 - Tertiary education, teachers (total): ${formatValue(e.tertiaryInstitutionsTotal ?? null, 'Teachers')}
+- Number of primary schools: ${formatValue(e.primarySchoolCount ?? null, 'Schools')}
+- Number of secondary schools: ${formatValue(e.secondarySchoolCount ?? null, 'Schools')}
+- Number of universities and tertiary institutions: ${formatValue(e.tertiaryInstitutionCount ?? null, 'Institutions')}
 `;
         }
       }

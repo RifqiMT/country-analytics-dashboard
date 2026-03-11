@@ -1,6 +1,7 @@
 /**
  * UNESCO Institute for Statistics (UIS) Data API client.
- * Used for tertiary education teachers (indicator not in World Bank WDI).
+ * Used for tertiary education teachers (indicator not in World Bank WDI) and for
+ * number of schools and universities (when UIS indicator IDs are available).
  * API: https://api.uis.unesco.org/api/public/documentation
  */
 import axios from 'axios';
@@ -11,6 +12,11 @@ const UIS_API_BASE = 'https://api.uis.unesco.org/api/public';
 
 /** UIS indicator: Teachers in tertiary education programmes, both sexes (number). */
 const TERTIARY_TEACHERS_INDICATOR_ID = '25003';
+
+/** UIS indicator IDs for number of institutions (when available in UIS API). Data coverage varies by country. */
+const PRIMARY_SCHOOLS_INDICATOR_ID = '21001'; // Number of primary education institutions – placeholder; replace when UIS code is confirmed
+const SECONDARY_SCHOOLS_INDICATOR_ID = '21002'; // Number of secondary education institutions – placeholder
+const TERTIARY_INSTITUTIONS_INDICATOR_ID = '21003'; // Number of tertiary education institutions – placeholder
 
 interface UISIndicatorRecord {
   indicatorId: string;
@@ -98,4 +104,139 @@ export async function fetchTertiaryInstitutionsForYear(
   } catch {
     return new Map();
   }
+}
+
+/**
+ * Fetch a UIS indicator time series for one country.
+ * Returns empty array if the indicator is not available or API fails.
+ */
+async function fetchUisIndicatorSeries(
+  indicatorId: string,
+  iso3Code: string,
+  startYear: number = DATA_MIN_YEAR,
+  endYear: number = DATA_MAX_YEAR,
+): Promise<TimePoint[]> {
+  const start = Math.max(startYear, DATA_MIN_YEAR);
+  const end = Math.min(endYear, DATA_MAX_YEAR);
+  try {
+    const { data } = await axios.get<UISIndicatorDataResponse>(
+      `${UIS_API_BASE}/data/indicators`,
+      {
+        params: {
+          indicator: indicatorId,
+          geoUnit: iso3Code.toUpperCase(),
+          start,
+          end,
+        },
+        timeout: 15000,
+        headers: { 'Accept-Encoding': 'gzip' },
+      },
+    );
+    const records = data?.records ?? [];
+    return records
+      .filter((r) => r.year >= start && r.year <= end && r.value != null && Number.isFinite(r.value))
+      .map((r) => ({
+        date: `${r.year}-01-01`,
+        year: r.year,
+        value: r.value as number,
+      }))
+      .sort((a, b) => a.year - b.year);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Fetch number of primary schools for one country as a time series.
+ * Data from UNESCO UIS when indicator is available; otherwise returns [].
+ */
+export async function fetchPrimarySchoolCountSeries(
+  iso3Code: string,
+  startYear: number = DATA_MIN_YEAR,
+  endYear: number = DATA_MAX_YEAR,
+): Promise<TimePoint[]> {
+  return fetchUisIndicatorSeries(PRIMARY_SCHOOLS_INDICATOR_ID, iso3Code, startYear, endYear);
+}
+
+/**
+ * Fetch number of secondary schools for one country as a time series.
+ * Data from UNESCO UIS when indicator is available; otherwise returns [].
+ */
+export async function fetchSecondarySchoolCountSeries(
+  iso3Code: string,
+  startYear: number = DATA_MIN_YEAR,
+  endYear: number = DATA_MAX_YEAR,
+): Promise<TimePoint[]> {
+  return fetchUisIndicatorSeries(SECONDARY_SCHOOLS_INDICATOR_ID, iso3Code, startYear, endYear);
+}
+
+/**
+ * Fetch number of tertiary institutions (universities) for one country as a time series.
+ * Data from UNESCO UIS when indicator is available; otherwise returns [].
+ */
+export async function fetchTertiaryInstitutionCountSeries(
+  iso3Code: string,
+  startYear: number = DATA_MIN_YEAR,
+  endYear: number = DATA_MAX_YEAR,
+): Promise<TimePoint[]> {
+  return fetchUisIndicatorSeries(TERTIARY_INSTITUTIONS_INDICATOR_ID, iso3Code, startYear, endYear);
+}
+
+/**
+ * Fetch one UIS indicator for many countries for a single year.
+ * Returns a Map from ISO3 to value (or undefined if missing).
+ */
+async function fetchUisIndicatorForYear(
+  indicatorId: string,
+  iso3Codes: string[],
+  year: number,
+): Promise<Map<string, number>> {
+  if (iso3Codes.length === 0) return new Map();
+  if (year < DATA_MIN_YEAR || year > DATA_MAX_YEAR) return new Map();
+  try {
+    const { data } = await axios.get<UISIndicatorDataResponse>(
+      `${UIS_API_BASE}/data/indicators`,
+      {
+        params: {
+          indicator: indicatorId,
+          geoUnit: iso3Codes.map((c) => c.toUpperCase()),
+          start: year,
+          end: year,
+        },
+        timeout: 20000,
+        headers: { 'Accept-Encoding': 'gzip' },
+      },
+    );
+    const map = new Map<string, number>();
+    const records = data?.records ?? [];
+    for (const r of records) {
+      if (r.year === year && r.value != null && Number.isFinite(r.value)) {
+        map.set(r.geoUnit.toUpperCase(), r.value);
+      }
+    }
+    return map;
+  } catch {
+    return new Map();
+  }
+}
+
+export async function fetchPrimarySchoolCountForYear(
+  iso3Codes: string[],
+  year: number,
+): Promise<Map<string, number>> {
+  return fetchUisIndicatorForYear(PRIMARY_SCHOOLS_INDICATOR_ID, iso3Codes, year);
+}
+
+export async function fetchSecondarySchoolCountForYear(
+  iso3Codes: string[],
+  year: number,
+): Promise<Map<string, number>> {
+  return fetchUisIndicatorForYear(SECONDARY_SCHOOLS_INDICATOR_ID, iso3Codes, year);
+}
+
+export async function fetchTertiaryInstitutionCountForYear(
+  iso3Codes: string[],
+  year: number,
+): Promise<Map<string, number>> {
+  return fetchUisIndicatorForYear(TERTIARY_INSTITUTIONS_INDICATOR_ID, iso3Codes, year);
 }

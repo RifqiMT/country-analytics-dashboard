@@ -5,6 +5,7 @@ import { TimeSeriesSection } from './TimeSeriesSection';
 import { MacroIndicatorsTimelineSection } from './MacroIndicatorsTimelineSection';
 import { EducationOutOfSchoolCompletionTimelineSection } from './EducationOutOfSchoolCompletionTimelineSection';
 import { EducationEnrollmentStaffTimelineSection } from './EducationEnrollmentStaffTimelineSection';
+import { EducationInstitutionsTimelineSection } from './EducationInstitutionsTimelineSection';
 import { LabourUnemploymentTimelineSection } from './LabourUnemploymentTimelineSection';
 import { PopulationStructureSection } from './PopulationStructureSection';
 import type { Frequency } from '../types';
@@ -152,6 +153,15 @@ export function GraphsSection(props: GraphsSectionProps) {
                   )}
                   {id === 'educationEnrollment' && (
                     <EducationEnrollmentStaffTimelineSection
+                      data={data}
+                      frequency={educationEnrollmentStaffFrequency}
+                      setFrequency={setEducationEnrollmentStaffFrequency}
+                      resampledSeries={resampledEducationEnrollmentStaff}
+                      sectionTitle={label}
+                    />
+                  )}
+                  {id === 'educationInstitutions' && (
+                    <EducationInstitutionsTimelineSection
                       data={data}
                       frequency={educationEnrollmentStaffFrequency}
                       setFrequency={setEducationEnrollmentStaffFrequency}

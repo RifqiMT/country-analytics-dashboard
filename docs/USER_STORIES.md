@@ -96,10 +96,23 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ---
 
-### US-2.5 – Export Country trends & timelines as PNG or CSV
+### US-2.5 – View schools and universities (institution counts) over time
+
+- **As a** Country Economist or Policy Analyst  
+- **I want to** see estimated numbers of **primary schools, secondary schools, and tertiary institutions** in a dedicated **Schools & universities** subsection on the Country dashboard  
+- **So that** I can reason about education capacity and infrastructure alongside enrollment and teacher metrics  
+
+**Acceptance criteria:**
+- Country dashboard includes a **Schools & universities** subsection in the graphs area, separate from **Education Enrollment & Teaching Workforce**, following the same UI pattern as the Unemployed & labour force timeline (frequency dropdown, chart/table view, metric chips).
+- Metrics include `primarySchoolCount`, `secondarySchoolCount`, and `tertiaryInstitutionCount`, derived from enrollment using the 250/500/5,000 denominators (pupils or students per institution).
+- Tooltips, table labels, and Source documentation clearly indicate that institution counts are **estimated** based on UNESCO UIS enrollment via World Bank WDI and are **not** official “number of schools/universities” indicators.
+
+---
+
+### US-2.6 – Export Country trends & timelines as PNG or CSV
 
 - **As a** Strategy Lead or Country Economist  
-- **I want to** download the current **Country trends & timelines** subsection (e.g. Unified timeline, Macro Indicators, Education, Labour/Unemployed, Population Structure) as PNG when in chart view or as CSV when in table view  
+- **I want to** download the current **Country trends & timelines** subsection (e.g. Unified timeline, Macro Indicators, Education Enrollment & Teaching Workforce, **Schools & universities**, Labour/Unemployed, Population Structure) as PNG when in chart view or as CSV when in table view  
 - **So that** I can reuse the visual or data in reports and spreadsheets  
 
 **Acceptance criteria:**
@@ -207,12 +220,12 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 ### US-5b.1 – View global aggregate trends
 
 - **As a** Policy Analyst or Strategy Lead  
-- **I want to** open the Global Charts sub-tab and see aggregated global time-series (unified, economic, health, **education**, population structure)  
+- **I want to** open the Global Charts sub-tab and see aggregated global time-series (unified, economic, health, **Education Enrollment & Teaching Workforce**, **Schools & Universities (Institution Counts)**, population structure)  
 - **So that** I can understand worldwide trends without selecting a single country  
 
 **Acceptance criteria:**
 - Global analytics tab includes Map, Global table, and Global Charts sub-tabs
-- Global Charts show aggregated series for unified metrics, economic indicators, health indicators, **education indicators** (e.g. out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure), and population structure (age-group shares)
+- Global Charts show aggregated series for unified metrics, economic indicators, health indicators, **Education Enrollment & Teaching Workforce** indicators (e.g. out-of-school, completion, proficiency, literacy, GPI, trained teachers, education expenditure), **Schools & Universities (Institution Counts)** (estimated global sums of primary schools, secondary schools, tertiary institutions using the 250/500/5,000 denominators), and population structure (age-group shares)
 - Frequency (weekly/monthly/quarterly/yearly) and chart/table view are available
 - Data is built from the same global dataset as the map and table for the selected year
 - When a **region filter** is applied, Global Charts aggregates (unified, economic, health, education, population structure) use only countries in that region
@@ -222,13 +235,13 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 ### US-5b.2 – Export Global Charts subsection as PNG or CSV
 
 - **As a** Policy Analyst or Strategy Lead  
-- **I want to** download the current **Global Charts** subsection (e.g. Unified, Economic, Health, Education, Population Structure) as PNG when in chart view or as CSV when in table view  
+- **I want to** download the current **Global Charts** subsection (e.g. Unified, Economic, Health, Education Enrollment & Teaching Workforce, **Schools & Universities (Institution Counts)**, Population Structure) as PNG when in chart view or as CSV when in table view  
 - **So that** I can include global aggregate trends in presentations or further analysis  
 
 **Acceptance criteria:**
 - Each Global Charts subsection offers an export action (e.g. "Download as PNG" / "Download as CSV") depending on current view (chart vs table)
 - Exported PNG reflects the visible chart; exported CSV reflects the visible table
-- Filename uses sanitised scope and section name (e.g. `Global-Charts-Unified-2024-chart.png` or `-table.csv`)
+- Filename uses sanitised scope and section name (e.g. `Global-Charts-Education-2024-chart.png`, `Global-Charts-Schools-Universities-2024-chart.png`, or `-table.csv`)
 
 ---
 

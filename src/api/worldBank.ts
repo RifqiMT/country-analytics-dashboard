@@ -1123,6 +1123,42 @@ export async function fetchCountryDashboardData(
     : [];
   const tertiaryInstitutionsForSeries = fillSeriesWithFallback(tertiaryInstitutionsRaw, startYear, endYear);
 
+  // Estimated number of schools and universities (derived from enrollment using typical average institution size).
+  // These are modelled counts, not official UIS "number of schools" indicators.
+  const primarySchoolCountForSeries: TimePoint[] = fillSeriesWithFallback(
+    primaryPupilsTotalForSeries,
+    startYear,
+    endYear,
+  ).map((p) => ({
+    ...p,
+    value:
+      p.value != null && Number.isFinite(p.value)
+        ? p.value / 250 // assume ~250 pupils per primary school
+        : null,
+  }));
+  const secondarySchoolCountForSeries: TimePoint[] = fillSeriesWithFallback(
+    secondaryPupilsTotalForSeries,
+    startYear,
+    endYear,
+  ).map((p) => ({
+    ...p,
+    value:
+      p.value != null && Number.isFinite(p.value)
+        ? p.value / 500 // assume ~500 pupils per secondary school
+        : null,
+  }));
+  const tertiaryInstitutionCountForSeries: TimePoint[] = fillSeriesWithFallback(
+    tertiaryEnrollmentTotalForSeries,
+    startYear,
+    endYear,
+  ).map((p) => ({
+    ...p,
+    value:
+      p.value != null && Number.isFinite(p.value)
+        ? p.value / 5000 // assume ~5,000 students per tertiary institution
+        : null,
+  }));
+
   // Fill any remaining gaps in primary net enrollment so out-of-school timeline is dense.
   const primaryNetEnrollmentDense = fillSeriesWithFallback(primaryNetEnrollmentPctForSeries, startYear, endYear);
   const secondaryNetEnrollmentDense = fillSeriesWithFallback(secondaryNetEnrollmentPctForSeries, startYear, endYear);
@@ -1749,6 +1785,24 @@ export async function fetchCountryDashboardData(
       unit: 'Teachers',
       points: tertiaryInstitutionsForSeries,
     },
+    {
+      id: 'primarySchoolCount',
+      label: 'Number of primary schools',
+      unit: 'Schools',
+      points: primarySchoolCountForSeries,
+    },
+    {
+      id: 'secondarySchoolCount',
+      label: 'Number of secondary schools',
+      unit: 'Schools',
+      points: secondarySchoolCountForSeries,
+    },
+    {
+      id: 'tertiaryInstitutionCount',
+      label: 'Number of universities and tertiary institutions',
+      unit: 'Institutions',
+      points: tertiaryInstitutionCountForSeries,
+    },
   ];
 
   const allYears = new Set<number>();
@@ -1933,6 +1987,9 @@ export async function fetchCountryDashboardData(
             year,
           ),
           tertiaryInstitutionsTotal: latestNonNullUpToYear(tertiaryInstitutionsForSeries, year),
+          primarySchoolCount: latestNonNullUpToYear(primarySchoolCountForSeries, year),
+          secondarySchoolCount: latestNonNullUpToYear(secondarySchoolCountForSeries, year),
+          tertiaryInstitutionCount: latestNonNullUpToYear(tertiaryInstitutionCountForSeries, year),
         },
         geography: {
           landAreaKm2: landAreaValue,
@@ -2251,6 +2308,20 @@ export async function fetchGlobalCountryMetricsForYear(
       if (v != null && Number.isFinite(v)) row.tertiaryInstitutionsTotal = v;
     }
 
+    // Estimated number of schools and universities (derived from enrollment using typical average institution size).
+    // These are modelled counts, not official UIS "number of schools" indicators.
+    for (const row of byIso3.values()) {
+      if (row.primaryPupilsTotal != null && Number.isFinite(row.primaryPupilsTotal)) {
+        row.primarySchoolCount = row.primaryPupilsTotal / 250; // ~250 pupils per primary school
+      }
+      if (row.secondaryPupilsTotal != null && Number.isFinite(row.secondaryPupilsTotal)) {
+        row.secondarySchoolCount = row.secondaryPupilsTotal / 500; // ~500 pupils per secondary school
+      }
+      if (row.tertiaryEnrollmentTotal != null && Number.isFinite(row.tertiaryEnrollmentTotal)) {
+        row.tertiaryInstitutionCount = row.tertiaryEnrollmentTotal / 5000; // ~5,000 students per tertiary institution
+      }
+    }
+
     // Derive out-of-school tertiary from tertiary gross enrollment (100 - gross, capped at 100)
     for (const row of byIso3.values()) {
       if (row.tertiaryEnrollmentPct != null && Number.isFinite(row.tertiaryEnrollmentPct)) {
@@ -2422,6 +2493,9 @@ export async function fetchGlobalCountryMetricsForYear(
       if (row.primarySchoolsTotal == null && parentRow.primarySchoolsTotal != null) row.primarySchoolsTotal = parentRow.primarySchoolsTotal;
       if (row.secondarySchoolsTotal == null && parentRow.secondarySchoolsTotal != null) row.secondarySchoolsTotal = parentRow.secondarySchoolsTotal;
       if (row.tertiaryInstitutionsTotal == null && parentRow.tertiaryInstitutionsTotal != null) row.tertiaryInstitutionsTotal = parentRow.tertiaryInstitutionsTotal;
+      if (row.primarySchoolCount == null && parentRow.primarySchoolCount != null) row.primarySchoolCount = parentRow.primarySchoolCount;
+      if (row.secondarySchoolCount == null && parentRow.secondarySchoolCount != null) row.secondarySchoolCount = parentRow.secondarySchoolCount;
+      if (row.tertiaryInstitutionCount == null && parentRow.tertiaryInstitutionCount != null) row.tertiaryInstitutionCount = parentRow.tertiaryInstitutionCount;
     }
 
     // Clamp education percentage metrics again after territory fallback (parent values capped to 0–100).

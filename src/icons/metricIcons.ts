@@ -67,6 +67,9 @@ const ICONS: Record<string, string> = {
   primarySchoolsTotal: 'M2 4h5v2l-2.5 2 2.5 2v2H2V4zm9 0h3v2h-2v1h2v2h-3v-2h2V6h-2V4z', // school/teacher
   secondarySchoolsTotal: 'M2 4h5v1.5H2V4zm0 2.5h5v1.5H2V6.5zm0 2.5h5v1.5H2V9zm8-5v8h3v-8h-3zm2 2v4h-1V6h1z', // school building
   tertiaryInstitutionsTotal: 'M2 3h12v2H2V3zm0 4h12v1.5H2V7zm0 2.5h12v1.5H2V9.5zm0 2.5h8v1.5H2V12z', // institution
+  primarySchoolCount: 'M2 4h4v4H2V4zm8 0h4v4h-4V4zM2 10h4v2H2v-2zm8 0h4v2h-4v-2z', // schools
+  secondarySchoolCount: 'M2 3h5v2H2V3zm0 3h5v2H2V6zm8-3h4v2h-4V3zm0 3h4v2h-4V6z', // buildings
+  tertiaryInstitutionCount: 'M2 2h12v3H2V2zm0 4h12v2H2V6zm0 3h12v2H2V9zm0 3h8v2H2v-2z', // university
 };
 
 /** Default icon when metric is unknown */

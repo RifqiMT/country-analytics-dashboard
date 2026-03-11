@@ -147,6 +147,12 @@ function getMetricFromRow(
       return row.secondarySchoolsTotal ?? null;
     case 'tertiaryInstitutionsTotal':
       return row.tertiaryInstitutionsTotal ?? null;
+    case 'primarySchoolCount':
+      return row.primarySchoolCount ?? null;
+    case 'secondarySchoolCount':
+      return row.secondarySchoolCount ?? null;
+    case 'tertiaryInstitutionCount':
+      return row.tertiaryInstitutionCount ?? null;
     default:
       return null;
   }
@@ -256,6 +262,12 @@ function getMetricLabel(metricId: MapMetricId): string {
       return 'Secondary education, teachers (total)';
     case 'tertiaryInstitutionsTotal':
       return 'Tertiary education, teachers (total)';
+    case 'primarySchoolCount':
+      return 'Number of primary schools';
+    case 'secondarySchoolCount':
+      return 'Number of secondary schools';
+    case 'tertiaryInstitutionCount':
+      return 'Number of universities and tertiary institutions';
     default:
       return String(metricId);
   }
@@ -304,6 +316,9 @@ function formatMetricValue(
     case 'primarySchoolsTotal':
     case 'secondarySchoolsTotal':
     case 'tertiaryInstitutionsTotal':
+    case 'primarySchoolCount':
+    case 'secondarySchoolCount':
+    case 'tertiaryInstitutionCount':
       return formatCompactNumber(value);
     case 'genderParityIndexPrimary':
       return value >= 10 ? (value / 100).toFixed(2) : value.toFixed(2);

@@ -590,6 +590,9 @@ function EducationCard({
         { icon: getMetricIconPath('primarySchoolsTotal'), label: 'Primary education, teachers (total)', value: e?.primarySchoolsTotal != null ? formatCompactNumber(e.primarySchoolsTotal) : 'No data', yoy: getYoY(series, 'primarySchoolsTotal') },
         { icon: getMetricIconPath('secondarySchoolsTotal'), label: 'Secondary education, teachers (total)', value: e?.secondarySchoolsTotal != null ? formatCompactNumber(e.secondarySchoolsTotal) : 'No data', yoy: getYoY(series, 'secondarySchoolsTotal') },
         { icon: getMetricIconPath('tertiaryInstitutionsTotal'), label: 'Tertiary education, teachers (total)', value: e?.tertiaryInstitutionsTotal != null ? formatCompactNumber(e.tertiaryInstitutionsTotal) : 'No data', yoy: getYoY(series, 'tertiaryInstitutionsTotal') },
+        { icon: getMetricIconPath('primarySchoolCount'), label: 'Number of primary schools', value: e?.primarySchoolCount != null ? formatCompactNumber(e.primarySchoolCount) : 'No data', yoy: getYoY(series, 'primarySchoolCount') },
+        { icon: getMetricIconPath('secondarySchoolCount'), label: 'Number of secondary schools', value: e?.secondarySchoolCount != null ? formatCompactNumber(e.secondarySchoolCount) : 'No data', yoy: getYoY(series, 'secondarySchoolCount') },
+        { icon: getMetricIconPath('tertiaryInstitutionCount'), label: 'Number of universities and tertiary institutions', value: e?.tertiaryInstitutionCount != null ? formatCompactNumber(e.tertiaryInstitutionCount) : 'No data', yoy: getYoY(series, 'tertiaryInstitutionCount') },
       ],
     },
   ];

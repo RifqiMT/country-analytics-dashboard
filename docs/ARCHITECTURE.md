@@ -253,8 +253,10 @@ App
     └── LineChart (Recharts)
 └── MacroIndicatorsTimelineSection (variant: health)
     └── LineChart (Recharts)
-└── EducationTimelineSection
+└── EducationTimelineSection (Education Enrollment & Teaching Workforce)
     └── LineChart (Recharts); UNESCO UIS via WDI
+└── EducationInstitutionsTimelineSection (Schools & universities – institution counts)
+    └── LineChart (Recharts); derived estimates from enrollment using 250/500/5,000 denominators
 └── LabourUnemploymentTimelineSection
     └── LineChart (Recharts), dual Y-axis
 └── PopulationStructureSection

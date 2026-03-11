@@ -68,7 +68,10 @@ export type ScatterMetricKey =
   | 'tertiaryEnrollmentTotal'
   | 'primarySchoolsTotal'
   | 'secondarySchoolsTotal'
-  | 'tertiaryInstitutionsTotal';
+  | 'tertiaryInstitutionsTotal'
+  | 'primarySchoolCount'
+  | 'secondarySchoolCount'
+  | 'tertiaryInstitutionCount';
 
 export interface ScatterMetricOption {
   key: ScatterMetricKey;
@@ -161,6 +164,9 @@ export const SCATTER_METRIC_OPTIONS_GROUPED: { group: string; options: ScatterMe
       { key: 'primarySchoolsTotal', label: 'Primary education, teachers (total)' },
       { key: 'secondarySchoolsTotal', label: 'Secondary education, teachers (total)' },
       { key: 'tertiaryInstitutionsTotal', label: 'Tertiary education, teachers (total)' },
+      { key: 'primarySchoolCount', label: 'Number of primary schools' },
+      { key: 'secondarySchoolCount', label: 'Number of secondary schools' },
+      { key: 'tertiaryInstitutionCount', label: 'Number of universities and tertiary institutions' },
     ],
   },
 ];

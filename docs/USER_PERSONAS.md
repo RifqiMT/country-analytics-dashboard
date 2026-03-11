@@ -35,7 +35,8 @@ This document describes the **target audiences** for the Country Analytics Platf
 ### Typical Usage
 
 - Starts with Country dashboard for a key market
-- Switches to Global analytics (map, table, or **global charts**—unified, economic, health, **education**, population structure) to compare regions and aggregates
+- Uses the **Education Enrollment & Teaching Workforce** timeline to understand quality and access (out-of-school, completion, literacy, GPI, trained teachers, education expenditure), then switches to the **Schools & universities** subsection to sense-check the **estimated numbers of primary schools, secondary schools, and universities** for that country.
+- Switches to Global analytics (map, table, or **global charts**—unified, economic, health, **Education Enrollment & Teaching Workforce**, **Schools & Universities (Institution Counts)**, population structure) to compare regions and aggregates
 - Uses the **region filter** (dynamic, searchable) to limit the map, table, and charts to one region (e.g. East Asia & Pacific) for focused board materials
 - Uses **Porter 5 Forces** tab to generate competitive analysis for a specific country and industry (e.g. Indonesia food manufacturing) for strategy or board materials; reviews **chart**, **Comprehensive Analysis**, **New Market Analysis**, **Key Takeaways**, and **Recommendations** (each with 5 bullets) in separate cards
 - Sorts global table by GDP or population for rankings
