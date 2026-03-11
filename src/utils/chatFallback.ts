@@ -36,6 +36,32 @@ export interface GlobalCountryRowForFallback {
   pop0_14Pct?: number | null;
   pop15_64Pct?: number | null;
   pop65PlusPct?: number | null;
+  // Education (when present in global data)
+  outOfSchoolPrimaryPct?: number | null;
+  outOfSchoolSecondaryPct?: number | null;
+  outOfSchoolTertiaryPct?: number | null;
+  primaryCompletionRate?: number | null;
+  secondaryCompletionRate?: number | null;
+  tertiaryCompletionRate?: number | null;
+  minProficiencyReadingPct?: number | null;
+  literacyRateAdultPct?: number | null;
+  genderParityIndexPrimary?: number | null;
+  genderParityIndexSecondary?: number | null;
+  genderParityIndexTertiary?: number | null;
+  trainedTeachersPrimaryPct?: number | null;
+  trainedTeachersSecondaryPct?: number | null;
+  trainedTeachersTertiaryPct?: number | null;
+  publicExpenditureEducationPctGDP?: number | null;
+  primaryPupilsTotal?: number | null;
+  secondaryPupilsTotal?: number | null;
+  tertiaryEnrollmentTotal?: number | null;
+  primarySchoolCount?: number | null;
+  secondarySchoolCount?: number | null;
+  tertiaryInstitutionCount?: number | null;
+   // Second-level modelled institution counts (assistant-only fallback when enrollment data is missing)
+  primarySchoolCountModelled?: number | null;
+  secondarySchoolCountModelled?: number | null;
+  tertiaryInstitutionCountModelled?: number | null;
   region?: string;
   headOfGovernmentType?: string | null;
   governmentType?: string | null;
@@ -238,6 +264,9 @@ const METRIC_SYNONYMS: Array<{ pattern: RegExp; key: keyof GlobalCountryRowForFa
   { pattern: /population\s*0[- ]?14|youth\s*population|children\s*population|pop\s*0[- ]?14\s*(count|number)/i, key: 'population0_14', label: 'Population 0–14 (count)', format: (v) => formatVal(v, '') + ' people' },
   { pattern: /population\s*15[- ]?64|working[- ]?age\s*population|pop\s*15[- ]?64\s*(count|number)/i, key: 'population15_64', label: 'Population 15–64 (count)', format: (v) => formatVal(v, '') + ' people' },
   { pattern: /population\s*65|elderly\s*population|senior\s*population|pop\s*65\+\s*(count|number)/i, key: 'population65Plus', label: 'Population 65+ (count)', format: (v) => formatVal(v, '') + ' people' },
+  { pattern: /primary\s+schools?|elementary\s+schools?|number\s+of\s+primary\s+schools?/i, key: 'primarySchoolCount', label: 'Number of primary schools (estimated)', format: (v) => formatVal(v, '') + ' schools' },
+  { pattern: /secondary\s+schools?|high\s+schools?|number\s+of\s+secondary\s+schools?/i, key: 'secondarySchoolCount', label: 'Number of secondary schools (estimated)', format: (v) => formatVal(v, '') + ' schools' },
+  { pattern: /universit(?:y|ies)|tertiary\s+institutions?|higher\s+education\s+institutions?|number\s+of\s+universit(?:y|ies)/i, key: 'tertiaryInstitutionCount', label: 'Number of universities and tertiary institutions (estimated)', format: (v) => formatVal(v, '') + ' institutions' },
 ];
 
 function parseSingleMetricIntent(q: string): (typeof METRIC_SYNONYMS)[0] | null {
@@ -282,6 +311,9 @@ const ALL_METRIC_DEFS: Array<{
   { key: 'population0_14', label: 'Population 0–14 (count)', patterns: [/population\s*0[- ]?14|youth\s*population|children\s*population|pop\s*0[- ]?14\s*(count|number)/i], format: (r) => (r.population0_14 != null ? formatVal(r.population0_14, '') + ' people' : 'N/A') },
   { key: 'population15_64', label: 'Population 15–64 (count)', patterns: [/population\s*15[- ]?64|working[- ]?age\s*population|pop\s*15[- ]?64\s*(count|number)/i], format: (r) => (r.population15_64 != null ? formatVal(r.population15_64, '') + ' people' : 'N/A') },
   { key: 'population65Plus', label: 'Population 65+ (count)', patterns: [/population\s*65|elderly\s*population|senior\s*population|pop\s*65\+\s*(count|number)/i], format: (r) => (r.population65Plus != null ? formatVal(r.population65Plus, '') + ' people' : 'N/A') },
+  { key: 'primarySchoolCount', label: 'Primary schools (estimated)', patterns: [/primary\s+schools?|elementary\s+schools?|number\s+of\s+primary\s+schools?/i], format: (r) => (r.primarySchoolCount != null ? formatVal(r.primarySchoolCount, '') + ' schools (estimated)' : 'N/A') },
+  { key: 'secondarySchoolCount', label: 'Secondary schools (estimated)', patterns: [/secondary\s+schools?|high\s+schools?|number\s+of\s+secondary\s+schools?/i], format: (r) => (r.secondarySchoolCount != null ? formatVal(r.secondarySchoolCount, '') + ' schools (estimated)' : 'N/A') },
+  { key: 'tertiaryInstitutionCount', label: 'Universities & tertiary institutions (estimated)', patterns: [/universit(?:y|ies)|tertiary\s+institutions?|higher\s+education\s+institutions?|number\s+of\s+universit(?:y|ies)/i], format: (r) => (r.tertiaryInstitutionCount != null ? formatVal(r.tertiaryInstitutionCount, '') + ' institutions (estimated)' : 'N/A') },
   { key: 'governmentType', label: 'Gov type', patterns: [/government\s*type|gov\s*type|political system|form of government|political/i], format: (r) => r.governmentType ?? 'N/A' },
   { key: 'headOfGovernmentType', label: 'Head of gov', patterns: [/head\s*of\s*government|head\s*of\s*gov|leader|head of state/i], format: (r) => r.headOfGovernmentType ?? 'N/A' },
   { key: 'region', label: 'Region', patterns: [/region|geographic\s*region/i], format: (r) => r.region ?? 'N/A' },
@@ -298,6 +330,119 @@ function parseAllRequestedMetrics(q: string): Array<{ key: MetricKey; label: str
       found.push({ key: m.key, label: m.label, format: m.format });
     }
   }
+  // Metric families: if the user uses a generic family word, include the full family
+  // so comparisons are consistent and complete.
+
+  const addIfMissing = (key: MetricKey, label: string, fmt?: (r: GlobalCountryRowForFallback) => string) => {
+    if (!seen.has(key)) {
+      seen.add(key);
+      found.push({
+        key,
+        label,
+        format: fmt ?? ((r) => {
+          const v = (r as unknown as Record<string, number | null | undefined>)[key];
+          return v != null && !Number.isNaN(v as number) ? formatVal(v as number, '') : 'N/A';
+        }),
+      });
+    }
+  };
+
+  const qLower = q.toLowerCase();
+
+  // GDP / economy family
+  if (/\b(gdp|economy|economic size|market size)\b/i.test(q)) {
+    addIfMissing('gdpNominal', 'GDP (Nominal, US$)', (r) => `${formatVal(r.gdpNominal ?? null, '')} USD`);
+    addIfMissing('gdpPPP', 'GDP (PPP, Intl$)', (r) => `${formatVal(r.gdpPPP ?? null, '')} Intl$`);
+    addIfMissing('gdpNominalPerCapita', 'GDP per capita (Nominal, US$)', (r) => `${formatVal(r.gdpNominalPerCapita ?? null, '')} USD`);
+    addIfMissing('gdpPPPPerCapita', 'GDP per capita (PPP, Intl$)', (r) => `${formatVal(r.gdpPPPPerCapita ?? null, '')} Intl$`);
+  }
+
+  // Population & age structure family
+  if (/\b(population|demographics?|age structure|age breakdown)\b/i.test(q)) {
+    addIfMissing('populationTotal', 'Population, total', (r) => `${formatVal(r.populationTotal ?? null, '')} people`);
+    addIfMissing('pop0_14Pct', 'Population 0–14 (% of total)', (r) => formatPercentage(r.pop0_14Pct ?? null));
+    addIfMissing('pop15_64Pct', 'Population 15–64 (% of total)', (r) => formatPercentage(r.pop15_64Pct ?? null));
+    addIfMissing('pop65PlusPct', 'Population 65+ (% of total)', (r) => formatPercentage(r.pop65PlusPct ?? null));
+  }
+
+  // Inflation family
+  if (/\b(inflation|price change|price stability)\b/i.test(q)) {
+    addIfMissing('inflationCPI', 'Inflation (CPI, %)', (r) => formatPercentage(r.inflationCPI ?? null));
+  }
+
+  // Government debt family
+  if (/\b(debt|government debt|public debt)\b/i.test(q)) {
+    addIfMissing('govDebtPercentGDP', 'Government debt (% of GDP)', (r) => formatPercentage(r.govDebtPercentGDP ?? null));
+    addIfMissing('govDebtUSD', 'Government debt (USD)', (r) => `${formatVal(r.govDebtUSD ?? null, '')} USD`);
+  }
+
+  // Labour & unemployment family
+  if (/\b(unemployment|labour market|labor market|workforce)\b/i.test(q)) {
+    addIfMissing('unemploymentRate', 'Unemployment rate (% of labour force)', (r) => formatPercentage(r.unemploymentRate ?? null));
+    addIfMissing('unemployedTotal', 'Unemployed (number of people)', (r) => `${formatVal(r.unemployedTotal ?? null, '')} people`);
+    addIfMissing('labourForceTotal', 'Labour force (total)', (r) => `${formatVal(r.labourForceTotal ?? null, '')} people`);
+  }
+
+  // Poverty family
+  if (/\bpoverty\b/i.test(q)) {
+    addIfMissing('povertyHeadcount215', 'Poverty headcount ($2.15/day, %)', (r) => formatPercentage(r.povertyHeadcount215 ?? null));
+    addIfMissing('povertyHeadcountNational', 'Poverty headcount (national line, %)', (r) => formatPercentage(r.povertyHeadcountNational ?? null));
+  }
+
+  // Health burden family
+  if (/\b(health outcomes?|mortality|child mortality|maternal health|undernourishment|hunger)\b/i.test(q)) {
+    addIfMissing('lifeExpectancy', 'Life expectancy at birth (years)', (r) => `${formatVal(r.lifeExpectancy ?? null, '')} years`);
+    addIfMissing('maternalMortalityRatio', 'Maternal mortality ratio (per 100k)', (r) =>
+      r.maternalMortalityRatio != null ? `${formatVal(r.maternalMortalityRatio, '')} per 100k` : 'N/A',
+    );
+    addIfMissing('under5MortalityRate', 'Under-5 mortality rate (per 1k)', (r) =>
+      r.under5MortalityRate != null ? `${formatVal(r.under5MortalityRate, '')} per 1k` : 'N/A',
+    );
+    addIfMissing('undernourishmentPrevalence', 'Prevalence of undernourishment (% of population)', (r) =>
+      formatPercentage(r.undernourishmentPrevalence ?? null),
+    );
+  }
+
+  // Education quality/access family (non-institutions)
+  if (/\b(education|schooling|literacy|learning)\b/i.test(q) && !/\bschools?\b/i.test(qLower)) {
+    addIfMissing('outOfSchoolPrimaryPct', 'Out-of-school rate (primary, %)', (r) => formatPercentage(r.outOfSchoolPrimaryPct ?? null));
+    addIfMissing('primaryCompletionRate', 'Primary completion rate (%)', (r) => formatPercentage(r.primaryCompletionRate ?? null));
+    addIfMissing('secondaryCompletionRate', 'Secondary completion rate (%)', (r) => formatPercentage(r.secondaryCompletionRate ?? null));
+    addIfMissing('tertiaryCompletionRate', 'Tertiary completion rate (%)', (r) => formatPercentage(r.tertiaryCompletionRate ?? null));
+    addIfMissing('minProficiencyReadingPct', 'Minimum reading proficiency (% at end of primary)', (r) =>
+      formatPercentage(r.minProficiencyReadingPct ?? null),
+    );
+    addIfMissing('literacyRateAdultPct', 'Adult literacy rate (% ages 15+)', (r) => formatPercentage(r.literacyRateAdultPct ?? null));
+    addIfMissing('genderParityIndexPrimary', 'Gender parity index (GPI), primary', (r) =>
+      r.genderParityIndexPrimary != null ? formatVal(r.genderParityIndexPrimary, '') : 'N/A',
+    );
+    addIfMissing('genderParityIndexSecondary', 'Gender parity index (GPI), secondary', (r) =>
+      r.genderParityIndexSecondary != null ? formatVal(r.genderParityIndexSecondary, '') : 'N/A',
+    );
+    addIfMissing('genderParityIndexTertiary', 'Gender parity index (GPI), tertiary', (r) =>
+      r.genderParityIndexTertiary != null ? formatVal(r.genderParityIndexTertiary, '') : 'N/A',
+    );
+    addIfMissing('trainedTeachersPrimaryPct', 'Trained teachers, primary (% of total)', (r) =>
+      formatPercentage(r.trainedTeachersPrimaryPct ?? null),
+    );
+    addIfMissing('trainedTeachersSecondaryPct', 'Trained teachers, secondary (% of total)', (r) =>
+      formatPercentage(r.trainedTeachersSecondaryPct ?? null),
+    );
+    addIfMissing('trainedTeachersTertiaryPct', 'Trained teachers, tertiary (% of total)', (r) =>
+      formatPercentage(r.trainedTeachersTertiaryPct ?? null),
+    );
+    addIfMissing('publicExpenditureEducationPctGDP', 'Public expenditure on education (% of GDP)', (r) =>
+      formatPercentage(r.publicExpenditureEducationPctGDP ?? null),
+    );
+  }
+
+  // If the user mentions "schools" generically (without specifying level),
+  // include all three institution-count metrics so comparisons are consistent.
+  if (/\bschools?\b/i.test(q)) {
+    addIfMissing('primarySchoolCount', 'Primary schools (estimated)');
+    addIfMissing('secondarySchoolCount', 'Secondary schools (estimated)');
+    addIfMissing('tertiaryInstitutionCount', 'Universities & tertiary institutions (estimated)');
+  }
   return found;
 }
 
@@ -308,7 +453,8 @@ type RankingMetric =
   | 'povertyHeadcount215' | 'povertyHeadcountNational'
   | 'maternalMortalityRatio' | 'under5MortalityRate' | 'undernourishmentPrevalence'
   | 'population0_14' | 'population15_64' | 'population65Plus'
-  | 'landAreaKm2' | 'totalAreaKm2' | 'eezKm2';
+  | 'landAreaKm2' | 'totalAreaKm2' | 'eezKm2'
+  | 'primarySchoolCount' | 'secondarySchoolCount' | 'tertiaryInstitutionCount';
 
 function parseRankingRequest(q: string): {
   isRanking: boolean;
@@ -366,6 +512,9 @@ function parseRankingRequest(q: string): {
   if (/population\s*0[- ]?14|youth\s*population|children\s*population|by youth population/i.test(q)) return { isRanking: true, n, direction, metric: 'population0_14', region };
   if (/population\s*15[- ]?64|working[- ]?age\s*population|by working age/i.test(q)) return { isRanking: true, n, direction, metric: 'population15_64', region };
   if (/population\s*65|elderly\s*population|senior\s*population|by elderly|by senior population/i.test(q)) return { isRanking: true, n, direction, metric: 'population65Plus', region };
+  if (/primary\s+schools?|elementary\s+schools?|schools\s+in\s+|number\s+of\s+primary\s+schools?/i.test(q)) return { isRanking: true, n, direction, metric: 'primarySchoolCount', region };
+  if (/secondary\s+schools?|high\s+schools?|number\s+of\s+secondary\s+schools?/i.test(q)) return { isRanking: true, n, direction, metric: 'secondarySchoolCount', region };
+  if (/universit(?:y|ies)|tertiary\s+institutions?|higher\s+education\s+institutions?|number\s+of\s+universit(?:y|ies)/i.test(q)) return { isRanking: true, n, direction, metric: 'tertiaryInstitutionCount', region };
   if (/poverty|by poverty|poorest countries|richest.*poverty|poverty rate/i.test(q)) return { isRanking: true, n, direction, metric: 'povertyHeadcount215', region };
   if (/land area|by land|land area/i.test(q)) return { isRanking: true, n, direction, metric: 'landAreaKm2', region };
   if (/total area|surface area|by area/i.test(q)) return { isRanking: true, n, direction, metric: 'totalAreaKm2', region };
@@ -434,6 +583,9 @@ function formatCountryOverview(
     `- Land area: ${r.landAreaKm2 != null ? formatVal(r.landAreaKm2, '') + ' km²' : 'N/A'}`,
     `- Total area: ${r.totalAreaKm2 != null ? formatVal(r.totalAreaKm2, '') + ' km²' : 'N/A'}`,
     `- EEZ: ${r.eezKm2 != null ? formatVal(r.eezKm2, '') + ' km²' : 'N/A'}`,
+    ...(r.primarySchoolCount != null ? [`- Primary schools (estimated): ${formatVal(r.primarySchoolCount, '')} schools`] : []),
+    ...(r.secondarySchoolCount != null ? [`- Secondary schools (estimated): ${formatVal(r.secondarySchoolCount, '')} schools`] : []),
+    ...(r.tertiaryInstitutionCount != null ? [`- Universities & tertiary institutions (estimated): ${formatVal(r.tertiaryInstitutionCount, '')} institutions`] : []),
     ...(r.governmentType != null ? [`- Government type: ${r.governmentType}`] : []),
     ...(r.headOfGovernmentType != null ? [`- Head of government: ${r.headOfGovernmentType}`] : []),
     '',
@@ -632,9 +784,19 @@ export function getFallbackResponse(
     const countryName = requestedCountries[0];
     const r = effectiveData.find((x) => x.name.toLowerCase() === countryName.toLowerCase());
     if (r) {
-      const val = r[singleMetricIntent.key];
-      if (val != null && !Number.isNaN(val)) {
-        return `**${r.name} – ${singleMetricIntent.label}** (${effectiveYear}): ${singleMetricIntent.format(val as number)}.`;
+      const key = singleMetricIntent.key;
+      const rawVal = r[key];
+      const hasValue = rawVal != null && !Number.isNaN(rawVal as number);
+
+      if (key === 'primarySchoolCount' || key === 'secondarySchoolCount' || key === 'tertiaryInstitutionCount') {
+        if (hasValue) {
+          return `**${r.name} – ${singleMetricIntent.label}** (${effectiveYear}): ${singleMetricIntent.format(rawVal as number)}. These figures are **estimated counts** derived from enrollment data using fixed denominators (250/500/5,000 students per institution).`;
+        }
+        return `**${r.name} – ${singleMetricIntent.label}** (${effectiveYear}): N/A – the dashboard does not have enrollment data for this metric for ${r.name} in ${effectiveYear}.`;
+      }
+
+      if (hasValue) {
+        return `**${r.name} – ${singleMetricIntent.label}** (${effectiveYear}): ${singleMetricIntent.format(rawVal as number)}.`;
       }
     }
   }
@@ -644,7 +806,18 @@ export function getFallbackResponse(
     for (const countryName of requestedCountries) {
       const r = effectiveData.find((x) => x.name.toLowerCase() === countryName.toLowerCase());
       if (r) {
-        const parts = requestedMetrics.map((m) => `${m.label}: ${m.format(r)}`).filter((s) => !s.endsWith(': N/A'));
+        const parts = requestedMetrics
+          .map((m) => {
+            if (m.key === 'primarySchoolCount' || m.key === 'secondarySchoolCount' || m.key === 'tertiaryInstitutionCount') {
+              const raw = (r as unknown as Record<string, number | null | undefined>)[m.key];
+              if (raw != null && !Number.isNaN(raw)) {
+                return `${m.label}: ${m.format(r)} (from enrollment data)`;
+              }
+              return `${m.label}: N/A – no enrollment data`;
+            }
+            return `${m.label}: ${m.format(r)}`;
+          })
+          .filter((s) => !s.endsWith('N/A – no enrollment data'));
         if (parts.length > 0) {
           lines.push(`**${r.name}** (${effectiveYear})`);
           lines.push(parts.map((p) => `- ${p}`).join('\n'));
@@ -683,7 +856,18 @@ export function getFallbackResponse(
       ];
       for (const r of rows) {
         lines.push(`**${r.name}**`);
-        lines.push(...metricsToShow.slice(0, 12).map((m) => `- ${m.label}: ${m.format(r)}`));
+        lines.push(
+          ...metricsToShow.slice(0, 12).map((m) => {
+            if (m.key === 'primarySchoolCount' || m.key === 'secondarySchoolCount' || m.key === 'tertiaryInstitutionCount') {
+              const raw = (r as unknown as Record<string, number | null | undefined>)[m.key];
+              if (raw != null && !Number.isNaN(raw)) {
+                return `- ${m.label}: ${m.format(r)} (from enrollment data)`;
+              }
+              return `- ${m.label}: N/A – no enrollment data for this metric`;
+            }
+            return `- ${m.label}: ${m.format(r)}`;
+          }),
+        );
         lines.push('');
       }
       const gdpVals = rows.map((r) => r.gdpNominal ?? 0).filter((v) => v > 0);
@@ -1085,9 +1269,18 @@ export function getFallbackResponse(
       landAreaKm2: 'Land area',
       totalAreaKm2: 'Total area',
       eezKm2: 'EEZ',
+      primarySchoolCount: 'Primary schools (estimated)',
+      secondarySchoolCount: 'Secondary schools (estimated)',
+      tertiaryInstitutionCount: 'Universities & tertiary institutions (estimated)',
     };
     const getVal = (r: GlobalCountryRowForFallback) => {
-      const v = r[metric];
+      let v = r[metric];
+      if (v == null || Number.isNaN(v)) {
+        // For institution counts, fall back to modelled values when enrollment-based counts are missing.
+        if (metric === 'primarySchoolCount') v = (r as unknown as Record<string, number | null | undefined>).primarySchoolCountModelled ?? null;
+        if (metric === 'secondarySchoolCount') v = (r as unknown as Record<string, number | null | undefined>).secondarySchoolCountModelled ?? null;
+        if (metric === 'tertiaryInstitutionCount') v = (r as unknown as Record<string, number | null | undefined>).tertiaryInstitutionCountModelled ?? null;
+      }
       return v != null && !Number.isNaN(v) ? (v as number) : null;
     };
     const filtered = rankingData.filter((r) => getVal(r) !== null);
@@ -1097,13 +1290,20 @@ export function getFallbackResponse(
         : [...filtered].sort((a, b) => (getVal(a) ?? 0) - (getVal(b) ?? 0));
     const slice = sorted.slice(0, n);
     const formatMetricVal = (r: GlobalCountryRowForFallback) => {
-      const v = r[metric];
+      let v = r[metric];
+      if (v == null || Number.isNaN(v)) {
+        if (metric === 'primarySchoolCount') v = (r as unknown as Record<string, number | null | undefined>).primarySchoolCountModelled ?? null;
+        if (metric === 'secondarySchoolCount') v = (r as unknown as Record<string, number | null | undefined>).secondarySchoolCountModelled ?? null;
+        if (metric === 'tertiaryInstitutionCount') v = (r as unknown as Record<string, number | null | undefined>).tertiaryInstitutionCountModelled ?? null;
+      }
       if (metric === 'inflationCPI' || metric === 'govDebtPercentGDP' || metric === 'interestRate' || metric === 'unemploymentRate' || metric === 'povertyHeadcount215' || metric === 'povertyHeadcountNational' || metric === 'undernourishmentPrevalence') return formatPercentage(v ?? null);
       if (metric === 'lifeExpectancy') return formatVal(v ?? null, '') + ' years';
       if (metric === 'populationTotal' || metric === 'unemployedTotal' || metric === 'labourForceTotal' || metric === 'population0_14' || metric === 'population15_64' || metric === 'population65Plus') return formatVal(v ?? null, '');
       if (metric === 'maternalMortalityRatio') return (v != null ? formatVal(v, '') + ' per 100k' : 'N/A');
       if (metric === 'under5MortalityRate') return (v != null ? formatVal(v, '') + ' per 1k' : 'N/A');
       if (metric === 'landAreaKm2' || metric === 'totalAreaKm2' || metric === 'eezKm2') return formatVal(v ?? null, '') + ' km²';
+      if (metric === 'primarySchoolCount' || metric === 'secondarySchoolCount') return formatVal(v ?? null, '') + ' schools (estimated)';
+      if (metric === 'tertiaryInstitutionCount') return formatVal(v ?? null, '') + ' institutions (estimated)';
       if (metric === 'gdpNominal' || metric === 'gdpPPP' || metric === 'gdpNominalPerCapita' || metric === 'gdpPPPPerCapita') return formatVal(v ?? null, '') + (metric === 'gdpPPP' || metric === 'gdpPPPPerCapita' ? ' Intl$' : ' USD');
       return formatVal(v ?? null, '');
     };
@@ -1309,7 +1509,7 @@ export function getFallbackResponse(
 
 **Full list:** Ask "What metrics are available?" or open the **Source** tab. In **Global Analytics** you can filter map, table, and charts by region.
 
-**Unlimited combinations** – You can ask for any mix of: GDP, PPP, per capita, population, life expectancy, inflation, debt (from World Bank or IMF when WB has no data), interest rate, unemployment, labour force, poverty, maternal mortality, under-5 mortality, undernourishment, land area, EEZ, age groups, government type, region, and education metrics. For full conversational answers, add your API key in Settings.`;
+**Unlimited combinations** – You can ask for any mix of: GDP, PPP, per capita, population, life expectancy, inflation, debt (from World Bank or IMF when WB has no data), interest rate, unemployment, labour force, poverty, maternal mortality, under-5 mortality, undernourishment, land area, EEZ, age groups, government type, region, and education metrics (including **estimated numbers of schools and universities** where data exists). For school and university counts, the assistant only uses the values in the dashboard (derived from enrollment with fixed denominators 250/500/5,000); when those values are missing, it will show **N/A** and explicitly state that the app has no data instead of guessing. For full conversational answers, add your API key in Settings.`;
 
   if (matchesQuery(q, ['help', 'hello', 'hi', 'how to', 'how do i', 'get started', 'what can you'])) {
     return defaultHelp;

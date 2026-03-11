@@ -2138,12 +2138,14 @@ export async function fetchGlobalCountryMetricsForYear(
       fetchGlobalIndicatorLatestUpToYear('trainedTeachersSecondaryPct', year, DATA_MIN_YEAR),
       fetchGlobalIndicatorLatestUpToYear('trainedTeachersTertiaryPct', year, DATA_MIN_YEAR),
       fetchGlobalIndicatorLatestUpToYear('publicExpenditureEducationPctGDP', year, DATA_MIN_YEAR),
-      fetchGlobalIndicatorForYear('primaryPupilsTotal', year),
-      fetchGlobalIndicatorForYear('secondaryPupilsTotal', year),
+      // For enrollment totals used to derive institution counts, use latest non-null up to this year,
+      // so snapshots for recent years still have meaningful estimated counts when raw data lags.
+      fetchGlobalIndicatorLatestUpToYear('primaryPupilsTotal', year, DATA_MIN_YEAR),
+      fetchGlobalIndicatorLatestUpToYear('secondaryPupilsTotal', year, DATA_MIN_YEAR),
       fetchGlobalIndicatorForYear('primaryEnrollmentPct', year),
       fetchGlobalIndicatorForYear('secondaryEnrollmentPct', year),
       fetchGlobalIndicatorForYear('tertiaryEnrollmentPct', year),
-      fetchGlobalIndicatorForYear('tertiaryEnrollmentTotal', year),
+      fetchGlobalIndicatorLatestUpToYear('tertiaryEnrollmentTotal', year, DATA_MIN_YEAR),
       fetchGlobalIndicatorForYear('primarySchoolsTotal', year),
       fetchGlobalIndicatorForYear('secondarySchoolsTotal', year),
     ]);
@@ -2309,7 +2311,7 @@ export async function fetchGlobalCountryMetricsForYear(
     }
 
     // Estimated number of schools and universities (derived from enrollment using typical average institution size).
-    // These are modelled counts, not official UIS "number of schools" indicators.
+    // These are estimated counts, not official UIS "number of schools" indicators.
     for (const row of byIso3.values()) {
       if (row.primaryPupilsTotal != null && Number.isFinite(row.primaryPupilsTotal)) {
         row.primarySchoolCount = row.primaryPupilsTotal / 250; // ~250 pupils per primary school
@@ -2321,6 +2323,7 @@ export async function fetchGlobalCountryMetricsForYear(
         row.tertiaryInstitutionCount = row.tertiaryEnrollmentTotal / 5000; // ~5,000 students per tertiary institution
       }
     }
+
 
     // Derive out-of-school tertiary from tertiary gross enrollment (100 - gross, capped at 100)
     for (const row of byIso3.values()) {
