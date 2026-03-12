@@ -111,6 +111,11 @@ export function useCountryDashboard(
             countryCode: code,
             startYear: String(startYear),
             endYear: String(endYear),
+            // Include refreshTrigger in the query so that pressing
+            // "Refresh all data" forces a cache miss on the server-side
+            // /api/country-dashboard cache. The server folds this into
+            // its cache key, ensuring new upstream data is fetched.
+            refreshToken: String(refreshTrigger),
           });
           const res = await fetch(`/api/country-dashboard?${params.toString()}`, {
             method: 'GET',

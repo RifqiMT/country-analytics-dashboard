@@ -58,8 +58,10 @@ function App() {
   const [mainTab, setMainTab] = useState<'country' | 'global' | 'source' | 'pestel' | 'porter5' | 'business' | 'chat'>('country');
   const [globalViewTab, setGlobalViewTab] = useState<'map' | 'table' | 'charts'>('map');
   const [mapMetricId, setMapMetricId] = useState<MapMetricId>('gdpNominal');
-  const [globalYear, setGlobalYear] = useState<number>(DATA_MAX_YEAR);
-  const [globalYearInput, setGlobalYearInput] = useState<number>(DATA_MAX_YEAR);
+  const [globalFromYear, setGlobalFromYear] = useState<number>(DATA_MIN_YEAR);
+  const [globalToYear, setGlobalToYear] = useState<number>(DATA_MAX_YEAR);
+  const [globalFromYearInput, setGlobalFromYearInput] = useState<number>(DATA_MIN_YEAR);
+  const [globalToYearInput, setGlobalToYearInput] = useState<number>(DATA_MAX_YEAR);
   const [globalRegion, setGlobalRegion] = useState<string | null>(null);
   const [globalRegions, setGlobalRegions] = useState<string[]>([]);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
@@ -363,35 +365,35 @@ function App() {
                           <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" />
                         </svg>
                       </span>
-                      <span>Year</span>
+                      <span>From</span>
                     </span>
                     <div className="input-with-icon">
                       <input
                         type="number"
                         min={DATA_MIN_YEAR}
                         max={DATA_MAX_YEAR}
-                        value={globalYearInput}
+                        value={globalFromYearInput}
                         onChange={(e) =>
-                          setGlobalYearInput(
-                            Number(e.target.value) || globalYearInput,
+                          setGlobalFromYearInput(
+                            Number(e.target.value) || globalFromYearInput,
                           )
                         }
                         onBlur={() => {
                           const clamped = Math.min(
-                            DATA_MAX_YEAR,
-                            Math.max(DATA_MIN_YEAR, globalYearInput),
+                            Math.max(DATA_MIN_YEAR, globalFromYearInput),
+                            globalToYear,
                           );
-                          setGlobalYear(clamped);
-                          setGlobalYearInput(clamped);
+                          setGlobalFromYear(clamped);
+                          setGlobalFromYearInput(clamped);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             const clamped = Math.min(
-                              DATA_MAX_YEAR,
-                              Math.max(DATA_MIN_YEAR, globalYearInput),
+                              Math.max(DATA_MIN_YEAR, globalFromYearInput),
+                              globalToYear,
                             );
-                            setGlobalYear(clamped);
-                            setGlobalYearInput(clamped);
+                            setGlobalFromYear(clamped);
+                            setGlobalFromYearInput(clamped);
                           }
                         }}
                       />
@@ -401,7 +403,53 @@ function App() {
                         </svg>
                       </span>
                     </div>
-                      </label>
+                  </label>
+                  <label>
+                    <span className="year-label">
+                      <span className="icon-16 icon-muted">
+                        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+                          <path d="M5 1.5a.75.75 0 0 1 .75.75V3h4.5V2.25a.75.75 0 0 1 1.5 0V3h.5A1.75 1.75 0 0 1 14 4.75v8.5A1.75 1.75 0 0 1 12.25 15h-8.5A1.75 1.75 0 0 1 2 13.25v-8.5A1.75 1.75 0 0 1 3.75 3h.5V2.25A.75.75 0 0 1 5 1.5Zm7 5H4a.5.5 0 0 0-.5.5v6.25c0 .14.11.25.25.25h8.5a.25.25 0 0 0 .25-.25V7a.5.5 0 0 0-.5-.5Z" />
+                        </svg>
+                      </span>
+                      <span>To</span>
+                    </span>
+                    <div className="input-with-icon">
+                      <input
+                        type="number"
+                        min={DATA_MIN_YEAR}
+                        max={DATA_MAX_YEAR}
+                        value={globalToYearInput}
+                        onChange={(e) =>
+                          setGlobalToYearInput(
+                            Number(e.target.value) || globalToYearInput,
+                          )
+                        }
+                        onBlur={() => {
+                          const clamped = Math.max(
+                            Math.min(DATA_MAX_YEAR, globalToYearInput),
+                            globalFromYear,
+                          );
+                          setGlobalToYear(clamped);
+                          setGlobalToYearInput(clamped);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const clamped = Math.max(
+                              Math.min(DATA_MAX_YEAR, globalToYearInput),
+                              globalFromYear,
+                            );
+                            setGlobalToYear(clamped);
+                            setGlobalToYearInput(clamped);
+                          }
+                        }}
+                      />
+                      <span className="input-inline-icon" aria-hidden="true">
+                        <svg viewBox="0 0 16 16">
+                          <path d="M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2Zm.75 3.25a.75.75 0 0 0-1.5 0v3.5c0 .2.08.39.22.53l2 2a.75.75 0 0 0 1.06-1.06L8.75 8.6V5.25Z" />
+                        </svg>
+                      </span>
+                    </div>
+                  </label>
                 </div>
                 <RegionFilter
                   regions={globalRegions}
@@ -462,21 +510,23 @@ function App() {
                 <WorldMapSection
                   data={data}
                   selectedMetricId={mapMetricId}
-                  year={globalYear}
+                  year={DATA_MAX_YEAR}
                   region={globalRegion}
                   refreshTrigger={dataRefreshTrigger}
                 />
               </>
             ) : globalViewTab === 'table' ? (
               <AllCountriesTableSection
-                year={globalYear}
-                setYear={setGlobalYear}
+                year={DATA_MAX_YEAR}
+                // Lock the global table to the latest year; ignore external changes.
+                setYear={() => {}}
                 region={globalRegion}
                 refreshTrigger={dataRefreshTrigger}
               />
             ) : (
               <GlobalChartsSection
-                maxYear={globalYear}
+                minYear={globalFromYear}
+                maxYear={globalToYear}
                 region={globalRegion}
                 refreshTrigger={dataRefreshTrigger}
               />

@@ -8,6 +8,11 @@ import { getStoredModel, getEffectiveApiKey } from '../config/llm';
 import { DATA_MAX_YEAR } from '../config';
 import { CountrySelector } from './CountrySelector';
 import { useToast } from './ToastProvider';
+import {
+  getAnswerPersonaName,
+  getAnswerSourceInfo,
+  renderAnswerSourceIcon,
+} from './ChatbotSection';
 
 /** Parsed bullet points per PESTEL pillar for the chart view */
 export interface PestelChartData {
@@ -814,9 +819,22 @@ export function PESTELSection({
                 {formatPestelContent(stripLeadingComprehensivePestelTitle(getReportWithoutRecommendations(getReportWithoutKeyTakeaways(getReportWithoutNewMarketAnalysis(getReportWithoutStrategicImplications(analysis))))))}
               </div>
               {source && (
-                <p className="pestel-source muted">
-                  Source: {source}
-                </p>
+                <div className="pestel-source muted">
+                  {(() => {
+                    const info = getAnswerSourceInfo(source);
+                    if (!info) return null;
+                    const name = getAnswerPersonaName(info.kind);
+                    return (
+                      <div className="analysis-source-header">
+                        <div className={`chatbot-avatar-stack chatbot-avatar-${info.kind}`}>
+                          {renderAnswerSourceIcon(info.kind)}
+                          <span className="chatbot-avatar-name">{name}</span>
+                        </div>
+                        <span className="analysis-source-label">{info.label}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
               )}
             </div>
 

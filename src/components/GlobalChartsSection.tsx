@@ -301,13 +301,20 @@ const GLOBAL_LABOUR_LEGEND_LABELS: Record<string, string> = {
 interface Props {
   /** Increment to force refetch (e.g. after "Refresh all data"). */
   refreshTrigger?: number;
+  /** Selected min year from the Global Analytics year filter. */
+  minYear: number;
   /** Selected max year from the Global Analytics year filter. */
   maxYear: number;
   /** When set, aggregates are computed only for countries in this region (World Bank region name). */
   region?: string | null;
 }
 
-export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null }: Props) {
+export function GlobalChartsSection({
+  refreshTrigger = 0,
+  minYear,
+  maxYear,
+  region = null,
+}: Props) {
   const [frequency, setFrequency] = useState<Frequency>('yearly');
   const [globalSeries, setGlobalSeries] = useState<MetricSeries[]>([]);
   const [globalHealthSeries, setGlobalHealthSeries] = useState<MetricSeries[]>([]);
@@ -602,10 +609,13 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
   const allSeries = globalSeries;
   const resampledSeries = allSeries.map((s) => resampleSeries(s, frequency));
 
-  const displayStartYear = DATA_MIN_YEAR;
+  const displayStartYear = Math.max(
+    DATA_MIN_YEAR,
+    Math.min(minYear, maxYear),
+  );
   const displayEndYear = Math.min(
-    Math.max(maxYear, DATA_MIN_YEAR),
     DATA_MAX_YEAR,
+    Math.max(maxYear, minYear),
   );
 
   const labelByMetricId = allSeries.reduce<Record<string, string>>(

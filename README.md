@@ -185,10 +185,12 @@ axios, d3-geo, d3-scale, html2canvas, react, react-dom, react-simple-maps, recha
 ### Custom Infrastructure
 
 - **vite-plugin-chat-api.ts** – Custom Vite plugin adding:
-  - `/api/chat` middleware; cascading routing (Dashboard data → Groq → Tavily → other LLMs) with year-based rules.
-  - `/api/country-dashboard` middleware; **server-side cache** for `CountryDashboardData` with 24‑hour TTL per (`countryCode`, `startYear`, `endYear`) key.
+  - `/api/chat` middleware; cascading routing (Dashboard data → Groq → Tavily → other LLMs) with year-based rules and explicit source attribution for every answer.
+  - `/api/country-dashboard` middleware; **server-side cache** for `CountryDashboardData` with 24‑hour TTL per (`countryCode`, `startYear`, `endYear`, `refreshToken`) key.
   - **Background warm-up** of the country-dashboard cache on server start: `warmDashboardCacheForAllCountries()` fetches the full country list and preloads dashboard data for all countries over `[DATA_MIN_YEAR, DATA_MAX_YEAR]` using a small worker pool. This means that, by default, most countries load from cache the first time they are selected instead of hitting World Bank live.
+  - **Explicit refresh hook** for the Country Dashboard: the **"Refresh all data"** button increments a `refreshTrigger`, which is forwarded as `refreshToken` to `/api/country-dashboard`. Any change in `refreshToken` forces a cache miss so that the latest upstream World Bank/IMF/UN/UNESCO data and ETL backfills are re-fetched.
   - `/api/export-global-csv` middleware; runs `scripts/export-global-csv.mjs` to export all global metrics to CSV files under `exports/worldbank/`.
+  - `scripts/etl-country-metrics.ts` ETL helper; materialises canonical **country‑year snapshots** (`GlobalCountryMetricsRow[]`) into `etl-cache/country_metrics_{year}.json`. `fetchGlobalCountryMetricsForYear()` prefers these snapshots on the server, keeping Global Analytics and Country Dashboard summary backfills aligned on a single upstream pipeline.
 
 ---
 

@@ -13,6 +13,11 @@ import {
   DEFAULT_INDUSTRY_DIVISION_CODE,
   getIndustryDivisionLabelShort,
 } from '../data/iloIndustrySectors';
+import {
+  getAnswerPersonaName,
+  getAnswerSourceInfo,
+  renderAnswerSourceIcon,
+} from './ChatbotSection';
 
 /** Parsed chart data: exactly 5 bullet strings per force for the Porter 5 chart visualization */
 export interface Porter5ChartData {
@@ -846,9 +851,22 @@ export function Porter5ForcesSection({
                     <h3 className="porter5-output-title">Comprehensive Analysis</h3>
                     <div className="porter5-content">{formatPorterContent(comprehensiveText)}</div>
                     {source && (
-                      <p className="porter5-source muted">
-                        Source: {source}
-                      </p>
+                      <div className="porter5-source muted">
+                        {(() => {
+                          const info = getAnswerSourceInfo(source);
+                          if (!info) return null;
+                          const name = getAnswerPersonaName(info.kind);
+                          return (
+                            <div className="analysis-source-header">
+                              <div className={`chatbot-avatar-stack chatbot-avatar-${info.kind}`}>
+                                {renderAnswerSourceIcon(info.kind)}
+                                <span className="chatbot-avatar-name">{name}</span>
+                              </div>
+                              <span className="analysis-source-label">{info.label}</span>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     )}
                   </div>
                   {newMarketBullets.length > 0 && (

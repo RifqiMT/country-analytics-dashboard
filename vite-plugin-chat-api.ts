@@ -530,8 +530,14 @@ interface DashboardCacheEntry {
 const DASHBOARD_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const dashboardCache = new Map<string, DashboardCacheEntry>();
 
-function getDashboardCacheKey(code: string, startYear: number, endYear: number): string {
-  return `${code.toUpperCase()}:${startYear}:${endYear}`;
+function getDashboardCacheKey(
+  code: string,
+  startYear: number,
+  endYear: number,
+  refreshToken?: number,
+): string {
+  const token = Number.isFinite(refreshToken as number) ? Number(refreshToken) : 0;
+  return `${code.toUpperCase()}:${startYear}:${endYear}:${token}`;
 }
 
 async function handleCountryDashboardRequest(
@@ -558,6 +564,7 @@ async function handleCountryDashboardRequest(
       '').trim().toUpperCase();
   const startYear = Number.parseInt(url.searchParams.get('startYear') ?? '', 10) || DATA_MIN_YEAR;
   const endYear = Number.parseInt(url.searchParams.get('endYear') ?? '', 10) || DATA_MAX_YEAR;
+  const refreshToken = Number.parseInt(url.searchParams.get('refreshToken') ?? '', 10) || 0;
 
   if (!code) {
     res.statusCode = 400;
@@ -566,7 +573,7 @@ async function handleCountryDashboardRequest(
     return;
   }
 
-  const key = getDashboardCacheKey(code, startYear, endYear);
+  const key = getDashboardCacheKey(code, startYear, endYear, refreshToken);
   const now = Date.now();
   const cached = dashboardCache.get(key);
   if (cached && now - cached.fetchedAt < DASHBOARD_CACHE_TTL_MS) {

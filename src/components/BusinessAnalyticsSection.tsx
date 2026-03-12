@@ -19,6 +19,11 @@ import type { CountryDashboardData, GlobalCountryMetricsRow, CountrySummary } fr
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import { computeCorrelationAnalysis } from '../utils/correlationAnalysis';
 import { useToast } from './ToastProvider';
+import {
+  getAnswerPersonaName,
+  getAnswerSourceInfo,
+  renderAnswerSourceIcon,
+} from './ChatbotSection';
 
 interface BusinessAnalyticsSectionProps {
   dashboardData?: CountryDashboardData | null;
@@ -404,7 +409,23 @@ export function BusinessAnalyticsSection({
 
       {globalMetrics.length > 0 && (
         <div className="correlation-causation-analysis">
-          <h3 className="correlation-analysis-title">Correlation &amp; causation analysis</h3>
+          <div className="correlation-header-row">
+            <h3 className="correlation-analysis-title">Correlation &amp; causation analysis</h3>
+            {(() => {
+              const info = getAnswerSourceInfo('Dashboard data');
+              if (!info) return null;
+              const name = getAnswerPersonaName(info.kind);
+              return (
+                <div className="analysis-source-header">
+                  <div className={`chatbot-avatar-stack chatbot-avatar-${info.kind}`}>
+                    {renderAnswerSourceIcon(info.kind)}
+                    <span className="chatbot-avatar-name">{name}</span>
+                  </div>
+                  <span className="analysis-source-label">{info.label}</span>
+                </div>
+              );
+            })()}
+          </div>
           <p className="muted correlation-analysis-subtitle">
             Statistical summary and interpretation for the selected pair: <strong>{xLabel}</strong> (X) vs <strong>{yLabel}</strong> (Y).{' '}
             {selectedYears.length === 1

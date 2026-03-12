@@ -667,6 +667,37 @@ async function fetchCountryMetadata(countryCode: string): Promise<CountrySummary
     // If REST Countries enrichment fails, fall back to whatever summary we already have.
   }
 
+  // As a final enrichment step, backfill any missing core fields (region, income level,
+  // capital, coordinates) from the cached World Bank country list used elsewhere in
+  // the app (e.g. selectors, global tables). This helps avoid partially empty
+  // "General" cards for countries where the direct metadata call returned sparse data.
+  try {
+    const all = await fetchAllCountries();
+    const fromList =
+      all.find((c) => c.iso2Code?.toUpperCase() === iso2) ||
+      (summary?.iso3Code
+        ? all.find((c) => c.iso3Code?.toUpperCase() === summary!.iso3Code?.toUpperCase())
+        : undefined) ||
+      (summary?.name ? all.find((c) => c.name === summary!.name) : undefined);
+    if (fromList) {
+      if (!summary) {
+        summary = { ...fromList };
+      } else {
+        summary.region = summary.region ?? fromList.region;
+        summary.incomeLevel = summary.incomeLevel ?? fromList.incomeLevel;
+        summary.capitalCity = summary.capitalCity ?? fromList.capitalCity;
+        if (summary.latitude == null && fromList.latitude != null) {
+          summary.latitude = fromList.latitude;
+        }
+        if (summary.longitude == null && fromList.longitude != null) {
+          summary.longitude = fromList.longitude;
+        }
+      }
+    }
+  } catch {
+    // If the country list cannot be loaded, continue with whatever summary is available.
+  }
+
   if (!summary) {
     summary = {
       iso2Code: iso2 || 'XX',
@@ -1834,9 +1865,7 @@ export async function fetchCountryDashboardData(
       series: TimePoint[],
       maxYear: number,
     ): number | null => {
-      const candidates = series.filter(
-        (p) => p.year <= maxYear && p.value != null,
-      );
+      const candidates = series.filter((p) => p.year <= maxYear && p.value != null);
       if (!candidates.length) return null;
       return candidates[candidates.length - 1].value ?? null;
     };
@@ -1858,16 +1887,10 @@ export async function fetchCountryDashboardData(
         financial: {
           gdpNominal: latestNonNullUpToYear(gdpNominal, year),
           gdpPPP: latestNonNullUpToYear(gdpPPP, year),
-          gdpNominalPerCapita: latestNonNullUpToYear(
-            gdpNominalPerCapita,
-            year,
-          ),
+          gdpNominalPerCapita: latestNonNullUpToYear(gdpNominalPerCapita, year),
           gdpPPPPerCapita: latestNonNullUpToYear(gdpPPPPerCapita, year),
           inflationCPI: latestNonNullUpToYear(inflationCPI, year),
-          govDebtPercentGDP: latestNonNullUpToYear(
-            govDebtPercentGDP,
-            year,
-          ),
+          govDebtPercentGDP: latestNonNullUpToYear(govDebtPercentGDP, year),
           govDebtUSD: (() => {
             const gdp = latestNonNullUpToYear(gdpNominal, year);
             const pct = latestNonNullUpToYear(govDebtPercentGDP, year);
@@ -1881,13 +1904,17 @@ export async function fetchCountryDashboardData(
             if (raw != null && Number.isFinite(raw)) return raw;
             const lf = latestNonNullUpToYear(labourForceTotal, year);
             const rate = latestNonNullUpToYear(unemploymentRate, year);
-            if (lf != null && rate != null && Number.isFinite(lf) && Number.isFinite(rate))
+            if (lf != null && rate != null && Number.isFinite(lf) && Number.isFinite(rate)) {
               return Math.round((lf * rate) / 100);
+            }
             return null;
           })(),
           labourForceTotal: latestNonNullUpToYear(labourForceTotal, year),
           povertyHeadcount215: latestNonNullUpToYear(povertyHeadcount215, year),
-          povertyHeadcountNational: latestNonNullUpToYear(povertyHeadcountNational, year),
+          povertyHeadcountNational: latestNonNullUpToYear(
+            povertyHeadcountNational,
+            year,
+          ),
         },
         population: {
           total: populationBreakdown.total,
@@ -2009,6 +2036,89 @@ export async function fetchCountryDashboardData(
         },
       },
     };
+
+    // Align dashboard snapshot with global metrics: when the per-country
+    // indicator series are empty or incomplete but the global metrics table
+    // has values (e.g. UAE GDP, inflation), backfill missing snapshot fields
+    // from `fetchGlobalCountryMetricsForYear(year)`. This keeps Country
+    // Dashboard and Global Analytics consistent without fabricating data.
+    try {
+      const globalRows = await fetchGlobalCountryMetricsForYear(year);
+      const match = globalRows.find(
+        (row) =>
+          row.iso2Code?.toUpperCase() === summary.iso2Code?.toUpperCase() ||
+          (row.iso3Code && row.iso3Code.toUpperCase() === (summary.iso3Code ?? '').toUpperCase()),
+      );
+      if (match && latestSnapshot) {
+        const fin = latestSnapshot.metrics.financial;
+        const pop = latestSnapshot.metrics.population;
+        const healthSnap = latestSnapshot.metrics.health;
+        const eduSnap = latestSnapshot.metrics.education;
+
+        fin.gdpNominal ??= match.gdpNominal ?? null;
+        fin.gdpPPP ??= match.gdpPPP ?? null;
+        fin.gdpNominalPerCapita ??= match.gdpNominalPerCapita ?? null;
+        fin.gdpPPPPerCapita ??= match.gdpPPPPerCapita ?? null;
+        fin.inflationCPI ??= match.inflationCPI ?? null;
+        fin.govDebtPercentGDP ??= match.govDebtPercentGDP ?? null;
+        fin.govDebtUSD ??= match.govDebtUSD ?? null;
+        fin.interestRate ??= match.interestRate ?? null;
+        fin.unemploymentRate ??= match.unemploymentRate ?? null;
+        fin.unemployedTotal ??= match.unemployedTotal ?? null;
+        fin.labourForceTotal ??= match.labourForceTotal ?? null;
+        fin.povertyHeadcount215 ??= match.povertyHeadcount215 ?? null;
+        fin.povertyHeadcountNational ??= match.povertyHeadcountNational ?? null;
+
+        if (pop.total == null && match.populationTotal != null) {
+          pop.total = match.populationTotal;
+          if (pop.ageBreakdown) {
+            pop.ageBreakdown.total = match.populationTotal;
+          }
+        }
+
+        healthSnap.lifeExpectancy ??= match.lifeExpectancy ?? null;
+        healthSnap.maternalMortalityRatio ??= match.maternalMortalityRatio ?? null;
+        healthSnap.under5MortalityRate ??= match.under5MortalityRate ?? null;
+        healthSnap.undernourishmentPrevalence ??=
+          match.undernourishmentPrevalence ?? null;
+        if (eduSnap) {
+          eduSnap.outOfSchoolPrimaryPct ??= match.outOfSchoolPrimaryPct ?? null;
+          eduSnap.outOfSchoolSecondaryPct ??= match.outOfSchoolSecondaryPct ?? null;
+          eduSnap.outOfSchoolTertiaryPct ??= match.outOfSchoolTertiaryPct ?? null;
+          eduSnap.primaryCompletionRate ??= match.primaryCompletionRate ?? null;
+          eduSnap.secondaryCompletionRate ??= match.secondaryCompletionRate ?? null;
+          eduSnap.tertiaryCompletionRate ??= match.tertiaryCompletionRate ?? null;
+          eduSnap.minProficiencyReadingPct ??= match.minProficiencyReadingPct ?? null;
+          eduSnap.literacyRateAdultPct ??= match.literacyRateAdultPct ?? null;
+          eduSnap.genderParityIndexPrimary ??= match.genderParityIndexPrimary ?? null;
+          eduSnap.genderParityIndexSecondary ??=
+            match.genderParityIndexSecondary ?? null;
+          eduSnap.genderParityIndexTertiary ??= match.genderParityIndexTertiary ?? null;
+          eduSnap.trainedTeachersPrimaryPct ??= match.trainedTeachersPrimaryPct ?? null;
+          eduSnap.trainedTeachersSecondaryPct ??=
+            match.trainedTeachersSecondaryPct ?? null;
+          eduSnap.trainedTeachersTertiaryPct ??=
+            match.trainedTeachersTertiaryPct ?? null;
+          eduSnap.publicExpenditureEducationPctGDP ??=
+            match.publicExpenditureEducationPctGDP ?? null;
+          eduSnap.primaryPupilsTotal ??= match.primaryPupilsTotal ?? null;
+          eduSnap.secondaryPupilsTotal ??= match.secondaryPupilsTotal ?? null;
+          eduSnap.primaryEnrollmentPct ??= match.primaryEnrollmentPct ?? null;
+          eduSnap.secondaryEnrollmentPct ??= match.secondaryEnrollmentPct ?? null;
+          eduSnap.tertiaryEnrollmentPct ??= match.tertiaryEnrollmentPct ?? null;
+          eduSnap.tertiaryEnrollmentTotal ??= match.tertiaryEnrollmentTotal ?? null;
+          eduSnap.primarySchoolsTotal ??= match.primarySchoolsTotal ?? null;
+          eduSnap.secondarySchoolsTotal ??= match.secondarySchoolsTotal ?? null;
+          eduSnap.tertiaryInstitutionsTotal ??= match.tertiaryInstitutionsTotal ?? null;
+          eduSnap.primarySchoolCount ??= match.primarySchoolCount ?? null;
+          eduSnap.secondarySchoolCount ??= match.secondarySchoolCount ?? null;
+          eduSnap.tertiaryInstitutionCount ??=
+            match.tertiaryInstitutionCount ?? null;
+        }
+      }
+    } catch {
+      // If global metrics are unavailable, keep the original snapshot.
+    }
   }
 
   return {
@@ -2055,7 +2165,7 @@ export async function fetchGlobalCountryMetricsForYear(
     return cached;
   }
 
-  async function loadForYear(year: number): Promise<GlobalCountryMetricsRow[]> {
+  async function loadForYearFromApis(year: number): Promise<GlobalCountryMetricsRow[]> {
     const [validIso3, countryList] = await Promise.all([
       getWorldBankCountryIso3Set(),
       fetchAllCountries(),
@@ -2733,6 +2843,32 @@ export async function fetchGlobalCountryMetricsForYear(
     }
 
     return rows.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  // When running in a Node environment, prefer precomputed ETL snapshots
+  // (generated via `npm run etl:country-metrics`) before falling back to live
+  // API aggregation. This keeps Global Analytics and any server-side consumers
+  // aligned on a single canonical pipeline when ETL outputs are present.
+  const isBrowser = typeof window !== 'undefined';
+
+  async function loadForYear(year: number): Promise<GlobalCountryMetricsRow[]> {
+    if (!isBrowser) {
+      try {
+        // Use dynamic import so bundlers can tree-shake this out of browser builds.
+        const fs = await import('fs/promises');
+        const path = await import('path');
+        const cwd = process.cwd();
+        const filePath = path.resolve(cwd, 'etl-cache', `country_metrics_${year}.json`);
+        const content = await fs.readFile(filePath, 'utf8');
+        const rows = JSON.parse(content) as GlobalCountryMetricsRow[];
+        if (Array.isArray(rows) && rows.length > 0) {
+          return rows;
+        }
+      } catch {
+        // If ETL file is missing or invalid, silently fall back to live APIs.
+      }
+    }
+    return loadForYearFromApis(year);
   }
 
   const promise = loadForYear(safePreferred);

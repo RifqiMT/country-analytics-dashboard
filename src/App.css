@@ -5676,12 +5676,12 @@ tbody tr:hover {
 
 .chatbot-message-user .chatbot-message-avatar {
   color: var(--accent-red);
-  background: linear-gradient(135deg, var(--accent-red-soft) 0%, rgba(200, 16, 46, 0.08) 100%);
+  background: transparent;
 }
 
 .chatbot-message-assistant .chatbot-message-avatar {
   color: var(--accent-teal);
-  background: linear-gradient(135deg, var(--accent-teal-soft) 0%, rgba(15, 118, 110, 0.08) 100%);
+  background: transparent;
 }
 
 .chatbot-message-error .chatbot-message-content {
@@ -5691,18 +5691,62 @@ tbody tr:hover {
 
 .chatbot-message-avatar {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .chatbot-message:hover .chatbot-message-avatar {
   transform: scale(1.03);
   box-shadow: var(--shadow-subtle);
+}
+
+.chatbot-avatar-stack {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  min-width: 0;
+}
+
+.chatbot-avatar-stack svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
+.chatbot-avatar-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: left;
+  line-height: 1.2;
+}
+
+.chatbot-avatar-dashboard svg {
+  color: var(--accent-blue-soft);
+}
+
+.chatbot-avatar-groq svg {
+  color: var(--accent-red);
+}
+
+.chatbot-avatar-tavily svg {
+  color: var(--accent-teal);
+}
+
+.chatbot-avatar-llm svg {
+  color: var(--accent-purple, #7c3aed);
+}
+
+.chatbot-avatar-guidance svg {
+  color: var(--text-muted);
 }
 
 .chatbot-message-content {
@@ -5857,6 +5901,18 @@ tbody tr:hover {
   color: var(--text-muted);
   font-weight: 500;
   letter-spacing: 0.02em;
+}
+
+.analysis-source-header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.analysis-source-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
 }
 
 .chatbot-try-again-wrap {

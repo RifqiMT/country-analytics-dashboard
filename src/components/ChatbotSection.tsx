@@ -25,6 +25,130 @@ interface Message {
   source?: string;
 }
 
+export type AnswerSourceKind =
+  | 'dashboard'
+  | 'groq'
+  | 'tavily'
+  | 'llm'
+  | 'guidance'
+  | 'other';
+
+export interface AnswerSourceInfo {
+  kind: AnswerSourceKind;
+  label: string;
+}
+
+export function getAnswerPersonaName(kind: AnswerSourceKind): string {
+  // Light tech-pop-culture inspired personas so users can quickly associate
+  // each assistant answer with its underlying engine.
+  switch (kind) {
+    case 'dashboard':
+      return 'Neo';
+    case 'groq':
+      return 'Trinity';
+    case 'tavily':
+      return 'Cortana';
+    case 'llm':
+      return 'Jarvis';
+    case 'guidance':
+      return 'Oracle';
+    default:
+      return 'Atlas';
+  }
+}
+
+export function getAnswerSourceInfo(raw?: string): AnswerSourceInfo | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  const lower = value.toLowerCase();
+
+  if (value === 'Dashboard data') {
+    return { kind: 'dashboard', label: 'Dashboard data' };
+  }
+
+  if (value === 'Web search' || lower.includes('tavily')) {
+    // Backend currently labels web-search answers as "Web search" (powered by Tavily).
+    return { kind: 'tavily', label: 'Tavily web search' };
+  }
+
+  if (lower.includes('groq')) {
+    // Model labels such as "Llama 3.1 8B (Groq)".
+    return { kind: 'groq', label: value };
+  }
+
+  if (lower.includes('assistant guidance')) {
+    return { kind: 'guidance', label: value };
+  }
+
+  // Any other non-empty label coming from getModelLabel(...) is treated as a generic LLM model.
+  return { kind: 'llm', label: value };
+}
+
+export function renderAnswerSourceIcon(kind: AnswerSourceKind): JSX.Element {
+  switch (kind) {
+    case 'dashboard':
+      // Bar chart / dashboard glyph
+      return (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+          <path
+            fill="currentColor"
+            d="M2.75 2A.75.75 0 0 0 2 2.75v10.5c0 .414.336.75.75.75h10.5a.75.75 0 0 0 .75-.75V2.75A.75.75 0 0 0 13.25 2H2.75Zm.75 3.5a.75.75 0 0 1 1.5 0v5a.75.75 0 0 1-1.5 0v-5Zm3 2a.75.75 0 0 1 1.5 0v3a.75.75 0 0 1-1.5 0v-3Zm3-3a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6Z"
+          />
+        </svg>
+      );
+    case 'groq':
+      // High-performance LLM chip / lightning icon
+      return (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+          <path
+            fill="currentColor"
+            d="M8.5 1.25a.75.75 0 0 0-1.4.02L5.1 7H3a.75.75 0 0 0-.6 1.2l4 5.25a.75.75 0 0 0 1.35-.43V9h2.25a.75.75 0 0 0 .7-1.02L8.5 1.25Z"
+          />
+        </svg>
+      );
+    case 'tavily':
+      // Web search / globe with magnifier
+      return (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+          <path
+            fill="currentColor"
+            d="M7 1.5a5.5 5.5 0 1 1-3.89 9.39l-2.1 2.1a.75.75 0 1 1-1.06-1.06l2.1-2.1A5.5 5.5 0 0 1 7 1.5Zm0 1.5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"
+          />
+        </svg>
+      );
+    case 'llm':
+      // Generic LLM / brain-like icon
+      return (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+          <path
+            fill="currentColor"
+            d="M6 2a2.5 2.5 0 0 0-2.45 2H3.5A2.5 2.5 0 0 0 1 6.5c0 .9.47 1.69 1.17 2.13A2.75 2.75 0 0 0 4 12.75V13a2 2 0 0 0 2 2h.5a.75.75 0 0 0 .75-.75V3.5A1.5 1.5 0 0 0 6 2Zm4 0a2.5 2.5 0 0 1 2.45 2h.05A2.5 2.5 0 0 1 15 6.5c0 .9-.47 1.69-1.17 2.13A2.75 2.75 0 0 1 12 12.75V13a2 2 0 0 1-2 2h-.5a.75.75 0 0 1-.75-.75V3.5A1.5 1.5 0 0 1 10 2Z"
+          />
+        </svg>
+      );
+    case 'guidance':
+      // Neutral info icon for assistant guidance
+      return (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+          <path
+            fill="currentColor"
+            d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM8 5a.9.9 0 1 1 0-1.8A.9.9 0 0 1 8 5Zm1 5.75a.75.75 0 0 1-1.5 0V7.5a.75.75 0 0 1 1.5 0v3.25Z"
+          />
+        </svg>
+      );
+    default:
+      // Fallback chat bubble
+      return (
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
+          <path
+            fill="currentColor"
+            d="M2 3.75A1.75 1.75 0 0 1 3.75 2h8.5A1.75 1.75 0 0 1 14 3.75v5.5A1.75 1.75 0 0 1 12.25 11H6.5l-2.8 2.1A.75.75 0 0 1 2 12.53v-8.78Z"
+          />
+        </svg>
+      );
+  }
+}
+
 interface ChatbotSectionProps {
   dashboardData?: CountryDashboardData | null;
   /** Increment to force reload of global data (e.g. after "Refresh all data"). */
@@ -868,19 +992,34 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
                 >
                   <div className="chatbot-message-avatar" aria-hidden>
                     {m.role === 'user' ? (
-                      <svg viewBox="0 0 24 24" width="20" height="20">
-                        <path
-                          fill="currentColor"
-                          d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-                        />
-                      </svg>
+                      <div className="chatbot-avatar-stack" title="You">
+                        <svg viewBox="0 0 24 24" width="20" height="20">
+                          <path
+                            fill="currentColor"
+                            d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
+                          />
+                        </svg>
+                        <span className="chatbot-avatar-name">You</span>
+                      </div>
                     ) : (
-                      <svg viewBox="0 0 24 24" width="20" height="20">
-                        <path
-                          fill="currentColor"
-                          d="M20 2H4c-1.1 0-2 .9 2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"
-                        />
-                      </svg>
+                      (() => {
+                        const info = getAnswerSourceInfo(m.source);
+                        const kind: AnswerSourceKind = info?.kind ?? 'other';
+                        const name = getAnswerPersonaName(kind);
+                        const title =
+                          info?.label && info.label !== name
+                            ? `${name} – ${info.label}`
+                            : name;
+                        return (
+                          <div
+                            className={`chatbot-avatar-stack chatbot-avatar-${kind}`}
+                            title={title}
+                          >
+                            {renderAnswerSourceIcon(kind)}
+                            <span className="chatbot-avatar-name">{name}</span>
+                          </div>
+                        );
+                      })()
                     )}
                   </div>
                   <div className="chatbot-message-content" role={m.role === 'user' ? undefined : 'article'}>
@@ -892,11 +1031,23 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
                             __html: formatMessage(m.content),
                           }}
                         />
-                        {m.source && (
-                          <div className="chatbot-message-source" aria-label="Answer source">
-                            Source: {m.source}
-                          </div>
-                        )}
+                        {(() => {
+                          const info = getAnswerSourceInfo(m.source);
+                          if (!info) return null;
+                          return (
+                            <div
+                              className={`chatbot-message-source chatbot-message-source-${info.kind}`}
+                              aria-label={`Answer source: ${info.label}`}
+                            >
+                              <span className="chatbot-message-source-icon" aria-hidden>
+                                {renderAnswerSourceIcon(info.kind)}
+                              </span>
+                              <span className="chatbot-message-source-label">
+                                {info.label}
+                              </span>
+                            </div>
+                          );
+                        })()}
                         {lastUserMessageBefore && (
                           <div className="chatbot-try-again-wrap">
                             <button
