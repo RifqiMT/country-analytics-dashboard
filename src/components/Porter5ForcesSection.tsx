@@ -161,6 +161,106 @@ function parseRecommendations(text: string): { bullets: string[]; textWithoutBlo
   return { bullets, textWithoutBlock };
 }
 
+const TOP_PRODUCTS_HEADING = '## Top 10 Products';
+const TOP_PRODUCTS_HEADING_ALT = '### Top 10 Products';
+
+/** Find start index of "Top 10 Products" block (## or ###) */
+function findTopProductsStart(text: string): number {
+  const i = text.indexOf(TOP_PRODUCTS_HEADING);
+  const j = text.indexOf(TOP_PRODUCTS_HEADING_ALT);
+  if (i === -1) return j;
+  if (j === -1) return i;
+  return Math.min(i, j);
+}
+
+/** Extract raw Markdown table for "Top 10 Products" and return it plus text without that block. */
+function parseTopProductsTable(text: string): { markdownTable: string; textWithoutBlock: string } {
+  const idx = findTopProductsStart(text);
+  if (idx === -1) return { markdownTable: '', textWithoutBlock: text };
+
+  const afterHeading = text.slice(idx);
+  const lines = afterHeading.split('\n');
+  const tableLines: string[] = [];
+  let started = false;
+
+  for (let k = 1; k < lines.length; k += 1) {
+    const line = lines[k] ?? '';
+    const trimmed = line.trim();
+    if (!started) {
+      if (trimmed.startsWith('|') && trimmed.includes('|')) {
+        started = true;
+        tableLines.push(line);
+      }
+      continue;
+    }
+    if (!trimmed || (!trimmed.startsWith('|') && /^#{2,3}\s/.test(trimmed))) {
+      break;
+    }
+    tableLines.push(line);
+  }
+
+  if (!started || tableLines.length === 0) {
+    return { markdownTable: '', textWithoutBlock: text };
+  }
+
+  const headingAndTable = [TOP_PRODUCTS_HEADING, ...tableLines].join('\n');
+  const before = text.slice(0, idx).trimEnd();
+  const after = text.slice(idx + headingAndTable.length).trimStart();
+  const textWithoutBlock = [before, after].filter(Boolean).join('\n\n');
+
+  return { markdownTable: headingAndTable, textWithoutBlock };
+}
+
+const TOP_COMPANIES_HEADING = '## Top 10 Companies';
+const TOP_COMPANIES_HEADING_ALT = '### Top 10 Companies';
+
+/** Find start index of "Top 10 Companies" block (## or ###) */
+function findTopCompaniesStart(text: string): number {
+  const i = text.indexOf(TOP_COMPANIES_HEADING);
+  const j = text.indexOf(TOP_COMPANIES_HEADING_ALT);
+  if (i === -1) return j;
+  if (j === -1) return i;
+  return Math.min(i, j);
+}
+
+/** Extract raw Markdown table for "Top 10 Companies" and return it plus text without that block. */
+function parseTopCompaniesTable(text: string): { markdownTable: string; textWithoutBlock: string } {
+  const idx = findTopCompaniesStart(text);
+  if (idx === -1) return { markdownTable: '', textWithoutBlock: text };
+
+  const afterHeading = text.slice(idx);
+  const lines = afterHeading.split('\n');
+  const tableLines: string[] = [];
+  let started = false;
+
+  for (let k = 1; k < lines.length; k += 1) {
+    const line = lines[k] ?? '';
+    const trimmed = line.trim();
+    if (!started) {
+      if (trimmed.startsWith('|') && trimmed.includes('|')) {
+        started = true;
+        tableLines.push(line);
+      }
+      continue;
+    }
+    if (!trimmed || (!trimmed.startsWith('|') && /^#{2,3}\s/.test(trimmed))) {
+      break;
+    }
+    tableLines.push(line);
+  }
+
+  if (!started || tableLines.length === 0) {
+    return { markdownTable: '', textWithoutBlock: text };
+  }
+
+  const headingAndTable = [TOP_COMPANIES_HEADING, ...tableLines].join('\n');
+  const before = text.slice(0, idx).trimEnd();
+  const after = text.slice(idx + headingAndTable.length).trimStart();
+  const textWithoutBlock = [before, after].filter(Boolean).join('\n\n');
+
+  return { markdownTable: headingAndTable, textWithoutBlock };
+}
+
 /** Remove a single trailing paragraph (no ## heading) that appears after the main analysis – avoids showing stray text between sections */
 function stripTrailingOrphanParagraph(text: string): string {
   const parts = text.split(/\n\n+/);
@@ -412,6 +512,70 @@ function formatInlineMarkdown(text: string): React.ReactNode {
   return parts.length === 1 ? parts[0] : <>{parts}</>;
 }
 
+function renderTopProductsTable(markdownSection: string): React.ReactNode {
+  const lines = markdownSection.split('\n').map((l) => l.trim());
+  const headerLineIndex = lines.findIndex((l) => l.startsWith('|') && l.endsWith('|'));
+  if (headerLineIndex === -1 || headerLineIndex + 1 >= lines.length) {
+    return <div className="porter5-top-products-fallback">{formatPorterContent(markdownSection)}</div>;
+  }
+
+  const headerLine = lines[headerLineIndex];
+  const separatorLine = lines[headerLineIndex + 1];
+  if (!separatorLine || !separatorLine.includes('-')) {
+    return <div className="porter5-top-products-fallback">{formatPorterContent(markdownSection)}</div>;
+  }
+
+  const headerCells = headerLine
+    .slice(1, -1)
+    .split('|')
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const rows: string[][] = [];
+  for (let i = headerLineIndex + 2; i < lines.length; i += 1) {
+    const line = lines[i];
+    if (!line || !line.startsWith('|')) break;
+    const cells = line
+      .slice(1, -1)
+      .split('|')
+      .map((c) => c.trim());
+    if (cells.every((c) => !c)) continue;
+    rows.push(cells);
+  }
+
+  if (!rows.length) {
+    return <div className="porter5-top-products-fallback">{formatPorterContent(markdownSection)}</div>;
+  }
+
+  return (
+    <div className="porter5-top-products-table-wrapper">
+      <table className="porter5-top-products-table">
+        <thead>
+          <tr>
+            {headerCells.map((cell, idx) => (
+              <th key={idx}>{cell}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((cells, rowIdx) => (
+            <tr key={rowIdx}>
+              {cells.map((cell, colIdx) => (
+                <td key={colIdx}>{formatInlineMarkdown(cell)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function renderTopCompaniesTable(markdownSection: string): React.ReactNode {
+  // Reuse the same renderer for companies – layout and styling are identical.
+  return renderTopProductsTable(markdownSection);
+}
+
 export function Porter5ForcesSection({
   dashboardData,
   refreshTrigger = 0,
@@ -465,7 +629,7 @@ export function Porter5ForcesSection({
       industrySectorId,
     );
     const industryLabel = getIndustryDivisionLabelShort(industrySectorId);
-    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Start with the "Porter 5 Forces Chart Summary" block: exactly 5 bullet points (short sentences) under each of the five force headings, then one paragraph Executive Summary, then exactly two paragraphs for each force (Threat of new entrants, Bargaining power of suppliers, Bargaining power of buyers, Threat of substitutes, Competitive rivalry). Then add "New Market Analysis": ## New Market Analysis followed by exactly 5 concise bullet points for the new market. Then add "Key Takeaways": ## Key Takeaways followed by exactly 5 concise bullet points that summarise strategic takeaways. Then add "Recommendations": ## Recommendations followed by exactly 5 concise, actionable bullet points based on the five forces analysis. Use the data and context provided. Do not include "---" or horizontal rules in your response.`;
+    const userMessage = `Generate a Porter Five Forces analysis for ${dashboardData.summary.name} in the ${industryLabel} sector. Follow the required structure from the system prompt: start with the "Porter 5 Forces Chart Summary" block, then Executive Summary, then exactly two paragraphs per force. After that, add "New Market Analysis" (## New Market Analysis with exactly 5 concise bullet points), "Key Takeaways" (## Key Takeaways with exactly 5 concise bullet points), "Recommendations" (## Recommendations with exactly 5 concise, actionable bullet points), then a "Top 10 Products" section as a Markdown table (## Top 10 Products) listing the latest top 10 products associated with the selected country and industry (sorted by revenue/market size in descending order, including product name, description, manufacturer, market/revenue with year, and sources with hyperlinks), and finally a "Top 10 Companies" section as a Markdown table (## Top 10 Companies) listing the latest top 10 companies relevant to the selected country and industry (sorted by revenue/market size in descending order, including company name, description, market/revenue with year, and sources with hyperlinks). Use the data and context provided plus supplemental web search; do not include "---" or horizontal rules in your response.`;
 
     try {
       const res = await fetch('/api/chat', {
@@ -639,8 +803,12 @@ export function Porter5ForcesSection({
         <>
           {(() => {
             const { chartData, textWithoutChart } = parsePorter5ChartSummary(analysis);
+            const { markdownTable: topProductsMarkdown, textWithoutBlock: textAfterTopProducts } =
+              parseTopProductsTable(textWithoutChart);
+            const { markdownTable: topCompaniesMarkdown, textWithoutBlock: textAfterTopCompanies } =
+              parseTopCompaniesTable(textAfterTopProducts);
             const { bullets: newMarketBullets, textWithoutBlock: textAfterNewMarket } =
-              parseNewMarketAnalysis(textWithoutChart);
+              parseNewMarketAnalysis(textAfterTopCompanies);
             const { bullets: keyTakeawaysBullets, textWithoutBlock: textAfterKeyTakeaways } =
               parseKeyTakeaways(textAfterNewMarket);
             const { bullets: recommendationsBullets, textWithoutBlock: textBeforeComprehensive } =
@@ -674,45 +842,57 @@ export function Porter5ForcesSection({
                   </div>
                 )}
                 <div className="porter5-sections">
-                <div className="porter5-output porter5-comprehensive" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
-                  <h3 className="porter5-output-title">Comprehensive Analysis</h3>
-                  <div className="porter5-content">{formatPorterContent(comprehensiveText)}</div>
-                  {source && (
-                    <p className="porter5-source muted">
-                      Source: {source}
-                    </p>
+                  <div className="porter5-output porter5-comprehensive" role="article" aria-label="Porter Five Forces Comprehensive Analysis">
+                    <h3 className="porter5-output-title">Comprehensive Analysis</h3>
+                    <div className="porter5-content">{formatPorterContent(comprehensiveText)}</div>
+                    {source && (
+                      <p className="porter5-source muted">
+                        Source: {source}
+                      </p>
+                    )}
+                  </div>
+                  {newMarketBullets.length > 0 && (
+                    <div className="porter5-output porter5-new-market" role="article" aria-label="New Market Analysis">
+                      <h3 className="porter5-output-title">New Market Analysis</h3>
+                      <ul className="porter5-new-market-list">
+                        {newMarketBullets.map((b, i) => (
+                          <li key={i}>{formatInlineMarkdown(b)}</li>
+                        ))}
+                      </ul>
+                    </div>
                   )}
-                </div>
-                {newMarketBullets.length > 0 && (
-                  <div className="porter5-output porter5-new-market" role="article" aria-label="New Market Analysis">
-                    <h3 className="porter5-output-title">New Market Analysis</h3>
-                    <ul className="porter5-new-market-list">
-                      {newMarketBullets.map((b, i) => (
-                        <li key={i}>{formatInlineMarkdown(b)}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {keyTakeawaysBullets.length > 0 && (
-                  <div className="porter5-output porter5-key-takeaways" role="article" aria-label="Key Takeaways">
-                    <h3 className="porter5-output-title">Key Takeaways</h3>
-                    <ul className="porter5-key-takeaways-list">
-                      {keyTakeawaysBullets.map((b, i) => (
-                        <li key={i}>{formatInlineMarkdown(b)}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {recommendationsBullets.length > 0 && (
-                  <div className="porter5-output porter5-recommendations" role="article" aria-label="Recommendations">
-                    <h3 className="porter5-output-title">Recommendations</h3>
-                    <ul className="porter5-recommendations-list">
-                      {recommendationsBullets.map((b, i) => (
-                        <li key={i}>{formatInlineMarkdown(b)}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                  {keyTakeawaysBullets.length > 0 && (
+                    <div className="porter5-output porter5-key-takeaways" role="article" aria-label="Key Takeaways">
+                      <h3 className="porter5-output-title">Key Takeaways</h3>
+                      <ul className="porter5-key-takeaways-list">
+                        {keyTakeawaysBullets.map((b, i) => (
+                          <li key={i}>{formatInlineMarkdown(b)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {recommendationsBullets.length > 0 && (
+                    <div className="porter5-output porter5-recommendations" role="article" aria-label="Recommendations">
+                      <h3 className="porter5-output-title">Recommendations</h3>
+                      <ul className="porter5-recommendations-list">
+                        {recommendationsBullets.map((b, i) => (
+                          <li key={i}>{formatInlineMarkdown(b)}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {topProductsMarkdown && (
+                    <div className="porter5-output porter5-top-products" role="region" aria-label="Top 10 Products">
+                      <h3 className="porter5-output-title">Top 10 Products</h3>
+                      {renderTopProductsTable(topProductsMarkdown)}
+                    </div>
+                  )}
+                  {topCompaniesMarkdown && (
+                    <div className="porter5-output porter5-top-companies" role="region" aria-label="Top 10 Companies">
+                      <h3 className="porter5-output-title">Top 10 Companies</h3>
+                      {renderTopCompaniesTable(topCompaniesMarkdown)}
+                    </div>
+                  )}
                 </div>
               </>
             );

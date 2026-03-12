@@ -2691,6 +2691,38 @@ tbody tr:hover {
   margin-bottom: 0;
 }
 
+.porter5-top-products-table-wrapper {
+  overflow-x: auto;
+}
+
+.porter5-top-products-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.porter5-top-products-table th,
+.porter5-top-products-table td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-subtle);
+  text-align: left;
+  vertical-align: top;
+}
+
+.porter5-top-products-table th {
+  background: var(--bg-subtle);
+  font-weight: 600;
+}
+
+.porter5-top-products-table td a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.porter5-top-products-table td a:hover {
+  text-decoration: underline;
+}
+
 /* Porter 5 Forces chart – standard framework layout (cross with center hub) */
 .porter5-chart-wrapper {
   margin-bottom: var(--space-6);

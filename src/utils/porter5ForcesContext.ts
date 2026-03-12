@@ -236,12 +236,48 @@ After the five forces sections, add a **New Market Analysis** section. This sect
 - [Bullet 4]
 - [Bullet 5]
 
+### Step 5: Top 10 Products (table, after Recommendations)
+
+After the Recommendations section, add a **Top 10 Products** section that lists the **latest top 10 products** associated with the selected **country and industry sector**, based on their **revenue and/or market size**. Use supplemental web search results to identify the most relevant products. This section MUST be formatted as a **Markdown table** (so the app can render it as a table) with exactly these columns, in this order:
+
+## Top 10 Products
+| Product | Description | Manufacturer | Market / Revenue (with year) | Sources |
+| --- | --- | --- | --- | --- |
+| [Product name](product-or-reference-URL) | One-sentence description of what the product is and how it fits the sector. | [Manufacturer name](manufacturer-URL) | Short text with latest available year and an indicative revenue or market measure (e.g. "2023: USD 12.3B global revenue" or "2024: leading brand share in ${dashboardData?.summary?.name ?? 'the country'}"). | 1–2 inline Markdown links to credible sources (e.g. [Company annual report](URL), [Market research](URL)) |
+| ... (up to 9 more rows, one per product, following the same structure) | | | | |
+
+Guidelines for this table:
+- Focus on products that are **clearly connected** to the chosen ILO/ISIC division and the selected country (or its primary export/import markets) based on the web search results.
+- **Order the rows by revenue/market size in descending order** (highest revenue or market first); when only qualitative ranges are available, use those ranges to approximate this ordering.
+- For **Market / Revenue (with year)**, include the year and a concise revenue or market size signal when available (do not invent precise numbers—use ranges or qualitative indications when only approximate data is available).
+- For **Sources**, always provide at least one reputable hyperlink per row (company filings, major market research firms, multilateral organisations, or reputable business press).
+- If you cannot reliably find 10 distinct products, list as many as you can confidently support with sources and omit the remaining rows (do not fabricate products or manufacturers).
+
+### Step 6: Top 10 Companies (table, after Top 10 Products)
+
+After the **Top 10 Products** section, add a **Top 10 Companies** section that lists the **latest top 10 companies** most relevant to the selected **country and industry sector**, based on their **revenue and/or market size** in this sector. Use supplemental web search results to identify the most relevant companies (local market leaders, major multinationals active in this sector, etc.). This section MUST be formatted as a **Markdown table** with exactly these columns, in this order:
+
+## Top 10 Companies
+| Company | Description | Market / Revenue (with year) | Sources |
+| --- | --- | --- | --- |
+| [Company name](company-URL) | One-sentence description of what the company does in this sector and its role in the selected country or market. | Short text with latest available year and an indicative revenue or market-position signal in this sector (e.g. "2023: USD 18.2B revenue from ${industryLabel} in ${dashboardData?.summary?.name ?? 'the country'}" or "2024: leading ${industryLabel} player in ${dashboardData?.summary?.name ?? 'the country'} by market share"). | 1–2 inline Markdown links to credible sources (e.g. [Company annual report](URL), [Market research](URL), [Stock exchange filing](URL)) |
+| ... (up to 9 more rows, one per company, following the same structure) | | | |
+
+Guidelines for this table:
+- Focus on companies that are **clearly active** in the selected **ILO/ISIC division and country** (or primary export/import markets) based on web search results.
+- **Order the rows by revenue/market size in descending order** (highest revenue or market presence first); when only qualitative ranges are available, use those ranges to approximate this ordering.
+- For **Market / Revenue (with year)**, include the year and a concise revenue or market-position signal; avoid fabricating precise figures—use well-sourced ranges or qualitative descriptors instead.
+- For **Sources**, always provide at least one reputable hyperlink per row (company filings, major market research firms, multilateral organisations, reputable business press, or stock-exchange disclosures).
+- If you cannot reliably find 10 distinct companies, list as many as you can confidently support with sources and omit the remaining rows (do not fabricate companies).
+
 ## Guidelines
 - **Recommendations**: Immediately after "Key Takeaways" (with no paragraphs in between), output the "## Recommendations" heading followed by exactly 5 bullet points. Each bullet must be one concise, actionable recommendation based on your five forces analysis. Do not add any narrative text between Key Takeaways and Recommendations.
 - **Key Takeaways**: Immediately after "New Market Analysis" (with no paragraphs in between), output the "## Key Takeaways" heading followed by exactly 5 bullet points. Do not add any narrative text between the two sections.
 - **New Market Analysis**: After the five forces (each with two paragraphs), output the "## New Market Analysis" heading followed by exactly 5 bullet points—no extra paragraphs before or after the list.
+- **Top 10 Products**: After the Recommendations section, output the "## Top 10 Products" heading followed by a Markdown table with the columns described above. Use inline hyperlinks for products, manufacturers, and sources.
+- **Top 10 Companies**: After the Top 10 Products section, output the "## Top 10 Companies" heading followed by a Markdown table with the columns described above. Use inline hyperlinks for companies and sources.
 - **Chart summary**: You must output the "Porter 5 Forces Chart Summary" block first, with exactly 5 bullet points under each of the 5 force headings. Use short, summarised sentences suitable for a chart. Then continue directly with the Executive Summary (do not type \`---\` or a horizontal rule).
-- Use exact numbers from the data when relevant; never invent figures.
+- Use exact numbers from the data when relevant; never invent precise figures. When precise data is not available, use qualitative descriptors (e.g. "multi‑billion USD global market in 2023") backed by sources.
 - **Citations and sources**: Put **all** citations and sources **inline** in the narrative using hyperlinks: [Source Name](URL). Do **not** add a separate "Sources" section, bullet list, or reference list at the end—every source must be merged into the text where it is cited (e.g. "Unemployment is 5.4% ([World Bank WDI](https://data.worldbank.org/indicator)).").
 - Each of the five forces must have **exactly two paragraphs**.
 - The Executive Summary must be **exactly one paragraph** (no bullets).
