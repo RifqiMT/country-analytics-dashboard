@@ -5,6 +5,7 @@
  */
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 import type { Plugin } from 'vite';
 import { loadEnv } from 'vite';
 import { config as loadDotenv } from 'dotenv';
@@ -912,6 +913,59 @@ async function handleChatRequest(
         }
 }
 
+async function handleExportCsvRequest(
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse,
+  _next?: () => void,
+) {
+  if (req.method !== 'POST') {
+    res.statusCode = 405;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'Method not allowed', hint: 'Use POST to trigger export.' }));
+    return;
+  }
+
+  try {
+    const cwd = process.cwd();
+    const child = spawn('node', ['scripts/export-global-csv.mjs'], {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+
+    child.on('close', (code) => {
+      res.statusCode = code === 0 ? 200 : 500;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(
+        JSON.stringify({
+          success: code === 0,
+          exitCode: code,
+          stdout,
+          stderr,
+        }),
+      );
+    });
+  } catch (err) {
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    );
+  }
+}
+
 export function chatApiPlugin(): Plugin {
   return {
     name: 'chat-api',
@@ -942,9 +996,11 @@ export function chatApiPlugin(): Plugin {
     },
     configureServer(server) {
       server.middlewares.use('/api/chat', handleChatRequest);
+      server.middlewares.use('/api/export-global-csv', handleExportCsvRequest);
     },
     configurePreviewServer(server) {
       server.middlewares.use('/api/chat', handleChatRequest);
+      server.middlewares.use('/api/export-global-csv', handleExportCsvRequest);
     },
   };
 }

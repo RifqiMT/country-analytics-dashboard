@@ -61,10 +61,30 @@ function App() {
   const [globalYearInput, setGlobalYearInput] = useState<number>(DATA_MAX_YEAR);
   const [globalRegion, setGlobalRegion] = useState<string | null>(null);
   const [globalRegions, setGlobalRegions] = useState<string[]>([]);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
 
   const handleRefreshAllData = () => {
     clearGlobalCountryMetricsCache();
     setDataRefreshTrigger((t) => t + 1);
+  };
+
+  const handleExportAllCsv = async () => {
+    if (isExportingCsv) return;
+    setIsExportingCsv(true);
+    try {
+      const res = await fetch('/api/export-global-csv', {
+        method: 'POST',
+      });
+      if (!res.ok) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to export CSV data:', await res.text());
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to export CSV data:', err);
+    } finally {
+      setIsExportingCsv(false);
+    }
   };
 
   useEffect(() => {
@@ -99,21 +119,37 @@ function App() {
         <div className="app-header-actions">
           <button
             type="button"
-            className="app-refresh-btn"
+            className="app-icon-btn app-refresh-btn"
             onClick={handleRefreshAllData}
             disabled={loading}
             title={`Refresh all data from APIs (${DATA_MIN_YEAR}–${DATA_MAX_YEAR})`}
             aria-label="Refresh all data from APIs"
           >
-            <span className="app-refresh-icon" aria-hidden>
-              <svg viewBox="0 0 16 16" width="18" height="18">
+            <span className="app-icon-btn-inner" aria-hidden>
+              <svg viewBox="0 0 20 20" width="18" height="18">
                 <path
                   fill="currentColor"
-                  d="M8 1.5a6.5 6.5 0 0 1 6.5 6.5.75.75 0 0 1-1.5 0A5 5 0 1 0 8 3v1.5a.75.75 0 0 1-1.5 0v-3A.75.75 0 0 1 7 1h3a.75.75 0 0 1 0 1.5H8.28A6.5 6.5 0 0 1 8 1.5Z"
+                  d="M10 2.5a7.5 7.5 0 1 1-7.48 8.02.75.75 0 0 1 1.5-.09A6 6 0 1 0 5.25 5H4a.75.75 0 0 1 0-1.5h3.25c.41 0 .75.34.75.75V7a.75.75 0 0 1-1.5 0V5.78A4.5 4.5 0 1 1 10 2.5Z"
                 />
               </svg>
             </span>
-            <span>Refresh all data</span>
+          </button>
+          <button
+            type="button"
+            className="app-icon-btn app-export-btn"
+            onClick={handleExportAllCsv}
+            disabled={isExportingCsv}
+            title="Export all global metrics as CSV files (exports/worldbank)"
+            aria-label="Export all data as CSV files"
+          >
+            <span className="app-icon-btn-inner" aria-hidden>
+              <svg viewBox="0 0 20 20" width="18" height="18">
+                <path
+                  fill="currentColor"
+                  d="M10 2.25a.75.75 0 0 1 .75.75v7.19l2.47-2.47a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0l-3.75-3.75a.75.75 0 1 1 1.06-1.06L9.25 10.19V3a.75.75 0 0 1 .75-.75Zm-5 11a.75.75 0 0 1 .75.75v.75h8.5v-.75a.75.75 0 0 1 1.5 0v1.5A.75.75 0 0 1 15 17.25H5a.75.75 0 0 1-.75-.75v-1.5A.75.75 0 0 1 5 13.25Z"
+                />
+              </svg>
+            </span>
           </button>
         </div>
       </header>

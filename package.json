@@ -12,7 +12,8 @@
     "test:coverage": "vitest run --coverage",
     "preview": "vite preview",
     "setup": "node scripts/setup-env.js",
-    "install-hooks": "cp scripts/pre-commit-check.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit"
+    "install-hooks": "cp scripts/pre-commit-check.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit",
+    "export:global-csv": "node scripts/export-global-csv.mjs"
   },
   "dependencies": {
     "axios": "^1.13.6",
@@ -40,9 +41,11 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
     "jsdom": "^28.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.48.0",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "ts-node": "^10.9.2"
   }
 }
