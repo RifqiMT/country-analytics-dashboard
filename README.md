@@ -150,9 +150,9 @@ The Country Analytics Platform provides a **single, unified interface** to:
 | **Year-based routing** | Period ≤ current year − 2 → Groq; period after (or "now") → Tavily (web search) first |
 | **Model selection** | Multiple providers (OpenAI, Groq, Anthropic, Google, OpenRouter, **Tavily Web Search**); tiers: Best, Balanced, Fast |
 | **Source attribution** | Each response shows source: "Dashboard data", model label, or "Web search" |
-| **Context-aware** | Uses metric metadata, selected country context, and global data |
+| **Context-aware** | Uses metric metadata, selected country context, and global data. For **time-series questions** over a specific range (e.g. "from 2010 to 2024"), the client proactively fetches any missing years within the requested window before calling `/api/chat`, so rule-based summaries can cover the full overlapping years instead of a single point. |
 | **Out-of-scope handling** | Religion, culture, leaders, capital, language, **location/geography** (e.g. "Where is X?", "Which continent?", "Neighbouring countries") routed to LLM/web search; never answered with dashboard metrics |
-| **Suggestions** | Quick-start prompts for common questions |
+| **Suggestions** | Quick-start prompts for common questions, presented as a **grouped toolbar** (e.g. Country overview, Comparisons & rankings, Time series, Definitions & methodology, Geography & general knowledge, Business & strategy). The toolbar can be **shown/hidden as a whole**, and each group title can be **expanded or collapsed** independently for a clean, professional UX. |
 
 ### 3.8 Data Fallbacks
 

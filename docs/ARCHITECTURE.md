@@ -357,7 +357,10 @@ App
 └── ChatbotSection
     └── Header (title, model dropdown, settings)
     └── Messages area (user / assistant bubbles)
-    └── Welcome + suggestion chips (when empty)
+    └── Welcome + **grouped suggestion toolbar** (when empty):
+        ├─ Groups (Country overview, Comparisons & rankings, Time series, Definitions & methodology, Geography & general knowledge, Business & strategy)
+        ├─ Global **Show/Hide suggestions** toggle for the toolbar
+        └─ Per-group expand/collapse toggles for suggestion chips
     └── Input form (input, send button)
     └── Settings panel (API key input)
 ```

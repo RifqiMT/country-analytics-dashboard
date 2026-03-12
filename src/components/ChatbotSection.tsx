@@ -94,6 +94,68 @@ const SUGGESTION_GROUPS: Array<{ title: string; items: string[] }> = [
   },
 ];
 
+type GlobalMetricsRow = Awaited<ReturnType<typeof fetchGlobalCountryMetricsForYear>>[number];
+
+function mapGlobalRowsToFallback(
+  rows: Awaited<ReturnType<typeof fetchGlobalCountryMetricsForYear>>,
+): GlobalCountryRowForFallback[] {
+  return rows.map((r: GlobalMetricsRow) => ({
+    name: r.name,
+    iso2Code: r.iso2Code,
+    gdpNominal: r.gdpNominal,
+    gdpPPP: r.gdpPPP,
+    gdpNominalPerCapita: r.gdpNominalPerCapita,
+    gdpPPPPerCapita: r.gdpPPPPerCapita,
+    populationTotal: r.populationTotal,
+    lifeExpectancy: r.lifeExpectancy,
+    inflationCPI: r.inflationCPI,
+    govDebtPercentGDP: r.govDebtPercentGDP,
+    govDebtUSD: r.govDebtUSD,
+    interestRate: r.interestRate,
+    unemploymentRate: r.unemploymentRate,
+    unemployedTotal: r.unemployedTotal,
+    labourForceTotal: r.labourForceTotal,
+    povertyHeadcount215: r.povertyHeadcount215,
+    povertyHeadcountNational: r.povertyHeadcountNational,
+    maternalMortalityRatio: r.maternalMortalityRatio,
+    under5MortalityRate: r.under5MortalityRate,
+    undernourishmentPrevalence: r.undernourishmentPrevalence,
+    population0_14: r.population0_14,
+    population15_64: r.population15_64,
+    population65Plus: r.population65Plus,
+    landAreaKm2: r.landAreaKm2,
+    totalAreaKm2: r.totalAreaKm2,
+    eezKm2: r.eezKm2,
+    pop0_14Pct: r.pop0_14Pct,
+    pop15_64Pct: r.pop15_64Pct,
+    pop65PlusPct: r.pop65PlusPct,
+    outOfSchoolPrimaryPct: r.outOfSchoolPrimaryPct,
+    outOfSchoolSecondaryPct: r.outOfSchoolSecondaryPct,
+    outOfSchoolTertiaryPct: r.outOfSchoolTertiaryPct,
+    primaryCompletionRate: r.primaryCompletionRate,
+    secondaryCompletionRate: r.secondaryCompletionRate,
+    tertiaryCompletionRate: r.tertiaryCompletionRate,
+    minProficiencyReadingPct: r.minProficiencyReadingPct,
+    literacyRateAdultPct: r.literacyRateAdultPct,
+    genderParityIndexPrimary: r.genderParityIndexPrimary,
+    genderParityIndexSecondary: r.genderParityIndexSecondary,
+    genderParityIndexTertiary: r.genderParityIndexTertiary,
+    trainedTeachersPrimaryPct: r.trainedTeachersPrimaryPct,
+    trainedTeachersSecondaryPct: r.trainedTeachersSecondaryPct,
+    trainedTeachersTertiaryPct: r.trainedTeachersTertiaryPct,
+    publicExpenditureEducationPctGDP: r.publicExpenditureEducationPctGDP,
+    primaryPupilsTotal: r.primaryPupilsTotal,
+    secondaryPupilsTotal: r.secondaryPupilsTotal,
+    tertiaryEnrollmentTotal: r.tertiaryEnrollmentTotal,
+    primarySchoolCount: r.primarySchoolCount,
+    secondarySchoolCount: r.secondarySchoolCount,
+    tertiaryInstitutionCount: r.tertiaryInstitutionCount,
+    region: r.region,
+    headOfGovernmentType: r.headOfGovernmentType,
+    governmentType: r.governmentType,
+  }));
+}
+
 export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSectionProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -102,6 +164,13 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
   const [model, setModel] = useState(getStoredModel);
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [showSettings, setShowSettings] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [openSuggestionGroups, setOpenSuggestionGroups] = useState<Record<string, boolean>>(
+    () => Object.fromEntries(SUGGESTION_GROUPS.map((g) => [g.title, false])) as Record<
+      string,
+      boolean
+    >,
+  );
   const [globalData, setGlobalData] = useState<GlobalCountryRowForFallback[]>([]);
   const [globalDataByYear, setGlobalDataByYear] = useState<
     Record<number, GlobalCountryRowForFallback[]>
@@ -131,47 +200,12 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
       { length: DATA_MAX_YEAR - DATA_MIN_YEAR + 1 },
       (_, i) => DATA_MIN_YEAR + i,
     );
-    const map = (rows: Awaited<ReturnType<typeof fetchGlobalCountryMetricsForYear>>) =>
-      rows.map((r) => ({
-        name: r.name,
-        iso2Code: r.iso2Code,
-        gdpNominal: r.gdpNominal,
-        gdpPPP: r.gdpPPP,
-        gdpNominalPerCapita: r.gdpNominalPerCapita,
-        gdpPPPPerCapita: r.gdpPPPPerCapita,
-        populationTotal: r.populationTotal,
-        lifeExpectancy: r.lifeExpectancy,
-        inflationCPI: r.inflationCPI,
-        govDebtPercentGDP: r.govDebtPercentGDP,
-        govDebtUSD: r.govDebtUSD,
-        interestRate: r.interestRate,
-        unemploymentRate: r.unemploymentRate,
-        unemployedTotal: r.unemployedTotal,
-        labourForceTotal: r.labourForceTotal,
-        povertyHeadcount215: r.povertyHeadcount215,
-        povertyHeadcountNational: r.povertyHeadcountNational,
-        maternalMortalityRatio: r.maternalMortalityRatio,
-        under5MortalityRate: r.under5MortalityRate,
-        undernourishmentPrevalence: r.undernourishmentPrevalence,
-        population0_14: r.population0_14,
-        population15_64: r.population15_64,
-        population65Plus: r.population65Plus,
-        landAreaKm2: r.landAreaKm2,
-        totalAreaKm2: r.totalAreaKm2,
-        eezKm2: r.eezKm2,
-        pop0_14Pct: r.pop0_14Pct,
-        pop15_64Pct: r.pop15_64Pct,
-        pop65PlusPct: r.pop65PlusPct,
-        region: r.region,
-        headOfGovernmentType: r.headOfGovernmentType,
-        governmentType: r.governmentType,
-      }));
 
     async function loadFirstYear() {
       try {
         const rows = await fetchGlobalCountryMetricsForYear(preferredYear);
         if (!cancelled) {
-          const mapped = map(rows);
+          const mapped = mapGlobalRowsToFallback(rows);
           setGlobalData(mapped);
           setGlobalDataByYear((prev) => ({ ...prev, [preferredYear]: mapped }));
         }
@@ -194,13 +228,13 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
           setGlobalDataByYear((prev) => {
             const next = { ...prev };
             rest.forEach((y, i) => {
-              next[y] = map(rowsByYear[i]);
+              next[y] = mapGlobalRowsToFallback(rowsByYear[i]);
             });
             return next;
           });
           setGlobalData((prev) => {
             if (prev.length > 0) return prev;
-            return map(rowsByYear[rowsByYear.length - 1] ?? []);
+            return mapGlobalRowsToFallback(rowsByYear[rowsByYear.length - 1] ?? []);
           });
         }
       } catch {
@@ -286,6 +320,39 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
           /yearly|annually|year\s*by\s*year|year\s*basis|annually\s*basis|from\s*20[0-2][0-9]|since\s*20[0-2][0-9]|between\s*20[0-2][0-9]\s+(?:and|-|to)\s*(?:20[0-2][0-9]|latest|now|current|the latest)|to\s*latest|each\s*year|monthly|quarterly|weekly/i.test(
             trimmed,
           );
+
+        let effectiveGlobalDataByYear = globalDataByYear;
+
+        if (wantsYearlyTimeSeries) {
+          const yearRange = parseRequestedYearRangeClient(trimmed);
+          if (yearRange) {
+            const missingYears: number[] = [];
+            for (let y = yearRange.fromYear; y <= yearRange.toYear; y += 1) {
+              if (y < DATA_MIN_YEAR || y > DATA_MAX_YEAR) continue;
+              if (!effectiveGlobalDataByYear[y]) {
+                missingYears.push(y);
+              }
+            }
+            if (missingYears.length > 0) {
+              try {
+                const rowsByYear = await Promise.all(
+                  missingYears.map((y) => fetchGlobalCountryMetricsForYear(y)),
+                );
+                const newEntries: Record<number, GlobalCountryRowForFallback[]> = {};
+                missingYears.forEach((yearValue, idx) => {
+                  newEntries[yearValue] = mapGlobalRowsToFallback(rowsByYear[idx]);
+                });
+                effectiveGlobalDataByYear = {
+                  ...effectiveGlobalDataByYear,
+                  ...newEntries,
+                };
+                setGlobalDataByYear((prev) => ({ ...prev, ...newEntries }));
+              } catch {
+                // Ignore fetch errors here – we'll fall back to whatever data is already loaded.
+              }
+            }
+          }
+        }
         // Use enough rows for rule-based fallback rankings (top N by metric). Groq prompt stays compact via buildChatSystemPrompt options.
         const globalLimit = wantsYearlyTimeSeries ? 250 : 999;
         const globalDataPayload =
@@ -348,18 +415,25 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
 
         const yearMatch = trimmed.match(/\b(20[0-2][0-9])\b/);
         const requestedYear = yearMatch ? parseInt(yearMatch[1], 10) : null;
-        const hasRequestedYear = requestedYear && globalDataByYear[requestedYear];
-        const allYears = Object.keys(globalDataByYear).map(Number).filter((y) => !Number.isNaN(y));
+        const hasRequestedYear = requestedYear && effectiveGlobalDataByYear[requestedYear];
+        const allYears = Object.keys(effectiveGlobalDataByYear)
+          .map(Number)
+          .filter((y) => !Number.isNaN(y));
         const latestYearInData = allYears.length > 0 ? Math.max(...allYears) : year;
         const globalDataByYearEntries = wantsYearlyTimeSeries
-          ? Object.entries(globalDataByYear)
+          ? Object.entries(effectiveGlobalDataByYear)
           : isGroq
             ? hasRequestedYear
-              ? [[String(requestedYear), globalDataByYear[requestedYear]], ...Object.entries(globalDataByYear).filter(([y]) => Number(y) !== requestedYear)]
-              : latestYearInData in globalDataByYear
-                ? [[String(latestYearInData), globalDataByYear[latestYearInData]]]
-                : Object.entries(globalDataByYear).slice(0, 1)
-            : Object.entries(globalDataByYear);
+              ? [
+                  [String(requestedYear), effectiveGlobalDataByYear[requestedYear]],
+                  ...Object.entries(effectiveGlobalDataByYear).filter(
+                    ([y]) => Number(y) !== requestedYear,
+                  ),
+                ]
+              : latestYearInData in effectiveGlobalDataByYear
+                ? [[String(latestYearInData), effectiveGlobalDataByYear[latestYearInData]]]
+                : Object.entries(effectiveGlobalDataByYear).slice(0, 1)
+            : Object.entries(effectiveGlobalDataByYear);
         const yearEntryLimit = wantsYearlyTimeSeries ? 999 : isGroq ? 1 : 999;
         const requestedCountryNames = wantsYearlyTimeSeries
           ? (trimmed.match(/\b(United Kingdom|United States|South Korea|South Africa|Indonesia|Ukraine|Malaysia|Singapore|Thailand|Vietnam|Philippines|Japan|China|India|Brazil|Mexico|Germany|France|Russia|Australia|Canada)\b/gi) ?? [])
@@ -374,7 +448,7 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
           return [...requested, ...rest].slice(0, globalLimit);
         };
         const globalDataByYearPayload =
-          Object.keys(globalDataByYear).length > 0
+          Object.keys(effectiveGlobalDataByYear).length > 0
             ? Object.fromEntries(
                 globalDataByYearEntries.slice(0, yearEntryLimit).map(([y, rows]) => [
                   y,
@@ -549,6 +623,13 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
     sendMessage(suggestion);
   };
 
+  const handleToggleSuggestionGroup = (title: string) => {
+    setOpenSuggestionGroups((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }));
+  };
+
   return (
     <section className="card chatbot-section">
       <div className="section-header chatbot-header">
@@ -671,28 +752,82 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
               <p className="chatbot-welcome-hint muted">
                 Use the toolbar below (grouped by use case) or type your own question:
               </p>
-              <div className="chatbot-suggestions-toolbar">
-                {SUGGESTION_GROUPS.map((group) => (
-                  <div key={group.title} className="chatbot-suggestions-group">
-                    <div className="chatbot-suggestions-group-title">
-                      {group.title}
-                    </div>
-                    <div className="chatbot-suggestions">
-                      {group.items.map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          className="chatbot-suggestion"
-                          onClick={() => handleSuggestionClick(s)}
-                          disabled={isLoading}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              <div className="chatbot-suggestions-toggle-row">
+                <button
+                  type="button"
+                  className="chatbot-suggestions-toggle"
+                  onClick={() => setShowSuggestions((prev) => !prev)}
+                  aria-expanded={showSuggestions}
+                  aria-controls="chatbot-suggestions-toolbar"
+                >
+                  <span className="chatbot-suggestions-toggle-label">
+                    {showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
+                  </span>
+                  <span className="chatbot-suggestions-toggle-icon" aria-hidden>
+                    <svg viewBox="0 0 20 20" width="16" height="16">
+                      <path
+                        fill="currentColor"
+                        d={
+                          showSuggestions
+                            ? 'M5.23 12.21a.75.75 0 0 1 1.06.02L10 15.06l3.71-2.83a.75.75 0 1 1 .9 1.2l-4.16 3.18a.75.75 0 0 1-.9 0l-4.16-3.18a.75.75 0 0 1 .02-1.22Z'
+                            : 'M5.23 7.79a.75.75 0 0 1 1.06-.02L10 10.94l3.71-3.17a.75.75 0 1 1 .9 1.2l-4.16 3.18a.75.75 0 0 1-.9 0L5.25 8.97a.75.75 0 0 1-.02-1.18Z'
+                        }
+                      />
+                    </svg>
+                  </span>
+                </button>
               </div>
+              {showSuggestions && (
+                <div
+                  className="chatbot-suggestions-toolbar"
+                  id="chatbot-suggestions-toolbar"
+                >
+                  {SUGGESTION_GROUPS.map((group) => {
+                    const isOpen = openSuggestionGroups[group.title] ?? true;
+                    return (
+                      <div key={group.title} className="chatbot-suggestions-group">
+                        <button
+                          type="button"
+                          className="chatbot-suggestions-group-toggle"
+                          onClick={() => handleToggleSuggestionGroup(group.title)}
+                          aria-expanded={isOpen}
+                        >
+                          <span className="chatbot-suggestions-group-title">
+                            {group.title}
+                          </span>
+                          <span
+                            className="chatbot-suggestions-group-chevron"
+                            aria-hidden
+                            data-open={isOpen ? 'true' : 'false'}
+                          >
+                            <svg viewBox="0 0 20 20" width="14" height="14">
+                              <path
+                                fill="currentColor"
+                                d="M5.23 7.79a.75.75 0 0 1 1.06-.02L10 10.94l3.71-3.17a.75.75 0 1 1 .9 1.2l-4.16 3.18a.75.75 0 0 1-.9 0L5.25 8.97a.75.75 0 0 1-.02-1.18Z"
+                              />
+                            </svg>
+                          </span>
+                        </button>
+                        {isOpen && (
+                          <div className="chatbot-suggestions">
+                            {group.items.map((s) => (
+                              <button
+                                key={s}
+                                type="button"
+                                className="chatbot-suggestion"
+                                onClick={() => handleSuggestionClick(s)}
+                                disabled={isLoading}
+                              >
+                                {s}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ) : (
             <div className="chatbot-message-list">
@@ -830,6 +965,58 @@ function escapeAttr(s: string): string {
   return escapeHtml(s).replace(/"/g, '&quot;');
 }
 
+function parseRequestedYearRangeClient(
+  q: string,
+): { fromYear: number; toYear: number } | null {
+  const fromToExplicit = q.match(/from\s+(20[0-2][0-9])\s+(?:to|until|through|till)\s+(20[0-2][0-9])/i);
+  if (fromToExplicit) {
+    const fromYear = parseInt(fromToExplicit[1], 10);
+    const toYear = parseInt(fromToExplicit[2], 10);
+    return { fromYear, toYear };
+  }
+
+  const fromToLatest = q.match(
+    /from\s+(20[0-2][0-9])\s+(?:to|until|through|till)\s+(?:latest|now|current|present|the latest)/i,
+  );
+  if (fromToLatest) {
+    const fromYear = parseInt(fromToLatest[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  const betweenExplicit = q.match(
+    /between\s+(20[0-2][0-9])\s+(?:and|-|to)\s+(20[0-2][0-9])/i,
+  );
+  if (betweenExplicit) {
+    const fromYear = parseInt(betweenExplicit[1], 10);
+    const toYear = parseInt(betweenExplicit[2], 10);
+    return { fromYear, toYear };
+  }
+
+  const betweenLatest = q.match(
+    /between\s+(20[0-2][0-9])\s+(?:and|-|to)\s+(?:latest|now|current|present|the latest)/i,
+  );
+  if (betweenLatest) {
+    const fromYear = parseInt(betweenLatest[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  const sinceMatch = q.match(
+    /(?:since|from)\s+(20[0-2][0-9])\b(?:\s+(?:onwards|forward|until\s+now|until\s+current|until\s+latest))?/i,
+  );
+  if (sinceMatch) {
+    const fromYear = parseInt(sinceMatch[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  const fromOnly = q.match(/from\s+(20[0-2][0-9])/i);
+  if (fromOnly) {
+    const fromYear = parseInt(fromOnly[1], 10);
+    return { fromYear, toYear: DATA_MAX_YEAR };
+  }
+
+  return null;
+}
+
 /** Rich markdown-like formatting for assistant messages – distinguishable structure */
 function formatMessage(text: string): string {
   // Convert HTML links to markdown before escaping (API may return HTML from web search)
@@ -851,7 +1038,21 @@ function formatMessage(text: string): string {
     .replace(/\*(.+?)\*/g, '<em class="chat-em">$1</em>')
     .replace(/`(.+?)`/g, '<code class="chat-code">$1</code>')
     .replace(/_([^_]+)_/g, '<span class="chat-muted">$1</span>');
-  const lines = withInline.split('\n');
+  // Treat lines like "1. Population, total (2024):" as labeled headings instead of
+  // starting a new ordered list for each single item. This avoids repeated "1."
+  // numbering when the LLM structures sections that way.
+  const normalizedNumberedHeadings = withInline
+    .split('\n')
+    .map((line) => {
+      const m = line.match(/^(\d+)\.\s+(.+?):\s*$/);
+      if (m) {
+        return `<strong class="chat-strong">${m[2]}:</strong>`;
+      }
+      return line;
+    })
+    .join('\n');
+
+  const lines = normalizedNumberedHeadings.split('\n');
   const blocks: string[] = [];
   let listType: 'ol' | 'ul' | null = null;
   let listItems: string[] = [];

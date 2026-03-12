@@ -411,8 +411,9 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 - **So that** I can get started without typing  
 
 **Acceptance criteria:**
-- Suggestion chips (e.g. "Compare Indonesia to Malaysia") populate the input and send on click
-- Suggestions cover overview, comparison, rankings, and methodology
+- Suggestion chips (e.g. "Compare Indonesia to Malaysia") populate the input and send on click.
+- Suggestions are grouped by use case (e.g. Country overview, Comparisons & rankings, Time series, Definitions & methodology, Geography & general knowledge, Business & strategy) and rendered in a **toolbar** that can be shown or hidden as a whole.
+- Each suggestion group title acts as a **toggle**: clicking it expands or collapses the group’s chips; at initial load, the toolbar and all groups may be collapsed so users can reveal only what they need.
 
 ---
 

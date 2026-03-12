@@ -229,8 +229,8 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 
 #### 4.5.4 Context and Behaviour
 
-- **Context**: Uses selected country summary, global data (top 50 by GDP, top 20 by GDP per capita), metric metadata
-- **Suggestions**: Quick-start prompts (e.g. "Compare Indonesia to Malaysia", "Top 10 countries by GDP")
+- **Context**: Uses selected country summary, global data (top 50 by GDP, top 20 by GDP per capita), metric metadata. For **time-series questions** over an explicit range (e.g. "from 2010 to 2024"), the client proactively fetches any missing years within the requested window before calling `/api/chat`, so rule-based yearly summaries can cover the full overlapping range rather than only a single latest year when data exists.
+- **Suggestions**: Quick-start prompts (e.g. "Compare Indonesia to Malaysia", "Top 10 countries by GDP") presented in a **grouped toolbar** (Country overview, Comparisons & rankings, Time series, Definitions & methodology, Geography & general knowledge, Business & strategy). The toolbar can be **shown/hidden as a whole**, and each group title acts as an **expand/collapse control** so users can reveal only the suggestion sets relevant to their task.
 - **Settings**: Model selection (including **Tavily Web Search**); API key input (localStorage)
 - **General-knowledge**: LLM instructed to use Wikipedia links; not mention "Dashboard data"
 
