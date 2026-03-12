@@ -805,59 +805,61 @@ export function PESTELSection({
             </div>
           </div>
 
-          {/* Comprehensive Analysis: full report (excluding extracted sections above), source */}
-          <div className="pestel-output" role="article" aria-label="Comprehensive PESTEL analysis">
-            <h3 className="pestel-output-title">Comprehensive Analysis</h3>
+          <div className="pestel-sections">
+            {/* Comprehensive Analysis: full report (excluding extracted sections above), source */}
+            <div className="pestel-output" role="article" aria-label="Comprehensive PESTEL analysis">
+              <h3 className="pestel-output-title">Comprehensive Analysis</h3>
 
-            <div className="pestel-content">
-              {formatPestelContent(stripLeadingComprehensivePestelTitle(getReportWithoutRecommendations(getReportWithoutKeyTakeaways(getReportWithoutNewMarketAnalysis(getReportWithoutStrategicImplications(analysis))))))}
+              <div className="pestel-content">
+                {formatPestelContent(stripLeadingComprehensivePestelTitle(getReportWithoutRecommendations(getReportWithoutKeyTakeaways(getReportWithoutNewMarketAnalysis(getReportWithoutStrategicImplications(analysis))))))}
+              </div>
+              {source && (
+                <p className="pestel-source muted">
+                  Source: {source}
+                </p>
+              )}
             </div>
-            {source && (
-              <p className="pestel-source muted">
-                Source: {source}
-              </p>
-            )}
+
+            {/* Strategic Implications: PESTEL–SWOT matrix narrative (own section) */}
+            {strategicImplicationsBlock ? (
+              <div className="pestel-output strategic-implications-section" role="region" aria-label="Strategic Implications for Business (PESTEL-SWOT)">
+                <h3 className="pestel-output-title">Strategic Implications for Business (PESTEL-SWOT)</h3>
+                <div className="pestel-content">
+                  {formatPestelContent(stripLeadingH3(strategicImplicationsBlock))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* New Market Analysis: own section */}
+            {newMarketAnalysisBlock ? (
+              <div className="pestel-output new-market-analysis-section" role="region" aria-label="New Market Analysis">
+                <h3 className="pestel-output-title">New Market Analysis</h3>
+                <div className="pestel-content">
+                  {formatPestelContent(stripLeadingH3(newMarketAnalysisBlock))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Key Takeaways: own section */}
+            {keyTakeawaysBlock ? (
+              <div className="pestel-output key-takeaways-section" role="region" aria-label="Key Takeaways">
+                <h3 className="pestel-output-title">Key Takeaways</h3>
+                <div className="pestel-content">
+                  {formatPestelContent(stripLeadingH3(keyTakeawaysBlock))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Recommendations: own section */}
+            {recommendationsBlock ? (
+              <div className="pestel-output recommendations-section" role="region" aria-label="Recommendations">
+                <h3 className="pestel-output-title">Recommendations</h3>
+                <div className="pestel-content">
+                  {formatPestelContent(stripLeadingH3(recommendationsBlock))}
+                </div>
+              </div>
+            ) : null}
           </div>
-
-          {/* Strategic Implications: PESTEL–SWOT matrix narrative (own section) */}
-          {strategicImplicationsBlock ? (
-            <div className="pestel-output strategic-implications-section" role="region" aria-label="Strategic Implications for Business (PESTEL-SWOT)">
-              <h3 className="pestel-output-title">Strategic Implications for Business (PESTEL-SWOT)</h3>
-              <div className="pestel-content">
-                {formatPestelContent(stripLeadingH3(strategicImplicationsBlock))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* New Market Analysis: own section */}
-          {newMarketAnalysisBlock ? (
-            <div className="pestel-output new-market-analysis-section" role="region" aria-label="New Market Analysis">
-              <h3 className="pestel-output-title">New Market Analysis</h3>
-              <div className="pestel-content">
-                {formatPestelContent(stripLeadingH3(newMarketAnalysisBlock))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Key Takeaways: own section */}
-          {keyTakeawaysBlock ? (
-            <div className="pestel-output key-takeaways-section" role="region" aria-label="Key Takeaways">
-              <h3 className="pestel-output-title">Key Takeaways</h3>
-              <div className="pestel-content">
-                {formatPestelContent(stripLeadingH3(keyTakeawaysBlock))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Recommendations: own section */}
-          {recommendationsBlock ? (
-            <div className="pestel-output recommendations-section" role="region" aria-label="Recommendations">
-              <h3 className="pestel-output-title">Recommendations</h3>
-              <div className="pestel-content">
-                {formatPestelContent(stripLeadingH3(recommendationsBlock))}
-              </div>
-            </div>
-          ) : null}
         </>
       )}
     </section>

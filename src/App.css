@@ -3548,6 +3548,18 @@ tbody tr:hover {
   min-width: 0;
 }
 
+.pestel-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.pestel-sections .pestel-output {
+  margin-top: 0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
 .pestel-chart {
   margin-bottom: 0;
   padding-bottom: 0;
