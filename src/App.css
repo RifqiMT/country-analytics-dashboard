@@ -3790,6 +3790,37 @@ tbody tr:hover {
   letter-spacing: 0.03em;
 }
 
+/* PESTEL – align New Market / Key Takeaways / Recommendations cards with Porter 5 styling */
+.new-market-analysis-section,
+.key-takeaways-section,
+.recommendations-section {
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.new-market-analysis-section .pestel-content,
+.key-takeaways-section .pestel-content,
+.recommendations-section .pestel-content {
+  margin-top: 0;
+  padding-top: var(--space-3);
+  border-top: none;
+}
+
+.new-market-analysis-section ul,
+.key-takeaways-section ul,
+.recommendations-section ul {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.new-market-analysis-section li,
+.key-takeaways-section li,
+.recommendations-section li {
+  margin-bottom: var(--space-2);
+  line-height: 1.6;
+}
+
 @media (max-width: 768px) {
   .pestel-chart-section,
   .swot-chart-section,

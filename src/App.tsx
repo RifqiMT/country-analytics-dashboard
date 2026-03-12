@@ -18,6 +18,7 @@ import { GraphsSection } from './components/GraphsSection';
 import { RegionFilter } from './components/RegionFilter';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from './config';
 import { clearGlobalCountryMetricsCache, fetchAllCountries } from './api/worldBank';
+import { useToast } from './components/ToastProvider';
 
 function App() {
   const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0);
@@ -62,6 +63,7 @@ function App() {
   const [globalRegion, setGlobalRegion] = useState<string | null>(null);
   const [globalRegions, setGlobalRegions] = useState<string[]>([]);
   const [isExportingCsv, setIsExportingCsv] = useState(false);
+  const { showToast, updateToast, dismissToast } = useToast();
 
   const handleRefreshAllData = () => {
     clearGlobalCountryMetricsCache();
@@ -71,17 +73,42 @@ function App() {
   const handleExportAllCsv = async () => {
     if (isExportingCsv) return;
     setIsExportingCsv(true);
+    const start = performance.now();
+    const loadingToastId = showToast({
+      type: 'loading',
+      message: 'Exporting global CSV data… (0%)',
+    });
     try {
       const res = await fetch('/api/export-global-csv', {
         method: 'POST',
       });
       if (!res.ok) {
+        const text = await res.text();
         // eslint-disable-next-line no-console
-        console.error('Failed to export CSV data:', await res.text());
+        console.error('Failed to export CSV data:', text);
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingToastId, {
+          type: 'error',
+          message: `Failed to export CSV data (0%, ${seconds}s).`,
+          durationMs: 6000,
+        });
+      } else {
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingToastId, {
+          type: 'success',
+          message: `Global CSV export completed (100%, ${seconds}s).`,
+          durationMs: 6000,
+        });
       }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.error('Failed to export CSV data:', err);
+      const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+      updateToast(loadingToastId, {
+        type: 'error',
+        message: `Failed to export CSV data (0%, ${seconds}s).`,
+        durationMs: 6000,
+      });
     } finally {
       setIsExportingCsv(false);
     }

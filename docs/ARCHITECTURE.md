@@ -41,10 +41,19 @@ This document describes the **data flow**, **component boundaries**, and **techn
                     │   useCountryDashboard hook    │◄──────────────┴─────────────────────────────────────┘                  │
                     │   - countryCode, year range   │
                     │   - frequency, metricIds      │
-                    │   - data, loading, error       │
+                    │   - data, loading, error      │
                     └───────────────────────────────┘
-                                    │
-                                    ▼
+                                   │
+                                   ▼
+                    ┌───────────────────────────────┐
+                    │   /api/country-dashboard      │
+                    │   (Vite plugin middleware)    │
+                    │   - In-memory cache (24h TTL) │
+                    │   - Background warm-up for    │
+                    │     all countries on start    │
+                    └───────────────────────────────┘
+                                   │
+                                   ▼
                     ┌───────────────────────────────┐
                     │   API Layer                    │
                     │   - worldBank.ts               │
@@ -82,7 +91,14 @@ This document describes the **data flow**, **component boundaries**, and **techn
 User selects country + year range
          │
          ▼
-useCountryDashboard.fetchCountryDashboardData(countryCode, startYear, endYear)
+useCountryDashboard → GET /api/country-dashboard?countryCode=…&startYear=…&endYear=…
+         │
+         ├─► Country-dashboard cache (in-memory, 24h TTL per [countryCode, startYear, endYear])
+         │       ├─► If cache hit → return cached CountryDashboardData
+         │       └─► If cache miss → fetchCountryDashboardData(countryCode, startYear, endYear)
+         │
+         ▼
+fetchCountryDashboardData(countryCode, startYear, endYear)
          │
          ├─► fetchCountryMetadata(countryCode)
          │         └─► World Bank /country/{code}
@@ -97,10 +113,10 @@ useCountryDashboard.fetchCountryDashboardData(countryCode, startYear, endYear)
          ├─► [If Taiwan / missing WDI] synthetic country entry; metrics from parent or regional medians
          │         └─► fetchCountryMetadata: REST Countries fallback
          │
-         ├─► [If GDP empty] fetchGDPFromIMF(iso3, ...)
+         ├─► [If GDP empty] fetchGDPFromIMF(iso3, ...) [server-side only]
          │         └─► IMF DataMapper NGDPD@WEO
          │
-         └─► [If gov debt empty] fetchGovernmentDebtSeriesFromIMF(iso3, ...)
+         └─► [If gov debt empty] fetchGovernmentDebtSeriesFromIMF(iso3, ...) [server-side only]
                    └─► IMF DataMapper GGXWDG_NGDP@WEO
          │
          ▼

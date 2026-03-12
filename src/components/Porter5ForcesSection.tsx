@@ -7,6 +7,7 @@ import { getStoredModel, getEffectiveApiKey } from '../config/llm';
 import { DATA_MAX_YEAR } from '../config';
 import { sanitizeFilenameSegment } from '../utils/filename';
 import { CountrySelector } from './CountrySelector';
+import { useToast } from './ToastProvider';
 import {
   ILO_INDUSTRY_SECTORS_GRANULAR,
   DEFAULT_INDUSTRY_DIVISION_CODE,
@@ -421,6 +422,7 @@ export function Porter5ForcesSection({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
+  const { showToast, updateToast, dismissToast } = useToast();
   const [industrySectorId, setIndustrySectorId] = useState<string>(DEFAULT_INDUSTRY_DIVISION_CODE);
   const porter5ChartRef = useRef<HTMLDivElement | null>(null);
 
@@ -447,6 +449,12 @@ export function Porter5ForcesSection({
     setError(null);
     setAnalysis(null);
     setSource(null);
+
+    const start = performance.now();
+    const loadingToastId = showToast({
+      type: 'loading',
+      message: 'Generating Porter 5 Forces analysis… (0%)',
+    });
 
     const model = getStoredModel();
     const apiKey = getEffectiveApiKey(model);
@@ -490,12 +498,24 @@ export function Porter5ForcesSection({
       const data = (await res.json()) as { content?: string; source?: string };
       setAnalysis(data.content ?? 'No response generated.');
       setSource(data.source ?? null);
+      const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+      updateToast(loadingToastId, {
+        type: 'success',
+        message: `Porter 5 Forces analysis generated (100%, ${seconds}s).`,
+        durationMs: 6000,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate Porter 5 Forces analysis.');
+      const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+      updateToast(loadingToastId, {
+        type: 'error',
+        message: `Failed to generate Porter 5 Forces analysis (0%, ${seconds}s).`,
+        durationMs: 6000,
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [dashboardData, globalMetrics, industrySectorId, globalDataYear]);
+  }, [dashboardData, globalMetrics, industrySectorId, globalDataYear, showToast, updateToast, dismissToast]);
 
   const downloadChartAsImage = useCallback(async (ref: React.RefObject<HTMLDivElement | null>, filename: string) => {
     const el = ref.current;

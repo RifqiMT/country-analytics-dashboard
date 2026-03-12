@@ -26,6 +26,7 @@ import {
   GLOBAL_EDUCATION_AGGREGATES,
   GLOBAL_LABOUR_AGGREGATES,
 } from '../utils/globalAggregates';
+import { useToast } from './ToastProvider';
 import { GRAPHS_SUBSECTION_CONFIG, type GraphsSubsectionId } from '../data/graphsSubsectionConfig';
 
 /** Forward-fill and back-fill nulls so the series has no gaps (same logic as country-level macro timeline). */
@@ -387,11 +388,17 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
     );
   };
   const allExpanded = GRAPHS_SUBSECTION_CONFIG.every(({ id }) => subsectionsExpanded[id]);
+  const { showToast, updateToast, dismissToast } = useToast();
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    const start = performance.now();
+    const loadingToastId = showToast({
+      type: 'loading',
+      message: 'Loading global macro indicators… (0%)',
+    });
     const years = Array.from(
       { length: DATA_MAX_YEAR - DATA_MIN_YEAR + 1 },
       (_, i) => DATA_MIN_YEAR + i,
@@ -564,19 +571,33 @@ export function GlobalChartsSection({ refreshTrigger = 0, maxYear, region = null
           };
         });
         setGlobalLabourSeries(labourSeriesList);
+        if (!cancelled) {
+          setLoading(false);
+          const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+          updateToast(loadingToastId, {
+            type: 'success',
+            message: `Global macro indicators loaded (100%, ${seconds}s).`,
+            durationMs: 6000,
+          });
+        }
       })
       .catch((e) => {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load global metrics.');
+          setLoading(false);
+          const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+          updateToast(loadingToastId, {
+            type: 'error',
+            message: `Failed to load global macro indicators (0%, ${seconds}s).`,
+            durationMs: 6000,
+          });
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
+      dismissToast(loadingToastId);
     };
-  }, [refreshTrigger, region]);
+  }, [refreshTrigger, region, showToast, updateToast, dismissToast]);
 
   const allSeries = globalSeries;
   const resampledSeries = allSeries.map((s) => resampleSeries(s, frequency));

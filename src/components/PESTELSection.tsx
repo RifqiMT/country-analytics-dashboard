@@ -7,6 +7,7 @@ import type { CountryDashboardData, GlobalCountryMetricsRow } from '../types';
 import { getStoredModel, getEffectiveApiKey } from '../config/llm';
 import { DATA_MAX_YEAR } from '../config';
 import { CountrySelector } from './CountrySelector';
+import { useToast } from './ToastProvider';
 
 /** Parsed bullet points per PESTEL pillar for the chart view */
 export interface PestelChartData {
@@ -553,6 +554,7 @@ export function PESTELSection({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [globalMetrics, setGlobalMetrics] = useState<GlobalCountryMetricsRow[]>([]);
+  const { showToast, updateToast, dismissToast } = useToast();
 
   const pestelChartRef = useRef<HTMLDivElement>(null);
   const swotChartRef = useRef<HTMLDivElement>(null);
@@ -628,6 +630,12 @@ export function PESTELSection({
     setAnalysis(null);
     setSource(null);
 
+    const start = performance.now();
+    const loadingToastId = showToast({
+      type: 'loading',
+      message: 'Generating PESTEL analysis… (0%)',
+    });
+
     const model = getStoredModel();
     const apiKey = getEffectiveApiKey(model);
     const systemPrompt = buildPestelSystemPrompt(dashboardData, globalMetrics, globalDataYear);
@@ -666,12 +674,24 @@ export function PESTELSection({
       };
       setAnalysis(data.content ?? 'No response generated.');
       setSource(data.source ?? null);
+      const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+      updateToast(loadingToastId, {
+        type: 'success',
+        message: `PESTEL analysis generated (100%, ${seconds}s).`,
+        durationMs: 6000,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate PESTEL analysis.');
+      const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+      updateToast(loadingToastId, {
+        type: 'error',
+        message: `Failed to generate PESTEL analysis (0%, ${seconds}s).`,
+        durationMs: 6000,
+      });
     } finally {
       setIsLoading(false);
     }
-  }, [dashboardData, globalMetrics]);
+  }, [dashboardData, globalMetrics, globalDataYear, showToast, updateToast, dismissToast]);
 
   return (
     <section className="card pestel-section">

@@ -25,6 +25,7 @@ interface ToastContextValue {
      */
     durationMs?: number;
   }) => number;
+  updateToast: (id: number, options: { type?: ToastType; message?: string; durationMs?: number }) => void;
   dismissToast: (id: number) => void;
 }
 
@@ -61,12 +62,39 @@ export function ToastProvider({ children }: ProviderProps) {
     [dismissToast],
   );
 
+  const updateToast = useCallback(
+    (id: number, options: { type?: ToastType; message?: string; durationMs?: number }) => {
+      setToasts((current) =>
+        current.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                ...(options.type ? { type: options.type } : null),
+                ...(options.message ? { message: options.message } : null),
+              }
+            : t,
+        ),
+      );
+
+      if (options.durationMs != null) {
+        const autoDuration = options.durationMs;
+        if (autoDuration > 0) {
+          window.setTimeout(() => {
+            dismissToast(id);
+          }, autoDuration);
+        }
+      }
+    },
+    [dismissToast],
+  );
+
   const value = useMemo(
     () => ({
       showToast,
+      updateToast,
       dismissToast,
     }),
-    [showToast, dismissToast],
+    [showToast, updateToast, dismissToast],
   );
 
   return (

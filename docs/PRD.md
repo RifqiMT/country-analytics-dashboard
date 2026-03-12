@@ -310,9 +310,14 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 
 ### 6.1 Performance
 
-- Initial country dashboard load < 2.5s on typical broadband
-- Global tables load < 3s for any valid year
-- UI interactions (filters, toggles) feel instantaneous; debounce year inputs
+- Initial country dashboard load < 2.5s on typical broadband for **warm** countries (served from server cache).
+- First-time load for a **new** country or year range is allowed to be slower when World Bank or IMF APIs are slow, but the app must remain responsive and show progress via toasts and banners.
+- Global tables load < 3s for any valid year (when global metrics cache is warm).
+- UI interactions (filters, toggles) feel instantaneous; debounce year inputs.
+- **Server-side caching and warm-up**:
+  - A `/api/country-dashboard` endpoint on the dev/preview server maintains an in-memory cache of `CountryDashboardData` keyed by (`countryCode`, `startYear`, `endYear`) with a 24‑hour TTL.
+  - On server start, `warmDashboardCacheForAllCountries()` runs in the background to pre-load dashboard data for all countries over `[DATA_MIN_YEAR, DATA_MAX_YEAR]`. This ensures that, by default, most countries are served from cache the first time they are selected.
+  - Cache failures must never crash the UI; the system should fall back to on-demand loading for the requested country and range.
 
 ### 6.2 Resilience
 

@@ -18,6 +18,7 @@ import {
 import type { CountryDashboardData, GlobalCountryMetricsRow, CountrySummary } from '../types';
 import { DATA_MAX_YEAR, DATA_MIN_YEAR } from '../config';
 import { computeCorrelationAnalysis } from '../utils/correlationAnalysis';
+import { useToast } from './ToastProvider';
 
 interface BusinessAnalyticsSectionProps {
   dashboardData?: CountryDashboardData | null;
@@ -48,6 +49,7 @@ export function BusinessAnalyticsSection({
   const [countrySearch, setCountrySearch] = useState('');
   const [countryOpen, setCountryOpen] = useState(false);
   const [countryActiveIndex, setCountryActiveIndex] = useState(0);
+  const { showToast, updateToast, dismissToast } = useToast();
 
   useEffect(() => {
     setEndYear(dashboardYear);
@@ -106,19 +108,40 @@ export function BusinessAnalyticsSection({
         cancelled = true;
       };
     }
+    const start = performance.now();
+    const loadingToastId = showToast({
+      type: 'loading',
+      message: `Loading global metrics for ${selectedYears.length} year${selectedYears.length !== 1 ? 's' : ''}… (0%)`,
+    });
     Promise.all(selectedYears.map((y) => fetchGlobalCountryMetricsForYear(y)))
       .then((arrays) => {
         if (cancelled) return;
         const combined = arrays.flat();
         setGlobalMetrics(combined);
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingToastId, {
+          type: 'success',
+          message: `Global metrics loaded for ${selectedYears.length} year${selectedYears.length !== 1 ? 's' : ''} (100%, ${seconds}s).`,
+          durationMs: 6000,
+        });
       })
       .catch(() => {
-        if (!cancelled) setGlobalMetrics([]);
+        if (!cancelled) {
+          setGlobalMetrics([]);
+          const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+          updateToast(loadingToastId, {
+            type: 'error',
+            message: `Failed to load global metrics (0%, ${seconds}s).`,
+            durationMs: 6000,
+          });
+        }
       });
     return () => {
       cancelled = true;
+      // If the component unmounts before completion, explicitly dismiss the loading toast.
+      dismissToast(loadingToastId);
     };
-  }, [selectedYears, refreshTrigger]);
+  }, [selectedYears, refreshTrigger, showToast, updateToast, dismissToast]);
 
   const correlationResult = globalMetrics.length > 0
     ? computeCorrelationAnalysis(

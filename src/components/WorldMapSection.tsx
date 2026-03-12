@@ -404,49 +404,54 @@ export function WorldMapSection({ data, selectedMetricId, year, region = null, r
   const [codeMap, setCodeMap] = useState<Map<string, CountryCodeInfo> | null>(
     null,
   );
-  const { showToast, dismissToast } = useToast();
+  const { showToast, updateToast, dismissToast } = useToast();
   const [zoom, setZoom] = useState(1);
   const [center, setCenter] = useState<[number, number]>([0, 20]);
 
   useEffect(() => {
     const targetYear = year;
     let cancelled = false;
+    const start = performance.now();
     const loadingId = showToast({
       type: 'loading',
-      message: `Loading global map metrics for ${targetYear}…`,
+      message: `Loading global map metrics for ${targetYear}… (0%)`,
     });
     async function load() {
       try {
         const rows = await fetchGlobalCountryMetricsForYear(targetYear);
-        if (!cancelled) {
-          setGlobalRows(rows);
-          if (rows.length > 0) {
-            setEffectiveYear(rows[0].year);
-          } else {
-            setEffectiveYear(targetYear);
-          }
-          showToast({
-            type: 'success',
-            message: `Global map metrics updated for ${targetYear}.`,
-          });
+        if (cancelled) return;
+        setGlobalRows(rows);
+        if (rows.length > 0) {
+          setEffectiveYear(rows[0].year);
+        } else {
+          setEffectiveYear(targetYear);
         }
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingId, {
+          type: 'success',
+          message: `Global map metrics updated for ${targetYear} (100%, ${seconds}s).`,
+          durationMs: 4000,
+        });
       } catch {
         // Fail silently; map will just not show metric values.
-        if (!cancelled) {
-          showToast({
-            type: 'error',
-            message: 'Failed to load global map metrics.',
-          });
-        }
+        if (cancelled) return;
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingId, {
+          type: 'error',
+          message: `Failed to load global map metrics (0%, ${seconds}s).`,
+          durationMs: 6000,
+        });
       } finally {
-        dismissToast(loadingId);
+        if (cancelled) {
+          dismissToast(loadingId);
+        }
       }
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [year, refreshTrigger, dismissToast, showToast]);
+  }, [year, refreshTrigger, showToast, updateToast, dismissToast]);
 
   useEffect(() => {
     let cancelled = false;

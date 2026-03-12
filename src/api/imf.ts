@@ -46,6 +46,12 @@ export async function fetchGovernmentDebtSeriesFromIMF(
   startYear: number,
   endYear: number,
 ): Promise<TimePoint[]> {
+  // In the browser, IMF Datamapper does not send CORS headers, so XHR/Fetch
+  // calls are blocked and generate noisy console errors. For the interactive
+  // dashboard we silently skip IMF and rely on World Bank / estimated data.
+  if (typeof window !== 'undefined') {
+    return [];
+  }
   const points: TimePoint[] = [];
   const safeStart = Math.max(DATA_MIN_YEAR, startYear);
   const safeEnd = Math.min(DATA_MAX_YEAR, endYear);
@@ -93,6 +99,9 @@ export async function fetchGovernmentDebtFromIMF(
   iso3Codes: string[],
   year: number,
 ): Promise<Map<string, number>> {
+  if (typeof window !== 'undefined') {
+    return new Map<string, number>();
+  }
   const result = new Map<string, number>();
   if (!iso3Codes.length) return result;
 
@@ -171,6 +180,9 @@ export async function fetchGDPFromIMF(
   startYear: number,
   endYear: number,
 ): Promise<TimePoint[]> {
+  if (typeof window !== 'undefined') {
+    return [];
+  }
   const points: TimePoint[] = [];
   const safeStart = Math.max(DATA_MIN_YEAR, startYear);
   const safeEnd = Math.min(DATA_MAX_YEAR, endYear);
@@ -227,6 +239,9 @@ export async function fetchGDPFromIMFForYearBatch(
   iso3Codes: string[],
   year: number,
 ): Promise<Map<string, number>> {
+  if (typeof window !== 'undefined') {
+    return new Map<string, number>();
+  }
   const result = new Map<string, number>();
   if (!iso3Codes.length) return result;
 

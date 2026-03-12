@@ -19,7 +19,8 @@ import {
   type DashboardSnapshotForFallback,
   type GlobalCountryRowForFallback,
 } from './src/utils/chatFallback';
-import { DATA_MAX_YEAR } from './src/config';
+import { DATA_MIN_YEAR, DATA_MAX_YEAR } from './src/config';
+import { fetchCountryDashboardData, fetchAllCountries } from './src/api/worldBank';
 import {
   LLM_MODELS,
   DEFAULT_LLM_MODEL,
@@ -515,6 +516,141 @@ const FREE_LLM_FALLBACK_PRIORITY: Array<{ provider: LlmProvider; model: string }
   { provider: 'openrouter', model: 'meta-llama/llama-3.3-70b-instruct' },
 ];
 
+// ───────────────────────────────────────────────────────────────────────────────
+// Country dashboard cache API
+// ───────────────────────────────────────────────────────────────────────────────
+
+type CountryDashboardData = Awaited<ReturnType<typeof fetchCountryDashboardData>>;
+
+interface DashboardCacheEntry {
+  data: CountryDashboardData;
+  fetchedAt: number;
+}
+
+const DASHBOARD_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const dashboardCache = new Map<string, DashboardCacheEntry>();
+
+function getDashboardCacheKey(code: string, startYear: number, endYear: number): string {
+  return `${code.toUpperCase()}:${startYear}:${endYear}`;
+}
+
+async function handleCountryDashboardRequest(
+  req: import('http').IncomingMessage,
+  res: import('http').ServerResponse,
+) {
+  if (req.method !== 'GET') {
+    res.statusCode = 405;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        error: 'Method not allowed',
+        hint: 'Use GET with countryCode, startYear, endYear query parameters.',
+      }),
+    );
+    return;
+  }
+
+  const url = new URL(req.url ?? '', 'http://localhost');
+  const code =
+    (url.searchParams.get('countryCode') ??
+      url.searchParams.get('code') ??
+      url.searchParams.get('country') ??
+      '').trim().toUpperCase();
+  const startYear = Number.parseInt(url.searchParams.get('startYear') ?? '', 10) || DATA_MIN_YEAR;
+  const endYear = Number.parseInt(url.searchParams.get('endYear') ?? '', 10) || DATA_MAX_YEAR;
+
+  if (!code) {
+    res.statusCode = 400;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: 'countryCode query parameter is required.' }));
+    return;
+  }
+
+  const key = getDashboardCacheKey(code, startYear, endYear);
+  const now = Date.now();
+  const cached = dashboardCache.get(key);
+  if (cached && now - cached.fetchedAt < DASHBOARD_CACHE_TTL_MS) {
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(cached.data));
+    return;
+  }
+
+  try {
+    const data = await fetchCountryDashboardData(code, startYear, endYear);
+    dashboardCache.set(key, { data, fetchedAt: now });
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  } catch (err) {
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(
+      JSON.stringify({
+        error:
+          err instanceof Error
+            ? err.message
+            : 'Failed to load country dashboard data from World Bank APIs.',
+      }),
+    );
+  }
+}
+
+async function warmDashboardCacheForAllCountries(): Promise<void> {
+  try {
+    const countries = await fetchAllCountries();
+    const codes = countries
+      .map((c) => c.iso2Code)
+      .filter((code): code is string => Boolean(code));
+
+    const concurrency = 4;
+    let index = 0;
+
+    async function worker(workerId: number) {
+      while (index < codes.length) {
+        const currentIndex = index;
+        index += 1;
+        const code = codes[currentIndex];
+        const key = getDashboardCacheKey(code, DATA_MIN_YEAR, DATA_MAX_YEAR);
+        if (dashboardCache.has(key)) {
+          // Already warmed by a prior request.
+          continue;
+        }
+        try {
+          const data = await fetchCountryDashboardData(code, DATA_MIN_YEAR, DATA_MAX_YEAR);
+          dashboardCache.set(key, { data, fetchedAt: Date.now() });
+          if (currentIndex % 25 === 0) {
+            // eslint-disable-next-line no-console
+            console.log(
+              `[dashboard-cache] Worker ${workerId}: warmed ${currentIndex + 1}/${codes.length} countries (latest: ${code}).`,
+            );
+          }
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[dashboard-cache] Worker ${workerId}: failed to warm country ${code}:`,
+            err instanceof Error ? err.message : String(err),
+          );
+        }
+      }
+    }
+
+    const workers: Promise<void>[] = [];
+    for (let i = 0; i < concurrency; i += 1) {
+      workers.push(worker(i + 1));
+    }
+    await Promise.all(workers);
+    // eslint-disable-next-line no-console
+    console.log('[dashboard-cache] Warm-up complete.');
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      '[dashboard-cache] Failed to warm cache for all countries:',
+      err instanceof Error ? err.message : String(err),
+    );
+  }
+}
+
 async function handleChatRequest(
   req: import('http').IncomingMessage,
   res: import('http').ServerResponse,
@@ -993,13 +1129,23 @@ export function chatApiPlugin(): Plugin {
       } else {
         console.log('[chat-api] For latest data on general questions, add required web search key to .env. See .env.example for variable names.');
       }
+
+      // Kick off a background warm-up of the country dashboard cache so that
+      // the first time a user selects a country, most data is already loaded.
+      if (config.command === 'serve') {
+        // eslint-disable-next-line no-console
+        console.log('[dashboard-cache] Starting background warm-up for all countries…');
+        void warmDashboardCacheForAllCountries();
+      }
     },
     configureServer(server) {
       server.middlewares.use('/api/chat', handleChatRequest);
+      server.middlewares.use('/api/country-dashboard', handleCountryDashboardRequest);
       server.middlewares.use('/api/export-global-csv', handleExportCsvRequest);
     },
     configurePreviewServer(server) {
       server.middlewares.use('/api/chat', handleChatRequest);
+      server.middlewares.use('/api/country-dashboard', handleCountryDashboardRequest);
       server.middlewares.use('/api/export-global-csv', handleExportCsvRequest);
     },
   };

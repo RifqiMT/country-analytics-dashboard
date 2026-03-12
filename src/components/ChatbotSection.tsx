@@ -16,6 +16,7 @@ import {
   getProviderForModel,
   type PerformanceTier,
 } from '../config/llm';
+import { useToast } from './ToastProvider';
 
 interface Message {
   id: string;
@@ -177,6 +178,7 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
   >({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { showToast, updateToast, dismissToast } = useToast();
 
   const year =
     dashboardData?.latestSnapshot?.year ??
@@ -286,6 +288,11 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
       setInput('');
       setIsLoading(true);
       setError(null);
+      const start = performance.now();
+      const loadingToastId = showToast({
+        type: 'loading',
+        message: 'Generating answer… (0%)',
+      });
 
       const isGroq = (getProviderForModel(model) ?? '') === 'groq';
       const recentMessages = isGroq ? messages.slice(-4) : messages;
@@ -586,6 +593,12 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
           source,
         };
         setMessages((prev) => [...prev, assistantMessage]);
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingToastId, {
+          type: 'success',
+          message: `Answer generated (100%, ${seconds}s).`,
+          durationMs: 4000,
+        });
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to get response';
         setError(msg);
@@ -597,6 +610,12 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
             content: `Sorry, I couldn't process that. ${msg}`,
           },
         ]);
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingToastId, {
+          type: 'error',
+          message: `Failed to generate answer (0%, ${seconds}s).`,
+          durationMs: 6000,
+        });
       } finally {
         setIsLoading(false);
         scrollToBottom();
@@ -611,6 +630,9 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
       globalData,
       globalDataByYear,
       scrollToBottom,
+      updateToast,
+      showToast,
+      dismissToast,
     ],
   );
 

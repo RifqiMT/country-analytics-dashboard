@@ -52,7 +52,7 @@ const DEFAULT_END_YEAR = DATA_MAX_YEAR;
 export function useCountryDashboard(
   options?: UseCountryDashboardOptions,
 ): UseCountryDashboardResult {
-  const { showToast, dismissToast } = useToast();
+  const { showToast, updateToast, dismissToast } = useToast();
   const refreshTrigger = options?.refreshTrigger ?? 0;
   const [countryCode, setCountryCode] = useState(
     options?.initialCountryCode ?? DEFAULT_COUNTRY,
@@ -92,42 +92,74 @@ export function useCountryDashboard(
     }
     let cancelled = false;
     async function load() {
+      // Clear previous snapshot immediately so the UI doesn't momentarily
+      // show the old country's data while a new country is loading.
+      setData(undefined);
       setLoading(true);
       setError(undefined);
+      const start = performance.now();
       const loadingId = showToast({
         type: 'loading',
-        message: 'Refreshing country dashboard…',
+        message: 'Refreshing country dashboard… (0%)',
       });
       try {
-        const result = await fetchCountryDashboardData(
-          code,
-          startYear,
-          endYear,
-        );
-        if (!cancelled) {
-          setData(result);
-          showToast({
-            type: 'success',
-            message: 'Country dashboard updated.',
+        let result: CountryDashboardData;
+        // In the browser, go through the cached /api/country-dashboard endpoint
+        // so the server can reuse results instead of hitting World Bank every time.
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams({
+            countryCode: code,
+            startYear: String(startYear),
+            endYear: String(endYear),
           });
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(
-            e instanceof Error
-              ? e.message
-              : 'Failed to load country analytics data.',
+          const res = await fetch(`/api/country-dashboard?${params.toString()}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+          if (!res.ok) {
+            const text = await res.text().catch(() => '');
+            throw new Error(
+              text || `Country dashboard API responded with status ${res.status}`,
+            );
+          }
+          result = (await res.json()) as CountryDashboardData;
+        } else {
+          result = await fetchCountryDashboardData(
+            code,
+            startYear,
+            endYear,
           );
-          showToast({
-            type: 'error',
-            message: 'Failed to load country dashboard.',
-          });
         }
+        if (cancelled) return;
+        setData(result);
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingId, {
+          type: 'success',
+          message: `Country dashboard updated (100%, ${seconds}s).`,
+          durationMs: 4000,
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setError(
+          e instanceof Error
+            ? e.message
+            : 'Failed to load country analytics data.',
+        );
+        const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
+        updateToast(loadingId, {
+          type: 'error',
+          message: `Failed to load country dashboard (0%, ${seconds}s).`,
+          durationMs: 6000,
+        });
       } finally {
-        if (!cancelled) {
-          setLoading(false);
+        if (cancelled) {
+          // Effect was torn down (country/year/refresh changed); drop this toast.
+          dismissToast(loadingId);
+          return;
         }
-        dismissToast(loadingId);
+        setLoading(false);
       }
     }
 
@@ -135,7 +167,7 @@ export function useCountryDashboard(
     return () => {
       cancelled = true;
     };
-  }, [countryCode, startYear, endYear, refreshTrigger, dismissToast, showToast]);
+  }, [countryCode, startYear, endYear, refreshTrigger, showToast, updateToast, dismissToast]);
 
   const resampled = data?.series
     ? {

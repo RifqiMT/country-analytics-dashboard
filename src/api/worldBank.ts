@@ -207,8 +207,15 @@ async function fetchIndicatorSeries(
   const safeEnd = Math.min(endYear, DATA_MAX_YEAR);
   const url = `${WORLD_BANK_BASE}/country/${countryCode}/indicator/${INDICATORS[indicator]}?format=json&per_page=2000&date=${safeStart}:${safeEnd}`;
 
-  const res = await axios.get<WorldBankSeriesResponse>(url);
-  const data = res.data?.[1] ?? [];
+  let data: WorldBankApiPoint[] = [];
+  try {
+    const res = await axios.get<WorldBankSeriesResponse>(url);
+    data = res.data?.[1] ?? [];
+  } catch {
+    // Network / CORS / SES or extension interference – treat as "no data"
+    // so the dashboard can still render using other indicators.
+    data = [];
+  }
 
   return data
     .map((entry): TimePoint | null => {

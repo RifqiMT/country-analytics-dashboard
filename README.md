@@ -182,7 +182,11 @@ axios, d3-geo, d3-scale, html2canvas, react, react-dom, react-simple-maps, recha
 
 ### Custom Infrastructure
 
-- **vite-plugin-chat-api.ts** – Custom Vite plugin adding `/api/chat` middleware; cascading routing (Dashboard data → Groq → Tavily → other LLMs) with year-based rules
+- **vite-plugin-chat-api.ts** – Custom Vite plugin adding:
+  - `/api/chat` middleware; cascading routing (Dashboard data → Groq → Tavily → other LLMs) with year-based rules.
+  - `/api/country-dashboard` middleware; **server-side cache** for `CountryDashboardData` with 24‑hour TTL per (`countryCode`, `startYear`, `endYear`) key.
+  - **Background warm-up** of the country-dashboard cache on server start: `warmDashboardCacheForAllCountries()` fetches the full country list and preloads dashboard data for all countries over `[DATA_MIN_YEAR, DATA_MAX_YEAR]` using a small worker pool. This means that, by default, most countries load from cache the first time they are selected instead of hitting World Bank live.
+  - `/api/export-global-csv` middleware; runs `scripts/export-global-csv.mjs` to export all global metrics to CSV files under `exports/worldbank/`.
 
 ---
 
@@ -194,6 +198,8 @@ axios, d3-geo, d3-scale, html2canvas, react, react-dom, react-simple-maps, recha
 User → App.tsx (tabs: Country | Global | PESTEL | Porter 5 Forces | Business Analytics | Chat | Source)
          ↓
     useCountryDashboard (country, year range)
+         ↓
+    /api/country-dashboard (server cache, 24h TTL)
          ↓
     fetchCountryDashboardData / fetchGlobalCountryMetricsForYear
          ↓
