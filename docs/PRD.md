@@ -234,6 +234,18 @@ Queries about religion, culture, leaders, capital, language, independence day, *
 - **Settings**: Model selection (including **Tavily Web Search**); API key input (localStorage)
 - **General-knowledge**: LLM instructed to use Wikipedia links; not mention "Dashboard data"
 
+#### 4.5.5 Voice Input and Output
+
+- **Voice input (microphone)**:
+  - **Location**: Chat input area in the Analytics Assistant tab.
+  - **Behaviour**: Clicking the microphone button starts browser-native speech recognition (where available). Recognised text is appended to the input box; the user can edit or send it. Clicking again (or automatic end of recognition) stops listening. When the browser does not support speech recognition, the control shows an error toast and no-op behaviour.
+  - **Constraints**: Voice input never bypasses existing routing, validation, or safety rules; it is only an alternative way to enter the same text query.
+- **Voice output (answer playback)**:
+  - **Location**: Each assistant message shows a compact speaker button beneath the rendered markdown.
+  - **Behaviour**: Clicking the speaker button reads the assistant’s answer aloud using browser speech synthesis. Clicking again stops playback. When unsupported, the control shows a short error message and does nothing.
+  - **Content normalisation**: Markdown decorations, backticks, and code fences are stripped before speaking; links are read using their descriptive text only, so narration is concise and easy to follow.
+  - **Design**: Buttons use a subtle, modern style consistent with the rest of the chat UI (circular icons, soft borders, hover states) and do not distract from the analytical content.
+
 ### 4.6 PESTEL Analysis
 
 - **Tab**: Dedicated PESTEL tab in main navigation

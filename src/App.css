@@ -5990,8 +5990,8 @@ tbody tr:hover {
 
 .chatbot-send {
   flex-shrink: 0;
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6014,6 +6014,65 @@ tbody tr:hover {
 
 .chatbot-send:disabled {
   opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chatbot-input-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.chatbot-voice-input-btn {
+  background: var(--bg-subtle);
+  color: var(--accent-red);
+  border-radius: 999px;
+  box-shadow: none;
+}
+
+.chatbot-voice-input-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+.chatbot-voice-input-btn-active {
+  background: rgba(200, 16, 46, 0.12);
+  color: var(--accent-red);
+}
+
+.chatbot-message-audio-controls {
+  margin-top: var(--space-2);
+  display: flex;
+  justify-content: flex-start;
+}
+
+.chatbot-voice-output-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-elevated);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+
+.chatbot-voice-output-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--accent-red);
+  border-color: rgba(200, 16, 46, 0.35);
+  transform: translateY(-1px);
+}
+
+.chatbot-voice-output-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.chatbot-voice-output-btn:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
 }
 

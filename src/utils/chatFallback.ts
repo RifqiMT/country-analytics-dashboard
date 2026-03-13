@@ -216,6 +216,14 @@ const REGION_TERMS: Record<string, string[]> = {
 
 function parseRegion(q: string): string | null {
   const qLower = q.toLowerCase();
+  // Handle common adjective forms like "Asian countries", "European markets", etc.
+  if (/\basian\b/.test(qLower)) return 'asia';
+  if (/\beuropean\b/.test(qLower)) return 'europe';
+  if (/\bafrican\b/.test(qLower)) return 'africa';
+  if (/\bmiddle eastern\b/.test(qLower) || /\bmena\b/.test(qLower)) return 'middle east';
+  if (/\blatin american\b/.test(qLower) || /\blatin america\b/.test(qLower)) return 'latin america';
+  if (/\bnorth american\b/.test(qLower)) return 'north america';
+  if (/\boceanian\b/.test(qLower) || /\bpacific\b/.test(qLower)) return 'oceania';
   for (const term of Object.keys(REGION_TERMS)) {
     if (qLower.includes(term)) return term;
   }

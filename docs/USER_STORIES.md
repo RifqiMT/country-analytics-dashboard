@@ -478,6 +478,34 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 
 ---
 
+### US-8.8 – Use voice input for questions
+
+- **As a** Market Expansion Manager or Strategy Lead  
+- **I want to** press a microphone button in the chat box and speak my question  
+- **So that** I can ask complex questions hands-free during meetings or when I am away from a keyboard  
+
+**Acceptance criteria:**
+- A microphone icon appears in the chat input area when the browser supports speech recognition.
+- Clicking the microphone starts listening and visually indicates the active state; the recognised transcript is inserted into the input field (not sent automatically), where the user can review and edit before sending.
+- Clicking the microphone again stops listening. If speech recognition is not available or fails to start, the app shows a concise error message and does not break the chat UI.
+- Voice input never bypasses routing, validation, or safety rules; it is equivalent to typing the same text.
+
+---
+
+### US-8.9 – Listen to assistant answers
+
+- **As a** Strategy Lead or Economist  
+- **I want to** click a small speaker button on an assistant message to hear the answer read aloud  
+- **So that** I can consume long explanations (e.g. PESTEL, methodology) while multitasking  
+
+**Acceptance criteria:**
+- Each assistant answer shows a compact speaker icon aligned with the message actions. Clicking it starts playback using browser speech synthesis; clicking again stops playback.
+- Spoken content strips markdown decorations and code fences while preserving the narrative text; link texts are read without raw URLs.
+- If speech synthesis is not supported, the control shows a brief error and no-op behaviour without breaking the chat experience.
+- The visual styling of the speaker button is subtle and consistent with the rest of the Analytics Assistant UI (no oversized or visually noisy controls).
+
+---
+
 ## 9. PESTEL
 
 ### US-9.1 – Generate PESTEL analysis for selected country

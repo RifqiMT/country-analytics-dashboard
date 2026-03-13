@@ -54,9 +54,9 @@ _To answer general questions (e.g. "who is the president of X"), add the require
 /** Queries the rule-based fallback cannot answer – use free LLM instead. Geography, location, neighbour (and typos) and business/companies queries are excluded so the LLM answers them. */
 const OUT_OF_SCOPE_PATTERNS = [
   // Leaders & government
-  /who\s+is\s+(?:the\s+)?(?:president|prime\s+minister|leader|king|queen|head\s+of\s+state|ruler)/i,
-  /president\s+of|prime\s+minister\s+of|leader\s+of|capital\s+of/i,
-  /current\s+(?:president|leader|prime\s+minister)/i,
+  /who\s+(?:is|are)\s+(?:the\s+)?(?:president|prime\s+minister|chancellor|leader|king|queen|head\s+of\s+state|head\s+of\s+government|ruler)/i,
+  /president\s+of|prime\s+minister\s+of|chancellor\s+of|leader\s+of|capital\s+of/i,
+  /current\s+(?:president|leader|prime\s+minister|chancellor|head\s+of\s+state|head\s+of\s+government)/i,
   /government\s+of\s+\w+|history\s+of/i,
   /what\s+is\s+(?:the\s+)?(?:capital|currency)\s+of/i,
   /when\s+did\s+|when\s+was\s+|when\s+is\s+/i,
@@ -92,8 +92,15 @@ const OUT_OF_SCOPE_PATTERNS = [
 ];
 
 // Geography, location, neighbour (and common typos) – excluded from out-of-scope; LLM answers these.
+// Includes forms like "Where is X located?", "Which continent is X in?",
+// "neighbours of X", "which countries border X", etc.
 const LOCATION_QUERY_PATTERN =
-  /\b(?:where|location|locaton|locaiton|geography|geogrpahy|geograpy)\b.*\b(?:located|continent)\b|(?:where\s+is|location\s+of|locaton\s+of|locaiton\s+of)\s+\w+|(?:in\s+)?which\s+continent|which\s+continent\s+is|(?:neighbor(?:ing)?|neighbour(?:ing)?|neigbor(?:ing)?|nieghbor(?:ing)?|neighboor(?:ing)?|neigbour(?:ing)?|neughbour(?:ing)?)\s+countries?\s+(?:of|around)\s+\w+|which\s+countries\s+border\s+\w+|borders?\s+(?:with|of)\s+\w+/i;
+  /\b(?:where|location|locaton|locaiton|geography|geogrpahy|geograpy)\b.*\b(?:located|continent)\b|
+   (?:where\s+is|location\s+of|locaton\s+of|locaiton\s+of)\s+\w+|
+   (?:in\s+)?which\s+continent|which\s+continent\s+is|
+   (?:neighbor(?:ing)?|neighbour(?:ing)?|neigbor(?:ing)?|nieghbor(?:ing)?|neighboor(?:ing)?|neigbour(?:ing)?|neughbour(?:ing)?)\s+(?:countries?\s+(?:of|around)\s+\w+|of\s+\w+)|
+   which\s+countries\s+border\s+\w+|
+   borders?\s+(?:with|of)\s+\w+/ix;
 
 const LOCATION_FALLBACK_MESSAGE =
   'I can help with **all metrics in this dashboard**: GDP (nominal, PPP, per capita), inflation, government debt (from World Bank or IMF when WB has no data), interest rate, unemployment (rate and number), labour force, poverty ($2.15/day and national line), population (total and age groups 0–14, 15–64, 65+), life expectancy, maternal mortality, under-5 mortality, undernourishment, land/total area, EEZ, region, government type, and education metrics. Ask for a country by name, "Top N by [metric]", or "compare X and Y". In Global Analytics you can filter by region. For questions about **location or geography** (e.g. where a country is located, which continent, neighbouring countries), use the LLM or web search. For full conversational answers, add your API key in Settings.';
@@ -122,9 +129,13 @@ function isGeneralKnowledgeQuery(content: string): boolean {
 function isLeaderOrPresidentQuestion(content: string): boolean {
   const q = (content ?? '').trim().toLowerCase();
   if (!q) return false;
-  return /\b(current|present)\s+(president|prime\s+minister|leader)\b/.test(q)
-    || /\bwho\s+is\s+(the\s+)?(president|prime\s+minister|leader)\s+of\b/.test(q)
-    || /\bhead\s+of\s+state\b/.test(q);
+  const hasLeaderKeyword = /\b(president|prime\s+minister|chancellor|head\s+of\s+state|head\s+of\s+government|leader)\b/.test(
+    q,
+  );
+  if (!hasLeaderKeyword) return false;
+  if (/\b(current|present)\b/.test(q)) return true;
+  if (/\bwho\s+(?:is|are)\b/.test(q)) return true;
+  return false;
 }
 
 type ChatMessage = { role: string; content: string };
@@ -245,6 +256,13 @@ async function fetchTavilySearch(query: string): Promise<{ context: string; dire
   const key = process.env.TAVILY_API_KEY?.trim();
   if (!key || key.startsWith('tvly-your') || PLACEHOLDER_PATTERNS.test(key)) return null;
   try {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const isLeaderOrTimeSensitive = /president|prime minister|leader|election|current|now|today|this\s+year|202[4-9]/i.test(
+      query,
+    );
+    const effectiveQuery = isLeaderOrTimeSensitive
+      ? `${query} current head of state as of ${todayIso}`
+      : query;
     const res = await fetch('https://api.tavily.com/search', {
       method: 'POST',
       headers: {
@@ -252,10 +270,11 @@ async function fetchTavilySearch(query: string): Promise<{ context: string; dire
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        query,
+        query: effectiveQuery,
         max_results: 5,
-        search_depth: 'basic',
-        topic: /president|prime minister|leader|election|current|now|202[4-9]/i.test(query) ? 'news' : 'general',
+        search_depth: isLeaderOrTimeSensitive ? 'advanced' : 'basic',
+        topic: isLeaderOrTimeSensitive ? 'news' : 'general',
+        time_range: isLeaderOrTimeSensitive ? 'week' : 'year',
         include_answer: 'basic',
       }),
     });
@@ -721,8 +740,11 @@ async function handleChatRequest(
           const isPorter5ForcesRequest =
             supplementWithWebSearch &&
             (body.porter5ForcesRequest === true || systemPrompt?.includes('Porter Five Forces'));
-          const shouldBypassRuleBasedForLocation = isLocationQuestion && !isPestelRequest && !isPorter5ForcesRequest;
-          const fallbackContent = isPestelRequest || isPorter5ForcesRequest || shouldBypassRuleBasedForLocation
+          const shouldBypassRuleBasedForLocationOrLeaders =
+            (isLocationQuestion || isLeaderOrPresidentQuestion(userQuery)) &&
+            !isPestelRequest &&
+            !isPorter5ForcesRequest;
+          const fallbackContent = isPestelRequest || isPorter5ForcesRequest || shouldBypassRuleBasedForLocationOrLeaders
             ? FALLBACK_GENERIC_HELP_MARKER
             : getRuleBasedFallback(
                 messages,
@@ -730,13 +752,18 @@ async function handleChatRequest(
                 globalData,
                 globalDataByYear ?? undefined,
               );
-          const isGeneralKnowledge = isLocationQuestion || isGeneralKnowledgeQuery(userQuery);
+          const isGeneralKnowledge =
+            isLocationQuestion ||
+            isLeaderOrPresidentQuestion(userQuery) ||
+            isGeneralKnowledgeQuery(userQuery);
           // Fallback safeguard: if rule-based returned a country metrics/overview card but the query is location/geography (including neighbours), use LLM instead
           const looksLikeCountryMetricsCard = /\*\*[^*]+ – (?:Key metrics|Full overview)\s*\(/.test(
             fallbackContent,
           );
           const queryLooksLikeLocation = isLocationQuestion;
-          const shouldIgnoreFallbackForLocation = looksLikeCountryMetricsCard && queryLooksLikeLocation;
+          const queryLooksLikeLeader = isLeaderOrPresidentQuestion(userQuery);
+          const shouldIgnoreFallbackForLocation =
+            looksLikeCountryMetricsCard && (queryLooksLikeLocation || queryLooksLikeLeader);
           if (
             !fallbackContent.includes(FALLBACK_GENERIC_HELP_MARKER) &&
             !isGeneralKnowledge &&
@@ -796,16 +823,38 @@ async function handleChatRequest(
             return fetchOpenAICompatible(PROVIDER_URLS[prov], key, mod, toSend);
           };
 
-          const applyWebSearchAnswer = async (): Promise<{ content: string; used: boolean }> => {
-            const result = await fetchWebSearch(userQuery);
+          const applyWebSearchAnswer = async (
+            opts?: { forceLeaderQuery?: boolean },
+          ): Promise<{ content: string; used: boolean }> => {
+            let searchQuery = userQuery;
+            if (opts?.forceLeaderQuery) {
+              const country = extractCountryForWiki(userQuery);
+              const today = new Date().toISOString().slice(0, 10);
+              searchQuery = `current president or head of government of ${country} as of ${today}`;
+            }
+            const result = await fetchWebSearch(searchQuery);
             if (!result) return { content: '', used: false };
             if (result.directAnswer) {
-              const country = extractCountryForWiki(userQuery);
-              const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
-              const wikiLink = `For more: [${country} – Wikipedia](https://en.wikipedia.org/wiki/${wikiSlug})`;
-              const answer = result.directAnswer.includes('Wikipedia') || result.directAnswer.includes('http')
-                ? result.directAnswer
-                : `${result.directAnswer} ${wikiLink}`;
+              const rawCountry = extractCountryForWiki(userQuery);
+              const country = rawCountry.trim();
+              const isGenericCountry =
+                !country ||
+                /^country$/i.test(country) ||
+                /^selected\s+country$/i.test(country) ||
+                /^the\s+selected\s+country$/i.test(country);
+              // If Tavily explicitly says the answer is not mentioned / undisclosed, treat as failure.
+              if (/not\s+mentioned|undisclosed|cannot\s+be\s+determined|no\s+information/i.test(result.directAnswer)) {
+                return { content: '', used: false };
+              }
+              let wikiLink = '';
+              if (!isGenericCountry) {
+                const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
+                wikiLink = ` For more: [${country} – Wikipedia](https://en.wikipedia.org/wiki/${wikiSlug})`;
+              }
+              const answer =
+                result.directAnswer.includes('Wikipedia') || result.directAnswer.includes('http')
+                  ? result.directAnswer
+                  : `${result.directAnswer}${wikiLink}`;
               return { content: answer, used: true };
             }
             if (result.context) {
@@ -849,7 +898,7 @@ async function handleChatRequest(
           // For "current leader / president" questions, prefer **web search first**
           // to avoid stale training data. If Tavily succeeds we will not call Groq.
           if (isLeaderQuestion) {
-            const web = await applyWebSearchAnswer();
+            const web = await applyWebSearchAnswer({ forceLeaderQuery: true });
             if (web.used) {
               content = web.content;
               usedWebSearch = true;
@@ -984,6 +1033,15 @@ async function handleChatRequest(
               // For location / geography questions, never fall back to dashboard metrics.
               // If LLMs or web search are unavailable, return a safe guidance message instead.
               content = LOCATION_FALLBACK_MESSAGE;
+              source = 'Assistant guidance';
+            } else if (isLeaderQuestion) {
+              // For leader/head-of-state questions, avoid dashboard metrics fallback.
+              // When web search and LLMs fail, provide a safe, explicit guidance message
+              // and a direct Wikipedia link for the country instead of hallucinating.
+              const country = extractCountryForWiki(userQuery);
+              const wikiSlug = encodeURIComponent(country.replace(/\s+/g, '_'));
+              const wikiUrl = `https://en.wikipedia.org/wiki/${wikiSlug}`;
+              content = `I wasn't able to retrieve a reliable, up-to-date answer about the current president, chancellor, or head of government from the configured APIs.\n\nFor the latest information, please refer to authoritative sources such as [${country} – Wikipedia](${wikiUrl}) or your preferred official government website.`;
               source = 'Assistant guidance';
             } else if (isPorter5ForcesRequest && dashboardSnapshot?.countryName) {
               const industrySector = (body.industrySector ?? '').trim() || 'industry';

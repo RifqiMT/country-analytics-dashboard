@@ -307,8 +307,12 @@ export function ChatbotSection({
   const [globalDataByYear, setGlobalDataByYear] = useState<
     Record<number, GlobalCountryRowForFallback[]>
   >({});
+  const [isListening, setIsListening] = useState(false);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null as unknown as SpeechRecognition | null);
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const { showToast, updateToast, dismissToast } = useToast();
 
   const year =
@@ -325,6 +329,25 @@ export function ChatbotSection({
       setApiKeyInput(getStoredApiKey(getProviderForModel(model) ?? 'openai') ?? '');
     }
   }, [showSettings, model]);
+
+  const resetSuggestionGroups = useCallback(() => {
+    setOpenSuggestionGroups(
+      Object.fromEntries(SUGGESTION_GROUPS.map((g) => [g.title, false])) as Record<
+        string,
+        boolean
+      >,
+    );
+  }, []);
+
+  const handleToggleSuggestions = () => {
+    setShowSuggestions((prev) => {
+      const next = !prev;
+      if (next) {
+        resetSuggestionGroups();
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -724,6 +747,10 @@ export function ChatbotSection({
           source,
         };
         setMessages((prev) => [...prev, assistantMessage]);
+        // After each answered question, fully collapse suggestive questions:
+        // hide the toolbar and reset all groups to collapsed.
+        setShowSuggestions(false);
+        resetSuggestionGroups();
         const seconds = Math.max((performance.now() - start) / 1000, 0.1).toFixed(1);
         updateToast(loadingToastId, {
           type: 'success',
@@ -774,6 +801,108 @@ export function ChatbotSection({
 
   const handleSuggestionClick = (suggestion: string) => {
     sendMessage(suggestion);
+  };
+
+  const ensureSpeechRecognition = (): SpeechRecognition | null => {
+    if (typeof window === 'undefined') return null;
+    const AnyWindow = window as typeof window & {
+      webkitSpeechRecognition?: typeof SpeechRecognition;
+    };
+    const RecognitionCtor =
+      (AnyWindow as any).SpeechRecognition || AnyWindow.webkitSpeechRecognition;
+    if (!RecognitionCtor) {
+      showToast({
+        type: 'error',
+        message: 'Voice input is not supported in this browser.',
+        durationMs: 4000,
+      });
+      return null;
+    }
+    if (!recognitionRef.current) {
+      recognitionRef.current = new RecognitionCtor();
+      recognitionRef.current.continuous = false;
+      recognitionRef.current.interimResults = false;
+      recognitionRef.current.lang = 'en-US';
+    }
+    return recognitionRef.current;
+  };
+
+  const handleToggleVoiceInput = () => {
+    const recognition = ensureSpeechRecognition();
+    if (!recognition) return;
+    if (isListening) {
+      recognition.stop();
+      setIsListening(false);
+      return;
+    }
+    try {
+      recognition.onresult = (event: SpeechRecognitionEvent) => {
+        const transcript = Array.from(event.results)
+          .map((r) => r[0]?.transcript ?? '')
+          .join(' ')
+          .trim();
+        if (transcript) {
+          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        }
+      };
+      recognition.onerror = () => {
+        setIsListening(false);
+      };
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+      recognition.start();
+      setIsListening(true);
+    } catch {
+      setIsListening(false);
+      showToast({
+        type: 'error',
+        message: 'Could not start voice input. Please try again.',
+        durationMs: 4000,
+      });
+    }
+  };
+
+  const normalizeForSpeech = (text: string): string => {
+    let plain = text.replace(/```[\s\S]*?```/g, ' ');
+    plain = plain.replace(/`([^`]+)`/g, '$1');
+    plain = plain.replace(/\*\*([^*]+)\*\*/g, '$1');
+    plain = plain.replace(/\*([^*]+)\*/g, '$1');
+    plain = plain.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1');
+    plain = plain.replace(/#{1,6}\s*/g, '');
+    plain = plain.replace(/[_~]/g, '');
+    return plain;
+  };
+
+  const handleToggleSpeakMessage = (message: Message) => {
+    if (typeof window === 'undefined' || typeof window.speechSynthesis === 'undefined') {
+      showToast({
+        type: 'error',
+        message: 'Voice playback is not supported in this browser.',
+        durationMs: 4000,
+      });
+      return;
+    }
+    const synth = window.speechSynthesis;
+    if (speakingMessageId === message.id) {
+      synth.cancel();
+      setSpeakingMessageId(null);
+      speechUtteranceRef.current = null;
+      return;
+    }
+    synth.cancel();
+    const utterance = new SpeechSynthesisUtterance(normalizeForSpeech(message.content));
+    speechUtteranceRef.current = utterance;
+    setSpeakingMessageId(message.id);
+    utterance.onend = () => {
+      setSpeakingMessageId(null);
+      speechUtteranceRef.current = null;
+    };
+    utterance.onerror = () => {
+      setSpeakingMessageId(null);
+      speechUtteranceRef.current = null;
+    };
+    synth.speak(utterance);
   };
 
   const handleToggleSuggestionGroup = (title: string) => {
@@ -914,7 +1043,7 @@ export function ChatbotSection({
                 <button
                   type="button"
                   className="chatbot-suggestions-toggle"
-                  onClick={() => setShowSuggestions((prev) => !prev)}
+                  onClick={handleToggleSuggestions}
                   aria-expanded={showSuggestions}
                   aria-controls="chatbot-suggestions-toolbar"
                 >
@@ -941,7 +1070,7 @@ export function ChatbotSection({
                   id="chatbot-suggestions-toolbar"
                 >
                   {SUGGESTION_GROUPS.map((group) => {
-                    const isOpen = openSuggestionGroups[group.title] ?? true;
+                    const isOpen = openSuggestionGroups[group.title] ?? false;
                     return (
                       <div key={group.title} className="chatbot-suggestions-group">
                         <button
@@ -1043,6 +1172,35 @@ export function ChatbotSection({
                             __html: formatMessage(m.content),
                           }}
                         />
+                        <div className="chatbot-message-audio-controls">
+                          <button
+                            type="button"
+                            className="chatbot-voice-output-btn"
+                            onClick={() => handleToggleSpeakMessage(m)}
+                            disabled={isLoading}
+                            aria-label={
+                              speakingMessageId === m.id
+                                ? 'Stop voice playback'
+                                : 'Play answer with voice'
+                            }
+                            title={
+                              speakingMessageId === m.id
+                                ? 'Stop voice playback'
+                                : 'Play answer with voice'
+                            }
+                          >
+                            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden>
+                              <path
+                                fill="currentColor"
+                                d={
+                                  speakingMessageId === m.id
+                                    ? 'M6 5h4v14H6V5zm8 0h4v14h-4V5z'
+                                    : 'M3 10v4h4l5 5V5L7 10H3zm13.5 2a3.5 3.5 0 0 0-2.45-3.34v2.14a1.5 1.5 0 1 1 0 2.4v2.14A3.5 3.5 0 0 0 16.5 12zm-2.45-6.9v2.1A6 6 0 0 1 19 12a6 6 0 0 1-4.95 5.9v-2.1A4 4 0 0 0 17 12a4 4 0 0 0-2.95-3.9z'
+                                }
+                              />
+                            </svg>
+                          </button>
+                        </div>
                         {(() => {
                           const info = getAnswerSourceInfo(m.source);
                           if (!info) return null;
@@ -1100,6 +1258,87 @@ export function ChatbotSection({
                   </div>
                 </div>
               )}
+              <div className="chatbot-suggestions-inline">
+                <p className="chatbot-suggestions-inline-label muted">
+                  Quick suggestive questions (grouped by use case):
+                </p>
+                <div className="chatbot-suggestions-toggle-row">
+                  <button
+                    type="button"
+                    className="chatbot-suggestions-toggle"
+                    onClick={handleToggleSuggestions}
+                    aria-expanded={showSuggestions}
+                    aria-controls="chatbot-suggestions-toolbar"
+                  >
+                    <span className="chatbot-suggestions-toggle-label">
+                      {showSuggestions ? 'Hide suggestions' : 'Show suggestions'}
+                    </span>
+                    <span className="chatbot-suggestions-toggle-icon" aria-hidden>
+                      <svg viewBox="0 0 20 20" width="16" height="16">
+                        <path
+                          fill="currentColor"
+                          d={
+                            showSuggestions
+                              ? 'M5.23 12.21a.75.75 0 0 1 1.06.02L10 15.06l3.71-2.83a.75.75 0 1 1 .9 1.2l-4.16 3.18a.75.75 0 0 1-.9 0l-4.16-3.18a.75.75 0 0 1 .02-1.22Z'
+                              : 'M5.23 7.79a.75.75 0 0 1 1.06-.02L10 10.94l3.71-3.17a.75.75 0 1 1 .9 1.2l-4.16 3.18a.75.75 0 0 1-.9 0L5.25 8.97a.75.75 0 0 1-.02-1.18Z'
+                          }
+                        />
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+                {showSuggestions && (
+                  <div
+                    className="chatbot-suggestions-toolbar"
+                    id="chatbot-suggestions-toolbar"
+                  >
+                    {SUGGESTION_GROUPS.map((group) => {
+                      const isOpen = openSuggestionGroups[group.title] ?? false;
+                      return (
+                        <div key={group.title} className="chatbot-suggestions-group">
+                          <button
+                            type="button"
+                            className="chatbot-suggestions-group-toggle"
+                            onClick={() => handleToggleSuggestionGroup(group.title)}
+                            aria-expanded={isOpen}
+                          >
+                            <span className="chatbot-suggestions-group-title">
+                              {group.title}
+                            </span>
+                            <span
+                              className="chatbot-suggestions-group-chevron"
+                              aria-hidden
+                              data-open={isOpen ? 'true' : 'false'}
+                            >
+                              <svg viewBox="0 0 20 20" width="14" height="14">
+                                <path
+                                  fill="currentColor"
+                                  d="M5.23 7.79a.75.75 0 0 1 1.06-.02L10 10.94l3.71-3.17a.75.75 0 1 1 .9 1.2l-4.16 3.18a.75.75 0 0 1-.9 0L5.25 8.97a.75.75 0 0 1-.02-1.18Z"
+                                />
+                              </svg>
+                            </span>
+                          </button>
+                          {isOpen && (
+                            <div className="chatbot-suggestions">
+                              {group.items.map((s) => (
+                                <button
+                                  key={s}
+                                  type="button"
+                                  className="chatbot-suggestion"
+                                  onClick={() => handleSuggestionClick(s)}
+                                  disabled={isLoading}
+                                >
+                                  {s}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           <div ref={messagesEndRef} />
@@ -1116,19 +1355,40 @@ export function ChatbotSection({
             disabled={isLoading}
             aria-label="Chat message"
           />
-          <button
-            type="submit"
-            className="chatbot-send"
-            disabled={isLoading || !input.trim()}
-            aria-label="Send message"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path
-                fill="currentColor"
-                d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
-              />
-            </svg>
-          </button>
+          <div className="chatbot-input-actions">
+            <button
+              type="button"
+              className={`chatbot-send chatbot-voice-input-btn${isListening ? ' chatbot-voice-input-btn-active' : ''}`}
+              onClick={handleToggleVoiceInput}
+              aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+              title={isListening ? 'Stop voice input' : 'Start voice input'}
+              disabled={isLoading}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d={
+                    isListening
+                      ? 'M6 5h3v14H6V5zm9 0h3v14h-3V5z'
+                      : 'M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3zm-7 9a1 1 0 0 1 2 0 5 5 0 0 0 10 0 1 1 0 0 1 2 0 7 7 0 0 1-6 6.93V21h-2v-3.07A7 7 0 0 1 5 11z'
+                  }
+                />
+              </svg>
+            </button>
+            <button
+              type="submit"
+              className="chatbot-send"
+              disabled={isLoading || !input.trim()}
+              aria-label="Send message"
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20">
+                <path
+                  fill="currentColor"
+                  d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"
+                />
+              </svg>
+            </button>
+          </div>
         </form>
 
         {error && (
