@@ -427,6 +427,17 @@ User stories are grouped by feature area and mapped to personas in `USER_PERSONA
 - Each assistant message displays a source line: "Dashboard data", model label (e.g. Llama 3.3 70B), or "Web search"
 - Source reflects cascading routing: Dashboard/global data for metrics; **TAVILY (web search)** for latest supplementary information; **GROQ** as primary LLM when dashboard/TAVILY cannot answer; other LLMs when explicitly selected or used as fallback
 
+### US-8.4b – Recognise personas and engines visually
+
+- **As a** Market Expansion Manager or Economist  
+- **I want to** see a clear, visual persona per answer (e.g. Neo for dashboard data, Trinity for Groq, Cortana for Tavily, Jarvis for other LLMs)  
+- **So that** I can immediately see whether an answer comes from dashboard data, web search, or a specific LLM  
+
+**Acceptance criteria:**
+- Each assistant answer shows a compact avatar chip in the left margin: icon + persona name.
+- Personas are mapped to engines: **Neo** → Dashboard data, **Trinity** → Groq, **Cortana** → Tavily/web search, **Jarvis** → other LLM providers, **Oracle** → guidance messages.
+- The avatar chip and the source line stay in sync for every answer.
+
 ---
 
 ### US-8.5 – Configure model and API key

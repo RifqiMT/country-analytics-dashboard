@@ -945,7 +945,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                           <div className="table-cell-main">
                             {row.publicExpenditureEducationPctGDP != null
                               ? row.publicExpenditureEducationPctGDP.toFixed(2) + '%'
-                              : '–'}
+                              : 'No data'}
                           </div>
                           {getYoYValue(row, 'publicExpenditureEducationPctGDP') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'publicExpenditureEducationPctGDP')}</div>
@@ -953,7 +953,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.primaryPupilsTotal != null ? formatCompactNumber(row.primaryPupilsTotal) : '–'}
+                            {row.primaryPupilsTotal != null ? formatCompactNumber(row.primaryPupilsTotal) : 'No data'}
                           </div>
                           {getYoYValue(row, 'primaryPupilsTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'primaryPupilsTotal')}</div>
@@ -967,7 +967,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.secondaryPupilsTotal != null ? formatCompactNumber(row.secondaryPupilsTotal) : '–'}
+                            {row.secondaryPupilsTotal != null ? formatCompactNumber(row.secondaryPupilsTotal) : 'No data'}
                           </div>
                           {getYoYValue(row, 'secondaryPupilsTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'secondaryPupilsTotal')}</div>
@@ -987,7 +987,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.tertiaryEnrollmentTotal != null ? formatCompactNumber(row.tertiaryEnrollmentTotal) : '–'}
+                            {row.tertiaryEnrollmentTotal != null ? formatCompactNumber(row.tertiaryEnrollmentTotal) : 'No data'}
                           </div>
                           {getYoYValue(row, 'tertiaryEnrollmentTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryEnrollmentTotal')}</div>
@@ -995,7 +995,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.primarySchoolsTotal != null ? formatCompactNumber(row.primarySchoolsTotal) : '–'}
+                            {row.primarySchoolsTotal != null ? formatCompactNumber(row.primarySchoolsTotal) : 'No data'}
                           </div>
                           {getYoYValue(row, 'primarySchoolsTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'primarySchoolsTotal')}</div>
@@ -1003,7 +1003,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.secondarySchoolsTotal != null ? formatCompactNumber(row.secondarySchoolsTotal) : '–'}
+                            {row.secondarySchoolsTotal != null ? formatCompactNumber(row.secondarySchoolsTotal) : 'No data'}
                           </div>
                           {getYoYValue(row, 'secondarySchoolsTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'secondarySchoolsTotal')}</div>
@@ -1011,7 +1011,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.tertiaryInstitutionsTotal != null ? formatCompactNumber(row.tertiaryInstitutionsTotal) : '–'}
+                            {row.tertiaryInstitutionsTotal != null ? formatCompactNumber(row.tertiaryInstitutionsTotal) : 'No data'}
                           </div>
                           {getYoYValue(row, 'tertiaryInstitutionsTotal') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryInstitutionsTotal')}</div>
@@ -1019,7 +1019,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.primarySchoolCount != null ? formatCompactNumber(row.primarySchoolCount) : '–'}
+                            {row.primarySchoolCount != null ? formatCompactNumber(row.primarySchoolCount) : 'No data'}
                           </div>
                           {getYoYValue(row, 'primarySchoolCount') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'primarySchoolCount')}</div>
@@ -1027,7 +1027,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.secondarySchoolCount != null ? formatCompactNumber(row.secondarySchoolCount) : '–'}
+                            {row.secondarySchoolCount != null ? formatCompactNumber(row.secondarySchoolCount) : 'No data'}
                           </div>
                           {getYoYValue(row, 'secondarySchoolCount') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'secondarySchoolCount')}</div>
@@ -1035,7 +1035,7 @@ export function AllCountriesTableSection({ year, region = null, refreshTrigger =
                         </td>
                         <td className="numeric-cell">
                           <div className="table-cell-main">
-                            {row.tertiaryInstitutionCount != null ? formatCompactNumber(row.tertiaryInstitutionCount) : '–'}
+                            {row.tertiaryInstitutionCount != null ? formatCompactNumber(row.tertiaryInstitutionCount) : 'No data'}
                           </div>
                           {getYoYValue(row, 'tertiaryInstitutionCount') && (
                             <div className="table-cell-yoy">{getYoYValue(row, 'tertiaryInstitutionCount')}</div>

@@ -5279,6 +5279,10 @@ tbody tr:hover {
   flex-shrink: 0;
 }
 
+.chatbot-country-select-wrap {
+  min-width: 220px;
+}
+
 .chatbot-model-select-wrap {
   display: flex;
   flex-direction: column;

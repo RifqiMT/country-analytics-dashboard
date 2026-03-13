@@ -809,6 +809,7 @@ export function getFallbackResponse(
     const wantsDebt = /\bdebt\b/i.test(q);
     const wantsUnemployment = /\bunemployment|unemployed\b/i.test(q);
     const wantsLabour = /\blabour\s+force|labor\s+force|workforce\b/i.test(q);
+    const wantsPoverty = /\bpoverty\b/i.test(q);
 
     type SeriesMetricDef = {
       key: keyof GlobalCountryRowForFallback;
@@ -867,6 +868,13 @@ export function getFallbackResponse(
         format: (v) => (v != null ? `${formatVal(v, '')} people` : 'N/A'),
       });
     }
+    if (wantsPoverty) {
+      seriesMetrics.push({
+        key: 'povertyHeadcount215',
+        label: 'Poverty rate ($2.15/day)',
+        format: (v) => formatPercentage(v),
+      });
+    }
 
     // Default when no specific metrics are mentioned: a balanced macro set.
     const keyMetrics: SeriesMetricDef[] =
@@ -914,7 +922,7 @@ export function getFallbackResponse(
             const num = typeof raw === 'number' ? raw : raw == null ? null : Number(raw);
             return `${m.label}: ${m.format(Number.isNaN(num as number) ? null : (num as number | null))}`;
           });
-          const hasAny = parts.some((s) => !s.endsWith(': N/A'));
+          const hasAny = parts.some((s) => !/:\s*(N\/A|No data)\s*$/i.test(s));
           if (hasAny) {
             lines.push(`**${y}:** ${parts.join(' | ')}`);
           } else {

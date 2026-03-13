@@ -297,7 +297,11 @@ function App() {
         ) : mainTab === 'business' ? (
           <BusinessAnalyticsSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
         ) : mainTab === 'chat' ? (
-          <ChatbotSection dashboardData={data} refreshTrigger={dataRefreshTrigger} />
+          <ChatbotSection
+            dashboardData={data}
+            refreshTrigger={dataRefreshTrigger}
+            setCountryCode={setCountryCode}
+          />
         ) : mainTab === 'country' ? (
           <>
             <div className="top-filters">

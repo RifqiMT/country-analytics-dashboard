@@ -5,7 +5,7 @@ const ABS_K = 1_000;
 
 export function formatCompactNumber(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return '–';
+    return 'No data';
   }
 
   const abs = Math.abs(value);
@@ -34,7 +34,7 @@ export function formatPercentage(
   options?: { decimals?: number },
 ): string {
   if (value === null || value === undefined || Number.isNaN(value)) {
-    return '–';
+    return 'No data';
   }
   const decimals = options?.decimals ?? 1;
   return `${value.toFixed(decimals)}%`;

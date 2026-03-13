@@ -17,6 +17,7 @@ import {
   type PerformanceTier,
 } from '../config/llm';
 import { useToast } from './ToastProvider';
+import { CountrySelector } from './CountrySelector';
 
 interface Message {
   id: string;
@@ -153,6 +154,8 @@ interface ChatbotSectionProps {
   dashboardData?: CountryDashboardData | null;
   /** Increment to force reload of global data (e.g. after "Refresh all data"). */
   refreshTrigger?: number;
+  /** Optional setter to change the selected country from within the chat tab. */
+  setCountryCode?: (code: string) => void;
 }
 
 const SUGGESTION_GROUPS: Array<{ title: string; items: string[] }> = [
@@ -281,7 +284,11 @@ function mapGlobalRowsToFallback(
   }));
 }
 
-export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSectionProps) {
+export function ChatbotSection({
+  dashboardData,
+  refreshTrigger = 0,
+  setCountryCode,
+}: ChatbotSectionProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -786,6 +793,11 @@ export function ChatbotSection({ dashboardData, refreshTrigger = 0 }: ChatbotSec
           </p>
         </div>
         <div className="chatbot-controls">
+          {setCountryCode && (
+            <div className="chatbot-country-select-wrap">
+              <CountrySelector setCountryCode={setCountryCode} data={dashboardData ?? undefined} />
+            </div>
+          )}
           <div className="chatbot-model-select-wrap">
             <label htmlFor="chatbot-model" className="chatbot-model-label">
               Model

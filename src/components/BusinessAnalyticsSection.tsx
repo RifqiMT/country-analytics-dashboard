@@ -40,12 +40,10 @@ export function BusinessAnalyticsSection({
   const [yMetric, setYMetric] = useState<ScatterMetricKey>('lifeExpectancy');
   const [excludeOutliers, setExcludeOutliers] = useState<boolean>(false);
 
-  const dashboardYear =
-    dashboardData?.latestSnapshot?.year ??
-    dashboardData?.range?.endYear ??
-    DATA_MAX_YEAR;
-  const [startYear, setStartYear] = useState<number>(Math.max(DATA_MIN_YEAR, dashboardYear - 4));
-  const [endYear, setEndYear] = useState<number>(dashboardYear);
+  // By default, use the full available window for Business Analytics so that
+  // correlation analysis considers all years from DATA_MIN_YEAR to DATA_MAX_YEAR.
+  const [startYear, setStartYear] = useState<number>(DATA_MIN_YEAR);
+  const [endYear, setEndYear] = useState<number>(DATA_MAX_YEAR);
   const [highlightCountryIso2, setHighlightCountryIso2] = useState<string | null>(
     () => dashboardData?.summary?.iso2Code ?? null,
   );
@@ -55,11 +53,6 @@ export function BusinessAnalyticsSection({
   const [countryOpen, setCountryOpen] = useState(false);
   const [countryActiveIndex, setCountryActiveIndex] = useState(0);
   const { showToast, updateToast, dismissToast } = useToast();
-
-  useEffect(() => {
-    setEndYear(dashboardYear);
-    setStartYear(Math.max(DATA_MIN_YEAR, dashboardYear - 4));
-  }, [dashboardYear]);
 
   const selectedYears = useMemo(() => {
     const start = Math.min(startYear, endYear);
