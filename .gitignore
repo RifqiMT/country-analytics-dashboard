@@ -1,23 +1,2 @@
-node_modules
-dist
-dist-ssr
+# macOS
 .DS_Store
-*.log
-.env
-.env.local
-
-# Local persistence (never commit)
-backend/data/*.json
-
-# Vite cache (if present)
-**/.vite/
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
