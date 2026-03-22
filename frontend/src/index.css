@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply min-h-screen bg-slate-100 text-slate-900;
+}
+
+.glass {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}
+
+@keyframes cap-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast-slide-in {
+  animation: cap-toast-in 0.28s ease-out;
+}
+
+/**
+ * Full-screen chart/table mode: larger SVG tick labels & legend text so plots stay readable.
+ * Applied via `.cap-viz-fullscreen` on the modal root (ChartTableToggle).
+ */
+.cap-viz-fullscreen .recharts-cartesian-axis-tick text,
+.cap-viz-fullscreen .recharts-cartesian-axis-tick tspan {
+  font-size: 13px;
+}
+
+.cap-viz-fullscreen .recharts-legend-wrapper text,
+.cap-viz-fullscreen .recharts-legend-item-text {
+  font-size: 13px;
+}
+
+.cap-viz-fullscreen .recharts-label {
+  font-size: 12px;
+}
+
+/** Data tables opened from chart toggle in full screen */
+.cap-viz-fs-table table {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.cap-viz-fs-table th {
+  padding: 0.625rem 0.875rem;
+  font-size: 0.75rem;
+}
+
+.cap-viz-fs-table td {
+  padding: 0.5rem 0.875rem;
+}
+
+/** Comparison / global full-screen tables */
+.cap-fs-table-shell table {
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.cap-fs-table-shell th {
+  font-size: 0.8125rem;
+  padding: 0.75rem 1rem;
+}
+
+.cap-fs-table-shell td {
+  padding: 0.625rem 1rem;
+}
