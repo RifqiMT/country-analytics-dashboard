@@ -223,7 +223,7 @@ export default function VisualizationStepper({ steps, className = "", groupLabel
           <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-3">
             <VizGalleryOverlayInnerContext.Provider value>
               <VizGalleryNestedFsContext.Provider value={nestedReporter}>
-                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
+                <div className="cap-viz-gallery-step flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-sm">
                   {current.content}
                 </div>
               </VizGalleryNestedFsContext.Provider>

@@ -2,6 +2,8 @@ import { useCallback, useMemo, useState } from "react";
 import { cmpNullableNumber, cmpString, toggleColumnSort, type SortDir } from "../../lib/tableSort";
 import SortableTh from "../ui/SortableTh";
 import {
+  CartesianGrid,
+  Cell,
   ComposedChart,
   Legend,
   Line,
@@ -38,7 +40,6 @@ function CorrelationTooltip({
 }: {
   active?: boolean;
   payload?: ReadonlyArray<{ payload?: unknown }>;
-  label?: unknown;
   labelX: string;
   labelY: string;
 }) {
@@ -68,6 +69,17 @@ function CorrelationTooltip({
   );
 }
 
+function padDomain(min: number, max: number, frac = 0.06): [number, number] {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+  if (min === max) {
+    const d = Math.abs(min) * frac || 1;
+    return [min - d, max + d];
+  }
+  const span = max - min;
+  const pad = Math.max(span * frac, span * 0.02);
+  return [min - pad, max + pad];
+}
+
 type Props = {
   points: Point[];
   ciBand: { x: number; yLower: number; yUpper: number }[];
@@ -89,20 +101,42 @@ export default function CorrelationScatter({
   highlightName,
   correlation,
 }: Props) {
-  const regLine = slope !== null && intercept !== null && points.length > 0
-    ? (() => {
-        const xs = points.map((p) => p.x);
-        const xMin = Math.min(...xs);
-        const xMax = Math.max(...xs);
-        return [
-          { x: xMin, y: intercept + slope * xMin },
-          { x: xMax, y: intercept + slope * xMax },
-        ];
-      })()
-    : [];
+  const regLine =
+    slope !== null && intercept !== null && points.length > 0
+      ? (() => {
+          const xs = points.map((p) => p.x);
+          const xMin = Math.min(...xs);
+          const xMax = Math.max(...xs);
+          return [
+            { x: xMin, y: intercept + slope * xMin },
+            { x: xMax, y: intercept + slope * xMax },
+          ];
+        })()
+      : [];
 
-  const regular = points.filter((p) => !p.isHighlight).map((p) => ({ ...p, x: p.x, y: p.y }));
-  const highlighted = points.filter((p) => p.isHighlight).map((p) => ({ ...p, x: p.x, y: p.y }));
+  const xDomain = useMemo((): [number, number] | ["auto", "auto"] => {
+    if (points.length === 0) return ["auto", "auto"];
+    const xs: number[] = points.map((p) => p.x);
+    for (const row of ciBand) {
+      xs.push(row.x);
+    }
+    for (const row of regLine) {
+      xs.push(row.x);
+    }
+    return padDomain(Math.min(...xs), Math.max(...xs));
+  }, [points, ciBand, regLine]);
+
+  const yDomain = useMemo((): [number, number] | ["auto", "auto"] => {
+    if (points.length === 0) return ["auto", "auto"];
+    const ys: number[] = points.map((p) => p.y);
+    for (const row of ciBand) {
+      ys.push(row.yLower, row.yUpper);
+    }
+    for (const row of regLine) {
+      ys.push(row.y);
+    }
+    return padDomain(Math.min(...ys), Math.max(...ys));
+  }, [points, ciBand, regLine]);
 
   const corrStr = correlation !== null ? correlation.toFixed(3) : "—";
 
@@ -135,6 +169,15 @@ export default function CorrelationScatter({
     return copy;
   }, [points, sortKey, sortDir]);
 
+  const scatterData = useMemo(
+    () =>
+      points.map((p) => ({
+        ...p,
+        __key: `${p.countryIso3}-${p.year}`,
+      })),
+    [points]
+  );
+
   return (
     <div className="min-h-[400px] w-full">
       <ChartTableToggle
@@ -142,21 +185,23 @@ export default function CorrelationScatter({
         vizTitle={`${labelX} vs ${labelY}`}
         chart={
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
+            <ComposedChart margin={{ top: 8, right: 12, bottom: 28, left: 12 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis
                 type="number"
                 dataKey="x"
+                domain={xDomain}
                 tickFormatter={(v) => formatCompactNumber(Number(v), { maxFrac: 1 })}
                 stroke="#94a3b8"
                 fontSize={11}
-                domain={["auto", "auto"]}
               />
               <YAxis
                 type="number"
+                dataKey="y"
+                domain={yDomain}
                 tickFormatter={(v) => formatCompactNumber(Number(v), { maxFrac: 1 })}
                 stroke="#94a3b8"
                 fontSize={11}
-                domain={["auto", "auto"]}
               />
               <Tooltip
                 wrapperStyle={RECHARTS_TOOLTIP_WRAPPER}
@@ -165,7 +210,6 @@ export default function CorrelationScatter({
                   <CorrelationTooltip
                     active={props.active}
                     payload={props.payload}
-                    label={props.label}
                     labelX={labelX}
                     labelY={labelY}
                   />
@@ -181,8 +225,9 @@ export default function CorrelationScatter({
                     strokeWidth={1}
                     strokeDasharray="2 2"
                     dot={false}
+                    isAnimationActive={false}
                     connectNulls
-                    name="95% CI"
+                    name="95% CI (upper)"
                   />
                   <Line
                     type="monotone"
@@ -192,32 +237,46 @@ export default function CorrelationScatter({
                     strokeWidth={1}
                     strokeDasharray="2 2"
                     dot={false}
+                    isAnimationActive={false}
                     connectNulls
+                    name="95% CI (lower)"
                   />
                 </>
               )}
               {regLine.length > 0 && (
                 <Line
-                  type="monotone"
+                  type="linear"
                   data={regLine}
                   dataKey="y"
                   stroke="#38bdf8"
                   strokeWidth={2}
                   dot={false}
+                  isAnimationActive={false}
                   name="Trend line"
                 />
               )}
-              <Scatter data={regular} fill="#ef4444" fillOpacity={0.4} name="Countries" />
-              {highlighted.length > 0 && (
-                <Scatter
-                  data={highlighted}
-                  fill="#eab308"
-                  fillOpacity={1}
-                  name={`Selected: ${highlightName}`}
-                />
-              )}
+              <Scatter
+                name={`Countries (highlight: ${highlightName})`}
+                data={scatterData}
+                dataKey="y"
+                fill="#ef4444"
+                line={false}
+                isAnimationActive={false}
+                legendType="circle"
+                shape="circle"
+              >
+                {scatterData.map((entry) => (
+                  <Cell
+                    key={entry.__key}
+                    fill={entry.isHighlight ? "#ca8a04" : "#ef4444"}
+                    fillOpacity={entry.isHighlight ? 1 : 0.55}
+                    stroke={entry.isHighlight ? "#a16207" : "#b91c1c"}
+                    strokeWidth={entry.isHighlight ? 2 : 0.5}
+                  />
+                ))}
+              </Scatter>
               <Legend
-                wrapperStyle={{ fontSize: 11 }}
+                wrapperStyle={{ fontSize: 11, paddingTop: 8 }}
                 formatter={(value) => <span className="text-slate-600">{value}</span>}
               />
             </ComposedChart>
@@ -296,7 +355,7 @@ export default function CorrelationScatter({
         }
       />
       <p className="mt-2 text-center text-sm font-medium text-slate-600">
-        Scatter Plot: {labelX} vs {labelY} | Corr = {corrStr}
+        Scatter plot: {labelX} vs {labelY} | Corr = {corrStr}
       </p>
     </div>
   );

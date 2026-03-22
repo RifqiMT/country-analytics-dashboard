@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from "react-router-dom";
+import { useAppBootstrap } from "../hooks/useAppBootstrap";
 import ApiToastStack from "./ApiToastStack";
 import ApiTransportPanel from "./ApiTransportPanel";
 
@@ -44,18 +45,23 @@ const nav = [
 ];
 
 export default function Layout() {
+  useAppBootstrap();
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-100 text-slate-900">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="w-full px-3 py-3 sm:px-4 lg:px-6 xl:px-8">
-          <div className="flex flex-col gap-1.5 lg:flex-row lg:items-baseline lg:justify-between lg:gap-8">
+          <div className="grid grid-cols-1 gap-3">
             <h1 className="font-display text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               Country Analytics Platform
             </h1>
-            <p className="text-sm leading-snug text-slate-600 lg:max-w-3xl lg:text-right xl:max-w-none">
+            <p className="max-w-3xl text-sm leading-snug text-slate-600 xl:max-w-[42rem]">
               A modern, analyst-grade view across financial, demographic, and health metrics for every country
               (2000 – latest), powered by World Bank, UN, UNESCO, WHO, and IMF data.
             </p>
+            <div className="flex w-full justify-end">
+              <ApiTransportPanel variant="inline" inlineAlign="end" />
+            </div>
           </div>
           <nav className="mt-3 flex flex-wrap gap-1.5 sm:gap-2 lg:mt-3">
             {nav.map((item) => {
@@ -81,11 +87,10 @@ export default function Layout() {
           </nav>
         </div>
       </header>
-      <main className="w-full flex-1 px-3 py-4 pb-20 sm:px-4 sm:py-5 sm:pb-24 lg:px-6 lg:py-5 xl:px-8">
+      <main className="w-full flex-1 px-3 py-4 pb-10 sm:px-4 sm:py-5 sm:pb-12 lg:px-6 lg:py-5 xl:px-8">
         <Outlet />
       </main>
       <ApiToastStack />
-      <ApiTransportPanel />
       <footer className="border-t border-slate-200 bg-white px-3 py-3 text-center text-xs text-slate-500 sm:px-4 lg:px-6 xl:px-8">
         <p className="text-slate-600">Developed, managed, and maintained by Rifqi Tjahyono</p>
         <div className="mt-2 flex justify-center gap-4">

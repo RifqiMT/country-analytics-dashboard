@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import CountrySelect from "../components/CountrySelect";
 import { postJson } from "../api";
 import type { PestelAnalysis } from "../types/pestel";
+import { loadPestelFromCache, savePestelToCache } from "../lib/pestelAnalysisCache";
 import PestelDimensionCard from "../components/pestel/PestelDimensionCard";
 import PestelSwotGrid from "../components/pestel/PestelSwotGrid";
 import PestelComprehensiveCard from "../components/pestel/PestelComprehensiveCard";
@@ -23,10 +24,22 @@ const WandIcon = () => (
 export default function Pestel() {
   const [country, setCountry] = useState("IDN");
   const year = maxSelectableYear();
-  const [analysis, setAnalysis] = useState<PestelAnalysis | null>(null);
-  const [attr, setAttr] = useState<string[]>([]);
+  const [analysis, setAnalysis] = useState<PestelAnalysis | null>(() => loadPestelFromCache("IDN")?.analysis ?? null);
+  const [attr, setAttr] = useState<string[]>(() => loadPestelFromCache("IDN")?.attribution ?? []);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const cached = loadPestelFromCache(country);
+    if (cached) {
+      setAnalysis(cached.analysis);
+      setAttr(cached.attribution);
+      setErr(null);
+    } else {
+      setAnalysis(null);
+      setAttr([]);
+    }
+  }, [country]);
 
   const run = async () => {
     if (!country) return;
@@ -39,8 +52,9 @@ export default function Pestel() {
       });
       setAnalysis(res.analysis);
       setAttr(res.attribution);
+      savePestelToCache(country, res.analysis, res.attribution);
     } catch (e) {
-      setErr(String(e));
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -49,13 +63,15 @@ export default function Pestel() {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">PESTEL ANALYSIS</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-          Comprehensive macro-environmental analysis (Political, Economic, Social, Technological, Environmental,
-          Legal) with PESTEL-SWOT matrix (Opportunities and Risks), new market analysis, key takeaways, and
-          actionable recommendations. Uses the same analyst-grade data as the platform (World Bank, UN, WHO, IMF;
-          2000 – latest) and supplements with web search for dimensions with limited dashboard data.
-        </p>
+        <div className="grid grid-cols-1 gap-3">
+          <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">PESTEL ANALYSIS</h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+            Comprehensive macro-environmental analysis (Political, Economic, Social, Technological, Environmental,
+            Legal) with PESTEL-SWOT matrix (Opportunities and Risks), new market analysis, key takeaways, and
+            actionable recommendations. Uses the same analyst-grade data as the platform (World Bank, UN, WHO, IMF;
+            2000 – latest) and supplements with web search for dimensions with limited dashboard data.
+          </p>
+        </div>
 
         <div className="mt-8 rounded-xl border border-slate-100 bg-slate-50/80 p-5 sm:p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -107,7 +123,7 @@ export default function Pestel() {
           <PestelStrategicCard sections={analysis.strategicBusiness} />
           <PestelBulletCard title="New Market Analysis" items={analysis.newMarketAnalysis} />
           <PestelBulletCard title="Key Takeaways" items={analysis.keyTakeaways} />
-          <PestelBulletCard title="Recommendations" items={analysis.recommendations} />
+          <PestelBulletCard title="Key recommendations" items={analysis.recommendations} />
         </div>
       )}
     </div>

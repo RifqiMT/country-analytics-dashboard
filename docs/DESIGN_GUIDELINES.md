@@ -1,66 +1,69 @@
 # Design guidelines
 
+Enterprise-ready visual and interaction standards for the **Country Analytics Platform**. Align new UI with **`frontend/tailwind.config.js`**, **`frontend/src/index.css`**, and shared layout components.
+
+---
+
 ## 1. Design principles
 
-- **Clarity over decoration.** Prefer white cards, subtle borders, and readable chart defaults over heavy chrome.
-- **Consistent wayfinding.** Primary navigation uses pill `NavLink` controls; active state is unambiguous.
-- **Trust and density.** Analyst users tolerate information-rich screens; use hierarchy (section labels, accordions) to avoid flat walls of text.
-- **Accessible defaults.** Interactive elements remain keyboard-focusable; dialogs set `aria-modal` and labels where implemented.
+| Principle | Application |
+|-------------|-------------|
+| **Clarity over decoration** | White cards, subtle borders, readable chart defaults; avoid ornamental chrome. |
+| **Consistent wayfinding** | Primary navigation uses pill `NavLink` controls; active state is visually distinct (`bg-red-600`, white label). |
+| **Trust and density** | Analyst users accept information-rich screens; use hierarchy (section labels, accordions, KPI strips). |
+| **Accessible defaults** | Focusable controls, dialog semantics, no motion-only affordances. |
+| **Theme consistency** | App shell uses slate neutrals + red accent; **PESTEL** and **Porter** use dedicated palettes defined in code—do not mix hex values arbitrarily. |
 
-## 2. Typography
+---
 
-| Use | Stack | Notes |
-|-----|-------|-------|
-| **Display / product title** | `font-display` → **Outfit** (fallback Inter) | Header product name |
-| **Body** | **Inter**, **DM Sans**, system-ui | Configured in `tailwind.config.js` |
+## 2. Color system — application shell (light theme)
 
-Sizes follow Tailwind utilities (`text-xs` for meta labels, `text-sm`–`text-base` for body, `text-lg`+ for page titles inside cards).
+The product ships as **light mode first**; there is no separate dark theme token set in the repository today. If dark mode is added later, define parallel semantic tokens and update this document.
 
-## 3. Color system (app shell)
+### 2.1 Semantic roles (Tailwind slate + red)
 
-The main application uses **Tailwind slate** neutrals with **red** as the primary accent (active nav, primary buttons).
+| Role | Typical classes | Usage |
+|------|-----------------|--------|
+| **Page canvas** | `bg-slate-100` | Main background behind cards |
+| **Surface** | `bg-white`, `border-slate-200`, `rounded-2xl`, `shadow-sm` | Cards, modals (see `.glass` in `index.css`) |
+| **Primary text** | `text-slate-900` | Headings, body emphasis |
+| **Secondary text** | `text-slate-600`, `text-slate-500` | Descriptions, hints |
+| **Muted / kicker** | `text-slate-400`, uppercase tracking | Section labels |
+| **Primary CTA / active nav** | `bg-red-600`, `text-white`, `hover:bg-red-700` | Selected route, primary actions |
+| **Secondary control** | `border-slate-200`, `bg-white`, `hover:bg-slate-50` | Neutral buttons |
+| **Highlight / warning strip** | `border-red-200`, `bg-red-50` | Secondary emphasis, stepper affordances |
 
-| Token / pattern | Typical class | Usage |
-|-----------------|---------------|--------|
-| Page background | `bg-slate-100` | Layout canvas |
-| Surfaces | `bg-white`, `border-slate-200` | Cards, modals |
-| Primary text | `text-slate-900` | Headings |
-| Secondary text | `text-slate-600`, `text-slate-500` | Descriptions, hints |
-| Muted label | `text-slate-400`, uppercase tracking | Section kicker labels |
-| **Primary CTA / active nav** | `bg-red-600`, `text-white`, `hover:bg-red-700` | Selected route, refresh, key actions |
-| Secondary button | `border-slate-200`, `bg-white`, `hover:bg-slate-50` | Neutral actions |
-| Destructive / emphasis border | `border-red-200`, `bg-red-50` | Stepper “Previous” affordance, highlights |
+**Contrast:** Body text on white must meet **WCAG AA**; primary buttons must keep sufficient contrast for white label text on `bg-red-600`.
 
-### Extended palette (Tailwind theme)
+### 2.2 Extended palette (`tailwind.config.js`)
 
-Defined in `tailwind.config.js` for optional use:
+| Token | Scale | Example hex | Suggested use |
+|-------|-------|-------------|----------------|
+| **ink** | 950 → 700 | `#0c1222` … `#243056` | Deep headings, rare hero contrast |
+| **sea** | 500 → 700 | `#2dd4bf` … `#0d9488` | Secondary accents; some education chart series |
+| **coral** | 500 → 600 | `#fb7185` … `#f43f5e` | Warm accent alternative to red |
 
-| Name | Scale | Example hex | Suggested use |
-|------|-------|-------------|----------------|
-| **ink** | 950–700 | `#0c1222` … `#243056` | Deep text or hero contrast (sparingly) |
-| **sea** | 500–700 | `#2dd4bf` … `#0d9488` | Secondary accents (education charts sometimes use teal family in Recharts) |
-| **coral** | 500–600 | `#fb7185` … `#f43f5e` | Warm accent alternative |
+Charts often use **inline hex** strokes from Recharts configuration per page—when adding series, pick **distinct hues** and verify legibility on `bg-white` and fullscreen overlays.
 
-Charts use **inline hex strokes** per series in page-specific code (not centralized tokens); when adding series, pick distinct hues and test in light mode.
+---
 
-## 4. Component patterns
+## 3. Typography
 
-| Pattern | Implementation hints |
-|---------|----------------------|
-| **Card** | `rounded-2xl border border-slate-200 bg-white p-4 shadow-sm` (`.glass` utility in `index.css`) |
-| **Accordion sections** | `AccordionSection` on dashboard — title row + download hook |
-| **Tables** | Sortable headers where implemented (`SortableTh`); fullscreen tables use `.cap-fs-table-shell` or `.cap-viz-fs-table` |
-| **Charts** | Recharts inside `ResponsiveContainer`; tooltips via `ChartTooltipShell` pattern |
-| **Full screen** | `ChartTableToggle` fixed overlay; class `cap-viz-fullscreen` scales tick/legend fonts |
-| **Toasts** | Bottom-right, single latest result; slide-in animation `.toast-slide-in` |
-| **API debug** | Bottom-left chip expanding to full transport log |
+| Use | Font stack | Source |
+|-----|------------|--------|
+| **Display / product title** | **Outfit** (`font-display`) | `tailwind.config.js` → `fontFamily.display` |
+| **Body** | **Inter**, **DM Sans**, system-ui | `fontFamily.sans` |
 
-## 5. Feature-specific themes
+**Scale:** `text-xs` meta, `text-sm`–`text-base` body, `text-lg`+ in-card titles. Fullscreen charts use `.cap-viz-fullscreen` rules in `index.css` to bump tick and legend font sizes.
 
-### PESTEL dimension colors (`pestelTheme.ts`)
+---
 
-| Dimension | Header | Tint |
-|-----------|--------|------|
+## 4. Feature themes
+
+### 4.1 PESTEL dimensions (`frontend/src/components/pestel/pestelTheme.ts`)
+
+| Dimension | Header (hex) | Content tint (hex) |
+|-----------|--------------|--------------------|
 | POLITICAL | `#1e3a5f` | `#e8eef5` |
 | ECONOMIC | `#2d5a4c` | `#e9f2ef` |
 | SOCIOCULTURAL | `#9a7340` | `#f4efe6` |
@@ -68,35 +71,82 @@ Charts use **inline hex strokes** per series in page-specific code (not centrali
 | ENVIRONMENTAL | `#6b2d38` | `#f0e8ea` |
 | LEGAL | `#4a4568` | `#ebeaf2` |
 
-SWOT uses paired headers/tints (strengths green family, weaknesses rust, opportunities blue, threats magenta-red).
+### 4.2 PESTEL SWOT (`SWOT_STYLES` in same file)
 
-### Porter force accents (`porterTheme.ts`)
+| Quadrant | Header (hex) | Tint (hex) |
+|----------|----------------|------------|
+| Strengths | `#2D5A4C` | `#E9F2EF` |
+| Weaknesses | `#A04A26` | `#F7EEEA` |
+| Opportunities | `#1D6391` | `#E8F1F6` |
+| Threats | `#B01E43` | `#F6E8EB` |
 
-| Accent key | Color | Force |
-|------------|-------|-------|
+Use **white** (`#ffffff`) or near-white for text on headers; maintain minimum contrast for accessibility.
+
+### 4.3 Porter five forces (`frontend/src/components/porter/porterTheme.ts`)
+
+| Accent key | Hex | Force |
+|------------|-----|--------|
 | `threat_new_entry` | `#dc2626` | Threat of new entry |
-| `supplier_power` / `buyer_power` | `#2563eb` | Supplier / buyer power |
-| `threat_substitutes` | `#0ea5e9` | Substitutes |
-| `rivalry` | `#64748b` | Rivalry |
+| `supplier_power` | `#2563eb` | Supplier power |
+| `buyer_power` | `#2563eb` | Buyer power |
+| `threat_substitutes` | `#0ea5e9` | Threat of substitutes |
+| `rivalry` | `#64748b` | Competitive rivalry |
+
+---
+
+## 5. Component patterns
+
+| Pattern | Implementation hints |
+|---------|----------------------|
+| **Card** | `rounded-2xl border border-slate-200 bg-white p-4 shadow-sm` or `.glass` |
+| **Accordion** | Dashboard `AccordionSection` — title row + optional CSV hook |
+| **Tables** | Sortable headers where used; fullscreen: `.cap-viz-fs-table` or `.cap-fs-table-shell` |
+| **Charts** | `ResponsiveContainer` + shared tooltip shell patterns; lock aspect in fullscreen flex hosts |
+| **Fullscreen viz** | `ChartTableToggle` fixed overlay; `cap-viz-fullscreen` on modal root |
+| **Group gallery** | `VisualizationStepper` + `VizGalleryContext`; `.cap-viz-gallery-step` for WLD height behavior |
+| **Toasts** | Bottom-right; `.toast-slide-in` animation |
+| **API debug** | Bottom-left chip expanding to transport log |
+
+---
 
 ## 6. Spacing and layout
 
-- Horizontal page padding: `px-3 sm:px-4 lg:px-6 xl:px-8` on main content (matches `Layout.tsx`).
-- Vertical rhythm: `space-y-4`–`space-y-8` between major blocks.
-- Sticky header: `sticky top-0 z-30` with `backdrop-blur` for readability over scrolling content.
+- **Horizontal padding:** `px-3 sm:px-4 lg:px-6 xl:px-8` on main content (`Layout.tsx`).
+- **Vertical rhythm:** `space-y-4`–`space-y-8` between major blocks.
+- **Header:** `sticky top-0 z-30` with `backdrop-blur` for readability over scroll.
+
+---
 
 ## 7. Motion
 
-- Keep transitions **short** (`transition`, `duration` defaults); toast uses `@keyframes cap-toast-in`.
-- Avoid motion-only affordances; pair with color/label changes.
+- Transitions: short defaults (`transition`, standard duration); avoid long easing on large surfaces.
+- Toasts: `@keyframes cap-toast-in` in `index.css`.
+- Do not rely on animation alone for state changes—pair with color and labels.
+
+---
 
 ## 8. Accessibility checklist
 
-- Dialogs: `role="dialog"`, `aria-modal`, visible Close, Escape handling.
-- Chart/table toggles: `aria-pressed` on view mode buttons.
-- Stepper / gallery: `aria-expanded`, listbox semantics on preset menus where applicable.
-- Maintain **contrast** for red-on-white primary buttons (WCAG AA for text on `bg-red-600`).
+- **Dialogs:** `role="dialog"`, `aria-modal="true"`, labelled close control, **Escape** closes.
+- **Toggle groups:** `aria-pressed` on chart/table mode buttons where implemented.
+- **Navigation:** Visible focus rings on keyboard tab order.
+- **Icons:** Decorative SVGs `aria-hidden`; interactive icons have `aria-label` or visible text.
+- **Charts:** Provide tabular alternate via chart/table toggle where available.
+
+---
 
 ## 9. Icons
 
-Inline SVGs in `Layout.tsx` for navigation; stroke width 2; `aria-hidden` on decorative icons; interactive controls have `aria-label` or visible text.
+Inline SVGs in `Layout.tsx` for navigation; stroke width **2**; consistent size with text alignment.
+
+---
+
+## 10. Content and data visualization
+
+- **Axis labels:** Prefer `shortLabel` from `GET /api/metrics` for compact charts.
+- **Footnotes:** Use short, factual notes for year lag, interpolation, or WLD proxy—link or align with **GUARDRAILS.md** wording.
+- **Maps:** When `dataYear ≠ requestedYear`, surface both values in UI copy or legend.
+
+---
+
+*Update this file when adding themes, new shared components, or a formal design token pipeline.*

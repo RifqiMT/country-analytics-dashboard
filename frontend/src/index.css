@@ -72,3 +72,19 @@ body {
 .cap-fs-table-shell td {
   padding: 0.625rem 1rem;
 }
+
+/**
+ * Global analytics: group fullscreen (VisualizationStepper) — WLD cards fill the step panel height.
+ */
+.cap-viz-gallery-step .cap-wld-chart-host {
+  flex: 1 1 0% !important;
+  height: auto !important;
+  min-height: min(48dvh, 520px);
+}
+
+/** Per-chart / per-map fullscreen (ChartTableToggle): Recharts fills the flex plot shell */
+.cap-viz-fullscreen .recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: 100%;
+}

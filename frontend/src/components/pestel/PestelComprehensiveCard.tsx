@@ -4,6 +4,10 @@ export default function PestelComprehensiveCard({ sections }: { sections: Compre
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <h2 className="text-xl font-bold text-slate-900">Comprehensive Analysis</h2>
+      <p className="mt-2 text-sm text-slate-500">
+        Each section is three short paragraphs: what the dashboard series show, what recent public reporting adds when
+        available, and what it implies for this theme—written as one coherent brief, not a labeled outline.
+      </p>
       <div className="mt-4 border-t border-slate-200 pt-6">
         <div className="space-y-8">
           {sections.map((s, i) => (

@@ -31,6 +31,7 @@ import ChartGranularityToggle from "../charts/ChartGranularityToggle";
 import ChartTableToggle from "../charts/ChartTableToggle";
 import SeriesLineDataTable, { type SeriesTableColumn } from "../charts/SeriesLineDataTable";
 import { VisualizationStepperFromChildren } from "../charts/VisualizationStepper";
+import AccordionSection from "../dashboard/AccordionSection";
 import type { TooltipProps } from "recharts";
 
 const WLD_METRICS =
@@ -135,14 +136,16 @@ function WldGranulatedCard({
     />
   );
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex h-full min-h-0 w-full flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <h3 className="text-sm font-bold uppercase tracking-wide text-slate-600">{title}</h3>
         <ChartGranularityToggle value={granularity} onChange={setGranularity} />
       </div>
-      <div className="mt-3 h-72 w-full">{children({ data, xAxis, vizTitle: title })}</div>
+      <div className="cap-wld-chart-host mt-3 flex h-72 min-h-[18rem] w-full min-w-0 flex-1 flex-col">
+        {children({ data, xAxis, vizTitle: title })}
+      </div>
       {granularity !== "annual" ? (
-        <p className="mt-2 text-[10px] leading-relaxed text-slate-400">{GRANULARITY_DISCLAIMER}</p>
+        <p className="mt-2 shrink-0 text-[10px] leading-relaxed text-slate-400">{GRANULARITY_DISCLAIMER}</p>
       ) : null}
     </div>
   );
@@ -184,6 +187,11 @@ const WLD_VIZ_META = [
     summary: "Working-age, youth, and older population as shares of total.",
   },
 ] as const;
+
+const WLD_FIN_META = WLD_VIZ_META.slice(0, 3);
+const WLD_HEALTH_META = WLD_VIZ_META.slice(3, 5);
+const WLD_EDU_META: readonly (typeof WLD_VIZ_META)[number][] = [WLD_VIZ_META[5]!];
+const WLD_LABOUR_META = WLD_VIZ_META.slice(6, 8);
 
 export default function GlobalWldCharts() {
   const [bundle, setBundle] = useState<Bundle>({});
@@ -261,12 +269,19 @@ export default function GlobalWldCharts() {
   if (err) return <p className="text-sm text-red-600">{err}</p>;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-1">
+    <div className="grid gap-3 lg:grid-cols-1">
       <p className="text-xs leading-relaxed text-slate-500">
         WLD series use the same API as the country dashboard: the last published value may be carried forward by up to
-        three years at the end of the range. GDP levels and per-capita scales are split so lines stay readable.
+        three years at the end of the range. GDP levels and per-capita scales are split so lines stay readable. Groups
+        mirror the country dashboard: Financial, Health &amp; demographics, Education, and Labour.
       </p>
-      <VisualizationStepperFromChildren groupLabel="Global aggregate charts" meta={WLD_VIZ_META}>
+
+      <AccordionSection title="Financial metrics" defaultOpen>
+        <p className="mb-3 text-xs text-slate-500">
+          World aggregate (WLD) GDP, debt, per-capita income, population, and macro / poverty rates — same themes as the
+          financial block on the country dashboard.
+        </p>
+        <VisualizationStepperFromChildren groupLabel="Financial (WLD)" meta={WLD_FIN_META}>
       <WldGranulatedCard
         title="Global GDP & debt (WLD, US$)"
         annualData={gdpLevels}
@@ -274,7 +289,7 @@ export default function GlobalWldCharts() {
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -345,7 +360,7 @@ export default function GlobalWldCharts() {
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -429,7 +444,7 @@ export default function GlobalWldCharts() {
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -515,7 +530,15 @@ export default function GlobalWldCharts() {
           />
         )}
       </WldGranulatedCard>
+        </VisualizationStepperFromChildren>
+      </AccordionSection>
 
+      <AccordionSection title="Health & demographics" defaultOpen>
+        <p className="mb-3 text-xs text-slate-500">
+          Mortality, life expectancy, and nutrition — aligned with the health &amp; demographics section on the country
+          dashboard.
+        </p>
+        <VisualizationStepperFromChildren groupLabel="Health (WLD)" meta={WLD_HEALTH_META}>
       <WldGranulatedCard
         title="Health — mortality (WLD)"
         annualData={healthMortality}
@@ -523,7 +546,7 @@ export default function GlobalWldCharts() {
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -577,7 +600,7 @@ export default function GlobalWldCharts() {
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -635,7 +658,12 @@ export default function GlobalWldCharts() {
           />
         )}
       </WldGranulatedCard>
+        </VisualizationStepperFromChildren>
+      </AccordionSection>
 
+      <AccordionSection title="Education" defaultOpen>
+        <p className="mb-3 text-xs text-slate-500">WLD enrollment headcounts and gross enrollment ratios by level.</p>
+        <VisualizationStepperFromChildren groupLabel="Education (WLD)" meta={WLD_EDU_META}>
       <WldGranulatedCard
         title="Education enrollment (WLD)"
         annualData={edu}
@@ -650,7 +678,7 @@ export default function GlobalWldCharts() {
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -747,11 +775,19 @@ export default function GlobalWldCharts() {
           />
         )}
       </WldGranulatedCard>
+        </VisualizationStepperFromChildren>
+      </AccordionSection>
 
+      <AccordionSection title="Labour" defaultOpen>
+        <p className="mb-3 text-xs text-slate-500">
+          Derived unemployed count vs labour force and age-structure shares — same labour framing as the country
+          dashboard.
+        </p>
+        <VisualizationStepperFromChildren groupLabel="Labour (WLD)" meta={WLD_LABOUR_META}>
       <WldGranulatedCard title="Labour (WLD, derived unemployed)" annualData={labour} valueKeys={["unemployed", "labour"]}>
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -813,7 +849,7 @@ export default function GlobalWldCharts() {
       <WldGranulatedCard title="Age structure shares (WLD, %)" annualData={age} valueKeys={["pop_15_64_pct", "pop_age_0_14", "pop_age_65_plus"]}>
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
-            className="h-full w-full"
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
             vizTitle={vizTitle}
             chart={
               <ResponsiveContainer width="100%" height="100%">
@@ -869,7 +905,8 @@ export default function GlobalWldCharts() {
           />
         )}
       </WldGranulatedCard>
-      </VisualizationStepperFromChildren>
+        </VisualizationStepperFromChildren>
+      </AccordionSection>
     </div>
   );
 }

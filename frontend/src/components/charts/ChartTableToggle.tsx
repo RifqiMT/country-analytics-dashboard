@@ -136,15 +136,19 @@ export default function ChartTableToggle({
             : "min-h-0 flex-1 overflow-auto rounded-xl border border-slate-100 bg-white"
           : fullscreen
             ? "cap-viz-fullscreen flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-3"
-            : "min-h-0 flex-1 overflow-hidden"
+            : "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
       }
     >
       {fullscreen && mode === "chart" ? (
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-          <div className="absolute inset-0">{chart}</div>
+          <div className="absolute inset-0 min-h-0 min-w-0">
+            <div className="h-full w-full min-h-0 min-w-0 overflow-hidden">{chart}</div>
+          </div>
         </div>
       ) : mode === "chart" ? (
-        chart
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <div className="h-full min-h-[240px] w-full min-w-0">{chart}</div>
+        </div>
       ) : (
         table
       )}

@@ -235,15 +235,17 @@ export default function BusinessAnalytics() {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
-          Business Analytics
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-          Multi-metric correlation analysis: compare countries across two metrics to explore market
-          positioning and correlations. Uses the same analyst-grade data as the platform (World Bank,
-          UN, WHO, IMF; 2000 – latest). Use the year range and highlight country filters below; then
-          select X and Y axes. Each country–year in the range is a point.
-        </p>
+        <div className="grid grid-cols-1 gap-3">
+          <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
+            Business Analytics
+          </h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+            Multi-metric correlation analysis: compare countries across two metrics to explore market
+            positioning and correlations. Uses the same analyst-grade data as the platform (World Bank,
+            UN, WHO, IMF; 2000 – latest). Use the year range and highlight country filters below; then
+            select X and Y axes. Each country–year in the range is a point.
+          </p>
+        </div>
 
         <div className="mt-5 space-y-4">
           <div className="flex flex-wrap gap-8">

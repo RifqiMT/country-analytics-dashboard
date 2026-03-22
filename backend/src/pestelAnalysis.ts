@@ -1,6 +1,8 @@
 import type { SeriesPoint } from "./worldBank.js";
 import type { CountrySummary } from "./restCountries.js";
 import type { WbCountryProfile } from "./wbCountryProfile.js";
+import { METRIC_BY_ID } from "./metrics.js";
+import { PESTEL_DIGEST_KEYS } from "./pestelDigestKeys.js";
 
 export type PestelDimension = {
   letter: "P" | "E" | "S" | "T" | "E" | "L";
@@ -178,9 +180,213 @@ function mapParsedDimensions(parsed: PestelDimension[]): Map<string, string[]> {
   return m;
 }
 
-function nonemptyLines(a: string[] | undefined, min: number): string[] | null {
-  const x = a?.filter(Boolean) ?? [];
-  return x.length >= min ? x : null;
+/** Split prose into paragraphs (blank-line separated). */
+function splitParagraphs(text: string): string[] {
+  return text
+    .split(/\n\s*\n/)
+    .map((p) => p.replace(/\r/g, "").trim())
+    .filter(Boolean);
+}
+
+const GENERIC_PAD =
+  "Stress-test conclusions against the dashboard time series, primary filings, and regulator notices before capital allocation.";
+
+const FIVE_ITEM_PADS = [
+  "Reconcile headline indicators with charted trends and peer benchmarks before board or IC sign-off.",
+  "Use Global Analytics to position this economy against regional peers on the metrics that matter for your sector.",
+  "Refresh the view after material data revisions, elections, or policy shocks.",
+] as const;
+
+/** Normalize for duplicate detection (not for display). */
+function pestelBulletDedupeKey(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9\s]/g, "")
+    .trim();
+}
+
+function dedupeStringsPreserveOrder(items: string[]): string[] {
+  const local = new Set<string>();
+  const out: string[] = [];
+  for (const raw of items) {
+    const t = raw.trim();
+    if (!t) continue;
+    const k = pestelBulletDedupeKey(t);
+    if (k.length >= 12 && local.has(k)) continue;
+    if (k.length >= 12) local.add(k);
+    out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Five bullets: LLM first, then fallback, then pads. Optional `globalSeen` prevents the same point from reappearing across SWOT quadrants.
+ */
+function ensureFiveBullets(
+  primary: string[],
+  fallback: string[],
+  globalSeen?: Set<string>
+): string[] {
+  const out: string[] = [];
+  const tryPush = (candidate: string, registerGlobal: boolean): boolean => {
+    const t = candidate.trim();
+    if (!t) return false;
+    const k = pestelBulletDedupeKey(t);
+    if (k.length >= 12) {
+      if (registerGlobal && globalSeen?.has(k)) return false;
+      if (out.some((x) => pestelBulletDedupeKey(x) === k)) return false;
+      if (registerGlobal) globalSeen?.add(k);
+    } else if (out.includes(t)) return false;
+    out.push(t);
+    return true;
+  };
+
+  for (const t of dedupeStringsPreserveOrder(primary.map((b) => b.trim()).filter(Boolean))) {
+    tryPush(t, true);
+  }
+
+  let fi = 0;
+  while (out.length < 5 && fi < fallback.length) {
+    tryPush(fallback[fi++]!, true);
+  }
+  let pi = 0;
+  while (out.length < 5 && pi < 24) {
+    tryPush(FIVE_ITEM_PADS[pi % FIVE_ITEM_PADS.length]!, false);
+    pi += 1;
+  }
+  let guard = 0;
+  while (out.length < 5 && guard++ < 30) {
+    tryPush(GENERIC_PAD, false);
+  }
+  return out.slice(0, 5);
+}
+
+/**
+ * Ensure exactly three non-empty paragraphs: pad from fallbacks, or merge overflow into the third.
+ */
+function ensureThreeParagraphs(primary: string[], fallback: string[]): string[] {
+  const out = primary.map((p) => p.trim()).filter(Boolean);
+  let fi = 0;
+  while (out.length < 3 && fi < fallback.length) {
+    const next = fallback[fi]!.trim();
+    fi += 1;
+    if (next && !out.includes(next)) out.push(next);
+  }
+  while (out.length < 3) out.push(GENERIC_PAD);
+  if (out.length > 3) {
+    return [out[0]!, out[1]!, out.slice(2).join(" ")];
+  }
+  return out;
+}
+
+function formatDigestMetricValue(id: string, value: number): string {
+  const pctLike = new Set([
+    "gdp_growth",
+    "inflation",
+    "gov_debt_pct_gdp",
+    "unemployment_ilo",
+    "poverty_headcount",
+    "poverty_national",
+    "undernourishment",
+    "pop_age_0_14",
+    "pop_age_65_plus",
+    "pop_15_64_pct",
+    "literacy_adult",
+    "enrollment_primary_pct",
+    "enrollment_secondary",
+    "enrollment_tertiary_pct",
+    "lending_rate",
+    "interest_real",
+    "edu_expenditure_gdp",
+  ]);
+  if (pctLike.has(id)) return `${Number(value.toFixed(1))}%`;
+  if (id === "life_expectancy") return `${value.toFixed(1)} years`;
+  if (id === "population" || id === "labor_force_total") return fmtPop(value);
+  if (
+    id === "gdp" ||
+    id === "gdp_ppp" ||
+    id === "gdp_per_capita" ||
+    id === "gdp_per_capita_ppp" ||
+    id === "gov_debt_usd"
+  ) {
+    return fmtUsd(value);
+  }
+  if (id.includes("_count") || id.includes("teachers_")) {
+    return Math.round(value).toLocaleString("en-US");
+  }
+  if (id === "completion_tertiary") return `${Number(value.toFixed(1))}%`;
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+/**
+ * Human-readable dashboard digest for Groq: metric labels + rounded figures (no raw 14-digit floats).
+ * Includes education series so TECHNOLOGICAL sections can use skills pipeline data instead of misusing GDP.
+ */
+export function buildPestelLlmDigest(countryName: string, bundle: Record<string, SeriesPoint[]>): string {
+  const lines: string[] = [
+    `COUNTRY: ${countryName}`,
+    "",
+    "PLATFORM INDICATORS — World Bank WDI / IMF / UIS (via this app). Treat as quantitative ground truth for the country.",
+    "In prose, cite rounded figures (e.g. one decimal for rates) and the year shown—do not paste machine-precision numbers.",
+    "",
+    "INDICATORS:",
+  ];
+  for (const k of PESTEL_DIGEST_KEYS) {
+    const lv = latest(bundle, k);
+    if (!lv) continue;
+    const label = METRIC_BY_ID[k]?.label ?? k;
+    const formatted = formatDigestMetricValue(k, lv.value);
+    lines.push(`• ${label}: ${formatted} (year ${lv.year})`);
+  }
+  lines.push(
+    "",
+    "For TECHNOLOGICAL analysis: prefer literacy + secondary/tertiary enrollment and education spend above; do not use GDP per capita as a stand-in for digital adoption. Pair with web research excerpts for digital policy, infrastructure, and innovation.",
+    "",
+    "GROUNDING (mandatory): Any numeric statistic in your JSON must either (a) correspond to an INDICATORS line above (same concept, allowed rounding in prose) or (b) appear explicitly in the web research excerpts below. Do not invent figures, rankings, growth rates, or years from model memory.",
+    "REST COUNTRIES / PROFILE: Government type, region, and income group in the API response are authoritative for static country metadata—do not substitute from memory."
+  );
+  return lines.join("\n");
+}
+
+function normalizeComprehensiveSections(
+  fromLlm: ComprehensiveSection[] | undefined,
+  fallback: ComprehensiveSection[]
+): ComprehensiveSection[] {
+  const byTitle = new Map<string, ComprehensiveSection>();
+  for (const s of fromLlm ?? []) {
+    byTitle.set(s.title.trim().toLowerCase(), s);
+  }
+  return fallback.map((fb) => {
+    const llm = byTitle.get(fb.title.trim().toLowerCase());
+    const rawBody = llm?.body?.trim() ? llm.body : fb.body;
+    const fromLlmParas = splitParagraphs(rawBody);
+    const fbParas = splitParagraphs(fb.body);
+    const three = ensureThreeParagraphs(fromLlmParas, fbParas);
+    return { title: fb.title, body: three.join("\n\n") };
+  });
+}
+
+function normalizeStrategicSections(
+  fromLlm: StrategicSection[] | undefined,
+  fallback: StrategicSection[]
+): StrategicSection[] {
+  const byTitle = new Map<string, StrategicSection>();
+  for (const s of fromLlm ?? []) {
+    byTitle.set(s.title.trim().toLowerCase(), s);
+  }
+  return fallback.map((fb) => {
+    const llm = byTitle.get(fb.title.trim().toLowerCase());
+    let primary: string[] = [];
+    if (llm?.paragraphs?.length) {
+      primary = llm.paragraphs.map((p) => p.trim()).filter(Boolean);
+    } else if (llm && typeof (llm as unknown as { body?: string }).body === "string") {
+      primary = splitParagraphs((llm as unknown as { body: string }).body);
+    }
+    if (!primary.length) primary = [...fb.paragraphs];
+    const three = ensureThreeParagraphs(primary, fb.paragraphs);
+    return { title: fb.title, paragraphs: three };
+  });
 }
 
 export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: PestelAnalysis): PestelAnalysis {
@@ -188,30 +394,31 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
 
   const pestelDimensions: PestelDimension[] = DIMENSION_TEMPLATE.map((t, i) => {
     const fromLlm = byLabel.get(t.label);
-    const fb = fallback.pestelDimensions[i];
-    const merged =
-      fromLlm && fromLlm.filter(Boolean).length >= 3 ? fromLlm : fb?.bullets?.length ? fb.bullets : fromLlm ?? fb?.bullets ?? [];
-    return { letter: t.letter, label: t.label, bullets: merged.length ? merged : ["—"] };
+    const fb = fallback.pestelDimensions[i]!;
+    const merged = ensureFiveBullets(fromLlm ?? [], fb.bullets);
+    return { letter: t.letter, label: t.label, bullets: merged };
   });
 
+  const swotGlobal = new Set<string>();
   const swot: PestelSwot = {
-    strengths: nonemptyLines(partial.swot?.strengths, 3) ?? fallback.swot.strengths,
-    weaknesses: nonemptyLines(partial.swot?.weaknesses, 3) ?? fallback.swot.weaknesses,
-    opportunities: nonemptyLines(partial.swot?.opportunities, 3) ?? fallback.swot.opportunities,
-    threats: nonemptyLines(partial.swot?.threats, 3) ?? fallback.swot.threats,
+    strengths: ensureFiveBullets(partial.swot?.strengths ?? [], fallback.swot.strengths, swotGlobal),
+    weaknesses: ensureFiveBullets(partial.swot?.weaknesses ?? [], fallback.swot.weaknesses, swotGlobal),
+    opportunities: ensureFiveBullets(partial.swot?.opportunities ?? [], fallback.swot.opportunities, swotGlobal),
+    threats: ensureFiveBullets(partial.swot?.threats ?? [], fallback.swot.threats, swotGlobal),
   };
 
-  const comp = partial.comprehensiveSections?.filter((s) => s.body.trim()) ?? [];
-  const comprehensiveSections = comp.length >= 2 ? comp : fallback.comprehensiveSections;
+  const comprehensiveSections = normalizeComprehensiveSections(
+    partial.comprehensiveSections,
+    fallback.comprehensiveSections
+  );
 
-  const strat = partial.strategicBusiness?.filter((s) => s.paragraphs.some(Boolean)) ?? [];
-  const strategicBusiness = strat.length >= 2 ? strat : fallback.strategicBusiness;
+  const strategicBusiness = normalizeStrategicSections(partial.strategicBusiness, fallback.strategicBusiness);
 
-  const newMarketAnalysis = nonemptyLines(partial.newMarketAnalysis, 3) ?? fallback.newMarketAnalysis;
-  const keyTakeaways = nonemptyLines(partial.keyTakeaways, 3) ?? fallback.keyTakeaways;
-  const recommendations = nonemptyLines(partial.recommendations, 2) ?? fallback.recommendations;
+  const newMarketAnalysis = ensureFiveBullets(partial.newMarketAnalysis ?? [], fallback.newMarketAnalysis);
+  const keyTakeaways = ensureFiveBullets(partial.keyTakeaways ?? [], fallback.keyTakeaways);
+  const recommendations = ensureFiveBullets(partial.recommendations ?? [], fallback.recommendations);
 
-  return {
+  return polishPestelAnalysisForClient({
     pestelDimensions,
     swot,
     comprehensiveSections,
@@ -219,6 +426,78 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
     newMarketAnalysis,
     keyTakeaways,
     recommendations,
+  });
+}
+
+/** Remove internal retrieval jargon from strings shown to end users. */
+function polishPestelProse(s: string): string {
+  let t = s;
+  const pairs: [RegExp, string][] = [
+    [/\bSOURCE\s+A\b/gi, ""],
+    [/\bSOURCE\s+B\b/gi, ""],
+    [/\bSource\s+A\b/g, ""],
+    [/\bSource\s+B\b/g, ""],
+    [/\bSTATIC\s+PROFILE\b/gi, ""],
+    [/\bSTATE\s+A\b/gi, ""],
+    [/\bPast\s+7\s+days\b/gi, "over roughly the past week"],
+    [/\bPast\s+1\s+month\b/gi, "over roughly the past month"],
+    [/\bPast\s+6\s+months\b/gi, "over roughly the past six months"],
+    [/\bPast\s+1\s+year\b/gi, "over roughly the past year"],
+    [/\bPast\s+5\s+years\b/gi, "over roughly the past five years"],
+    [/\[---[^\]]*truncated[^\]]*\]/gi, ""],
+    [/\[Internal:[^\]]*\]/gi, ""],
+    [/\[Model note:[^\]]*\]/gi, ""],
+    [/\bFrom platform metadata,?\s*/gi, ""],
+    [/\bGrounded in the app'?s WDI-backed series:\s*/gi, ""],
+    [/\bFrom the application'?s WDI-backed series,?\s*/gi, ""],
+    [/\bDemographic and well-being indicators from the platform include:\s*/gi, "Available demographic and well-being indicators include "],
+    [/\bData layer:\s*/gi, ""],
+    [/\bplatform'?s WDI-backed series\b/gi, "World Bank development indicators"],
+    [/\bthe application'?s WDI-backed series\b/gi, "World Bank development indicators"],
+    [/\bWDI-backed series\b/gi, "official development statistics"],
+    [/\bWDI-backed\b/gi, "indicator-based"],
+    [/\bMacro WDI series\b/gi, "Headline macro series"],
+    [/\bin WDI for\b/gi, "for"],
+    [/\bin WDI\b/gi, "in the official series"],
+    [/\bfrom WDI\b/gi, "from the official series"],
+    [/\bin REST Countries dataset\b/gi, "in this reference profile"],
+    [/\bREST Countries dataset\b/gi, "the reference profile"],
+    [/\(REST Countries\)/gi, "(profile)"],
+    [/\bREST Countries\b/gi, "the country profile"],
+  ];
+  for (const [re, rep] of pairs) t = t.replace(re, rep);
+  return t
+    .replace(/\s+,/g, ",")
+    .replace(/\s+\./g, ".")
+    .replace(/\(\s*\)/g, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,;:.!?])/g, "$1")
+    .trim();
+}
+
+export function polishPestelAnalysisForClient(a: PestelAnalysis): PestelAnalysis {
+  return {
+    pestelDimensions: a.pestelDimensions.map((d) => ({
+      ...d,
+      bullets: d.bullets.map(polishPestelProse),
+    })),
+    swot: {
+      strengths: a.swot.strengths.map(polishPestelProse),
+      weaknesses: a.swot.weaknesses.map(polishPestelProse),
+      opportunities: a.swot.opportunities.map(polishPestelProse),
+      threats: a.swot.threats.map(polishPestelProse),
+    },
+    comprehensiveSections: a.comprehensiveSections.map((s) => ({
+      ...s,
+      body: polishPestelProse(s.body),
+    })),
+    strategicBusiness: a.strategicBusiness.map((s) => ({
+      ...s,
+      paragraphs: s.paragraphs.map(polishPestelProse),
+    })),
+    newMarketAnalysis: a.newMarketAnalysis.map(polishPestelProse),
+    keyTakeaways: a.keyTakeaways.map(polishPestelProse),
+    recommendations: a.recommendations.map(polishPestelProse),
   };
 }
 
@@ -233,7 +512,7 @@ export function buildDataOnlyPestel(
   const region = meta?.region ?? profile?.region ?? "—";
   const sub = meta?.subregion ?? "—";
   const income = profile?.incomeLevel ?? "—";
-  const gov = meta?.government ?? "Government type not listed in REST Countries dataset.";
+  const gov = meta?.government ?? "Government system label is not on file for this profile—confirm with official sources.";
   const pop = latest(bundle, "population");
   const gdp = latest(bundle, "gdp");
   const gdpPc = latest(bundle, "gdp_per_capita");
@@ -244,8 +523,21 @@ export function buildDataOnlyPestel(
   const y014 = latest(bundle, "pop_age_0_14");
   const y65 = latest(bundle, "pop_age_65_plus");
   const lit = latest(bundle, "literacy_adult");
+  const enrollSec = latest(bundle, "enrollment_secondary");
+  const enrollTert = latest(bundle, "enrollment_tertiary_pct");
+  const eduSpend = latest(bundle, "edu_expenditure_gdp");
   const unemp = latest(bundle, "unemployment_ilo");
   const area = meta?.area;
+
+  const techSignalBits: string[] = [];
+  if (lit) techSignalBits.push(`adult literacy about ${lit.value.toFixed(1)}% (${lit.year})`);
+  if (enrollSec) techSignalBits.push(`secondary gross enrollment about ${enrollSec.value.toFixed(1)}% (${enrollSec.year})`);
+  if (enrollTert) techSignalBits.push(`tertiary gross enrollment about ${enrollTert.value.toFixed(1)}% (${enrollTert.year})`);
+  if (eduSpend) techSignalBits.push(`public education spending about ${eduSpend.value.toFixed(1)}% of GDP (${eduSpend.year})`);
+  const techDataParagraph =
+    techSignalBits.length > 0
+      ? `Reported education and skills indicators include ${techSignalBits.join("; ")}. Together they frame workforce readiness for digital and R&D-intensive work; they do not replace dedicated ICT infrastructure statistics—triangulate with national telecom and cloud-market data and recent coverage where available.`
+      : "Education and skills indicators are only partly populated for this economy; review secondary and tertiary enrollment and literacy in the country charts before inferring technology adoption potential.";
 
   const econLines: string[] = [];
   if (gdp) econLines.push(`Nominal GDP (${gdp.year}): ${fmtUsd(gdp.value)}.`);
@@ -262,15 +554,19 @@ export function buildDataOnlyPestel(
   if (life) socialLines.push(`Life expectancy at birth (${life.year}): ${life.value.toFixed(1)} years.`);
   if (lit) socialLines.push(`Adult literacy (${lit.year}): ${pct(lit.value)} where reported.`);
 
-  const execBody = [
-    `${countryName} (${cca3}) — quantitative snapshot from World Bank WDI (where available) and REST Countries metadata.`,
-    econLines.slice(0, 4).join(" "),
+  const macroPara1 = [
+    `${countryName} (${cca3}) is classified by the World Bank as ${income} and sits in ${region}${sub !== "—" ? ` (${sub})` : ""}.`,
+    econLines.slice(0, 3).join(" "),
     socialLines.slice(0, 2).join(" "),
-    `World Bank region: ${region}; income group: ${income}.`,
-    `Set GROQ_API_KEY (and optionally TAVILY_API_KEY) for full narrative PESTEL, SWOT, and recommendations.`,
   ]
-    .filter(Boolean)
-    .join("\n\n");
+    .filter((s) => s.trim().length > 0)
+    .join(" ");
+
+  const macroPara2 =
+    "These figures draw on World Bank development indicators (latest reported year per series). They do not capture firm-level performance, informal activity, or events after the observation year—supplement with market data, regulator notices, and current press when available.";
+
+  const macroPara3 =
+    "Cross-check levels and momentum in the country charts and peer benchmarks; treat this note as a structured baseline ahead of investment, entry, or policy decisions.";
 
   const pestelDimensions: PestelDimension[] = [
     {
@@ -281,41 +577,34 @@ export function buildDataOnlyPestel(
         `Geopolitical framing: ${region}${sub !== "—" ? ` · ${sub}` : ""} — validate current leadership and policy priorities with primary sources.`,
         `Cross-check corruption, bureaucracy, and regulatory stability with Transparency International, Doing Business successors, and local counsel.`,
         `Trade and alliance context (e.g. ASEAN, RCEP, bilateral ties) should be confirmed for your sector and time horizon.`,
-        `Data layer: REST Countries + World Bank country metadata; supplement with news and official gazettes.`,
+        `Baseline geography and income classification come from standard country reference data—validate leadership statements, budgets, and gazettes against primary sources.`,
       ],
     },
     {
       letter: "E",
       label: "ECONOMIC",
-      bullets:
-        econLines.length >= 5
-          ? econLines.slice(0, 5)
-          : [
-              ...econLines,
-              `Income classification (WB): ${income}.`,
-              "Open the Country Dashboard for charts, YoY changes, and peer comparison.",
-            ].slice(0, 5),
+      bullets: ensureFiveBullets(econLines, [
+        `Income classification (WB): ${income}.`,
+        "Open the Country Dashboard for charts, YoY changes, and peer comparison.",
+      ]),
     },
     {
       letter: "S",
       label: "SOCIOCULTURAL",
-      bullets:
-        socialLines.length >= 4
-          ? socialLines.slice(0, 5)
-          : [
-              ...socialLines,
-              "Urbanization, inequality, and middle-class dynamics require sector-specific consumer research.",
-              "Education and skills data in WDI support workforce planning — pair with local hiring market intelligence.",
-            ].slice(0, 5),
+      bullets: ensureFiveBullets(socialLines, [
+        "Urbanization, inequality, and middle-class dynamics require sector-specific consumer research.",
+        "Education and skills statistics support workforce planning—pair with local hiring market intelligence.",
+      ]),
     },
     {
       letter: "T",
       label: "TECHNOLOGICAL",
       bullets: [
         "Digital adoption, fintech, and e-commerce penetration vary sharply by island/region — use operator and regulator filings where possible.",
-        "National digital infrastructure and literacy programs (where reported in WDI) are a baseline; pilot markets before national rollouts.",
+        "National digital infrastructure and literacy programs (where reported in official statistics) are a baseline; pilot markets before national rollouts.",
         "Cybersecurity, data residency, and cloud policy should be validated with ICT ministry guidance.",
         "Startup ecosystem signals are qualitative — triangulate with investment databases and local accelerators.",
+        "Regulatory sandboxes and sector-specific tech licensing (e.g. health, finance) can accelerate pilots—confirm eligibility with ministry circulars.",
       ],
     },
     {
@@ -323,9 +612,10 @@ export function buildDataOnlyPestel(
       label: "ENVIRONMENTAL",
       bullets: [
         "Climate exposure (coastal, flood, drought) is material for supply chains — use IPCC national chapters and local hazard maps.",
-        `Land and maritime area (REST Countries): ${area != null ? `${(area / 1e6).toFixed(2)} Mn km² total land` : "—"}; EEZ and offshore claims need hydrographic/regulatory confirmation.`,
+        `Reported land area: ${area != null ? `about ${(area / 1e6).toFixed(2)} million km²` : "—"}; EEZ and offshore claims still need hydrographic and regulatory confirmation.`,
         "Energy mix and emissions commitments: verify with UNFCCC submissions and national energy balances.",
         "Natural-resource sectors (forestry, mining, agriculture) carry permitting and ESG scrutiny — align with host-country ESG rules.",
+        "Transition finance, green procurement, and carbon-border alignment increasingly affect market access—track major trade partner rules.",
       ],
     },
     {
@@ -336,6 +626,7 @@ export function buildDataOnlyPestel(
         "IP, competition, and consumer-protection enforcement differ by sector; check registrar and competition authority decisions.",
         "Labor law, tax treaties, and transfer-pricing posture should be modeled before operating scale.",
         "Sanctions, export controls, and FDI screening are dynamic — re-check at deal time.",
+        "Dispute forums, judgment enforcement, and court backlog materially affect contract design—benchmark against regional peers.",
       ],
     },
   ];
@@ -346,47 +637,97 @@ export function buildDataOnlyPestel(
       `Regional position: ${region} — map logistics corridors and trade agreements relevant to your product.`,
       gdp ? `Economic mass: nominal GDP ${fmtUsd(gdp.value)} (${gdp.year}).` : "Use dashboard series to size GDP when available.",
       "Natural-resource or services endowments are country-specific — tie to your value chain.",
+      growth
+        ? `Recent GDP growth print (${growth.year}): ${pct(growth.value)} — frames demand momentum subject to composition effects.`
+        : "Pull GDP growth and terms-of-trade proxies from the dashboard to benchmark demand momentum.",
     ],
     weaknesses: [
-      "Macro WDI series are not firm-level: governance, infrastructure, and execution gaps need local diligence.",
+      "Headline macro series are not firm-level: governance, infrastructure, and execution gaps need local diligence.",
       "Data gaps and lags are common; do not treat a single year as structural truth.",
-      "Without LLM narrative, SWOT bullets are intentionally generic — enable Groq for tailored SWOT.",
+      "For a fuller, time-stamped storyline, enable AI narrative and live web research in settings; this view stays indicator-anchored.",
+      debt
+        ? `Public debt burden (${debt.year}): ${pct(debt.value)} of GDP may constrain fiscal space for subsidies or infrastructure.`
+        : "Track government debt and contingent liabilities when fiscal headroom matters for your sector.",
+      unemp
+        ? `Labour slack (${unemp.year}): unemployment near ${pct(unemp.value)} — affects wage pressure and consumer confidence.`
+        : "Monitor unemployment and labour-force participation on the dashboard for wage and demand signals.",
     ],
     opportunities: [
       income !== "—" ? `Income group ${income} frames consumption potential — segment by city tier.` : "Segment by city tier and channel.",
       "Manufacturing, tourism, digital services, and green-tech angles depend on sector fit — stress-test with local partners.",
+      life
+        ? `Rising longevity (${life.year}: ${life.value.toFixed(1)} yr life expectancy) shifts healthcare, insurance, and silver-economy demand.`
+        : "Demographic ageing patterns in the official series inform healthcare, insurance, and workforce planning.",
+      "Regional trade blocs and logistics upgrades can expand reachable markets if customs and standards align.",
+      "Digital public infrastructure and e-government maturity (verify via web) can lower customer acquisition cost for online models.",
     ],
     threats: [
       infl && infl.value > 5 ? `Elevated inflation (${pct(infl.value)} in ${infl.year}) can compress margins.` : "Macro volatility and FX risk require hedging and pricing discipline.",
       "Climate, geopolitical, and regulatory shocks are outside this digest — monitor scenario planning.",
+      "Commodity and energy price swings pass through to input costs—stress-test margins under upside scenarios.",
+      "Cyber incidents and data breaches can disrupt operations; align with national cybersecurity expectations.",
+      "Competitive entry from regional peers or substitutes may accelerate if trade barriers fall.",
     ],
   };
 
   const comprehensiveSections: ComprehensiveSection[] = [
-    { title: "Executive summary", body: execBody },
+    {
+      title: "Executive summary",
+      body: [macroPara1, macroPara2, macroPara3].join("\n\n"),
+    },
     {
       title: "Political factors",
-      body: pestelDimensions[0].bullets.join("\n\n"),
+      body: [
+        `The reference profile characterises government as: ${gov}. The economy sits in ${region}${sub !== "—" ? ` / ${sub}` : ""}, which frames alliances, trade blocs, and neighbourhood spillovers relevant to policy risk.`,
+        "Latest elections, cabinet changes, industrial policy, and geopolitical tensions sit outside this indicator snapshot—when live web research is enabled, narrative can incorporate recent reporting alongside these anchors; otherwise verify with embassies and official bulletins.",
+        "For business: stress-test scenarios for regulatory stability, FDI screening, sanctions exposure, and sector licensing before scale-up; align public-affairs plans with documented government priorities.",
+      ].join("\n\n"),
     },
     {
       title: "Economic factors",
-      body: pestelDimensions[1].bullets.join("\n\n"),
+      body: [
+        econLines.length
+          ? `Official series currently highlight: ${econLines.slice(0, 5).join(" ")}`
+          : "Several core macro series are sparse for this economy—inspect coverage and alternative indicators in the country charts.",
+        "Relative performance versus peers, terms-of-trade shocks, and central-bank reaction functions require current market data and sell-side or policy notes beyond this snapshot.",
+        "Implication: size TAM and margins using the latest GDP, inflation, and labour-market prints here, then refine pricing, hedging, and working-capital policy with forward-looking FX and rate assumptions.",
+      ].join("\n\n"),
     },
     {
       title: "Sociocultural factors",
-      body: pestelDimensions[2].bullets.join("\n\n"),
+      body: [
+        socialLines.length
+          ? `Available demographic and well-being indicators include: ${socialLines.join(" ")}`
+          : "Key sociocultural series may be partially reported—use country-chart drill-downs for literacy, dependency ratios, and health where available.",
+        "Consumer behaviour, urban–rural divides, trust in institutions, and digital literacy evolve faster than annual statistics; supplement with syndicated research and local panels.",
+        "Implication: segment offers by age structure and income trajectory; adapt workforce, benefits, and brand positioning to documented health and education baselines while validating cultural fit in-market.",
+      ].join("\n\n"),
     },
     {
       title: "Technological factors",
-      body: pestelDimensions[3].bullets.join("\n\n"),
+      body: [
+        techDataParagraph,
+        "Digital infrastructure, cybersecurity posture, fintech licensing, and national AI or data-localization rules evolve faster than annual indicator tables. When web search is enabled, weave concrete developments (operators, regulators, flagship programs) into a single narrative; otherwise state briefly which digital layers remain unverified and how you would source them.",
+        "For operators: stage pilots in the most connected metros, align architecture with likely data-sovereignty requirements, and partner locally for identity, payments, and last-mile delivery before scaling nationally.",
+      ].join("\n\n"),
     },
     {
       title: "Environmental factors",
-      body: pestelDimensions[4].bullets.join("\n\n"),
+      body: [
+        area != null
+          ? `Reported land area is about ${(area / 1e6).toFixed(2)} million km²—layer national climate-risk maps and IPCC country context for exposure detail.`
+          : "Land area is not on file for this ISO code—pull official geographic statistics for hazard mapping.",
+        "Energy mix, emissions targets, water stress, and biodiversity rules are dynamic; cross-check UNFCCC filings and ministry guidance for the assessment year.",
+        "Implication: bake climate transition and physical risk into CAPEX, insurance, and supplier codes of conduct; expect tighter ESG scrutiny in trade finance and procurement.",
+      ].join("\n\n"),
     },
     {
       title: "Legal factors",
-      body: pestelDimensions[5].bullets.join("\n\n"),
+      body: [
+        "Reference profile data does not replace legal advice: entity formation, licensing, labour law, tax treaties, and IP enforcement remain jurisdiction-specific and should be confirmed with qualified counsel.",
+        "Sanctions, export controls, competition rulings, and consumer-protection cases shift frequently—monitor official registers and, when available, web-retrieved enforcement headlines.",
+        "Implication: run a structured legal DD checklist (corporate, employment, data, sector permits) in parallel with the macro view; document assumptions for board and insurer review.",
+      ].join("\n\n"),
     },
   ];
 
@@ -394,42 +735,48 @@ export function buildDataOnlyPestel(
     {
       title: "Strengths",
       paragraphs: [
-        swot.strengths.slice(0, 2).join(" "),
-        "Corroborate with customer interviews, distributor feedback, and competitor benchmarking before committing capital.",
+        swot.strengths.slice(0, 3).join(" "),
+        "Corroborate these advantages with customer interviews, channel checks, and competitor benchmarking so they translate into defendable positioning rather than generic macro tailwinds.",
+        "Operationally, map each strength to a capability you can scale—distribution, cost position, brand, or regulatory access—and assign owners and metrics for the next two planning cycles.",
       ],
     },
     {
       title: "Weaknesses",
       paragraphs: [
-        swot.weaknesses.slice(0, 2).join(" "),
-        "Mitigate via joint ventures, phased entry, and compliance investments tied to measurable KPIs.",
+        swot.weaknesses.join(" "),
+        "Weaknesses rooted in data gaps or governance opacity warrant primary diligence: local partners, reference customers, and regulator engagement reduce surprise risk.",
+        "Mitigate through phased entry, joint ventures, compliance investment, and explicit contingency budgets tied to triggers (e.g. policy reversal, FX stress).",
       ],
     },
     {
       title: "Opportunities",
       paragraphs: [
         swot.opportunities.join(" "),
-        "Prioritize segments where regulatory tailwinds and distribution reach align with your capabilities.",
+        "Prioritize opportunities where regulatory direction, infrastructure reach, and your product–market fit overlap; sequence pilots to learn before national scale.",
+        "When web-enabled analysis runs, demand explicit links between cited developments and your revenue pools; otherwise validate opportunity themes with trade associations and investment promotion agencies.",
       ],
     },
     {
       title: "Threats",
       paragraphs: [
         swot.threats.join(" "),
-        "Build contingency plans for FX, policy reversals, and supply-chain disruption.",
+        "Monitor macro early-warning indicators in the country charts (inflation, debt, unemployment) alongside geopolitical and climate headlines relevant to your supply chain.",
+        "Build contingency plans for FX, policy reversals, and logistics disruption; rehearse downside scenarios with treasury, legal, and operations leads. Escalate material risk shifts to executive sponsors and refresh mitigation playbooks at least annually.",
       ],
     },
   ];
 
-  return {
+  return polishPestelAnalysisForClient({
     pestelDimensions,
     swot,
     comprehensiveSections,
     strategicBusiness,
     newMarketAnalysis: [
-      "Screen sectors against WDI health, education, and labour series before detailed due diligence.",
+      "Screen sectors against health, education, and labour indicators before detailed due diligence.",
       "Map trade agreements (e.g. regional blocs) to tariff and rules-of-origin advantages.",
       "Digital and sustainability positioning should align with stated national development plans.",
+      "Size addressable spend using dashboard GDP per capita, poverty, and urban-age structure—not headline GDP alone.",
+      "Pilot in the most data-transparent region or city tier; scale only after channel economics and regulatory fit are proven.",
     ],
     keyTakeaways: [
       "Macro indicators are a starting point — segment-level economics and regulation drive investability.",
@@ -439,8 +786,11 @@ export function buildDataOnlyPestel(
       "Coordinate tax, labor, licensing, and IP workstreams early to avoid late-stage surprises.",
     ],
     recommendations: [
-      "Enable GROQ_API_KEY for analyst-style narrative, SWOT depth, and cited web context (optional TAVILY_API_KEY).",
+      "This is the data-only scaffold: set GROQ_API_KEY in `.env` at the repo root or in `backend/`, restart the API, and ensure your terminal is not exporting an empty GROQ_API_KEY (that blocks dotenv). Add TAVILY_API_KEY for cited web context, then click Generate again.",
       "Pair this scan with the Country Dashboard charts and Global Analytics for peer context.",
+      "Assign data owners to refresh digest-linked indicators each quarter and log the observation years cited in memos.",
+      "For material decisions, triangulate PESTEL bullets with legal counsel, tax, and local operating partners.",
+      "Re-run PESTEL after elections, large FX moves, or major data revisions flagged on the dashboard.",
     ],
-  };
+  });
 }

@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { postJson } from "../api";
 import MessageContent from "../components/assistant/MessageContent";
+import { readStoredDashboardCountry } from "../dashboardCountryStorage";
+import {
+  ASSISTANT_SUGGESTION_CATEGORIES,
+  ASSISTANT_SUGGESTION_COUNT,
+} from "../lib/assistantSuggestionCategories";
 
 type Message = {
   id: string;
@@ -9,19 +15,14 @@ type Message = {
   attribution?: string[];
 };
 
-const SUGGESTIONS = [
-  "Give me an overview of the selected country",
-  "Compare Indonesia to Malaysia",
-  "Top 10 countries by GDP",
-  "Where is Indonesia located?",
-  "Which continent is Ukraine in?",
-  "Indonesia and Ukraine from 2023",
-  "Summary of key metrics",
-];
-
 function sourceLabel(attribution: string[]): string {
+  const intent = attribution.find((a) => a.startsWith("Intent:"));
   const llm = attribution.find((a) => a.startsWith("LLM:"));
-  if (llm) return llm.replace(/^LLM:\s*/, "");
+  const mode = intent?.replace(/^Intent:\s*/, "") ?? "";
+  const model = llm?.replace(/^LLM:\s*/, "") ?? "";
+  if (model && mode) return `${mode} · ${model}`;
+  if (model) return model;
+  if (mode) return mode;
   if (attribution.some((a) => a.toLowerCase().includes("tavily") || a.toLowerCase().includes("web")))
     return "Web search";
   return "Dashboard";
@@ -32,19 +33,81 @@ export default function Assistant() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [model, setModel] = useState("groq");
-  const [country] = useState("IDN");
+  /** `groq` = server auto-routing; `tavily` = always run fresh web retrieval when the key is set. */
+  /** Default Web-first so leadership and newsy questions use live search without requiring a manual toggle. */
+  const [model, setModel] = useState<"groq" | "tavily">("tavily");
+  const [country, setCountry] = useState(() => readStoredDashboardCountry() ?? "IDN");
+  const [openCategories, setOpenCategories] = useState<Set<string>>(() => new Set());
+  /** Empty-state list: show all groups or one category chosen from the composer “Prompts” control. */
+  const [promptGroupFilter, setPromptGroupFilter] = useState<string | "all">("all");
+  const [promptMenuOpen, setPromptMenuOpen] = useState(false);
+  const [menuExpandedCategoryId, setMenuExpandedCategoryId] = useState<string | null>(null);
+  const promptMenuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const visibleSuggestionCategories =
+    promptGroupFilter === "all"
+      ? ASSISTANT_SUGGESTION_CATEGORIES
+      : ASSISTANT_SUGGESTION_CATEGORIES.filter((c) => c.id === promptGroupFilter);
+
+  const visibleSuggestionCount = visibleSuggestionCategories.reduce((n, c) => n + c.prompts.length, 0);
+
+  const toggleCategory = (id: string) => {
+    setOpenCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const expandAllCategories = () =>
+    setOpenCategories(new Set(visibleSuggestionCategories.map((c) => c.id)));
+  const collapseAllCategories = () => setOpenCategories(new Set());
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    if (!promptMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (promptMenuRef.current && !promptMenuRef.current.contains(e.target as Node)) {
+        setPromptMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPromptMenuOpen(false);
+        setMenuExpandedCategoryId(null);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [promptMenuOpen]);
+
+  useEffect(() => {
+    const sync = () => {
+      const s = readStoredDashboardCountry();
+      if (s) setCountry(s);
+    };
+    sync();
+    const onVis = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
+  }, []);
 
   const send = async (messageText?: string) => {
     const text = (messageText ?? input).trim();
     if (!text || loading) return;
 
     setInput("");
+    setPromptMenuOpen(false);
     setErr(null);
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: text };
     setMessages((prev) => [...prev, userMsg]);
@@ -54,6 +117,7 @@ export default function Assistant() {
       const res = await postJson<{ reply: string; attribution: string[] }>("/api/assistant/chat", {
         message: text,
         countryCode: country || undefined,
+        ...(model === "tavily" ? { webSearchPriority: true as const } : {}),
       });
       const assistantMsg: Message = {
         id: crypto.randomUUID(),
@@ -63,13 +127,14 @@ export default function Assistant() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (e) {
-      setErr(String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setErr(msg);
       setMessages((prev) => [
         ...prev,
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          content: `Error: ${e}`,
+          content: `Error: ${msg}`,
         },
       ]);
     } finally {
@@ -79,50 +144,78 @@ export default function Assistant() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 gap-2">
           <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
             Analytics Assistant
           </h1>
-          <p className="mt-1.5 max-w-4xl text-sm leading-snug text-slate-600 lg:max-w-none">
-            Analyst-grade views across financial, demographic, health, and education metrics
-            (2000–latest), powered by World Bank WDI, IMF WEO, UNESCO UIS, and UN/WHO. The assistant
-            has access to dashboard data and web search — ask about metrics, rankings, methodology,
-            or general knowledge.
+          <p className="max-w-4xl text-sm leading-snug text-slate-600 lg:max-w-none">
+            For <strong className="font-semibold text-slate-800">metrics and figures</strong>, replies lead with the{" "}
+            <strong className="font-semibold text-slate-800">same API data as the dashboard</strong> (World Bank WDI plus
+            configured gap-fills). Questions like <em>top countries by GDP or population</em> load a full global snapshot
+            for that metric, not only the selected country. Groq explains and Tavily stays supplementary. For everything
+            else—geography, news,
+            culture, companies, and other non-metric topics—the assistant{" "}
+            <strong className="font-semibold text-slate-800">prioritizes web search (Tavily) and Groq</strong> for
+            up-to-date context when your server has Tavily configured.
           </p>
         </div>
-        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-end">
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Model</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Answer style</p>
             <select
               value={model}
-              onChange={(e) => setModel(e.target.value)}
-              className="mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+              onChange={(e) => setModel(e.target.value === "tavily" ? "tavily" : "groq")}
+              className="mt-1 max-w-[220px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
+              title="Auto uses dashboard-first rules for metrics; Web-first always fetches Tavily when configured."
             >
-              <option value="groq">Llama 3.3 70B (Groq)</option>
-              <option value="tavily">Tavily Web Search</option>
+              <option value="groq">Auto — balanced routing</option>
+              <option value="tavily">Web-first — always search</option>
             </select>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            Settings
-          </button>
+          <details className="group relative">
+            <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              Steps &amp; actions
+            </summary>
+            <div className="absolute right-0 z-30 mt-1 w-[min(calc(100vw-2rem),18rem)] rounded-xl border border-slate-200 bg-white p-3 text-left text-sm text-slate-600 shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Suggested workflow</p>
+              <ol className="mt-2 list-decimal space-y-2 pl-4 text-slate-700">
+                <li>
+                  <Link to="/" className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                    Open Country Dashboard
+                  </Link>{" "}
+                  and pick the focus country (syncs here).
+                </li>
+                <li>
+                  <Link to="/sources" className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                    Review Sources
+                  </Link>{" "}
+                  for metric definitions and providers.
+                </li>
+                <li>Expand a starter category below and tap a prompt, or type your own.</li>
+                <li>
+                  Optional: set <strong className="font-semibold text-slate-800">Web-first</strong> for maximum
+                  recency (needs <code className="text-xs text-slate-500">TAVILY_API_KEY</code> on the server). Use{" "}
+                  <strong className="font-semibold text-slate-800">Expand all</strong> next to starter categories when
+                  the chat is empty.
+                </li>
+              </ol>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -132,29 +225,128 @@ export default function Assistant() {
           className="flex flex-1 flex-col overflow-auto p-4 sm:p-5"
         >
           {messages.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center py-8 text-center">
-              <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-2xl font-bold text-emerald-700">
-                !
+            <div className="flex flex-1 flex-col items-center py-6 sm:py-8">
+              <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-100 text-teal-700 shadow-sm ring-1 ring-teal-100">
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.75}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
               </div>
-              <p className="max-w-md text-base font-semibold text-slate-900">
-                Ask about dashboard data, metrics, and sources — or general knowledge such as a
-                country&apos;s location.
+              <h2 className="max-w-lg text-center text-base font-semibold tracking-tight text-slate-900 sm:text-lg">
+                Ask in natural language — metrics, rankings, comparisons, or context
+              </h2>
+              <p className="mt-2 max-w-md text-center text-sm text-slate-500">
+                Replies use the same series as your dashboard. Rankings return a table. Expand a category
+                below to try one of{" "}
+                <span className="font-medium text-slate-700">
+                  {promptGroupFilter === "all"
+                    ? ASSISTANT_SUGGESTION_COUNT
+                    : visibleSuggestionCount}{" "}
+                  starter prompts
+                  {promptGroupFilter !== "all" ? " in this group" : ""}
+                </span>
+                , or type your own.
               </p>
-              <p className="mt-3 text-sm text-slate-500">
-                Try one of these (metrics, comparisons, or location) or type your own:
+              <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1 gap-y-1 text-center text-xs text-slate-400">
+                <span>
+                  Focus{" "}
+                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600">{country}</span>
+                </span>
+                <span className="text-slate-300">·</span>
+                <Link to="/" className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                  Set on Dashboard
+                </Link>
+                <span className="text-slate-300">·</span>
+                <Link to="/sources" className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                  Metric sources
+                </Link>
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => send(s)}
-                    disabled={loading}
-                    className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-600 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50"
-                  >
-                    {s}
-                  </button>
-                ))}
+
+              <div className="mt-8 w-full max-w-lg px-1 sm:px-0">
+                <div className="mb-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-3">
+                  <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Starter prompts by category
+                  </p>
+                  {promptGroupFilter !== "all" ? (
+                    <button
+                      type="button"
+                      onClick={() => setPromptGroupFilter("all")}
+                      className="rounded-lg border border-teal-200 bg-teal-50/80 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-teal-800 shadow-sm hover:bg-teal-100"
+                    >
+                      Show all groups
+                    </button>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={expandAllCategories}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 shadow-sm hover:bg-slate-50"
+                    >
+                      Expand all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={collapseAllCategories}
+                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 shadow-sm hover:bg-slate-50"
+                    >
+                      Collapse all
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {visibleSuggestionCategories.map((cat) => {
+                    const open = openCategories.has(cat.id);
+                    return (
+                      <div
+                        key={cat.id}
+                        className="overflow-hidden rounded-xl border border-slate-200/90 bg-white text-left shadow-sm transition hover:border-slate-300 hover:shadow-md"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleCategory(cat.id)}
+                          aria-expanded={open}
+                          className="flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left sm:items-center sm:py-3"
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-slate-900">{cat.title}</span>
+                            <span className="mt-0.5 block text-xs leading-snug text-slate-500">{cat.subtitle}</span>
+                          </span>
+                          <svg
+                            className={`mt-0.5 h-5 w-5 shrink-0 text-slate-400 transition-transform duration-200 ease-out sm:mt-0 ${open ? "rotate-180" : ""}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                        {open ? (
+                          <div className="border-t border-slate-100 bg-slate-50/40 px-2 py-2 sm:px-3 sm:py-3">
+                            <ul className="space-y-1">
+                              {cat.prompts.map((q) => (
+                                <li key={q}>
+                                  <button
+                                    type="button"
+                                    onClick={() => send(q)}
+                                    disabled={loading}
+                                    className="w-full rounded-lg border border-transparent px-3 py-2.5 text-left text-sm leading-snug text-slate-700 transition hover:border-slate-200 hover:bg-white hover:shadow-sm active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50"
+                                  >
+                                    {q}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ) : (
@@ -228,14 +420,118 @@ export default function Assistant() {
           {err && (
             <p className="mb-3 text-sm text-red-600">{err}</p>
           )}
-          <div className="flex gap-3">
+          <div className="relative flex gap-2 sm:gap-3">
+            <div className="relative shrink-0" ref={promptMenuRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setPromptMenuOpen((o) => {
+                    const next = !o;
+                    if (!next) setMenuExpandedCategoryId(null);
+                    return next;
+                  });
+                }}
+                className={`flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl border bg-white text-slate-600 shadow-sm transition hover:bg-slate-50 sm:w-auto sm:flex-row sm:gap-2 sm:px-3 ${
+                  promptMenuOpen ? "border-teal-400 ring-2 ring-teal-100" : "border-slate-200"
+                }`}
+                aria-expanded={promptMenuOpen}
+                aria-haspopup="dialog"
+                aria-label="Starter prompts by group"
+                title="Browse starter prompts by category"
+              >
+                <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16M4 18h7"
+                  />
+                </svg>
+                <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-600 sm:inline">
+                  Prompts
+                </span>
+              </button>
+              {promptMenuOpen ? (
+                <div
+                  className="absolute bottom-full left-0 z-50 mb-2 w-[min(calc(100vw-2rem),22rem)] max-h-[min(70vh,26rem)] overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 text-left shadow-xl"
+                  role="dialog"
+                  aria-label="Starter prompt groups"
+                >
+                  <p className="border-b border-slate-100 px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    Suggestive questions
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPromptGroupFilter("all");
+                      setMenuExpandedCategoryId(null);
+                    }}
+                    className={`mt-1 flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium transition hover:bg-slate-50 ${
+                      promptGroupFilter === "all" ? "bg-teal-50 text-teal-900" : "text-slate-800"
+                    }`}
+                  >
+                    All groups
+                    <span className="text-xs font-normal text-slate-400">{ASSISTANT_SUGGESTION_COUNT}</span>
+                  </button>
+                  {ASSISTANT_SUGGESTION_CATEGORIES.map((cat) => {
+                    const expanded = menuExpandedCategoryId === cat.id;
+                    return (
+                      <div key={cat.id} className="border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMenuExpandedCategoryId(expanded ? null : cat.id);
+                            setPromptGroupFilter(cat.id);
+                          }}
+                          className={`flex w-full items-start gap-2 px-3 py-2.5 text-left transition hover:bg-slate-50 ${
+                            promptGroupFilter === cat.id && !expanded ? "bg-slate-50" : ""
+                          }`}
+                          aria-expanded={expanded}
+                        >
+                          <svg
+                            className={`mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform ${expanded ? "rotate-90" : ""}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            aria-hidden
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-slate-900">{cat.title}</span>
+                            <span className="mt-0.5 block text-xs leading-snug text-slate-500">{cat.subtitle}</span>
+                          </span>
+                          <span className="shrink-0 text-xs text-slate-400">{cat.prompts.length}</span>
+                        </button>
+                        {expanded ? (
+                          <ul className="space-y-0.5 border-t border-slate-50 bg-slate-50/80 px-2 py-2">
+                            {cat.prompts.map((q) => (
+                              <li key={q}>
+                                <button
+                                  type="button"
+                                  onClick={() => send(q)}
+                                  disabled={loading}
+                                  className="w-full rounded-lg border border-transparent px-2.5 py-2 text-left text-xs leading-snug text-slate-700 transition hover:border-slate-200 hover:bg-white hover:shadow-sm disabled:pointer-events-none disabled:opacity-50"
+                                >
+                                  {q}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </div>
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
               placeholder="Ask about metrics, sources, methodology, or location..."
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-100"
               disabled={loading}
             />
             <button

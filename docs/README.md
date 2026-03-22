@@ -1,20 +1,62 @@
 # Country Analytics Platform — Documentation
 
-This folder contains the canonical product and engineering documentation for the **Country Analytics Platform**. Start here, then follow the links below.
+Canonical product and engineering documentation for the **Country Analytics Platform**. Use this page as the entry point, then open the linked artifacts below.
+
+---
+
+## Documentation map
+
+```mermaid
+flowchart TB
+  subgraph product [Product and UX]
+    PRD[PRD.md]
+    PERSONAS[USER_PERSONAS.md]
+    STORIES[USER_STORIES.md]
+    OKRS[METRICS_AND_OKRS.md]
+    DESIGN[DESIGN_GUIDELINES.md]
+  end
+  subgraph engineering [Engineering and data]
+    VARS[VARIABLES.md]
+    ARCH[ARCHITECTURE.md]
+    GUARD[GUARDRAILS.md]
+    TRACE[TRACEABILITY_MATRIX.md]
+  end
+  subgraph meta [Governance]
+    STD[PRODUCT_DOCUMENTATION_STANDARD.md]
+  end
+  README_ROOT[[../README.md]]
+  README_ROOT --> PRD
+  PRD --> STORIES
+  PRD --> TRACE
+  VARS --> ARCH
+  ARCH --> GUARD
+  STD --> PRD
+  STD --> VARS
+```
+
+---
+
+## Document index
 
 | Document | Purpose |
 |----------|---------|
-| [PRODUCT_DOCUMENTATION_STANDARD.md](./PRODUCT_DOCUMENTATION_STANDARD.md) | How documentation in this repo is structured, maintained, and reviewed |
-| [PRD.md](./PRD.md) | Product requirements: vision, scope, features, and success criteria |
+| [PRODUCT_DOCUMENTATION_STANDARD.md](./PRODUCT_DOCUMENTATION_STANDARD.md) | How documentation is structured, owned, and reviewed (enterprise-style) |
+| [PRD.md](./PRD.md) | Vision, scope, features, functional and non-functional requirements, success criteria |
 | [USER_PERSONAS.md](./USER_PERSONAS.md) | Primary audiences, goals, and constraints |
 | [USER_STORIES.md](./USER_STORIES.md) | User stories and acceptance-oriented scenarios |
-| [VARIABLES.md](./VARIABLES.md) | Variable dictionary, examples, and relationship overview |
-| [METRICS_AND_OKRS.md](./METRICS_AND_OKRS.md) | Product health metrics and suggested OKRs for the team |
-| [DESIGN_GUIDELINES.md](./DESIGN_GUIDELINES.md) | Visual language, themes, components, and accessibility |
-| [TRACEABILITY_MATRIX.md](./TRACEABILITY_MATRIX.md) | Requirements → implementation → verification mapping |
-| [GUARDRAILS.md](./GUARDRAILS.md) | Business and technical limits, compliance, and safe use |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, data flow, and key modules |
+| [VARIABLES.md](./VARIABLES.md) | Environment and API variables, derived UI series, **48**-metric catalog, PESTEL digest keys, relationship diagrams |
+| [METRICS_AND_OKRS.md](./METRICS_AND_OKRS.md) | Product health metrics and example OKRs |
+| [DESIGN_GUIDELINES.md](./DESIGN_GUIDELINES.md) | Visual language, app shell and feature themes, components, accessibility |
+| [TRACEABILITY_MATRIX.md](./TRACEABILITY_MATRIX.md) | Requirements and stories → implementation → verification |
+| [GUARDRAILS.md](./GUARDRAILS.md) | Data, AI, legal, and technical limitations |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System context, routes, API surface, data pipeline |
 
 **Source of truth for metric definitions:** `backend/src/metrics.ts` and `GET /api/metrics` (includes `shortLabel` from `backend/src/metricShortLabels.ts`).
 
-**Repository root:** [README.md](../README.md) — quick start, stack, and operational notes.
+**Repository root:** [README.md](../README.md) — quick start, stack, environment variables, and operational notes.
+
+---
+
+## Maintenance
+
+When you change behavior, update the **smallest set of docs that keeps the suite truthful**: at minimum, **PRD** or **USER_STORIES**, **TRACEABILITY_MATRIX** for traceable features, and **VARIABLES** or **ARCHITECTURE** for new APIs or metrics. Follow [PRODUCT_DOCUMENTATION_STANDARD.md](./PRODUCT_DOCUMENTATION_STANDARD.md).

@@ -77,6 +77,7 @@ Shared chrome: `Layout.tsx` (nav, footer, `ApiToastStack`, `ApiTransportPanel`).
 | GET | `/api/analysis/correlation-global` | Pearson r + scatter points |
 | GET | `/api/ilo-isic-divisions` | Porter sector list |
 | POST | `/api/cache/clear` | Clear server cache |
+| POST | `/api/bootstrap/warm` | Background warmup of country metric bundles (**202** + `started`, or **200** + `skipped` if `DISABLE_BOOTSTRAP_WARMUP=1`) |
 | POST | `/api/assistant/chat` | Assistant with optional Groq/Tavily |
 | POST | `/api/analysis/pestel` | PESTEL analysis |
 | POST | `/api/analysis/porter` | Porter analysis |
@@ -107,13 +108,21 @@ Cache: SHA-truncated key over sorted metric IDs + country + range; TTL ~20 minut
 | `components/charts/ChartTableToggle.tsx` | Chart/table + local fullscreen + group fullscreen handoff |
 | `components/charts/VisualizationStepper.tsx` | Stacked embed + group fullscreen slideshow |
 | `components/charts/VizGalleryContext.tsx` | Context for group fullscreen routing |
+| `components/pestel/*` | PESTEL layout, themes (`pestelTheme.ts`), SWOT grid |
+| `components/porter/*` | Porter forces hub, themes (`porterTheme.ts`) |
+| `components/assistant/MessageContent.tsx` | Assistant reply rendering (e.g. markdown) |
 
-## 7. Build & deploy
+## 7. Strategy and AI pipeline (summary)
+
+- **PESTEL / Porter:** Build an indicator digest from the catalog and country bundle; optional Tavily retrieval; optional Groq JSON generation; **sanitize** LLM partials against indicators, static profile, and web corpus (`pestelGrounding.ts`); **merge** with the data scaffold (`mergePestelAnalysis` in `pestelAnalysis.ts`); **polish** user-visible strings. SWOT quadrants are deduplicated across strengths / weaknesses / opportunities / threats when padding merged lists.
+- **Assistant:** Chat completion with optional dashboard digest injection and Tavily search; responses include attribution metadata when the route attaches it.
+
+## 8. Build & deploy
 
 - **Dev:** `npm run dev` — API `:4000`, Vite `:5173` with proxy `/api`.
 - **Prod:** `npm run build` — `backend/dist` + `frontend/dist`; serve SPA and reverse-proxy `/api` to Node, or single-origin static + API as documented in root README.
 
-## 8. Security notes
+## 9. Security notes
 
 - API keys **only** on server (`dotenv`); never bundled to the client.
 - CORS `origin: true` for development flexibility; tighten for production if needed.

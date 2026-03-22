@@ -180,28 +180,30 @@ export default function Sources() {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
-          Data Sources &amp; Methodology
-        </h1>
-        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-600">
-          The stack is built around <strong>credible public institutions</strong>:{" "}
-          <strong>World Bank WDI</strong> for almost all quantitative series, the <strong>World Bank Country API</strong>{" "}
-          for income and lending metadata, <strong>IMF WEO (DataMapper)</strong> where a metric defines an IMF
-          fallback, <strong>REST Countries</strong> for geography and ISO/UN codes, <strong>Sea Around Us</strong> for
-          EEZ area when their API returns a match, and <strong>Wikidata</strong> only to fill REST Countries gaps
-          (e.g. government type). <strong>UNESCO UIS</strong> indicators appear as <strong>WDI indicator codes</strong>{" "}
-          so units and revisions stay aligned with the Bank; direct UIS API wiring can be added later for targeted
-          gap-fills.
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-          Outbound calls use a shared user-agent, short exponential retries on transient HTTP errors (429 / 5xx), and
-          server-side caching. The canonical provider list and merge order for time series live at{" "}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">GET /api/data-providers</code> and in the
-          cards below.
-        </p>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-          Indicator codes, units, and formulas are documented per metric in the searchable dictionary.
-        </p>
+        <div className="grid grid-cols-1 gap-3">
+          <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
+            Data Sources &amp; Methodology
+          </h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+            The stack is built around <strong>credible public institutions</strong>:{" "}
+            <strong>World Bank WDI</strong> for almost all quantitative series, the <strong>World Bank Country API</strong>{" "}
+            for income and lending metadata, <strong>IMF WEO (DataMapper)</strong> where a metric defines an IMF
+            fallback, <strong>REST Countries</strong> for geography and ISO/UN codes, <strong>Sea Around Us</strong> for
+            EEZ area when their API returns a match, and <strong>Wikidata</strong> only to fill REST Countries gaps
+            (e.g. government type). <strong>UNESCO UIS</strong> indicators appear as <strong>WDI indicator codes</strong>{" "}
+            so units and revisions stay aligned with the Bank; direct UIS API wiring can be added later for targeted
+            gap-fills.
+          </p>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+            Outbound calls use a shared user-agent, short exponential retries on transient HTTP errors (429 / 5xx), and
+            server-side caching. The canonical provider list and merge order for time series live at{" "}
+            <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">GET /api/data-providers</code> and in the
+            cards below.
+          </p>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+            Indicator codes, units, and formulas are documented per metric in the searchable dictionary.
+          </p>
+        </div>
 
         {dataProviders && (
           <div className="mt-8 space-y-4">

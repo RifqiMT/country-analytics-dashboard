@@ -118,7 +118,7 @@ export function parsePorterFromLlm(text: string): Partial<PorterAnalysis> | null
     return {
       forces: forces.length >= 5 ? forces : undefined,
       comprehensiveSections:
-        comprehensiveSections.length >= 2 ? comprehensiveSections : undefined,
+        comprehensiveSections.length >= 6 ? comprehensiveSections : undefined,
       newMarketAnalysis: strArray(r.newMarketAnalysis).length ? strArray(r.newMarketAnalysis) : undefined,
       keyTakeaways: strArray(r.keyTakeaways).length ? strArray(r.keyTakeaways) : undefined,
       recommendations: strArray(r.recommendations).length ? strArray(r.recommendations) : undefined,
@@ -145,7 +145,7 @@ export function mergePorterAnalysis(partial: Partial<PorterAnalysis>, fallback: 
       : fallback.forces;
 
   const comprehensiveSections =
-    partial.comprehensiveSections && partial.comprehensiveSections.length >= 2
+    partial.comprehensiveSections && partial.comprehensiveSections.length >= 6
       ? partial.comprehensiveSections
       : fallback.comprehensiveSections;
 
@@ -175,17 +175,6 @@ export function buildDataOnlyPorter(
   const pop = latest(bundle, "population");
   const growth = latest(bundle, "gdp_growth");
   const unemp = latest(bundle, "unemployment_ilo");
-
-  const execBody = [
-    `${countryName} (${cca3}) — ${industryLabel}. Competitive pressure assessment at country-industry level using macro and demographic proxies.`,
-    gdp ? `Nominal GDP (${gdp.year}): ${fmtUsd(gdp.value)}.` : "",
-    pop ? `Population (${pop.year}): ${(pop.value / 1e6).toFixed(1)} Mn.` : "",
-    growth ? `GDP growth (${growth.year}): ${growth.value.toFixed(1)}%.` : "",
-    `Region: ${region}; income group: ${income}.`,
-    "Enable GROQ_API_KEY for sector-specific narrative and scored forces.",
-  ]
-    .filter(Boolean)
-    .join("\n");
 
   const forces: PorterForce[] = [
     {
@@ -250,27 +239,72 @@ export function buildDataOnlyPorter(
     },
   ];
 
+  const dataPara1 = [
+    gdp ? `Nominal GDP (${gdp.year}) is approximately ${fmtUsd(gdp.value)}` : null,
+    pop ? `population (${pop.year}) near ${(pop.value / 1e6).toFixed(1)} million` : null,
+    growth ? `GDP growth (${growth.year}) at ${growth.value.toFixed(1)}%` : null,
+    unemp ? `unemployment (${unemp.year}) near ${unemp.value.toFixed(1)}%` : null,
+  ]
+    .filter(Boolean)
+    .join("; ");
+
+  const execP1 = `${countryName} (${cca3}) — ${industryLabel}. ${dataPara1 ? `Latest digest signals: ${dataPara1}.` : "Macro series from the platform digest underpin this scaffold."} Region: ${region}; World Bank income group: ${income}.`;
+
+  const execP2 =
+    "Live web retrieval is not included in this offline scaffold. For the middle paragraph of each comprehensive block, enable TAVILY_API_KEY on the server so the model can ground industry and competitive news; until then, treat qualitative market colour as indicative only.";
+
+  const execP3 =
+    "Across Porter’s five forces, use the digest for quantitative anchors and supplement with sector reports and trade data. Enable GROQ_API_KEY for full three-paragraph, web-integrated narrative per force.";
+
+  const threePara = (forceIdx: number, webPlaceholder: string, imp: string): string => {
+    const f = forces[forceIdx]!;
+    const p1 = `${f.title} for ${industryLabel} in ${countryName}: ${f.bullets.slice(0, 2).join(" ")}`;
+    const p2 = webPlaceholder;
+    const p3 = imp;
+    return `${p1}\n\n${p2}\n\n${p3}`;
+  };
+
   const comprehensiveSections: { title: string; body: string }[] = [
-    { title: "Executive Summary", body: execBody },
+    { title: "Executive Summary", body: `${execP1}\n\n${execP2}\n\n${execP3}` },
     {
       title: "1. Threat of new entrants",
-      body: forces[0].bullets.join("\n\n"),
+      body: threePara(
+        0,
+        "Without live web context in this template, infer entry barriers from income group, market scale (GDP/population from digest), and typical capital intensity for the sector—verify with national investment promotion and licensing sources.",
+        "Implication: entry threat is directional only until web-sourced regulatory and competitive intelligence is merged; prioritize segments where scale and policy clearly favour incumbents."
+      ),
     },
     {
       title: "2. Bargaining power of suppliers",
-      body: forces[1].bullets.join("\n\n"),
+      body: threePara(
+        1,
+        "Template mode: supplier power depends on input commoditization and logistics; add Tavily-backed excerpts for commodity shocks, trade measures, and concentration among key vendors.",
+        "Implication: map backward integration risk and input cost pass-through using digest macro volatility proxies plus sector-specific supplier interviews or reports."
+      ),
     },
     {
       title: "3. Bargaining power of buyers",
-      body: forces[2].bullets.join("\n\n"),
+      body: threePara(
+        2,
+        "Template mode: channel structure (retail, e-commerce, B2B) requires web and trade data; digest unemployment and income proxies inform spending power only at country level.",
+        "Implication: segment buyers by channel and test price sensitivity against GDP per capita and inflation series from the dashboard when Groq narrative is enabled."
+      ),
     },
     {
       title: "4. Threat of substitutes",
-      body: forces[3].bullets.join("\n\n"),
+      body: threePara(
+        3,
+        "Template mode: substitutes span imports, private label, digital alternatives, and adjacent categories—use web retrieval for consumer and technology shifts specific to this ISIC division.",
+        "Implication: prioritize substitute threats where digest shows high trade openness or low switching costs; validate with category elasticity studies where available."
+      ),
     },
     {
       title: "5. Competitive rivalry",
-      body: forces[4].bullets.join("\n\n"),
+      body: threePara(
+        4,
+        "Template mode: rivalry intensity ties to growth and concentration; web context should name major players, price campaigns, and capacity additions when the LLM path is active.",
+        "Implication: when growth slows (see digest GDP growth), expect margin pressure—combine with industry news for a calibrated rivalry score."
+      ),
     },
   ];
 

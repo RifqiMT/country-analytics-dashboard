@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type MouseEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { ComposableMap, Geographies, Geography, ZoomableGroup } from "react-simple-maps";
 import { feature } from "topojson-client";
 import type { Topology } from "topojson-specification";
@@ -63,6 +63,24 @@ export default function GlobalChoropleth({
     y: number;
   } | null>(null);
 
+  const mapBoxRef = useRef<HTMLDivElement>(null);
+  const [mapDims, setMapDims] = useState({ w: 800, h: 440 });
+
+  useLayoutEffect(() => {
+    const el = mapBoxRef.current;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      const w = Math.max(160, Math.floor(r.width));
+      const h = Math.max(160, Math.floor(r.height));
+      setMapDims((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     fetch(TOPO_URL)
@@ -125,15 +143,15 @@ export default function GlobalChoropleth({
 
   if (!geo) {
     return (
-      <div className="flex h-[420px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
+      <div className="flex h-full min-h-[280px] w-full flex-1 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-sm text-slate-500">
         Loading map…
       </div>
     );
   }
 
   return (
-    <div className="relative rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <span className="text-xs text-slate-500">
             {valueFormat === "percent" ? "Lower %" : "Lower values"}
@@ -173,13 +191,16 @@ export default function GlobalChoropleth({
         </div>
       </div>
 
-      <div className="relative overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+      <div
+        ref={mapBoxRef}
+        className="relative min-h-[240px] w-full min-w-0 flex-1 overflow-hidden rounded-xl border border-slate-100 bg-slate-50"
+      >
         <ComposableMap
           projection="geoMercator"
           projectionConfig={{ scale: 140, center: [0, 20] }}
-          width={800}
-          height={440}
-          style={{ width: "100%", height: "auto", maxHeight: 480 }}
+          width={mapDims.w}
+          height={mapDims.h}
+          style={{ width: "100%", height: "100%", display: "block" }}
         >
           <defs>
             {hoveredIso ? (() => {
@@ -301,7 +322,7 @@ export default function GlobalChoropleth({
         </div>
       )}
 
-      <p className="mt-3 text-xs text-slate-500">
+      <p className="mt-3 shrink-0 text-xs text-slate-500">
         Hover for name, flag emoji, and values; the country fill shows its flag image when a flag is available from REST
         Countries. Values use year {year}.
       </p>

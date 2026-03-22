@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { subscribeApiTransport, type ApiTransportEvent } from "../api";
+import {
+  subscribeApiTransport,
+  subscribeClientToast,
+  type ApiTransportEvent,
+  type ClientToastEvent,
+} from "../api";
 
 const DISMISS_MS_SUCCESS = 5000;
 const DISMISS_MS_FAILURE = 10000;
+
+type StackEvent =
+  | { channel: "api"; e: ApiTransportEvent }
+  | { channel: "client"; e: ClientToastEvent };
 
 /** Short, human label for the kind of request (no query strings). */
 function requestKindLabel(path: string): string {
@@ -17,15 +26,23 @@ function requestKindLabel(path: string): string {
   if (base.includes("/api/global/wld-series")) return "World aggregates";
   if (base.includes("/api/analysis/correlation")) return "Correlation";
   if (base.includes("/api/cache/clear")) return "Cache";
-  if (base.includes("/pestel") || base.includes("pestel")) return "PESTEL";
-  if (base.includes("/porter") || base.includes("porter")) return "Porter";
+  if (base.includes("/pestel") || base.includes("pestel")) return "PESTEL analysis";
+  if (base.includes("/porter") || base.includes("porter")) return "Porter 5 Forces analysis";
   if (base.includes("/assistant") || base.includes("chat")) return "Assistant";
   if (base.includes("/data-providers")) return "Sources";
   return "Data request";
 }
 
+function apiSuccessHeadline(path: string): string {
+  const base = path.split("?")[0] ?? path;
+  if (base.includes("/api/analysis/pestel")) return "Generated";
+  if (base.includes("/api/analysis/porter")) return "Generated";
+  if (base.includes("/assistant") || base.includes("/chat")) return "Replied";
+  return "Loaded";
+}
+
 export default function ApiToastStack() {
-  const [latest, setLatest] = useState<ApiTransportEvent | null>(null);
+  const [latest, setLatest] = useState<StackEvent | null>(null);
   const dismissTimer = useRef<number | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -40,24 +57,67 @@ export default function ApiToastStack() {
     setLatest(null);
   }, [clearTimer]);
 
-  useEffect(() => {
-    return subscribeApiTransport((e) => {
+  const scheduleDismiss = useCallback(
+    (e: StackEvent) => {
       clearTimer();
       setLatest(e);
-      const ms = e.outcome === "success" ? DISMISS_MS_SUCCESS : DISMISS_MS_FAILURE;
+      const ok = e.channel === "api" ? e.e.outcome === "success" : e.e.outcome === "success";
+      const ms = ok ? DISMISS_MS_SUCCESS : DISMISS_MS_FAILURE;
       dismissTimer.current = window.setTimeout(() => {
         dismissTimer.current = null;
         setLatest(null);
       }, ms);
-    });
-  }, [clearTimer]);
+    },
+    [clearTimer]
+  );
+
+  useEffect(() => {
+    const unsubApi = subscribeApiTransport((e) => scheduleDismiss({ channel: "api", e }));
+    const unsubClient = subscribeClientToast((e) => scheduleDismiss({ channel: "client", e }));
+    return () => {
+      unsubApi();
+      unsubClient();
+    };
+  }, [scheduleDismiss]);
 
   useEffect(() => () => clearTimer(), [clearTimer]);
 
   if (latest == null) return null;
 
-  const ok = latest.outcome === "success";
-  const kind = requestKindLabel(latest.path);
+  const ok = latest.channel === "api" ? latest.e.outcome === "success" : latest.e.outcome === "success";
+
+  const headline =
+    latest.channel === "api"
+      ? ok
+        ? apiSuccessHeadline(latest.e.path)
+        : "Failed"
+      : ok
+        ? "Done"
+        : "Failed";
+
+  const mainLine =
+    latest.channel === "api" ? requestKindLabel(latest.e.path) : latest.e.title;
+
+  const subLine =
+    latest.channel === "client" && latest.e.detail ? latest.e.detail : null;
+
+  const durationSec =
+    latest.channel === "api"
+      ? latest.e.durationSec
+      : latest.e.durationSec !== undefined
+        ? latest.e.durationSec
+        : null;
+
+  const showTiming = durationSec !== null && durationSec !== undefined;
+
+  const errorText =
+    latest.channel === "api"
+      ? latest.e.outcome === "failure"
+        ? latest.e.error
+        : null
+      : latest.e.outcome === "failure"
+        ? latest.e.error
+        : null;
 
   return (
     <div
@@ -90,17 +150,22 @@ export default function ApiToastStack() {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">
-              {ok ? "Loaded" : "Failed"}
-            </p>
-            <p className="mt-1 text-[0.8125rem] font-medium leading-snug text-slate-800">{kind}</p>
-            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
-              {latest.durationSec.toFixed(3)}
-              <span className="ml-1 text-base font-semibold text-slate-600">s</span>
-            </p>
-            <p className="mt-0.5 text-[11px] text-slate-500">Time to complete</p>
-            {!ok ? (
-              <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-red-900">{latest.error}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-600">{headline}</p>
+            <p className="mt-1 text-[0.8125rem] font-medium leading-snug text-slate-800">{mainLine}</p>
+            {subLine ? (
+              <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-slate-600">{subLine}</p>
+            ) : null}
+            {showTiming ? (
+              <>
+                <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-slate-900">
+                  {Number(durationSec).toFixed(3)}
+                  <span className="ml-1 text-base font-semibold text-slate-600">s</span>
+                </p>
+                <p className="mt-0.5 text-[11px] text-slate-500">Time to complete</p>
+              </>
+            ) : null}
+            {errorText ? (
+              <p className="mt-2 line-clamp-3 text-[11px] leading-relaxed text-red-900">{errorText}</p>
             ) : null}
           </div>
           <button

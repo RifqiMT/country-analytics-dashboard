@@ -6,6 +6,10 @@ export default function PestelStrategicCard({ sections }: { sections: StrategicS
       <h2 className="text-xl font-bold text-slate-900">
         Strategic Implications for Business (PESTEL-SWOT)
       </h2>
+      <p className="mt-2 text-sm text-slate-500">
+        Each quadrant is three distinct paragraphs: grounded in dashboard metrics, refined with web context when
+        available, and specific actions—wording should differ across Strengths, Weaknesses, Opportunities, and Threats.
+      </p>
       <div className="mt-4 border-t border-slate-200 pt-6">
         <div className="space-y-8">
           {sections.map((s, i) => (

@@ -103,14 +103,14 @@ export default function ResidualsScatter({ points }: { points: Point[] }) {
             <ComposedChart margin={{ top: 8, right: 8, bottom: 24, left: 8 }}>
               <XAxis
                 type="number"
-                dataKey="fitted"
+                dataKey="x"
                 tickFormatter={(v) => formatCompactNumber(Number(v), { maxFrac: 1 })}
                 stroke="#94a3b8"
                 fontSize={11}
               />
               <YAxis
                 type="number"
-                dataKey="residual"
+                dataKey="y"
                 tickFormatter={(v) => formatCompactNumber(Number(v), { maxFrac: 1 })}
                 stroke="#94a3b8"
                 fontSize={11}
@@ -121,7 +121,15 @@ export default function ResidualsScatter({ points }: { points: Point[] }) {
                 content={ResidualsTooltip}
               />
               <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
-              <Scatter data={data} fill="#ef4444" fillOpacity={0.5} />
+              <Scatter
+                data={data}
+                dataKey="y"
+                fill="#ef4444"
+                fillOpacity={0.55}
+                line={false}
+                isAnimationActive={false}
+                shape="circle"
+              />
             </ComposedChart>
           </ResponsiveContainer>
         }

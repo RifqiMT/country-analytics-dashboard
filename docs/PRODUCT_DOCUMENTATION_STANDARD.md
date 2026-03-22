@@ -1,41 +1,104 @@
 # Product documentation standard
 
-This standard applies to all product-facing documentation under `docs/` and to the root `README.md` for the Country Analytics Platform.
+This standard applies to all product-facing documentation under `docs/` and to the root **`README.md`** for the **Country Analytics Platform**. It is written for product, design, engineering, and compliance stakeholders who rely on a single, consistent documentation system.
 
-## 1. Principles
+---
 
-- **Single source of truth.** Numeric definitions and institution names follow `backend/src/metrics.ts` and `backend/src/dataProviders.ts`. Do not duplicate conflicting formulas in prose; reference the code or API when precision matters.
-- **Audience-aware.** Separate *what the product does* (PRD, personas, stories) from *how it is built* (architecture, guardrails). Executives read PRD and metrics; engineers read architecture and variables.
-- **Versioned with the product.** When behavior changes (new route, new metric, new env var), update the relevant doc in the same change set whenever practical.
-- **Professional tone.** Use clear, complete sentences. Prefer neutral, precise language over marketing superlatives.
+## 1. Purpose and scope
 
-## 2. Required document set
+- **Purpose:** Ensure every important behavior of the application—user-facing, analytical, and operational—is discoverable, traceable, and aligned with the source code.
+- **Scope:** The `country-analytics-platform` repository. External data publishers (World Bank, IMF, UNESCO, etc.) remain the authority for **underlying statistical definitions**; this repo documents **how** those series are selected, merged, exposed, and presented.
 
-| Artifact | Minimum contents |
-|----------|------------------|
-| README (root) | Stack, quick start, high-level features, deployment notes, links to `docs/` |
-| PRD | Vision, scope, personas summary, feature list, non-goals, release assumptions |
-| User personas | Named roles, goals, frustrations, platform touchpoints |
-| User stories | “As a … I want … so that …” plus acceptance notes where helpful |
-| Variables | IDs, friendly names, definitions, formulas or source logic, UI/API location, examples |
-| Metrics & OKRs | North-star and health metrics; OKR examples for product/engineering |
-| Design guidelines | Color, typography, navigation, component patterns, motion/accessibility |
-| Traceability | Requirements or stories mapped to routes, components, and APIs |
-| Guardrails | Data limitations, legal/safety, AI usage, performance, and operational boundaries |
+---
 
-## 3. Formatting conventions
+## 2. Principles
 
-- Use **Markdown** with `##` / `###` headings; one H1 per file (title).
-- Use tables for dictionaries and matrices; use [Mermaid](https://mermaid.js.org/) for diagrams where it aids maintenance (e.g. variable relationships).
-- **Code and paths:** `` `snake_case` `` for metric IDs and file paths; **bold** sparingly for emphasis.
-- **Links:** Prefer relative links within the repo; external links for institutions and APIs.
+| Principle | Meaning |
+|-----------|---------|
+| **Single source of truth** | Numeric catalog and institution wiring follow `backend/src/metrics.ts` and `backend/src/dataProviders.ts`. Prose must not contradict code; when in doubt, cite the file or `GET /api/metrics`. |
+| **Audience-aware layering** | Executives and PMs: PRD, personas, OKRs, high-level README. Practitioners: user stories, variables, design guidelines. Engineers: architecture, guardrails, traceability. |
+| **Version with the product** | Same change set should update code **and** affected docs (new route, metric, env var, or UI pattern) whenever practical. |
+| **Professional tone** | Clear, complete sentences; neutral precision over marketing language; defined acronyms on first use in each major document. |
+| **Traceability** | Material requirements map to implementation and verification paths via `TRACEABILITY_MATRIX.md`. |
 
-## 4. Review and ownership
+---
 
-- **Product-facing changes** (PRD, personas, stories, metrics definitions for stakeholders): product owner or delegate reviews.
-- **Technical accuracy** (variables, architecture, guardrails): engineering review against `backend/` and `frontend/`.
-- **Design changes** (tokens, components): align `DESIGN_GUIDELINES.md` with `frontend/tailwind.config.js`, `frontend/src/index.css`, and shared layout components.
+## 3. Required document set
 
-## 5. Changelog discipline
+| Artifact | Minimum contents | Primary audience |
+|----------|------------------|------------------|
+| **README** (root) | Stack, quick start, environment contract, feature overview, deployment, links to `docs/` | Everyone |
+| **docs/README.md** | Index and short description of each doc | Everyone |
+| **PRD** | Vision, problem, goals, non-goals, feature inventory, functional and non-functional requirements, success criteria, dependencies | Product, leadership |
+| **User personas** | Named composite roles, goals, frustrations, platform touchpoints | Product, UX, content |
+| **User stories** | “As a … I want … so that …” plus acceptance-oriented notes | Product, QA, engineering |
+| **Variables** | IDs, friendly names, definitions, formulas or source logic, UI/API location, examples; relationship diagrams where useful | Engineering, analysts |
+| **Metrics & OKRs** | North-star and health metrics; example OKRs for product and engineering | Product, leadership |
+| **Design guidelines** | Color (including feature themes), typography, components, motion, accessibility | Design, frontend |
+| **Traceability matrix** | Requirements and stories → UI, API, modules, verification hints | QA, release management |
+| **Guardrails** | Data methodology limits, AI safety, legal positioning, security and ops boundaries | Everyone building or selling the product |
+| **Architecture** | Context diagrams, routes, API surface, data pipeline, key modules | Engineering |
 
-For significant releases, add a short subsection to `PRD.md` (Release notes) or maintain `CHANGELOG.md` at repo root if the team adopts it. At minimum, note: date, breaking API/UI changes, new metrics, and new environment variables.
+---
+
+## 4. Formatting conventions
+
+- **Markdown** with one H1 per file; use `##` / `###` for structure.
+- **Tables** for dictionaries, environment variables, and traceability matrices.
+- **Mermaid** for architecture and variable lineage where it improves maintenance.
+- **Code and paths:** `` `snake_case` `` for metric IDs and repository paths; **bold** sparingly.
+- **Links:** Relative links inside the repo; authoritative external links for institutions and third-party APIs.
+
+---
+
+## 5. Enterprise-style governance
+
+### 5.1 Document ownership (recommended)
+
+| Document type | Suggested owner | Review trigger |
+|---------------|-----------------|----------------|
+| PRD, personas, stories | Product owner or delegate | Scope or positioning change |
+| Variables, architecture, guardrails | Engineering lead | Pipeline, API, or metric catalog change |
+| Design guidelines | Design + frontend lead | New tokens, themes, or shared components |
+| Metrics & OKRs | Product + data | Instrumentation or goal cycle |
+| Traceability matrix | Product or QA | Release candidate, major feature |
+
+### 5.2 Definition of “done” for documentation
+
+A feature is **documentation-complete** when:
+
+1. **PRD** or user stories reflect the behavior (or a deliberate deferral).
+2. **TRACEABILITY_MATRIX** includes at least one row linking intent to UI/API.
+3. **VARIABLES** (or **ARCHITECTURE**) is updated if new parameters, metrics, or env vars appear.
+4. **GUARDRAILS** is updated if data, AI, or compliance assumptions shift.
+
+### 5.3 Change and version notes
+
+For significant releases, add a dated subsection under **PRD → Release / maintenance notes** or adopt a root **`CHANGELOG.md`**. Record: breaking API or UI changes, new metrics, new environment variables, and removed features.
+
+---
+
+## 6. Glossary (repository usage)
+
+| Term | Usage in this product |
+|------|------------------------|
+| **WDI** | World Bank World Development Indicators—primary statistical source for most catalog metrics. |
+| **CCA3 / ISO3** | Three-letter country code used in URLs and APIs (e.g. `IDN`). |
+| **Digest** | Compact indicator block passed into PESTEL/Porter/Assistant grounding; metric keys are listed in `backend/src/pestelDigestKeys.ts` for PESTEL. |
+| **Data-only / scaffold** | Structured analysis generated without LLM keys, from indicators and templates. |
+| **Provenance** | Per-point metadata on some series (e.g. reported vs interpolated); not every point carries it. |
+
+---
+
+## 7. Alignment with code (maintenance checklist)
+
+When merging a feature branch, verify:
+
+- [ ] `frontend/src/App.tsx` routes match **ARCHITECTURE** and **PRD** feature table.
+- [ ] `backend/src/index.ts` registered routes match **ARCHITECTURE** API summary.
+- [ ] `backend/src/metrics.ts` length matches **VARIABLES** catalog count claim.
+- [ ] `.env.example` matches **VARIABLES** environment section.
+
+---
+
+*This standard itself should be updated when the team adopts new artifact types (e.g. formal RFCs, ADRs) or compliance frameworks.*

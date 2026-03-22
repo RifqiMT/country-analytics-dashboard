@@ -20,6 +20,7 @@ import {
   maxSelectableYear,
 } from "../lib/yearBounds";
 import { labourChartRows, mergeSeriesForLineChart } from "../lib/chartSeries";
+import { readStoredDashboardCountry, writeStoredDashboardCountry } from "../dashboardCountryStorage";
 
 const DASHBOARD_METRICS =
   "gdp,gdp_ppp,gdp_per_capita,gdp_per_capita_ppp,gdp_growth,population,gov_debt_pct_gdp,gov_debt_usd,inflation,lending_rate,interest_real,unemployment_ilo,labor_force_total,poverty_headcount,poverty_national,life_expectancy,mortality_under5,maternal_mortality,undernourishment,pop_age_0_14,pop_age_65_plus,pop_15_64_pct,labour_force_participation,literacy_adult,school_primary_completion,enrollment_secondary,completion_secondary,completion_tertiary,oosc_primary,oosc_secondary,oosc_tertiary,reading_proficiency,gpi_primary,gpi_secondary,gpi_tertiary,trained_teachers_pri,trained_teachers_sec,trained_teachers_ter,edu_expenditure_gdp,enrollment_primary_pct,enrollment_tertiary_pct,enrollment_primary_count,enrollment_secondary_count,enrollment_tertiary_count,teachers_primary_count,teachers_secondary_count,teachers_tertiary_count";
@@ -104,7 +105,7 @@ function headOfGovernment(gov?: string): string {
 
 export default function Dashboard() {
   const maxYear = maxSelectableYear();
-  const [country, setCountry] = useState("IDN");
+  const [country, setCountry] = useState(() => readStoredDashboardCountry() ?? "IDN");
   const [start, setStart] = useState(MIN_DATA_YEAR);
   const [end, setEnd] = useState(maxYear);
   const [meta, setMeta] = useState<CountrySummary | null>(null);
@@ -122,6 +123,10 @@ export default function Dashboard() {
   useEffect(() => {
     getJson<MetricDef[]>("/api/metrics").then(setMetricCatalog).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    writeStoredDashboardCountry(country);
+  }, [country]);
 
   const lbl = useCallback(
     (id: string) => metricDisplayLabelFromId(id, metricCatalog),
@@ -526,16 +531,16 @@ export default function Dashboard() {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:items-end">
-        <div className="min-w-0">
+        <div className="grid min-w-0 grid-cols-1 gap-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Country</p>
-          <p className="mt-0.5 text-sm text-slate-600">Choose the focus country for the dashboard and charts.</p>
+          <p className="text-sm text-slate-600">Choose the focus country for the dashboard and charts.</p>
           <div className="mt-2 w-full min-w-0">
             <CountrySelect value={country} onChange={setCountry} variant="light" showLabel={false} />
           </div>
         </div>
-        <div className="min-w-0">
+        <div className="grid min-w-0 grid-cols-1 gap-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Year range</p>
-          <p className="mt-0.5 text-sm text-slate-600">
+          <p className="text-sm text-slate-600">
             Default span is 2000–{maxYear} (current calendar year). “To” cannot exceed {maxYear}. Typical WDI/IMF releases
             lag slightly; the API may extend sparse series from the last observation.
           </p>
@@ -602,22 +607,22 @@ export default function Dashboard() {
 
       {meta && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
+          <div className="grid grid-cols-1 gap-3 border-b border-slate-100 pb-3">
+            <div className="grid min-w-0 grid-cols-1 gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Country analytics overview
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">
                   {start}–{end}
                 </span>
               </div>
-              <h2 className="mt-1 font-display text-xl font-bold text-slate-900 sm:text-2xl">
+              <h2 className="font-display text-xl font-bold text-slate-900 sm:text-2xl">
                 {meta.name}{" "}
                 <span className="text-amber-600">({meta.cca3})</span>
               </h2>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Data sources</p>
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Data sources</p>
+              <div className="flex flex-wrap gap-1.5">
                 {["World Bank", "UN", "UNESCO", "WHO", "IMF"].map((t) => (
                   <span
                     key={t}
@@ -629,7 +634,11 @@ export default function Dashboard() {
               </div>
             </div>
             {meta.flags?.png && (
-              <img src={meta.flags.png} alt="" className="h-12 shrink-0 rounded-md border border-slate-200 shadow-sm sm:h-14" />
+              <img
+                src={meta.flags.png}
+                alt=""
+                className="h-12 w-fit shrink-0 rounded-md border border-slate-200 shadow-sm sm:h-14"
+              />
             )}
           </div>
 

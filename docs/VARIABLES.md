@@ -10,8 +10,16 @@ This document describes **configuration and request variables**, **UI-derived se
 |---------------|-----------------|------------|---------|----------|---------|
 | `PORT` | API port | TCP port for the Express server. | N/A | `.env`, `backend/src/index.ts` | `4000` |
 | `GROQ_API_KEY` | Groq API key | Enables LLM completions for Assistant, PESTEL, Porter. | N/A | `.env`, `backend/src/llm.ts` | `gsk_…` (server-only) |
-| `GROQ_MODEL` | Groq model id | Overrides default chat model. | N/A | `.env`, `llm.ts` | `llama-3.3-70b-versatile` |
-| `TAVILY_API_KEY` | Tavily API key | Optional web search context before LLM. | N/A | `.env`, `llm.ts` | Server-only secret |
+| `GROQ_MODEL` | Groq legacy primary | Optional shared primary: used for a use case **only** if that use case’s `GROQ_MODEL_*` is unset. **Do not set to empty** (`GROQ_MODEL=`). | N/A | `.env`, `llm.ts` | `llama-3.3-70b-versatile` |
+| `GROQ_MODEL_PESTEL` | PESTEL primary model | Primary Groq model id for `/api/analysis/pestel` (long JSON + narrative). Falls back to `GROQ_MODEL`, then default `llama-3.3-70b-versatile`. | N/A | `.env`, `llm.ts` | `llama-3.3-70b-versatile` |
+| `GROQ_MODEL_PORTER` | Porter primary model | Primary for `/api/analysis/porter`. Default `openai/gpt-oss-120b` (separate stack from PESTEL). | N/A | `.env`, `llm.ts` | `openai/gpt-oss-120b` |
+| `GROQ_MODEL_ASSISTANT` | Assistant primary model | Primary for `/api/assistant/chat`. Default `llama-3.1-8b-instant` (latency-first). | N/A | `.env`, `llm.ts` | `llama-3.1-8b-instant` |
+| `GROQ_FALLBACK_MODELS_PESTEL` | PESTEL fallbacks | Comma-separated ids tried after PESTEL primary on retryable Groq errors, before `GROQ_FALLBACK_MODELS` and PESTEL built-ins. | N/A | `.env`, `llm.ts` | `llama-3.1-8b-instant,…` |
+| `GROQ_FALLBACK_MODELS_PORTER` | Porter fallbacks | Same for Porter route. | N/A | `.env`, `llm.ts` | — |
+| `GROQ_FALLBACK_MODELS_ASSISTANT` | Assistant fallbacks | Same for Assistant route. | N/A | `.env`, `llm.ts` | — |
+| `GROQ_FALLBACK_MODELS` | Global Groq fallbacks | Comma-separated ids appended after each use case’s specific fallback list. | N/A | `.env`, `llm.ts` | `llama-3.1-8b-instant,qwen/qwen3-32b` |
+| `TAVILY_API_KEY` | Tavily API key | Web search before Groq; **Analytics Assistant** can use Tavily-only synthesis if every Groq model fails. | N/A | `.env`, `llm.ts` | Server-only secret |
+| `DISABLE_BOOTSTRAP_WARMUP` | Skip cache warmup | When set to `1` on the **API process**, `POST /api/bootstrap/warm` responds with **200** and `{ status: "skipped", reason: "DISABLE_BOOTSTRAP_WARMUP" }` instead of **202**—no background work is enqueued. | N/A | `.env` (backend / root as loaded by `index.ts`), `dataWarmup.ts`, `POST /api/bootstrap/warm` | `1` |
 
 ---
 
@@ -84,15 +92,61 @@ flowchart TB
   population --> age
 ```
 
+### 4.1 Application context (where variables flow)
+
+High-level **usage** of catalog metrics across surfaces (not every API field).
+
+```mermaid
+flowchart LR
+  subgraph ingest [Backend pipeline]
+    METRICS[metrics.ts catalog]
+    WB[worldBank / merge]
+    METRICS --> WB
+  end
+  subgraph api [API]
+    SERIES["GET /api/country/:cca3/series"]
+    SNAP["GET /api/global/snapshot"]
+    PESTEL_API["POST /api/analysis/pestel"]
+    ASSIST["POST /api/assistant/chat"]
+    WB --> SERIES
+    WB --> SNAP
+    SERIES --> PESTEL_API
+    SERIES --> ASSIST
+  end
+  subgraph ui [Frontend]
+    DASH[Dashboard]
+    GLOB[Global Analytics]
+    PEST[PESTEL page]
+    CHAT[Assistant]
+    SERIES --> DASH
+    SNAP --> GLOB
+    PESTEL_API --> PEST
+    ASSIST --> CHAT
+  end
+```
+
 ---
 
-## 5. Metric catalog (canonical ids)
+## 5. PESTEL digest metric set (grounding)
+
+These **metric IDs** are included in the PESTEL **SOURCE A** digest and participate in server-side grounding checks. They are a **subset** of the full catalog (`backend/src/pestelDigestKeys.ts`). Other metrics may still appear on the dashboard or in Porter digests.
+
+| Variable name | Friendly name | Definition | Formula | Location | Example |
+|---------------|----------------|------------|---------|----------|---------|
+| `PESTEL_DIGEST_KEYS` | PESTEL digest bundle | Ordered list of catalog IDs condensed for LLM context and validation. | N/A (configuration array) | `backend/src/pestelDigestKeys.ts`, referenced from `index.ts` / `pestelGrounding.ts` | Includes `gdp`, `gdp_growth`, `population`, `inflation`, `gov_debt_pct_gdp`, `unemployment_ilo`, `life_expectancy`, age shares, literacy, poverty, select education series, `lending_rate`, etc. |
+
+**Full member list (current):**  
+`gdp`, `gdp_ppp`, `gdp_per_capita`, `gdp_per_capita_ppp`, `gdp_growth`, `population`, `inflation`, `gov_debt_pct_gdp`, `unemployment_ilo`, `labor_force_total`, `life_expectancy`, `pop_age_0_14`, `pop_age_65_plus`, `pop_15_64_pct`, `literacy_adult`, `undernourishment`, `poverty_headcount`, `poverty_national`, `enrollment_primary_pct`, `enrollment_secondary`, `enrollment_tertiary_pct`, `completion_tertiary`, `edu_expenditure_gdp`, `lending_rate`.
+
+---
+
+## 6. Metric catalog (canonical ids)
 
 **Friendly name** = `label` in `metrics.ts` (long form). Short UI strings use `shortLabel` from the API. **Formula** summarizes publisher definition or in-repo derivation; detailed narratives are in each metric’s `description` field.
 
 The registered catalog currently contains **48** metrics (`METRICS` in `backend/src/metrics.ts`). Subsections below follow **financial → demographics → labour → health → education** for readability (not the array order in code).
 
-### 5.1 Financial
+### 6.1 Financial
 
 | Variable ID | Friendly name | Definition | Formula / source logic | Where it appears | Example |
 |-------------|----------------|------------|------------------------|------------------|---------|
@@ -109,7 +163,7 @@ The registered catalog currently contains **48** metrics (`METRICS` in `backend/
 | `poverty_headcount` | Poverty headcount ratio at $2.15 a day (2017 PPP) | International poverty line headcount. | WDI | Dashboard poverty KPIs | % of population |
 | `poverty_national` | Poverty headcount ratio at national poverty lines (% of population) | National line poverty share. | WDI | Dashboard poverty KPIs | National comparison |
 
-### 5.2 Demographics
+### 6.2 Demographics
 
 | Variable ID | Friendly name | Definition | Formula / source logic | Where it appears | Example |
 |-------------|----------------|------------|------------------------|------------------|---------|
@@ -118,7 +172,7 @@ The registered catalog currently contains **48** metrics (`METRICS` in `backend/
 | `pop_15_64_pct` | Population ages 15-64 (% of total) | Working-age share. | WDI; same pipeline notes | Dashboard age chart | Labour context |
 | `pop_age_65_plus` | Population ages 65+ (% of total) | Older-age share. | WDI | Dashboard age chart | Aging narrative |
 
-### 5.3 Labour
+### 6.3 Labour
 
 | Variable ID | Friendly name | Definition | Formula / source logic | Where it appears | Example |
 |-------------|----------------|------------|------------------------|------------------|---------|
@@ -126,7 +180,7 @@ The registered catalog currently contains **48** metrics (`METRICS` in `backend/
 | `labour_force_participation` | Labor force participation rate, total (% pop 15+) | Participation rate. | WDI | Dashboard labour context | Structural labour supply |
 | `labor_force_total` | Labor force, total | Absolute labour force. | WDI | Dashboard labour chart; drives `unemployed` | Count × unemployment rate → unemployed |
 
-### 5.4 Health
+### 6.4 Health
 
 | Variable ID | Friendly name | Definition | Formula / source logic | Where it appears | Example |
 |-------------|----------------|------------|------------------------|------------------|---------|
@@ -135,7 +189,7 @@ The registered catalog currently contains **48** metrics (`METRICS` in `backend/
 | `maternal_mortality` | Maternal mortality ratio (per 100,000 live births) | Maternal deaths per 100k live births. | WDI | Dashboard health | Maternal health KPI |
 | `undernourishment` | Prevalence of undernourishment (% of population) | Undernourishment prevalence. | WDI | Dashboard health dual-axis chart | % |
 
-### 5.5 Education
+### 6.5 Education
 
 | Variable ID | Friendly name | Definition | Formula / source logic | Where it appears | Example |
 |-------------|----------------|------------|------------------------|------------------|---------|
@@ -167,7 +221,7 @@ The registered catalog currently contains **48** metrics (`METRICS` in `backend/
 
 ---
 
-## 6. Maintenance
+## 7. Maintenance
 
-- When adding a metric: update `backend/src/metrics.ts`, `metricShortLabels.ts` if needed, any `DASHBOARD_METRICS` / `WLD_METRICS` strings in the frontend, and this document’s relevant subsection.
+- When adding a metric: update `backend/src/metrics.ts`, `metricShortLabels.ts` if needed, any `DASHBOARD_METRICS` / `WLD_METRICS` strings in the frontend, and this document’s relevant catalog subsection (**§6**). If the metric should ground PESTEL, extend `pestelDigestKeys.ts` and **§5** here.
 - For **live numeric examples**, call `GET /api/country/{CCA3}/series?metrics={id}&start=2000&end={currentYear}` — values change with publisher updates.

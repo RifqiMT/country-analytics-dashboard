@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import ChartTableToggle from "../components/charts/ChartTableToggle";
+import AccordionSection from "../components/dashboard/AccordionSection";
 import GlobalChoropleth from "../components/global/GlobalChoropleth";
 import GlobalWldCharts from "../components/global/GlobalWldCharts";
 import SortableTh from "../components/ui/SortableTh";
@@ -458,12 +459,14 @@ export default function GlobalAnalytics() {
   return (
     <div className="space-y-4">
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h1 className="text-2xl font-bold uppercase tracking-tight text-slate-900">Global view</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-600">
-          A modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest),
-          powered by World Bank, UN, WHO, and IMF data. Switch between an interactive world map, a full global country
-          table, and global macro charts for cross-country comparison.
-        </p>
+        <div className="grid grid-cols-1 gap-2">
+          <h1 className="text-2xl font-bold uppercase tracking-tight text-slate-900">Global view</h1>
+          <p className="max-w-3xl text-sm text-slate-600">
+            A modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest),
+            powered by World Bank, UN, WHO, and IMF data. Switch between an interactive world map, a full global country
+            table, and global macro charts for cross-country comparison.
+          </p>
+        </div>
 
         <div className="mt-6 flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
           <div>
@@ -544,9 +547,8 @@ export default function GlobalAnalytics() {
       {loading && view !== "charts" && <p className="text-sm text-slate-500">Loading…</p>}
 
       {view === "map" && snapshot && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-lg font-bold uppercase tracking-wide text-slate-900">Interactive country map</h2>
-          <p className="mt-1 text-sm text-slate-600">
+        <AccordionSection title="Geographic snapshot · map & metric table" defaultOpen>
+          <p className="text-sm text-slate-600">
             Hover for country name, flag emoji, metric value, and—when available—a flag image inside the shape (REST
             Countries PNG). Default fill follows the metric scale; outline thickens on hover. Data use World Bank WDI and
             configured fallbacks (e.g. IMF for debt %). The API may use an earlier year than selected when the latest
@@ -560,11 +562,11 @@ export default function GlobalAnalytics() {
               </span>
             ) : null}
           </p>
-          <div className="mt-4 min-h-[min(55vh,520px)] w-full">
+          <div className="mt-4 flex h-[min(55vh,520px)] min-h-[320px] w-full flex-col">
             <ChartTableToggle
               chartLabel="Map"
               tableLabel="Table"
-              className="h-[min(55vh,520px)] w-full"
+              className="flex h-full min-h-0 w-full flex-1 flex-col"
               vizTitle={`Map · ${mapMeta.label}`}
               chart={
                 <GlobalChoropleth
@@ -589,7 +591,7 @@ export default function GlobalAnalytics() {
               }
             />
           </div>
-        </section>
+        </AccordionSection>
       )}
 
       {view === "table" && tableData && (
@@ -851,9 +853,11 @@ export default function GlobalAnalytics() {
 
       {view === "charts" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="text-lg font-bold uppercase tracking-wide text-slate-900">Global charts</h2>
+          <h2 className="text-lg font-bold uppercase tracking-wide text-slate-900">Global aggregate charts (WLD)</h2>
           <p className="mt-1 text-sm text-slate-600">
-            World aggregate (WLD) time series — useful for global context alongside the map and country table.
+            World series grouped like the country dashboard (Financial, Health &amp; demographics, Education, Labour). Open{" "}
+            <span className="font-semibold text-slate-800">Full screen</span> on any chart or table to use the full
+            viewport; plots and the map resize with the window.
           </p>
           <div className="mt-6">
             <GlobalWldCharts />

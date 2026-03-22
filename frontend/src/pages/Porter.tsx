@@ -54,7 +54,7 @@ export default function Porter() {
       setAnalysis(res.analysis);
       setAttr(res.attribution);
     } catch (e) {
-      setErr(String(e));
+      setErr(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
@@ -63,15 +63,17 @@ export default function Porter() {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
-          Porter Five Forces
-        </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600">
-          Industry attractiveness analysis (Threat of new entrants, Bargaining power of suppliers,
-          Bargaining power of buyers, Threat of substitutes, Competitive rivalry) for the selected
-          country and ILO-ISIC industry sector. Uses the same platform data (World Bank, UN, WHO, IMF;
-          2000–{maxSelectableYear()}) and supplementary information from TAVILY, GROQ, or other LLMs.
-        </p>
+        <div className="grid grid-cols-1 gap-3">
+          <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
+            Porter Five Forces
+          </h1>
+          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+            Industry attractiveness analysis (Threat of new entrants, Bargaining power of suppliers,
+            Bargaining power of buyers, Threat of substitutes, Competitive rivalry) for the selected
+            country and ILO-ISIC industry sector. Uses the same platform data (World Bank, UN, WHO, IMF;
+            2000–{maxSelectableYear()}) and supplementary information from TAVILY, GROQ, or other LLMs.
+          </p>
+        </div>
 
         <div className="mt-8 rounded-xl border border-slate-100 bg-slate-50/80 p-5 sm:p-6">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:gap-8">

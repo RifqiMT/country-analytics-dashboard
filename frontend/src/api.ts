@@ -65,6 +65,48 @@ function emitTransport(e: ApiTransportEvent): void {
   }
 }
 
+/** Browser-side actions (CSV/PNG export, etc.) — not part of `subscribeApiTransport`. */
+export type ClientToastEvent = {
+  id: string;
+  source: "client";
+  outcome: "success" | "failure";
+  title: string;
+  detail?: string;
+  durationSec?: number;
+  error?: string;
+  at: number;
+};
+
+let clientToastSeq = 0;
+const clientToastSubscribers = new Set<(e: ClientToastEvent) => void>();
+
+export function subscribeClientToast(cb: (e: ClientToastEvent) => void): () => void {
+  clientToastSubscribers.add(cb);
+  return () => clientToastSubscribers.delete(cb);
+}
+
+export function emitClientToast(
+  payload: Omit<ClientToastEvent, "id" | "at" | "source"> & { id?: string }
+): void {
+  const e: ClientToastEvent = {
+    id: payload.id ?? `client-${Date.now()}-${++clientToastSeq}`,
+    source: "client",
+    at: Date.now(),
+    outcome: payload.outcome,
+    title: payload.title,
+    detail: payload.detail,
+    durationSec: payload.durationSec,
+    error: payload.error,
+  };
+  for (const fn of clientToastSubscribers) {
+    try {
+      fn(e);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 function responseByteLength(text: string): number {
   return new TextEncoder().encode(text).length;
 }
