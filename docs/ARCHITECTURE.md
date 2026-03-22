@@ -110,12 +110,16 @@ Cache: SHA-truncated key over sorted metric IDs + country + range; TTL ~20 minut
 | `components/charts/VizGalleryContext.tsx` | Context for group fullscreen routing |
 | `components/pestel/*` | PESTEL layout, themes (`pestelTheme.ts`), SWOT grid |
 | `components/porter/*` | Porter forces hub, themes (`porterTheme.ts`) |
-| `components/assistant/MessageContent.tsx` | Assistant reply rendering (e.g. markdown) |
+| `components/assistant/MessageContent.tsx` | Assistant reply: GFM tables, links, bold, `[D#]`/`[W#]` chips, web sources split, consecutive duplicate table suppression |
+| `pages/Assistant.tsx` | Composer, country sync, Web-first/Auto, Steps & actions, persona banner wrapper, starter categories |
+| `lib/assistantSuggestionCategories.ts` | Grouped starter prompts (six categories) |
+| `lib/assistantAnswerPresentation.ts` | Maps `attribution` + `citations` → source category + persona copy |
+| `lib/assistantWebSources.ts` | Parses `**Web source(s)**` appendix for link cards |
 
 ## 7. Strategy and AI pipeline (summary)
 
 - **PESTEL / Porter:** Build an indicator digest from the catalog and country bundle; optional Tavily retrieval; optional Groq JSON generation; **sanitize** LLM partials against indicators, static profile, and web corpus (`pestelGrounding.ts`); **merge** with the data scaffold (`mergePestelAnalysis` in `pestelAnalysis.ts`); **polish** user-visible strings. SWOT quadrants are deduplicated across strengths / weaknesses / opportunities / threats when padding merged lists.
-- **Assistant:** Chat completion with optional dashboard digest injection and Tavily search; responses include attribution metadata when the route attaches it.
+- **Assistant:** `classifyAssistantIntent` and helpers in `assistantIntel.ts` choose **statistics / compare / overview / general_web** behavior, **Tavily skip** when platform payload suffices (unless web priority), and **focus-metric scope**. Parallel fetch builds dashboard block, **global ranking** (`assistantRankingBlock.ts`), and **multi-country comparison** slices. `compactAssistantRetrievalForLlm` (`assistantCitationContext.ts`) emits **[D#]**-prefixed lines and **one** web bullet for **[W1]** using `pickTopTavilyWebResults`. User prompt passed through `clampAssistantUserForLlm` (`assistantPromptBudget.ts`). **Groq** via `groqChatWithFallbackForUseCase("assistant", …)` with timeout, transport retry, and rate-limit backoff (`llm.ts`). **Polish** + **strip redundant ranking tables** (`assistantReplyPolish.ts`, `assistantReplyTableDedupe.ts`). Final `reply` may be `rankingMarkdown + "\n\n" + narrative`. **Fallback:** `tavilyAssistantFallbackReply` when every Groq model fails. Response includes **`attribution: string[]`** and **`citations`** for the UI.
 
 ## 8. Build & deploy
 

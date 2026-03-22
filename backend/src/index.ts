@@ -23,7 +23,7 @@ if (!process.env.GROQ_API_KEY?.trim()) {
 import cors from "cors";
 import express from "express";
 import { METRICS, METRIC_BY_ID } from "./metrics.js";
-import { listCountries, getCountry } from "./restCountries.js";
+import { listCountries, getCountry, type CountrySummary } from "./restCountries.js";
 import { fetchWikidataCountryEnrichment } from "./wikidataCountryProfile.js";
 import { fetchSeaAroundUsEezAreaKm2 } from "./seaAroundUsEez.js";
 import { EEZ_SQKM_FALLBACK } from "./eezSqKmFallback.js";
@@ -32,11 +32,14 @@ import type { SeriesPoint } from "./series.js";
 import { fetchGlobalSnapshotWithYearFallback } from "./globalSnapshot.js";
 import {
   groqChatWithFallbackForUseCase,
-  tavilyAssistantFallbackReply,
   tavilySearch,
   utcDateDaysAgo,
   utcDateISO,
 } from "./llm.js";
+import {
+  buildPovertyInternationalVsNationalTable,
+  tavilyAssistantFallbackReply,
+} from "./assistantTavilyFallback.js";
 import { clearAllCache, getCache, setCache } from "./cache.js";
 import { resetDataWarmupGate, startDataWarmup } from "./dataWarmup.js";
 import { fetchWbCountryProfile } from "./wbCountryProfile.js";
@@ -63,6 +66,7 @@ import {
   mergePorterAnalysis,
   parsePorterFromLlm,
 } from "./porterAnalysis.js";
+import { fetchPorterTemporalHorizonWeb, PORTER_TEMPORAL_SECTION_MARKER } from "./porterTavily.js";
 import { ILO_ISIC_DIVISIONS } from "./iloIsicDivisions.js";
 import { computeCorrelationGlobal } from "./correlationGlobal.js";
 import { getMetricShortLabel } from "./metricShortLabels.js";
@@ -80,14 +84,22 @@ import {
   buildAssistantWebSearchQuery,
   classifyAssistantIntent,
   extractComparisonCca3s,
+  extractCountryCodesMentionedInText,
   finalizeComparisonCodes,
   groqTemperatureForIntent,
   intentPrefersWebFirst,
   isWebSearchContextThin,
+  looksLikePovertyInternationalVsNationalComparison,
+  questionInvokesFocusCountryPlatformMetrics,
+  questionLooksMetricAnchored,
   questionNeedsLiveWebVerification,
   shouldSkipTavilyForPlatformFirst,
   type AssistantIntent,
 } from "./assistantIntel.js";
+import { stripRedundantRankingTablesFromLlmMarkdown } from "./assistantReplyTableDedupe.js";
+import { polishAssistantLlmReply } from "./assistantReplyPolish.js";
+import { compactAssistantRetrievalForLlm } from "./assistantCitationContext.js";
+import { clampAssistantUserForLlm } from "./assistantPromptBudget.js";
 
 const app = express();
 app.use(cors({ origin: true }));
@@ -337,6 +349,7 @@ const ASSISTANT_PRIMARY_METRIC_IDS: string[] = [
   "life_expectancy",
   "literacy_adult",
   "poverty_headcount",
+  "poverty_national",
   "undernourishment",
   "lending_rate",
 ];
@@ -348,6 +361,7 @@ function formatAssistantMetricValue(id: string, value: number): string {
     "gov_debt_pct_gdp",
     "unemployment_ilo",
     "poverty_headcount",
+    "poverty_national",
     "undernourishment",
     "literacy_adult",
     "lending_rate",
@@ -375,35 +389,51 @@ function formatAssistantMetricValue(id: string, value: number): string {
   return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
 }
 
-/** When the user adds `on GDP, population, …`, narrow assistant comparison blocks to those series. */
+/**
+ * Narrow per-country comparison blocks to metrics the user named.
+ * If they use `… on GDP, population`, only the tail after `on` is scanned; otherwise the whole message
+ * (so “GDP and inflation for France, Germany” picks both series).
+ */
 function extractAssistantComparisonMetricIds(message: string): string[] | undefined {
-  if (!/\s+on\s+/i.test(message)) return undefined;
-  const onIdx = message.search(/\s+on\s+/i);
-  const tail = message.slice(onIdx).replace(/^\s+on\s+/i, "");
+  const hasOn = /\s+on\s+/i.test(message);
+  const text = hasOn
+    ? message.slice(message.search(/\s+on\s+/i)).replace(/^\s+on\s+/i, "")
+    : message;
   const picked: string[] = [];
   const add = (id: string) => {
     if (ASSISTANT_PRIMARY_METRIC_IDS.includes(id) && !picked.includes(id)) picked.push(id);
   };
-  if (/\bgdp\s+per\s+capita\b/i.test(tail)) {
+  if (/\bgdp\s+per\s+capita\s+ppp\b|\bppp\s+per\s+capita\b/i.test(text)) {
+    add("gdp_per_capita_ppp");
+  } else if (/\bgdp\s+per\s+capita\b|\bper\s+capita\s+gdp\b/i.test(text)) {
     add("gdp_per_capita");
     add("gdp_per_capita_ppp");
-  } else if (/\bgdp\b/i.test(tail)) {
+  } else if (/\bgdp\b|\bgross\s+domestic\b/i.test(text)) {
     add("gdp");
     add("gdp_ppp");
   }
-  if (/\bgdp\s+growth\b/i.test(tail)) add("gdp_growth");
-  if (/\bpopulation\b/i.test(tail)) add("population");
-  if (/\bunemployment\b/i.test(tail)) add("unemployment_ilo");
-  if (/\binflation\b/i.test(tail)) add("inflation");
-  if (/\bdebt\b/i.test(tail)) {
+  if (/\bgdp\s+growth\b|\beconomic\s+growth\s+rate\b/i.test(text)) add("gdp_growth");
+  if (/\bpopulation\b|\bpopulous\b/i.test(text)) add("population");
+  if (/\bunemployment\b/i.test(text)) add("unemployment_ilo");
+  if (/\binflation\b|\bcpi\b/i.test(text)) add("inflation");
+  if (/\bdebt\b|\bgovernment\s+debt\b/i.test(text)) {
     add("gov_debt_pct_gdp");
     add("gov_debt_usd");
   }
-  if (/\blife\s+expectancy\b/i.test(tail)) add("life_expectancy");
-  if (/\bliteracy\b/i.test(tail)) add("literacy_adult");
-  if (/\bpoverty\b/i.test(tail)) add("poverty_headcount");
-  if (/\b(undernourishment|hunger|malnutrition)\b/i.test(tail)) add("undernourishment");
-  if (/\blending\b|\binterest\s+rate\b/i.test(tail)) add("lending_rate");
+  if (/\blife\s+expectancy\b/i.test(text)) add("life_expectancy");
+  if (/\bliteracy\b/i.test(text)) add("literacy_adult");
+  if (/\bpoverty\b/i.test(text)) {
+    add("poverty_headcount");
+    if (
+      /\bnational\b|\binternational\b|\bvs\.?\b|\bversus\b|\bcompare|\bcomparison\b/i.test(text)
+    ) {
+      add("poverty_national");
+    }
+  } else if (/\bheadcount\b/i.test(text)) {
+    add("poverty_headcount");
+  }
+  if (/\b(undernourishment|hunger|malnutrition)\b/i.test(text)) add("undernourishment");
+  if (/\blending\b|\binterest\s+rate\b/i.test(text)) add("lending_rate");
   return picked.length > 0 ? picked : undefined;
 }
 
@@ -423,8 +453,8 @@ function buildAssistantPrimaryDataBlock(
     `Region: ${meta.region}${meta.subregion ? ` · ${meta.subregion}` : ""}`,
     "",
     usedRequestedSubset
-      ? "Figures below (subset requested in the question) are from the same series as the dashboard. Latest non-null year per indicator:"
-      : "Figures below are from the same series as the dashboard (WDI + configured gap-fills). Latest non-null year per indicator:",
+      ? "The following values match the Country Dashboard definitions (subset you asked about). Each line is the latest observation stored in this app for that indicator (data year on the line):"
+      : "The following values match the Country Dashboard (World Bank WDI plus configured gap-fills). Each line is the latest observation stored in this app for that indicator (data year on the line):",
     "",
   ];
   for (const id of ids) {
@@ -456,7 +486,17 @@ app.post("/api/assistant/chat", async (req, res) => {
     const countries = await listCountries();
     const intent = classifyAssistantIntent(message);
     const needsVerifiedWeb = questionNeedsLiveWebVerification(message);
-    const extractedCompare = extractComparisonCca3s(message, cca3, countries);
+    let extractedCompare = extractComparisonCca3s(message, cca3, countries);
+    if (extractedCompare.length < 2) {
+      const scanned = extractCountryCodesMentionedInText(
+        message,
+        countries,
+        ASSISTANT_MAX_COMPARISON_COUNTRIES
+      );
+      if (scanned.length >= 2 && questionLooksMetricAnchored(message)) {
+        extractedCompare = scanned;
+      }
+    }
     const comparisonCodes = finalizeComparisonCodes(extractedCompare, cca3, message);
     const comparisonMetricIds = extractAssistantComparisonMetricIds(message);
     const preferWebPrimary = intentPrefersWebFirst(intent);
@@ -485,15 +525,25 @@ app.post("/api/assistant/chat", async (req, res) => {
       `Intent: ${intentLabel(intent)}${webSearchPriority ? " · Web search prioritized (user mode)" : ""}`,
     ];
 
-    const [dashboardBlock, rankingPayload, comparisonBlock] = await Promise.all([
-      (async () => {
-        if (!cca3 || !/^[A-Z]{3}$/.test(cca3)) return "";
+    const [dashFocus, rankingPayload, comparisonBlock] = await Promise.all([
+      (async (): Promise<{
+        block: string;
+        meta?: CountrySummary;
+        bundle?: Record<string, SeriesPoint[]>;
+      }> => {
+        if (!cca3 || !/^[A-Z]{3}$/.test(cca3)) return { block: "" };
         const meta = await getCountry(cca3);
         const bundle = await fetchCountryBundle(cca3, allMetricIds(), MIN_DATA_YEAR, currentDataYear());
-        if (!meta) return "";
-        return buildAssistantPrimaryDataBlock(meta, bundle);
+        if (!meta) return { block: "" };
+        return {
+          block: buildAssistantPrimaryDataBlock(meta, bundle),
+          meta,
+          bundle,
+        };
       })(),
-      buildAssistantRankingPayload(message, formatAssistantMetricValue),
+      buildAssistantRankingPayload(message, formatAssistantMetricValue, {
+        focusCca3: /^[A-Z]{3}$/.test(cca3) ? cca3 : undefined,
+      }),
       (async () => {
         if (comparisonCodes.length < 2) return "";
         const parts: string[] = [];
@@ -506,8 +556,14 @@ app.post("/api/assistant/chat", async (req, res) => {
       })(),
     ]);
 
+    const dashboardBlock = dashFocus.block;
+    const dashboardFocusMeta = dashFocus.meta;
+    const dashboardFocusBundle = dashFocus.bundle;
+
     const rankingSection = rankingPayload?.plainBlock ?? "";
-    const rankingMarkdown = rankingPayload?.markdownTable ?? "";
+    const rankingMarkdownMain = rankingPayload?.markdownTable ?? "";
+    const rankingMarkdownFocus = rankingPayload?.focusComparisonMarkdown?.trim() ?? "";
+    const rankingMarkdown = [rankingMarkdownMain, rankingMarkdownFocus].filter(Boolean).join("\n\n");
     if (rankingSection) {
       attribution.push(
         "Global ranking: full-country snapshot (same API path as dashboard global view; year may step back for WDI coverage)"
@@ -521,10 +577,33 @@ app.post("/api/assistant/chat", async (req, res) => {
 
     const omitDuplicateDashboard =
       Boolean(comparisonBlock) && /^[A-Z]{3}$/.test(cca3) && comparisonCodes.includes(cca3);
-    const dashboardForPrompt = omitDuplicateDashboard ? "" : dashboardBlock;
+    const focusMetricsInScope = questionInvokesFocusCountryPlatformMetrics(message, intent);
+    const dashboardForPrompt =
+      omitDuplicateDashboard || !focusMetricsInScope ? "" : dashboardBlock;
+    if (dashboardBlock.trim() && !focusMetricsInScope) {
+      attribution.push("Platform: focus-country indicators omitted (question outside dashboard metric scope)");
+    }
+
+    const platformForTavilyFallback = (() => {
+      const fm = dashboardFocusMeta;
+      const fb = dashboardFocusBundle;
+      if (fm && fb && looksLikePovertyInternationalVsNationalComparison(message)) {
+        const t = buildPovertyInternationalVsNationalTable(`${fm.name} (${fm.cca3})`, fb);
+        if (t) return t;
+      }
+      if (dashboardBlock.trim() && focusMetricsInScope) {
+        const head = fm
+          ? `**Latest platform indicators — ${fm.name} (${fm.cca3})**`
+          : "**Latest platform indicators**";
+        return `${head}\n\n${dashboardBlock}`;
+      }
+      return "";
+    })();
 
     const hasAuthoritativePayload =
-      Boolean(dashboardBlock) || Boolean(rankingSection) || Boolean(comparisonBlock);
+      Boolean(rankingSection) ||
+      Boolean(comparisonBlock) ||
+      (Boolean(dashboardBlock) && focusMetricsInScope);
     const tavilyConfigured = Boolean(process.env.TAVILY_API_KEY?.trim());
     const skipWebForPlatform =
       !webSearchPriority &&
@@ -542,7 +621,7 @@ app.post("/api/assistant/chat", async (req, res) => {
       const today = utcDateISO();
 
       if (needsVerifiedWeb) {
-        webContext = await tavilySearch(webQuery, 12, {
+        webContext = await tavilySearch(webQuery, 6, {
           searchDepth: "advanced",
           includeAnswer: "advanced",
           topic: "news",
@@ -553,7 +632,7 @@ app.post("/api/assistant/chat", async (req, res) => {
           const y = String(new Date().getFullYear());
           const retry = await tavilySearch(
             `${message.replace(/\s+/g, " ").trim()} ${y} current officeholder confirmed news`,
-            12,
+            6,
             {
               searchDepth: "advanced",
               includeAnswer: "advanced",
@@ -569,7 +648,7 @@ app.post("/api/assistant/chat", async (req, res) => {
         }
         if (isWebSearchContextThin(webContext)) {
           const y = String(new Date().getFullYear());
-          const wide = await tavilySearch(`${message.replace(/\s+/g, " ").trim()} ${y}`, 10, {
+          const wide = await tavilySearch(`${message.replace(/\s+/g, " ").trim()} ${y}`, 6, {
             searchDepth: "advanced",
             includeAnswer: "advanced",
             topic: "general",
@@ -584,8 +663,13 @@ app.post("/api/assistant/chat", async (req, res) => {
           attribution.push("Web: Tavily returned no usable context for verified-fact path");
         }
       } else {
-        const strictStart = statsSupplementWebOnly ? utcDateDaysAgo(150) : utcDateDaysAgo(42);
-        webContext = await tavilySearch(webQuery, statsSupplementWebOnly ? 8 : 10, {
+        const strictStart =
+          intent === "general_web" && !needsVerifiedWeb
+            ? utcDateDaysAgo(21)
+            : statsSupplementWebOnly
+              ? utcDateDaysAgo(150)
+              : utcDateDaysAgo(42);
+        webContext = await tavilySearch(webQuery, statsSupplementWebOnly ? 5 : 6, {
           searchDepth: "advanced",
           includeAnswer: "advanced",
           topic: statsSupplementWebOnly ? "general" : "news",
@@ -595,7 +679,7 @@ app.post("/api/assistant/chat", async (req, res) => {
           preferNewestSourcesFirst: true,
         });
         if (!webContext.trim()) {
-          webContext = await tavilySearch(webQuery, statsSupplementWebOnly ? 8 : 10, {
+          webContext = await tavilySearch(webQuery, statsSupplementWebOnly ? 5 : 6, {
             searchDepth: "advanced",
             includeAnswer: "advanced",
             topic: statsSupplementWebOnly ? "general" : "news",
@@ -622,83 +706,124 @@ app.post("/api/assistant/chat", async (req, res) => {
     }
 
     const webSearchThin = isWebSearchContextThin(webContext);
+    const todayUtc = utcDateISO();
 
-    const voiceRules = `VOICE (mandatory):
-- Never mention prompt machinery: no "web context", "primary platform data", "the block", "Tavily", "payload", or "since/as/because … is empty".
-- Weave numbers into normal sentences; do not narrate how you obtained them.
-- No "Sources:" footer—the UI shows lineage.
-- When web excerpts include dates or “latest” reporting, prefer that timeline over undated training knowledge for current events and policy.`;
+    const cited = compactAssistantRetrievalForLlm({
+      dashboardForPrompt,
+      comparisonBlock,
+      rankingSection,
+      webContext,
+      webRelevance: {
+        message,
+        countryName: dashboardFocusMeta?.name,
+        cca3: dashboardFocusMeta?.cca3 ?? (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
+      },
+    });
+    const hasCitationKeys =
+      Object.keys(cited.citations.D).length + Object.keys(cited.citations.W).length > 0;
+    const citationInstruction = hasCitationKeys
+      ? `
+
+CITATIONS: In the context below, **platform** facts (dashboard + ranking rows) are prefixed with **[D1], [D2], …**. **At most one** live-web excerpt is provided as **[W1]**—use it only for claims it actually supports. Put the matching tag right after the supported phrase (e.g. "unemployment is near 5% [D6]"). Use only tags that appear in this turn. Do not quote the full labeled reference lines back to the user—the inline tags are enough.`
+      : "";
+
+    const humanVoice = `STYLE — read like a thoughtful human analyst, not a chatbot:
+- **Direct and warm:** Answer the question in the first sentence or two when you can. Use natural connectors (“Meanwhile…”, “That compares with…”, “On a human-development note…”).
+- **Cohesive:** Prefer **2–4 short paragraphs** of flowing prose. Use bullets only when comparing many countries or listing ranked takeaways—never as a default crutch.
+- **Invisible machinery:** Never mention prompts, “blocks”, “Tavily”, “payload”, “web context”, “platform data section”, or apologize for what you were “given”.
+- **Thread notes:** If you see lines starting with \`[Retrieval:\` or \`[Server:\`, treat them as private instructions—do **not** quote or summarize them to the user.
+- **Numbers:** Fold statistics into sentences (“GDP reached about … in 2022 [D3]”)—do not read the list aloud or say “the data shows”. Use a **markdown table** only when **no** ranking leaderboard table is already shown above your text (e.g. multi-country comparisons). If a ranking table is already prepended to the reply, **never** add another pipe table.
+- **No meta-footer:** Do not add a “Sources:” or bibliography block; use inline **[D#]** and at most **[W1]** when the context provides them, and the app maps those for the reader.
+- **Recency:** When excerpts carry dates, prefer that timeline for current events; do not “correct” fresh reporting with older training intuition.`;
 
     const rankingTableRendered = Boolean(rankingMarkdown);
+    const multiCountry = comparisonCodes.length >= 2;
+    const namedMetricCount = comparisonMetricIds?.length ?? 0;
 
-    const systemStatistics = `You are the Analytics Assistant for the Country Analytics Platform. Write like a concise senior analyst.
+    const systemStatistics = `You are the Country Analytics Platform’s assistant—an experienced macro and data analyst talking to a colleague.
 
-${voiceRules}
+${humanVoice}
 
-ACCURACY (internal):
-- Country statistics, comparison statistics, and global ranking sections are authoritative for figures and rank order. Use them exactly; do not substitute memorized league tables.
-- If the user asks for numbers not present below, say what is missing briefly—no invented statistics.
-- Web excerpts (if any) are for non-conflicting background only; never override platform figures.
+DATA FRESHNESS (platform / API / app database):
+- Each indicator line is the **latest observation stored in this application** for that series; the **data year** printed on the line is that observation’s year (WDI and extensions can lag the calendar year—never invent a newer year than shown).
+- For **metrics, database figures, or API-style indicators**, these lines override model memory and generic web snippets.
 
-When both a selected country and a ranking appear, use the ranking for list questions and the country section for country-specific follow-ups.${
+TRUTH (non-negotiable):
+- Figures in the **official indicator snapshots**, **comparison set**, and **ranking** below are the source of truth for values and rank order. Never substitute memorized tables or guess missing numbers.
+- If the user asks for a metric that is not listed, say so in one clear sentence and offer what you *can* say from the snapshot.
+- Optional **recent excerpts** below are background only—they must not contradict those official figures.
+
+When both a selected country and a ranking appear, rely on the prepended **markdown tables** for the ordered list and for **how the dashboard focus country compares** to #1 and to the ends of the shown slice.${
       rankingTableRendered
         ? `
 
-RANKING TABLE (mandatory): The app shows the user a markdown **table** with the full rank list before your message. Do **not** output another table and do **not** repeat the list in a long paragraph. At most **two short sentences** of interpretation, unless the user also asked a separate non-list question—then answer that part in prose without re-stating every rank.`
+RANKING (top / bottom / leaderboard): The user-visible reply **already starts with** platform-built **markdown table(s)** (ranked economies plus, when applicable, **dashboard focus vs leaderboard**). Your body must be **prose only**—**do not output any markdown pipe (\`|\`) tables** and do not re-list ranks, countries, or ISO3s as a table or bullet leaderboard. Use **[D#]** inline cites and interpret the prepended tables in words only.`
         : ""
+    }${
+      multiCountry && namedMetricCount >= 2
+        ? `
+
+MULTI-COUNTRY + MULTI-METRIC: Several economies and **multiple named indicators** appear below. Respond with **one consolidated GitHub-flavored markdown table** (countries × metrics or metrics × countries) using **only** numbers from the labeled lines, with **[D#]** tags on or beside cells.`
+        : multiCountry
+          ? `
+
+MULTI-COUNTRY: Several economies appear below. If you compare them on **more than one metric**, use a **single markdown table** for the numeric side-by-side, with **[D#]** cites.`
+          : ""
     }`;
 
-    const systemWebPrimary = `You are the Analytics Assistant for the Country Analytics Platform. The question is general (geography, news, institutions, culture—not a statistics exam).
+    const systemWebPrimary = `You are the Country Analytics Platform’s assistant—curious, well-read, and careful with facts. The user’s question is general (places, institutions, culture, current affairs—not a spreadsheet task).
 
-${voiceRules}
+${humanVoice}
 
-ACCURACY (internal):
-- Lead with web excerpts when they contain the answer; each bullet may include a published/updated date—prefer **newer** dated items when they conflict with older ones.
-- Country statistics below are optional anchors—use for hard numbers when relevant, without contradicting fresh web facts for breaking events.
+TRUTH (non-negotiable):
+- **Today is ${todayUtc} (UTC).** For non-database topics, treat “latest” and “current” **relative to this date**; prioritize **recent excerpts** and their publication dates over stale training data.
+- When **recent excerpts** below answer the question, lead with them; newer publication dates beat older ones when they conflict.
+- If a **country indicator snapshot** is attached, use it only for hard economic/demographic numbers—and never override clearly dated breaking news from excerpts.
 ${
   needsVerifiedWeb && !webSearchThin
-    ? "- For officeholders, heads of state/government, and similar: when Recent web excerpts **do** substantively answer, prefer them over training cutoff knowledge."
+    ? "- **Leadership / who is in office:** If excerpts name the officeholder or cite an inauguration or election date, treat that as authoritative over model cutoff knowledge."
     : needsVerifiedWeb && webSearchThin
-      ? "- Leadership or election angle, but live search returned little text: answer from general knowledge when helpful. For **who holds office now** or very recent transitions, state your answer may be stale and ask the user to verify on an official government site or major news outlet."
-      : "- If excerpts are thin, answer helpfully from general knowledge without inventing precise recent headlines."
+      ? "- **Leadership:** Search came back thin. You may draw on general knowledge for stable facts, but for *who holds office right now* say clearly that the user should confirm on an official government or major news site."
+      : "- If excerpts are thin, still be helpful; avoid inventing specific headlines or dates you did not see."
 }`;
 
     const ephemeralFactBlock =
       needsVerifiedWeb && !webSearchThin
         ? `
 
-EPHEMERAL FACTS (current power-holders, very recent elections):
-- Real-world roles change; web excerpts in the user message override stale parametric knowledge when they name who holds office or cite dates.
-- If excerpts substantively name who holds office, use them; otherwise suggest checking official government or major news sources (without refusing to help on historical or stable facts).`
+TIME-SENSITIVE ROLES: Offices change hands; trust dated excerpts in the thread over memory. If excerpts name the incumbent, state it plainly. If they do not, do not invent a name—point to official sources.`
         : needsVerifiedWeb && webSearchThin
           ? `
 
-EPHEMERAL FACTS:
-- Live search was sparse for this turn. Give a careful best-effort answer from general knowledge where appropriate, with explicit caveats for time-sensitive leadership facts.`
+TIME-SENSITIVE ROLES: Retrieval was light—be candid about uncertainty on *current* officeholders; still help on history and context.`
           : "";
 
-    const systemOverview = `You are the Analytics Assistant for the Country Analytics Platform. The user wants a readable **country overview**.
+    const systemOverview = `You are the Country Analytics Platform’s assistant, drafting a **clear country briefing** for a busy reader.
 
-${voiceRules}
+${humanVoice}
 
-ACCURACY (internal):
-- When a country statistics section is present, **anchor** the overview with those figures (GDP, population, growth, inflation, etc.) in smooth prose—this is the quantitative spine.
-- Use web excerpts (when present) for texture: institutions, recent policy themes, culture—not to replace those series numbers. Prefer excerpts with **recent published dates** when several disagree.
-- If statistics are empty, rely on web + general knowledge and avoid precise economic figures.
+TRUTH (non-negotiable):
+- **Today is ${todayUtc} (UTC).** Blend **latest platform indicators** (each line is the newest year stored in the app for that series) with **fresh web context** dated relative to today.
+- When indicator lines are present, they are the **spine** of the story **only if** the user wants a broad country picture or explicitly cares about macro/demographic facts. If they narrow the ask (culture-only, language, cuisine, sport, arts, etc.) without requesting economic statistics, lead with that topic and **do not** pad the answer with unrelated WDI-style metrics—at most one short factual clause if it truly helps.
+- Excerpts add colour (politics, society, recent themes) but **do not replace** those numbers when numbers are on-topic. Prefer clearly dated material when sources disagree.
+- If no snapshot is attached, avoid precise macro figures unless excerpts provide them.
 
-Structure: short geographic/regional framing, then main body weaving stats and context, tight close. One coherent story.`;
+Shape: open with what matters most about the place, develop with stats + context, end with one sentence on what to watch next. One continuous narrative arc.`;
 
-    const systemCompare = `You are the Analytics Assistant for the Country Analytics Platform. The user is **comparing multiple countries** (two or more in the sections below).
+    const systemCompare = `You are the Country Analytics Platform’s assistant, helping someone **compare countries** side by side.
 
-${voiceRules}
+${humanVoice}
 
-ACCURACY (internal):
-- Only the per-country statistics sections below may supply **numbers**. Contrast GDP, population, growth, inflation, unemployment, debt, life expectancy, literacy, etc. using those values only—**cover every country** that has a section, not only the first pair.
-- When many countries are listed, a **compact table in markdown** (country × indicator) is allowed if it improves clarity; otherwise use tight theme-by-theme prose with explicit country names.
-- If one country’s section is missing, say so plainly—do not fill from memory.
-- Web excerpts (if any) add qualitative context only; they do not replace the series.
+DATA FRESHNESS: Each line below is the **latest stored value** in the app for that indicator (year on the line).
 
-Structure: one tight opening, then either a scannable comparison (table or bullets per theme) across **all** countries. Highlight the largest cross-country deltas with the exact figures.`;
+TRUTH (non-negotiable):
+- **Only** the per-country indicator snapshots below may supply **numeric** comparisons. Contrast GDP, population, growth, inflation, unemployment, debt, life expectancy, literacy, etc. from those lines—**every country with a section** deserves coverage, not just the first two.
+- When **two or more metrics** matter for the question, lead with **one consolidated markdown table** (countries as rows, indicators as columns—or the transpose) and optional short prose; use **[D#]** cites.
+- If only one or two metrics dominate, a **compact markdown table** still beats long bullet lists.
+- If a country’s snapshot is missing, say so once—never back-fill from memory.
+- Excerpts are qualitative seasoning only.
+
+Open with the sharpest contrast, then walk the reader through the rest with explicit country names and the exact figures that matter.`;
 
     const systemBase =
       intent === "general_web"
@@ -708,7 +833,12 @@ Structure: one tight opening, then either a scannable comparison (table or bulle
           : intent === "country_compare"
             ? systemCompare
             : systemStatistics;
-    const system = `${systemBase}${ephemeralFactBlock}`;
+
+    const platformDataScopeSuffix = `
+
+DATA SCOPE (non-negotiable): **[D#]** tags and any **Official indicators** / ranking / comparison lines in this thread are the **only** figures that come from this application’s database/APIs. Use them **only** to support claims they directly answer—never as filler when the user asked about something else (culture, sport, biography, offices, etc.). If the question is outside that numeric scope, answer from web excerpts and proportionate general knowledge without inventing or importing unrelated dashboard statistics. Never tell the user a number is “from the platform” unless it appears on a **[D#]** line you cite.`;
+
+    const system = `${systemBase}${ephemeralFactBlock}${citationInstruction}${platformDataScopeSuffix}`;
 
     const verifiedRetrievalNote =
       needsVerifiedWeb && webSearchThin && tavilyConfigured
@@ -719,20 +849,44 @@ Structure: one tight opening, then either a scannable comparison (table or bulle
         ? "\n\n[Server: live web search is not configured on this deployment. Answer from general knowledge where you can; for who holds office now or very recent political events, clearly caveat uncertainty and suggest official government or major news sources.]\n"
         : "";
 
-    const user = `User question:
+    const user = `## Reference
+- **Today (UTC):** ${todayUtc}
+- **Platform metrics:** When a focus-country snapshot is included below, each line is the **latest year stored in this app** for that series (year on the line). Ranking tables use the snapshot year in the caption. If the focus snapshot is **(none)** because the question is outside dashboard scope, do **not** treat this app as a source for macro figures—use excerpts and general knowledge only.
+- **Non-metric / general questions:** Prefer **recent web excerpts** and their dates as “latest” relative to today.
+
+## What they asked
 ${message}
 
-Country statistics — selected dashboard country (may be empty):
-${dashboardForPrompt || ""}
+## Official indicators — focus country (empty if none selected)
+${cited.dashboardForPrompt || "(none)"}
 
-Country statistics — comparison (may be empty):
-${comparisonBlock || ""}
+## Official indicators — comparison set (empty if not a comparison question)
+${cited.comparisonBlock || "(none)"}
 
-Global ranking — top/bottom N (may be empty):
-${rankingSection || ""}
+## Global ranking snapshot (empty if not a ranking question)
+${cited.rankingSection || "(none)"}
 
-Recent web excerpts — live search, biased to recent weeks (see retrieval window line when present; may be empty):
-${webContext || ""}${verifiedRetrievalNote}${noTavilyVerifiedNote}`;
+## Recent research excerpts (may be empty; use for context and current events, without contradicting official indicators above)
+${cited.webContext || "(none)"}${verifiedRetrievalNote}${noTavilyVerifiedNote}${
+      looksLikePovertyInternationalVsNationalComparison(message)
+        ? `
+
+## Instruction — international vs national poverty
+Use **Poverty headcount at $2.15 (2017 PPP)** (international) and **Poverty headcount at national poverty lines** (national) from the platform snapshot when both appear. Answer for the **focus country named in the snapshot**—never substitute another country unless the user explicitly named it. Prefer **one compact markdown table** (indicator, value, data year) plus a short interpretation; cite facts with **[D#]** from the labeled lines only.`
+        : ""
+    }${
+      rankingMarkdown.trim()
+        ? `
+
+## Reply format (mandatory)
+The message the user sees **opens with** the platform’s ranking markdown table(s) before your text. **Do not include markdown pipe tables in your answer**—write **prose only** with **[D#]** tags. Summarize takeaways; never recreate the leaderboard.`
+        : ""
+    }`;
+
+    const userForLlm = clampAssistantUserForLlm(user);
+    if (userForLlm.length < user.length) {
+      attribution.push("Context: prompt trimmed to stay within LLM context limits (full tables may appear above the reply)");
+    }
 
     let assistantLlmText: string | null = null;
     if (process.env.GROQ_API_KEY) {
@@ -740,10 +894,14 @@ ${webContext || ""}${verifiedRetrievalNote}${noTavilyVerifiedNote}`;
         const { text, model, primaryFailed } = await groqChatWithFallbackForUseCase(
           "assistant",
           system,
-          user,
+          userForLlm,
           {
-            temperature: needsVerifiedWeb && !webSearchThin ? 0.2 : groqTemperatureForIntent(intent),
-            analyticsRecencyHint: needsVerifiedWeb && !webSearchThin,
+            temperature: needsVerifiedWeb && !webSearchThin ? 0.22 : groqTemperatureForIntent(intent),
+            topP: needsVerifiedWeb && !webSearchThin ? 0.86 : 0.9,
+            analyticsRecencyHint:
+              (needsVerifiedWeb && !webSearchThin) ||
+              intent === "general_web" ||
+              intent === "country_overview",
           }
         );
         attribution.push(
@@ -751,18 +909,31 @@ ${webContext || ""}${verifiedRetrievalNote}${noTavilyVerifiedNote}`;
             ? `LLM: Groq — Assistant stack (${model}, fallback after primary error/rate limit)`
             : `LLM: Groq — Assistant stack (${model})`
         );
-        assistantLlmText = text.trim();
+        assistantLlmText = polishAssistantLlmReply(text);
+        if (rankingMarkdown.trim()) {
+          assistantLlmText = stripRedundantRankingTablesFromLlmMarkdown(assistantLlmText);
+          assistantLlmText = polishAssistantLlmReply(assistantLlmText);
+        }
       } catch (groqErr) {
         const brief = groqErr instanceof Error ? groqErr.message : String(groqErr);
         attribution.push(`LLM: Groq exhausted (${brief.slice(0, 220)}${brief.length > 220 ? "…" : ""})`);
         if (tavilyConfigured) {
-          const { text, hasSynthesis } = await tavilyAssistantFallbackReply(message);
+          const { text, hasSynthesis } = await tavilyAssistantFallbackReply({
+            message,
+            countryName: dashboardFocusMeta?.name,
+            cca3: dashboardFocusMeta?.cca3 ?? (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
+            platformSectionMarkdown: platformForTavilyFallback.trim() || undefined,
+          });
           attribution.push(
             hasSynthesis
               ? "Fallback: Tavily answer synthesis (all Groq models failed or rate-limited)"
               : "Fallback: Tavily retrieval only (all Groq models failed; weak synthesis)"
           );
-          assistantLlmText = text.trim();
+          assistantLlmText = polishAssistantLlmReply(text);
+          if (rankingMarkdown.trim()) {
+            assistantLlmText = stripRedundantRankingTablesFromLlmMarkdown(assistantLlmText);
+            assistantLlmText = polishAssistantLlmReply(assistantLlmText);
+          }
         }
       }
     }
@@ -771,7 +942,7 @@ ${webContext || ""}${verifiedRetrievalNote}${noTavilyVerifiedNote}`;
       const reply = rankingMarkdown
         ? `${rankingMarkdown.trim()}\n\n${assistantLlmText}`.trim()
         : assistantLlmText;
-      return res.json({ reply, attribution });
+      return res.json({ reply, attribution, citations: cited.citations });
     }
 
     const fallbackParts: string[] = [];
@@ -791,7 +962,7 @@ ${webContext || ""}${verifiedRetrievalNote}${noTavilyVerifiedNote}`;
         ? `${fallbackParts.join("\n\n---\n\n")}\n\nSet GROQ_API_KEY for a fuller narrative.`
         : `Select a country (ISO3) for country-level metrics, ask a top-N ranking (e.g. top countries by GDP), or set GROQ_API_KEY for general Q&A without fabricated statistics.`;
 
-    res.json({ reply: fallback, attribution });
+    res.json({ reply: fallback, attribution, citations: cited.citations });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -1166,7 +1337,7 @@ app.post("/api/analysis/porter", async (req, res) => {
       profile
     );
 
-    let web = "";
+    let webFull = "";
     if (process.env.TAVILY_API_KEY?.trim()) {
       const name = meta?.name ?? cca3;
       const calY = String(new Date().getFullYear());
@@ -1191,26 +1362,29 @@ app.post("/api/analysis/porter", async (req, res) => {
           topic: "general",
         },
       ];
-      const blocks = await Promise.all(
-        queries.map(({ q, topic }) =>
-          tavilySearch(q, 6, {
-            ...tavilyBase,
-            topic,
-            timeRange: topic === "news" ? "month" : "month",
-            startDate: topic === "news" ? startNews : startGeneral,
-            endDate: today,
-            preferNewestSourcesFirst: true,
-          })
-        )
-      );
+      const [blocks, temporalBlock] = await Promise.all([
+        Promise.all(
+          queries.map(({ q, topic }) =>
+            tavilySearch(q, 6, {
+              ...tavilyBase,
+              topic,
+              timeRange: topic === "news" ? "month" : "month",
+              startDate: topic === "news" ? startNews : startGeneral,
+              endDate: today,
+              preferNewestSourcesFirst: true,
+            })
+          )
+        ),
+        fetchPorterTemporalHorizonWeb(name, cca3, industrySector, year),
+      ]);
       const webParts: string[] = [];
       for (let i = 0; i < queries.length; i++) {
         const b = blocks[i]?.trim();
         if (b) webParts.push(`### ${queries[i]!.label}\n${b}`);
       }
-      web = webParts.join("\n\n");
-      if (!web.trim()) {
-        web = await tavilySearch(
+      webFull = webParts.join("\n\n");
+      if (!webFull.trim()) {
+        webFull = await tavilySearch(
           `${name} ${industrySector} industry market competition trends Porter analysis ${year} ${calY}`,
           8,
           {
@@ -1222,52 +1396,91 @@ app.post("/api/analysis/porter", async (req, res) => {
           }
         );
       }
-      if (web) attribution.push("Web context: Tavily (multi-topic industry retrieval + fallback if needed)");
+      if (temporalBlock.trim()) {
+        webFull = webFull.trim() ? `${webFull.trim()}\n\n${temporalBlock.trim()}` : temporalBlock.trim();
+        attribution.push(
+          "Tavily: Porter five publication windows (7d, 1mo, 6mo, 1y, 5y) for industry five-forces context"
+        );
+      }
+      if (webFull.trim()) attribution.push("Web context: Tavily (multi-topic industry retrieval + fallback if needed)");
     }
 
-    const porterNarrativeRules = `
-NARRATIVE & SOURCE INTEGRATION (mandatory):
-- Synthesize three inputs: (A) SOURCE A — DATA DIGEST (platform / WDI-backed indicators), (B) SOURCE B — web excerpts, (C) disciplined analyst inference. Each comprehensive \`body\` must read as one coherent mini-brief, not bullet pasting.
-- Every comprehensive section listed below must contain **EXACTLY three prose paragraphs**, separated by a **single blank line** (one \\n\\n between paragraphs). Do not use markdown headings inside \`body\`.
-- Paragraph 1: anchor in (A) for that section’s theme—cite concrete metrics with years where the digest provides them; relate them to the stated industry sector.
-- Paragraph 2: prioritize the most relevant, concrete themes from (B) for that force (competition, regulation, supply chain, substitutes, etc.). If (B) is thin for that angle, say so briefly once and infer cautiously from (A) + sector structure—never invent quoted news or statistics not in (A) or (B).
-- Paragraph 3: business and strategy implications **specific to that Porter force only** (e.g. Threat of new entry ≠ Rivalry—do not duplicate the same closing across sections).
-- Never reuse the same opening sentence across two comprehensive sections. Vary vocabulary and storyline per force.
-- Quantitative claims must come only from (A) or dated figures explicitly present in (B); round sensibly in prose.`;
+    const todayIso = utcDateISO();
+    const hasTemporalWindows = webFull.includes(PORTER_TEMPORAL_SECTION_MARKER);
+    const PORTER_LLM_WEB_CAP = 26_000;
+    const { text: webForLlm, truncated: porterWebTruncated } = truncatePestelSourceBForLlm(webFull, PORTER_LLM_WEB_CAP);
+    if (porterWebTruncated) {
+      attribution.push(
+        `NOTICE: Porter web bundle trimmed to ${PORTER_LLM_WEB_CAP} chars for Groq limits — full text used where feasible for retrieval`
+      );
+    }
+    const webPresent = Boolean(webFull.trim());
 
-    const jsonSchemaHint = `Return ONLY a JSON object (no markdown) with exactly this structure:
+    const porterNarrativeRules = `
+SCOPE: Analyze **only** ${meta?.name ?? cca3} (${cca3}) and industry **${industrySector}**.
+
+PRIORITY (non-negotiable):
+1) **First** anchor every quantitative claim in the **PLATFORM INDICATORS** digest below—use the **latest year shown** for each series. Do not invent statistics from memory.
+2) **Then** enrich with **web research** (SOURCE B) for industry structure, regulation, channels, and competitive dynamics. Integrate themes across recency: very recent news, the past month, half-year, year, and multi-year structure where excerpts support it.
+
+VOICE & CLIENT OUTPUT:
+- Every JSON string is **client-facing** board-ready prose—no "SOURCE A/B", no pasted internal subsection titles, no raw date-range stamps from the research bundle.
+- Cohesive paragraphs; no bullet lists inside comprehensive \`body\` fields.
+${
+  hasTemporalWindows
+    ? `
+- The bundle includes **multi-horizon slices**. Integrate them naturally (e.g. "in recent reporting", "over the past year", "longer-run structure")—**never** quote slice headings verbatim.`
+    : ""
+}
+${
+  webPresent
+    ? ""
+    : `
+- **No web research** is available. State briefly in paragraph 2 of each comprehensive section (except Executive Summary may say once in paragraph 2) that live web context was unavailable; still deliver three paragraphs using digest + careful sector inference.`
+}
+
+NARRATIVE & SOURCE INTEGRATION (mandatory):
+- Each comprehensive \`body\` is **EXACTLY three prose paragraphs**, separated by one blank line (\\n\\n). No markdown inside \`body\`.
+- Paragraph 1: **Digest-first**—concrete metrics with matching years from the indicator list; tie to this ISIC sector.
+- Paragraph 2: Web-supported themes for that force (competition, regulation, supply chain, substitutes, buyers)—blend time horizons when excerpts allow. If thin, say so once briefly.
+- Paragraph 3: Strategy implications **specific to that force only**—no duplicated closing across sections.
+- **Forces bullets:** five distinct, analytical mini-paragraphs per force; digest anchors before speculative industry colour.
+- **newMarketAnalysis, keyTakeaways, recommendations:** each **exactly five** bullets, non-redundant, digest-aware where metrics apply.
+- Quantitative claims only from the digest or explicit figures in web excerpts.`;
+
+    const jsonSchemaHint = `Return ONLY a JSON object (no markdown) with exactly this structure (counts are strict):
 {
   "forces": [
-    {"number":1,"title":"Threat of New Entry","accent":"threat_new_entry","bullets":["5-6 analyst bullets"]},
-    {"number":2,"title":"Supplier Power","accent":"supplier_power","bullets":["5-6"]},
-    {"number":3,"title":"Buyer Power","accent":"buyer_power","bullets":["5-6"]},
-    {"number":4,"title":"Threat of Substitution","accent":"threat_substitutes","bullets":["5-6"]},
-    {"number":5,"title":"Competitive Rivalry","accent":"rivalry","bullets":["5-6"]}
+    {"number":1,"title":"Threat of New Entry","accent":"threat_new_entry","bullets":["EXACTLY 5 fluent bullets; lead with digest-backed facts where relevant, then industry logic"]},
+    {"number":2,"title":"Supplier Power","accent":"supplier_power","bullets":["EXACTLY 5"]},
+    {"number":3,"title":"Buyer Power","accent":"buyer_power","bullets":["EXACTLY 5"]},
+    {"number":4,"title":"Threat of Substitution","accent":"threat_substitutes","bullets":["EXACTLY 5"]},
+    {"number":5,"title":"Competitive Rivalry","accent":"rivalry","bullets":["EXACTLY 5"]}
   ],
   "comprehensiveSections": [
-    {"title":"Executive Summary","body":"EXACTLY three paragraphs (blank line between each). (1) Country + industry framing with key DATA DIGEST metrics and years. (2) Latest competitive and market themes from WEB CONTEXT. (3) Integrated read across the five forces and what leadership should monitor next."},
-    {"title":"1. Threat of new entrants","body":"EXACTLY three paragraphs: (1) digest-grounded entry economics and macro context, (2) WEB CONTEXT on regulation, investment, disruption, or policy, (3) implications for threat of entry in this industry."},
-    {"title":"2. Bargaining power of suppliers","body":"EXACTLY three paragraphs: (1) digest-relevant input cost and macro signals, (2) WEB CONTEXT on supply chain, commodities, or supplier concentration, (3) implications for supplier power."},
-    {"title":"3. Bargaining power of buyers","body":"EXACTLY three paragraphs: (1) digest-grounded demand and income or labour signals, (2) WEB CONTEXT on channels, pricing power, or consumer behaviour, (3) implications for buyer power."},
-    {"title":"4. Threat of substitutes","body":"EXACTLY three paragraphs: (1) digest context where relevant to substitution (income, trade, tech skills proxies), (2) WEB CONTEXT on alternatives, innovation, or consumer shifts, (3) implications for substitute threat."},
-    {"title":"5. Competitive rivalry","body":"EXACTLY three paragraphs: (1) digest-grounded growth and macro rivalry drivers, (2) WEB CONTEXT on competitors, pricing wars, or market share dynamics, (3) implications for intensity of rivalry."}
+    {"title":"Executive Summary","body":"EXACTLY three paragraphs (\\n\\n between). (1) Country + industry + **digest metrics with years**. (2) Competitive / policy themes from web across time horizons. (3) Integrated five-forces outlook and what to monitor."},
+    {"title":"1. Threat of new entrants","body":"EXACTLY three paragraphs: digest entry economics first; web on regulation/investment/disruption; implications for entry threat."},
+    {"title":"2. Bargaining power of suppliers","body":"EXACTLY three paragraphs: digest macro/input proxies first; web on supply chain and commodities; supplier power implications."},
+    {"title":"3. Bargaining power of buyers","body":"EXACTLY three paragraphs: digest demand/income/labour first; web on channels and pricing; buyer power implications."},
+    {"title":"4. Threat of substitutes","body":"EXACTLY three paragraphs: digest trade/income/tech proxies first; web on alternatives and innovation; substitute threat implications."},
+    {"title":"5. Competitive rivalry","body":"EXACTLY three paragraphs: digest growth/macro rivalry signals first; web on competitors and pricing; rivalry implications."}
   ],
-  "newMarketAnalysis": ["4-6 bullets for market entry opportunities"],
-  "keyTakeaways": ["4-6 bullets summarizing all five forces"],
-  "recommendations": ["4-6 actionable bullets"]
+  "newMarketAnalysis": ["EXACTLY 5 bullets"],
+  "keyTakeaways": ["EXACTLY 5 bullets"],
+  "recommendations": ["EXACTLY 5 actionable bullets"]
 }
-Ground numbers in SOURCE A when available. Be specific to the country and industry sector.`;
+Ground numbers in the PLATFORM INDICATORS block when available. Be specific to the country and industry sector.`;
 
-    const prompt = `Country: ${meta?.name ?? cca3} (${cca3}). Industry/Sector: ${industrySector}. Year context: ${year}.
+    const prompt = `Country: ${meta?.name ?? cca3} (${cca3}). Industry/Sector: ${industrySector}. Digest alignment year: ${year}. **Calendar "as of" for web layer: ${todayIso} (UTC).**
 ${porterNarrativeRules}
 
 ${jsonSchemaHint}
 
-SOURCE A — Platform indicators (DATA DIGEST):
+PLATFORM INDICATORS — Latest non-null year per series (prioritize these for all numeric claims):
 ${digest}
 
-SOURCE B — Web retrieval (Tavily; may be empty if key missing or no results):
-${web || "(none — rely on Source A and careful structural inference; avoid fabricated news)"}`;
+WEB RESEARCH — Tavily excerpts (may be empty). Synthesize; do not invent facts:
+${webForLlm || "(none — follow no-web rules above)"}`;
 
     if (!process.env.GROQ_API_KEY) {
       attribution.push("LLM: disabled — data-only template (set GROQ_API_KEY for sector narrative)");
@@ -1276,7 +1489,7 @@ ${web || "(none — rely on Source A and careful structural inference; avoid fab
     try {
       const { text, model, primaryFailed } = await groqChatWithFallbackForUseCase(
         "porter",
-        "You are a competitive strategy analyst. Output strictly valid JSON only. Prose must be coherent, non-repetitive, and weave platform data (Source A) with web evidence (Source B) when present. Each comprehensive section is exactly three paragraphs as specified—no bullet lists inside comprehensive bodies.",
+        `You are a competitive strategy analyst. Output **only** valid JSON. Every string is client-facing: no "SOURCE A/B", no internal labels. Exactly **5 bullets** per force; **3 paragraphs** per comprehensive body; **5 bullets** each for newMarketAnalysis, keyTakeaways, and recommendations. Prioritize PLATFORM INDICATORS for numbers and years, then web themes across time horizons.`,
         prompt,
         { jsonObject: true, analyticsRecencyHint: true }
       );

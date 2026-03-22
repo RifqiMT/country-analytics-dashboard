@@ -23,6 +23,19 @@ This document describes **configuration and request variables**, **UI-derived se
 
 ---
 
+## 1A. `POST /api/assistant/chat` request body (JSON)
+
+| Variable name | Friendly name | Definition | Formula | Location | Example |
+|---------------|----------------|------------|---------|----------|---------|
+| `message` | User question | Natural-language prompt; required, non-empty after trim. | N/A | `Assistant.tsx` → `postJson` body | `"Top 10 countries by GDP"` |
+| `countryCode` | Focus ISO3 | Optional three-letter code; uppercased server-side; drives focus-country fetch when valid. | N/A | Composer `CountrySelect` + `dashboardCountryStorage` | `"IDN"` |
+| `webSearchPriority` | Web-first flag | When `true`, Tavily is not skipped for platform-first intents (user wants fresh retrieval every turn). | Boolean; OR `assistantMode === "web_priority"` equivalent | `Assistant.tsx` when mode is Web-first | `true` |
+| `assistantMode` | Legacy mode string | If lowercase value is `web_priority`, treated like `webSearchPriority: true`. | String compare | Optional client extension | `"web_priority"` |
+
+**Response fields (selected):** `reply` (string, may prepend ranking markdown + LLM body), `attribution` (string[] routing lines), `citations` (`{ D: Record<id, string>, W: Record<id, { title, url, snippet }> }`).
+
+---
+
 ## 2. Common API query parameters
 
 | Variable name | Friendly name | Definition | Formula | Location | Example |
@@ -125,6 +138,30 @@ flowchart LR
   end
 ```
 
+### 4.2 Analytics Assistant backend graph (conceptual)
+
+```mermaid
+flowchart TB
+  MSG[User message + ISO3 + web flags]
+  INTEL[assistantIntel: intent, Tavily skip, metric scope]
+  DATA[Parallel fetch: dashboard bundle, ranking payload, comparison blocks]
+  WEB[Tavily optional: buildAssistantWebSearchQuery]
+  CITE[assistantCitationContext: D/W tags + single web bullet]
+  BUDGET[assistantPromptBudget: clamp user prompt size]
+  GROQ[groqChatWithFallbackForUseCase assistant stack]
+  DEDUPE[assistantReplyTableDedupe: strip echo ranking tables]
+  OUT[reply + attribution + citations]
+  MSG --> INTEL
+  INTEL --> DATA
+  INTEL --> WEB
+  DATA --> CITE
+  WEB --> CITE
+  CITE --> BUDGET
+  BUDGET --> GROQ
+  GROQ --> DEDUPE
+  DEDUPE --> OUT
+```
+
 ---
 
 ## 5. PESTEL digest metric set (grounding)
@@ -224,4 +261,5 @@ The registered catalog currently contains **48** metrics (`METRICS` in `backend/
 ## 7. Maintenance
 
 - When adding a metric: update `backend/src/metrics.ts`, `metricShortLabels.ts` if needed, any `DASHBOARD_METRICS` / `WLD_METRICS` strings in the frontend, and this document’s relevant catalog subsection (**§6**). If the metric should ground PESTEL, extend `pestelDigestKeys.ts` and **§5** here.
+- When changing **Assistant** routing, env vars, or request/response shape: update **§1A**, **§4.2**, **PRD**, **GUARDRAILS**, **ARCHITECTURE**, and **TRACEABILITY_MATRIX**.
 - For **live numeric examples**, call `GET /api/country/{CCA3}/series?metrics={id}&start=2000&end={currentYear}` — values change with publisher updates.

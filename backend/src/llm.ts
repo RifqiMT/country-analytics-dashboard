@@ -105,8 +105,34 @@ export function groqFailureIsRetryable(status: number, errMessage?: string): boo
     ) {
       return true;
     }
+    /** Context / token limits — trim prompt or switch model instead of aborting the whole chain. */
+    if (
+      m.includes("context") ||
+      m.includes("too long") ||
+      m.includes("token") ||
+      m.includes("maximum") ||
+      m.includes("length") ||
+      m.includes("payload")
+    ) {
+      return true;
+    }
   }
   return false;
+}
+
+/** Network / timeout / DNS — status parse fails so the fallback loop must still advance to the next model. */
+export function groqTransportFailureIsRetryable(err: Error): boolean {
+  const n = err.name || "";
+  const m = (err.message || "").toLowerCase();
+  if (n === "AbortError") return true;
+  if (/aborted|timeout|timed out|etimedout|econnreset|econnrefused|enotfound|epipe|socket|network|fetch failed|und_err/i.test(m)) {
+    return true;
+  }
+  return false;
+}
+
+function sleepMs(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export function parseGroqErrorStatus(err: unknown): number | null {
@@ -162,12 +188,21 @@ export function utcDateDaysAgo(days: number, from = new Date()): string {
 /** Appended to system prompts so the model weights retrieval over stale parametric knowledge. */
 export function analyticsRecencySystemSuffix(): string {
   const iso = new Date().toISOString().slice(0, 10);
-  return `CURRENTNESS: The real-world calendar date is ${iso}. Web excerpts in the user message are from a **live search** filtered for recency—treat them as the freshest evidence in the thread. For **who holds office** (president, PM, monarch), **election winners**, policy, and markets, prefer those excerpts (and any dates or years they cite) over model cutoff knowledge. If excerpts conflict with older training data, trust the excerpts. Do not “correct” fresh web material with stale parametric facts. If the user asks who currently leads a country and excerpts are absent or empty, do not substitute a name from training data.`;
+  return `Today’s date is ${iso} (UTC). The thread includes **live web excerpts**—treat them as the freshest evidence. For current officeholders, election outcomes, and fast-moving policy, prefer what those excerpts say (including any dates they cite) over undated training knowledge. Never “override” clearly dated reporting with stale guesses. If excerpts do not name who holds office, do not invent a name from memory—say verification is needed.`;
 }
+
+export type TavilyWebResult = {
+  title: string;
+  url: string;
+  content: string;
+  published_date?: string;
+};
 
 export type TavilySearchMeta = {
   formattedBlock: string;
   synthesizedAnswer: string | null;
+  /** Raw hits (same order as formatted bullets when present). Used to filter / re-rank for assistant fallback. */
+  results: TavilyWebResult[];
 };
 
 export async function tavilySearchWithMeta(
@@ -176,7 +211,7 @@ export async function tavilySearchWithMeta(
   options?: TavilySearchOptions
 ): Promise<TavilySearchMeta> {
   const key = process.env.TAVILY_API_KEY?.trim();
-  if (!key) return { formattedBlock: "", synthesizedAnswer: null };
+  if (!key) return { formattedBlock: "", synthesizedAnswer: null, results: [] };
   const max_results = options?.maxResults ?? maxResults;
   const body: Record<string, unknown> = {
     api_key: key,
@@ -196,7 +231,7 @@ export async function tavilySearchWithMeta(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) return { formattedBlock: "", synthesizedAnswer: null };
+  if (!res.ok) return { formattedBlock: "", synthesizedAnswer: null, results: [] };
   const data = (await res.json()) as {
     answer?: string;
     results?: {
@@ -228,15 +263,21 @@ export async function tavilySearchWithMeta(
       return tb - ta;
     });
   }
-  const parts = rows.map((r) => {
+  const results: TavilyWebResult[] = rows.map((r) => ({
+    title: String(r.title ?? "").trim(),
+    url: String(r.url ?? "").trim(),
+    content: String(r.content ?? "").trim(),
+    published_date: r.published_date && String(r.published_date).trim() ? String(r.published_date).trim() : undefined,
+  }));
+  const parts = results.map((r) => {
     const when =
-      r.published_date && String(r.published_date).trim()
-        ? ` · published/updated: ${String(r.published_date).trim()}`
+      r.published_date && r.published_date.length > 0
+        ? ` · published/updated: ${r.published_date}`
         : "";
-    return `- ${r.title ?? ""} (${r.url ?? ""})${when}: ${r.content ?? ""}`;
+    return `- ${r.title} (${r.url})${when}: ${r.content}`;
   });
   if (parts.length) chunks.push(...parts);
-  return { formattedBlock: chunks.join("\n"), synthesizedAnswer: synth };
+  return { formattedBlock: chunks.join("\n"), synthesizedAnswer: synth, results };
 }
 
 export async function tavilySearch(
@@ -246,49 +287,6 @@ export async function tavilySearch(
 ): Promise<string> {
   const { formattedBlock } = await tavilySearchWithMeta(query, maxResults, options);
   return formattedBlock;
-}
-
-/**
- * When Groq is exhausted, run a fresh Tavily query and format a short assistant-style reply from synthesis + top sources.
- */
-export async function tavilyAssistantFallbackReply(userQuestion: string): Promise<{
-  text: string;
-  hasSynthesis: boolean;
-}> {
-  const q = `${userQuestion.trim()}\n\nAnswer concisely with current facts; cite themes suitable for a country analytics assistant.`;
-  const meta = await tavilySearchWithMeta(q, 10, {
-    searchDepth: "advanced",
-    includeAnswer: "advanced",
-    topic: "general",
-    timeRange: "month",
-    preferNewestSourcesFirst: true,
-  });
-  if (!meta.formattedBlock.trim() && !meta.synthesizedAnswer) {
-    return {
-      text: "Live web search did not return usable results, and the language model is temporarily unavailable. Please try again shortly or check your API quotas (Groq / Tavily).",
-      hasSynthesis: false,
-    };
-  }
-  const lines: string[] = [];
-  lines.push(
-    "**Note:** Primary language model was unavailable (e.g. rate limit). Below is a **Tavily** web synthesis and excerpts—verify critical facts on the linked sources."
-  );
-  lines.push("");
-  if (meta.synthesizedAnswer) {
-    lines.push(meta.synthesizedAnswer);
-    lines.push("");
-  }
-  const bullets = meta.formattedBlock
-    .split("\n")
-    .filter((l) => l.trim().startsWith("- ") && l.includes("http"));
-  const top = bullets.slice(0, 5);
-  if (top.length) {
-    lines.push("**Sources (snippets)**");
-    lines.push(...top);
-  } else if (!meta.synthesizedAnswer) {
-    lines.push(meta.formattedBlock.slice(0, 4000));
-  }
-  return { text: lines.join("\n").trim(), hasSynthesis: Boolean(meta.synthesizedAnswer) };
 }
 
 export async function groqChat(
@@ -302,6 +300,10 @@ export async function groqChat(
     analyticsRecencyHint?: boolean;
     /** Override resolved primary model (used by fallback chain). */
     model?: string;
+    /** Abort slow requests so the assistant can try the next model (default 120s). */
+    timeoutMs?: number;
+    /** Cap completion length (default 8192). */
+    maxTokens?: number;
   }
 ): Promise<{ text: string; model: string }> {
   const key = process.env.GROQ_API_KEY;
@@ -320,25 +322,47 @@ export async function groqChat(
     typeof options?.topP === "number" && Number.isFinite(options.topP)
       ? Math.min(1, Math.max(0.01, options.topP))
       : 1;
+  const timeoutMs =
+    typeof options?.timeoutMs === "number" && Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+      ? Math.min(300_000, options.timeoutMs)
+      : 120_000;
+  const maxTokens =
+    typeof options?.maxTokens === "number" && Number.isFinite(options.maxTokens) && options.maxTokens >= 256
+      ? Math.min(8192, Math.floor(options.maxTokens))
+      : 8192;
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemContent },
-        { role: "user", content: user },
-      ],
-      temperature,
-      top_p: topP,
-      max_tokens: 8192,
-      ...(options?.jsonObject ? { response_format: { type: "json_object" } } : {}),
-    }),
-  });
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  let res: Response;
+  try {
+    res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: systemContent },
+          { role: "user", content: user },
+        ],
+        temperature,
+        top_p: topP,
+        max_tokens: maxTokens,
+        ...(options?.jsonObject ? { response_format: { type: "json_object" } } : {}),
+      }),
+      signal: ac.signal,
+    });
+  } catch (e) {
+    clearTimeout(timer);
+    const err = e instanceof Error ? e : new Error(String(e));
+    if (err.name === "AbortError") {
+      throw new Error(`Groq (408): request timed out after ${timeoutMs}ms`);
+    }
+    throw err;
+  }
+  clearTimeout(timer);
   if (!res.ok) {
     const body = await res.text();
     const detail = groqErrorMessage(res.status, body);
@@ -360,7 +384,14 @@ export async function groqChatWithFallbackForUseCase(
   useCase: GroqUseCase,
   system: string,
   user: string,
-  options?: { jsonObject?: boolean; temperature?: number; topP?: number; analyticsRecencyHint?: boolean }
+  options?: {
+    jsonObject?: boolean;
+    temperature?: number;
+    topP?: number;
+    analyticsRecencyHint?: boolean;
+    timeoutMs?: number;
+    maxTokens?: number;
+  }
 ): Promise<{
   text: string;
   model: string;
@@ -371,11 +402,25 @@ export async function groqChatWithFallbackForUseCase(
   const candidates = resolveGroqModelCandidatesForUseCase(useCase);
   const tried: string[] = [];
   let lastErr: Error | null = null;
+  let lastStatus: number | null = null;
+  const assistantTimeout = useCase === "assistant" ? (options?.timeoutMs ?? 120_000) : options?.timeoutMs;
+
   for (let i = 0; i < candidates.length; i++) {
     const model = candidates[i]!;
+    if (i > 0 && lastStatus !== null && [408, 429, 500, 502, 503, 529].includes(lastStatus)) {
+      const base = 800 + i * 700;
+      await sleepMs(base + Math.floor(Math.random() * 450));
+    } else if (i > 0 && lastErr && groqTransportFailureIsRetryable(lastErr)) {
+      await sleepMs(250 + i * 200);
+    }
+
     tried.push(model);
     try {
-      const r = await groqChat(system, user, { ...options, model });
+      const r = await groqChat(system, user, {
+        ...options,
+        model,
+        timeoutMs: assistantTimeout ?? options?.timeoutMs,
+      });
       return {
         text: r.text,
         model: r.model,
@@ -385,8 +430,11 @@ export async function groqChatWithFallbackForUseCase(
       };
     } catch (e) {
       lastErr = e instanceof Error ? e : new Error(String(e));
-      const st = parseGroqErrorStatus(lastErr);
-      const retry = st !== null && groqFailureIsRetryable(st, lastErr.message);
+      lastStatus = parseGroqErrorStatus(lastErr);
+      const httpRetry =
+        lastStatus !== null && groqFailureIsRetryable(lastStatus, lastErr.message);
+      const transportRetry = groqTransportFailureIsRetryable(lastErr);
+      const retry = httpRetry || transportRetry;
       if (!retry || i === candidates.length - 1) {
         throw lastErr;
       }

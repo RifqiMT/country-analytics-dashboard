@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { postJson } from "../api";
-import MessageContent from "../components/assistant/MessageContent";
-import { readStoredDashboardCountry } from "../dashboardCountryStorage";
+import CountrySelect from "../components/CountrySelect";
+import MessageContent, { type AssistantMessageCitations } from "../components/assistant/MessageContent";
+import { readStoredDashboardCountry, writeStoredDashboardCountry } from "../dashboardCountryStorage";
+import { resolveAssistantAnswerPresentation } from "../lib/assistantAnswerPresentation";
 import {
   ASSISTANT_SUGGESTION_CATEGORIES,
   ASSISTANT_SUGGESTION_COUNT,
@@ -13,6 +15,7 @@ type Message = {
   role: "user" | "assistant";
   content: string;
   attribution?: string[];
+  citations?: AssistantMessageCitations;
 };
 
 function sourceLabel(attribution: string[]): string {
@@ -26,6 +29,28 @@ function sourceLabel(attribution: string[]): string {
   if (attribution.some((a) => a.toLowerCase().includes("tavily") || a.toLowerCase().includes("web")))
     return "Web search";
   return "Dashboard";
+}
+
+function AssistantPersonaBanner({
+  attribution,
+  citations,
+}: {
+  attribution: string[];
+  citations?: AssistantMessageCitations;
+}) {
+  const pres = resolveAssistantAnswerPresentation(attribution, citations);
+  return (
+    <div className="mb-3 rounded-xl border border-slate-100 bg-gradient-to-br from-slate-50/90 to-teal-50/30 px-3 py-2.5">
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="rounded-md bg-teal-700/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+          {pres.categoryLabel}
+        </span>
+        <span className="text-sm font-semibold text-slate-900">{pres.personaName}</span>
+        <span className="text-xs text-slate-500">· {pres.personaTitle}</span>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-snug text-slate-600">{pres.personaDescription}</p>
+    </div>
+  );
 }
 
 export default function Assistant() {
@@ -44,6 +69,9 @@ export default function Assistant() {
   const [menuExpandedCategoryId, setMenuExpandedCategoryId] = useState<string | null>(null);
   const promptMenuRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const stepsPanelRef = useRef<HTMLDetailsElement>(null);
+  const composerSectionRef = useRef<HTMLDivElement>(null);
+  const emptyStartersRef = useRef<HTMLDivElement>(null);
 
   const visibleSuggestionCategories =
     promptGroupFilter === "all"
@@ -63,6 +91,55 @@ export default function Assistant() {
   const expandAllCategories = () =>
     setOpenCategories(new Set(visibleSuggestionCategories.map((c) => c.id)));
   const collapseAllCategories = () => setOpenCategories(new Set());
+
+  const closeStepsPanel = () => {
+    const el = stepsPanelRef.current;
+    if (el) el.open = false;
+  };
+
+  const focusCountrySelector = () => {
+    closeStepsPanel();
+    composerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => {
+      const input = composerSectionRef.current?.querySelector<HTMLInputElement>(
+        'input[type="text"], input:not([type])'
+      );
+      input?.focus();
+    }, 280);
+  };
+
+  const expandStartersAndScroll = () => {
+    closeStepsPanel();
+    if (messages.length === 0) {
+      expandAllCategories();
+      window.setTimeout(() => {
+        emptyStartersRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 80);
+    } else {
+      setPromptMenuOpen(true);
+      window.setTimeout(() => {
+        promptMenuRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }, 50);
+    }
+  };
+
+  const applyWebFirstMode = () => {
+    setModel("tavily");
+    closeStepsPanel();
+  };
+
+  const applyAutoMode = () => {
+    setModel("groq");
+    closeStepsPanel();
+  };
+
+  const openStarterPromptMenu = () => {
+    closeStepsPanel();
+    setPromptMenuOpen(true);
+    window.setTimeout(() => {
+      promptMenuRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 50);
+  };
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -114,7 +191,11 @@ export default function Assistant() {
 
     setLoading(true);
     try {
-      const res = await postJson<{ reply: string; attribution: string[] }>("/api/assistant/chat", {
+      const res = await postJson<{
+        reply: string;
+        attribution: string[];
+        citations?: AssistantMessageCitations;
+      }>("/api/assistant/chat", {
         message: text,
         countryCode: country || undefined,
         ...(model === "tavily" ? { webSearchPriority: true as const } : {}),
@@ -124,6 +205,7 @@ export default function Assistant() {
         role: "assistant",
         content: res.reply,
         attribution: res.attribution,
+        citations: res.citations,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (e) {
@@ -149,15 +231,14 @@ export default function Assistant() {
           <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
             Analytics Assistant
           </h1>
-          <p className="max-w-4xl text-sm leading-snug text-slate-600 lg:max-w-none">
-            For <strong className="font-semibold text-slate-800">metrics and figures</strong>, replies lead with the{" "}
-            <strong className="font-semibold text-slate-800">same API data as the dashboard</strong> (World Bank WDI plus
-            configured gap-fills). Questions like <em>top countries by GDP or population</em> load a full global snapshot
-            for that metric, not only the selected country. Groq explains and Tavily stays supplementary. For everything
-            else—geography, news,
-            culture, companies, and other non-metric topics—the assistant{" "}
-            <strong className="font-semibold text-slate-800">prioritizes web search (Tavily) and Groq</strong> for
-            up-to-date context when your server has Tavily configured.
+          <p className="max-w-4xl text-sm leading-relaxed text-slate-600 lg:max-w-none">
+            The assistant answers in clear, analyst-style prose. For <strong className="font-semibold text-slate-800">numbers and rankings</strong>, it anchors to the{" "}
+            <strong className="font-semibold text-slate-800">same indicator series as the dashboard</strong> (World Bank
+            WDI and configured extensions)—including full global snapshots when you ask for top or bottom countries. For{" "}
+            <strong className="font-semibold text-slate-800">news, institutions, and general knowledge</strong>, it blends
+            live web retrieval (when Tavily is configured) with the model, always nudging current reporting over stale
+            training data. Use <em>Web-first</em> when you want retrieval on every turn; <em>Auto</em> keeps metrics
+            cleanly dashboard-grounded unless you need the extra search pass.
           </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
@@ -173,7 +254,7 @@ export default function Assistant() {
               <option value="tavily">Web-first — always search</option>
             </select>
           </div>
-          <details className="group relative">
+          <details ref={stepsPanelRef} className="group relative">
             <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 shadow-sm hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
                 <path
@@ -191,27 +272,82 @@ export default function Assistant() {
               </svg>
               Steps &amp; actions
             </summary>
-            <div className="absolute right-0 z-30 mt-1 w-[min(calc(100vw-2rem),18rem)] rounded-xl border border-slate-200 bg-white p-3 text-left text-sm text-slate-600 shadow-lg">
+            <div className="absolute right-0 z-30 mt-1 w-[min(calc(100vw-2rem),20rem)] rounded-xl border border-slate-200 bg-white p-3 text-left text-sm text-slate-600 shadow-lg">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Suggested workflow</p>
-              <ol className="mt-2 list-decimal space-y-2 pl-4 text-slate-700">
-                <li>
-                  <Link to="/" className="font-medium text-teal-700 underline-offset-2 hover:underline">
+              <p className="mt-1 text-[11px] leading-snug text-slate-500">
+                Tap an action to run it. Links open in-app routes; the country control matches the dashboard.
+              </p>
+              <ol className="mt-3 list-none space-y-3 p-0">
+                <li className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
+                  <p className="text-[11px] font-medium text-slate-700">1 · Focus country</p>
+                  <button
+                    type="button"
+                    onClick={focusCountrySelector}
+                    className="mt-1.5 w-full rounded-lg border border-teal-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-teal-900 shadow-sm transition hover:bg-teal-50"
+                  >
+                    Scroll to country &amp; focus selector
+                  </button>
+                  <Link
+                    to="/"
+                    onClick={closeStepsPanel}
+                    className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-center text-xs font-semibold text-slate-800 transition hover:bg-slate-50"
+                  >
                     Open Country Dashboard
-                  </Link>{" "}
-                  and pick the focus country (syncs here).
+                  </Link>
                 </li>
-                <li>
-                  <Link to="/sources" className="font-medium text-teal-700 underline-offset-2 hover:underline">
-                    Review Sources
-                  </Link>{" "}
-                  for metric definitions and providers.
+                <li className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
+                  <p className="text-[11px] font-medium text-slate-700">2 · Metric definitions</p>
+                  <Link
+                    to="/sources"
+                    onClick={closeStepsPanel}
+                    className="mt-1.5 block w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-center text-xs font-semibold text-slate-800 transition hover:bg-slate-50"
+                  >
+                    Open Sources
+                  </Link>
                 </li>
-                <li>Expand a starter category below and tap a prompt, or type your own.</li>
-                <li>
-                  Optional: set <strong className="font-semibold text-slate-800">Web-first</strong> for maximum
-                  recency (needs <code className="text-xs text-slate-500">TAVILY_API_KEY</code> on the server). Use{" "}
-                  <strong className="font-semibold text-slate-800">Expand all</strong> next to starter categories when
-                  the chat is empty.
+                <li className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
+                  <p className="text-[11px] font-medium text-slate-700">3 · Starter prompts</p>
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={expandStartersAndScroll}
+                      className="w-full rounded-lg border border-teal-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-teal-900 shadow-sm transition hover:bg-teal-50"
+                    >
+                      {messages.length === 0
+                        ? "Expand all categories and scroll to list"
+                        : "Open Prompts menu (chat has messages)"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={openStarterPromptMenu}
+                      disabled={loading}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-45"
+                    >
+                      Open Prompts menu (composer)
+                    </button>
+                  </div>
+                </li>
+                <li className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
+                  <p className="text-[11px] font-medium text-slate-700">4 · Answer style</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">
+                    Web-first needs <code className="rounded bg-slate-200/80 px-0.5">TAVILY_API_KEY</code> on the API.
+                  </p>
+                  <div className="mt-1.5 flex flex-col gap-1.5">
+                    <button
+                      type="button"
+                      onClick={applyWebFirstMode}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-slate-800 transition hover:bg-slate-50"
+                    >
+                      Set Web-first (always search)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={applyAutoMode}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-left text-xs font-semibold text-slate-800 transition hover:bg-slate-50"
+                    >
+                      Set Auto (balanced routing)
+                    </button>
+                  </div>
                 </li>
               </ol>
             </div>
@@ -253,20 +389,19 @@ export default function Assistant() {
               </p>
               <p className="mt-3 flex flex-wrap items-center justify-center gap-x-1 gap-y-1 text-center text-xs text-slate-400">
                 <span>
-                  Focus{" "}
-                  <span className="rounded-md bg-slate-100 px-1.5 py-0.5 font-mono text-slate-600">{country}</span>
+                  Focus country matches the{" "}
+                  <Link to="/" className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                    dashboard
+                  </Link>{" "}
+                  selector below
                 </span>
-                <span className="text-slate-300">·</span>
-                <Link to="/" className="font-medium text-teal-700 underline-offset-2 hover:underline">
-                  Set on Dashboard
-                </Link>
                 <span className="text-slate-300">·</span>
                 <Link to="/sources" className="font-medium text-teal-700 underline-offset-2 hover:underline">
                   Metric sources
                 </Link>
               </p>
 
-              <div className="mt-8 w-full max-w-lg px-1 sm:px-0">
+              <div ref={emptyStartersRef} className="mt-8 w-full max-w-lg px-1 sm:px-0">
                 <div className="mb-3 flex flex-col items-center gap-2 sm:flex-row sm:justify-center sm:gap-3">
                   <p className="text-center text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                     Starter prompts by category
@@ -382,12 +517,15 @@ export default function Assistant() {
                       </svg>
                     </div>
                     <div className="max-w-[85%] flex-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
-                      <MessageContent text={msg.content} />
+                      {msg.attribution && msg.attribution.length > 0 ? (
+                        <AssistantPersonaBanner attribution={msg.attribution} citations={msg.citations} />
+                      ) : null}
+                      <MessageContent text={msg.content} citations={msg.citations} />
                       {msg.attribution && msg.attribution.length > 0 && (
                         <>
                           <div className="mt-4 border-t border-slate-100 pt-3" />
-                          <p className="text-xs text-slate-400">
-                            Source: {sourceLabel(msg.attribution)}
+                          <p className="text-[11px] text-slate-400">
+                            Routing: {sourceLabel(msg.attribution)}
                           </p>
                         </>
                       )}
@@ -416,10 +554,28 @@ export default function Assistant() {
           )}
         </div>
 
-        <div className="border-t border-slate-200 p-4">
+        <div ref={composerSectionRef} className="border-t border-slate-200 p-4">
           {err && (
             <p className="mb-3 text-sm text-red-600">{err}</p>
           )}
+          <div className="mb-3 grid min-w-0 gap-1 sm:max-w-md">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Country</p>
+            <p className="text-xs text-slate-500">
+              Same focus as the Country Dashboard; metrics and briefings use this ISO3 unless your question names other
+              countries.
+            </p>
+            <div className="mt-1 min-w-0">
+              <CountrySelect
+                value={country}
+                onChange={(cca3) => {
+                  writeStoredDashboardCountry(cca3);
+                  setCountry(cca3);
+                }}
+                variant="light"
+                showLabel={false}
+              />
+            </div>
+          </div>
           <div className="relative flex gap-2 sm:gap-3">
             <div className="relative shrink-0" ref={promptMenuRef}>
               <button

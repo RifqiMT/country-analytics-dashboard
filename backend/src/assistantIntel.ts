@@ -12,6 +12,17 @@ function norm(s: string): string {
 }
 
 /** Heuristic: user is asking about numeric / dashboard metrics — Tavily usually skipped when platform payload exists. */
+/** User asks to compare international vs national poverty lines for the focus country. */
+export function looksLikePovertyInternationalVsNationalComparison(message: string): boolean {
+  const q = message.toLowerCase();
+  if (!/\bpoverty\b/.test(q)) return false;
+  const hasNat = /\bnational\b/.test(q);
+  const hasIntl = /\binternational\b/.test(q);
+  const compares =
+    /\bvs\.?\b|\bversus\b|\bcompare\b|\bcomparison\b/.test(q) || (hasNat && hasIntl);
+  return compares || (hasNat && hasIntl);
+}
+
 export function questionLooksMetricAnchored(message: string): boolean {
   const q = message.toLowerCase();
   if (q.length < 3) return false;
@@ -19,6 +30,15 @@ export function questionLooksMetricAnchored(message: string): boolean {
     /\b(gdp|inflation|population|unemployment|debt|deficit|surplus|growth|recession|wdi|world bank|imf|uis|metric|indicator|series|per capita|ppp|literacy|life expectancy|poverty|interest rate|lending|yoy|year over year)\b/.test(
       q
     )
+  ) {
+    return true;
+  }
+  if (/\b(api|database|backend|stored|ingested)\b/.test(q) && /\b(data|metric|indicator|figure|stat|series)\b/.test(q)) {
+    return true;
+  }
+  if (
+    /\b(dashboard|country analytics|this app|the app|the platform)\b/.test(q) &&
+    /\b(data|metric|indicator|figure|number|stat)\b/.test(q)
   ) {
     return true;
   }
@@ -149,6 +169,34 @@ export function intentPrefersWebFirst(intent: AssistantIntent): boolean {
   return intent === "general_web";
 }
 
+/**
+ * Whether the selected-country WDI-style snapshot should be injected into the LLM prompt.
+ * For `general_web` turns (culture, offices, news, etc.), omitting it avoids irrelevant macro padding
+ * and keeps answers scoped to web excerpts + appropriate general knowledge.
+ */
+export function questionInvokesFocusCountryPlatformMetrics(
+  message: string,
+  intent: AssistantIntent
+): boolean {
+  if (intent === "statistics_drill" || intent === "country_compare" || intent === "country_overview") {
+    return true;
+  }
+  if (questionLooksMetricAnchored(message)) return true;
+  if (looksLikePovertyInternationalVsNationalComparison(message)) return true;
+  const q = message.toLowerCase();
+  if (
+    /\b(this app|the app|the platform|dashboard|country analytics)\b/.test(q) &&
+    /\b(data|metric|indicator|figure|stat|series|wdi|world bank)\b/.test(q)
+  ) {
+    return true;
+  }
+  if (/\b(economic|economy|macro|macroeconomic)\s+(snapshot|picture|outlook|health|situation|performance|profile)\b/.test(q)) {
+    return true;
+  }
+  if (/\bhow\s+(is|are)\b[^?.]{0,80}\b(economy|economic)\b/.test(q)) return true;
+  return false;
+}
+
 /** When true and Tavily is configured, skip retrieval so the model cannot override curated series. */
 export function shouldSkipTavilyForPlatformFirst(
   intent: AssistantIntent,
@@ -253,6 +301,72 @@ export function resolveComparisonSegmentToCca3s(segment: string, countries: Coun
     const c = resolveCountryMention(cleanCountryFragment(p), countries);
     if (!c) return [];
     out.push(c);
+  }
+  return out;
+}
+
+/**
+ * Detect multiple ISO3 codes named in free text (longest country names first to reduce substring collisions).
+ * Used when the user lists economies for a metric question without explicit "compare … to …" phrasing.
+ */
+export function extractCountryCodesMentionedInText(
+  message: string,
+  countries: CountrySummary[],
+  cap: number
+): string[] {
+  const lower = message.toLowerCase();
+  const hits: { idx: number; cca3: string }[] = [];
+  const sorted = [...countries].sort((a, b) => b.name.length - a.name.length);
+
+  for (const c of sorted) {
+    const n = c.name.trim().toLowerCase();
+    if (n.length < 4) continue;
+    let pos = 0;
+    for (;;) {
+      const i = lower.indexOf(n, pos);
+      if (i < 0) break;
+      const before = i > 0 ? lower[i - 1]! : " ";
+      const after = i + n.length < lower.length ? lower[i + n.length]! : " ";
+      if (!/[a-zà-ž]/.test(before) && !/[a-zà-ž]/.test(after)) {
+        hits.push({ idx: i, cca3: c.cca3 });
+      }
+      pos = i + Math.max(1, n.length);
+    }
+    if (c.nameOfficial) {
+      const o = c.nameOfficial.trim().toLowerCase();
+      if (o.length >= 6) {
+        let op = 0;
+        for (;;) {
+          const i = lower.indexOf(o, op);
+          if (i < 0) break;
+          const before = i > 0 ? lower[i - 1]! : " ";
+          const after = i + o.length < lower.length ? lower[i + o.length]! : " ";
+          if (!/[a-zà-ž]/.test(before) && !/[a-zà-ž]/.test(after)) {
+            hits.push({ idx: i, cca3: c.cca3 });
+          }
+          op = i + Math.max(1, o.length);
+        }
+      }
+    }
+  }
+
+  const isoWord = /\b([A-Za-z]{3})\b/g;
+  let im: RegExpExecArray | null;
+  while ((im = isoWord.exec(message)) !== null) {
+    const code = im[1]!.toUpperCase();
+    if (countries.some((c) => c.cca3 === code)) {
+      hits.push({ idx: im.index, cca3: code });
+    }
+  }
+
+  hits.sort((a, b) => a.idx - b.idx);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const h of hits) {
+    if (seen.has(h.cca3)) continue;
+    seen.add(h.cca3);
+    out.push(h.cca3);
+    if (out.length >= cap) break;
   }
   return out;
 }
@@ -385,10 +499,22 @@ export function buildAssistantWebSearchQuery(
     const n = nameByCca3.get(c);
     if (n) parts.push(n);
   }
+  const isoToday = now.toISOString().slice(0, 10);
   if (intent === "country_compare") parts.push("economic comparison", "latest policy and data");
-  if (intent === "country_overview") parts.push("current government economy society", "today");
+  if (intent === "country_overview") {
+    parts.push("current government economy society", "today", `as of ${isoToday} UTC`);
+  }
   if (intent === "statistics_drill") {
     parts.push("latest reported figures and commentary", monthYear, y);
+  } else if (intent === "general_web") {
+    parts.push(
+      "latest verified information",
+      `as of ${isoToday} UTC`,
+      "today",
+      monthYear,
+      y,
+      "past two weeks"
+    );
   } else {
     parts.push("breaking or latest verified news", monthYear, y, "past six weeks");
   }
@@ -401,9 +527,14 @@ export function buildAssistantWebSearchQuery(
 export function groqTemperatureForIntent(intent: AssistantIntent): number {
   switch (intent) {
     case "statistics_drill":
+      return 0.38;
     case "country_compare":
-      return 0.42;
+      return 0.4;
+    case "country_overview":
+      return 0.58;
+    case "general_web":
+      return 0.62;
     default:
-      return 0.55;
+      return 0.62;
   }
 }

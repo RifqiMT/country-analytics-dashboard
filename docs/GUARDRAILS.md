@@ -28,6 +28,10 @@ This document defines **business** and **technical** limitations the team and us
 | **Attribution** | Responses should carry attribution arrays where implemented; maintain them when extending prompts. |
 | **PESTEL output shape** | Merged analysis enforces **five bullets per PESTEL dimension and per SWOT quadrant** with padding from fallbacks; **cross-quadrant SWOT deduplication** reduces copy-paste. **Client prose polish** strips internal scaffolding phrases when present—users should still verify numbers on the dashboard. |
 | **LLM payload limits** | Large web bundles may be **truncated** before the Groq request to avoid HTTP **413**; full text may still be used for non-LLM grounding paths. Do not assume the model sees the entire Tavily dump. |
+| **Assistant scope** | **Dashboard figures** are injected only when the question **plausibly needs** macro/country-indicator context (`questionInvokesFocusCountryPlatformMetrics`). Users asking about culture-only or leadership topics should not see unrelated WDI lines forced into the prompt—reduces hallucinated “platform” claims. |
+| **Assistant rankings** | **Prepended markdown tables** are authoritative for rank order; the LLM is instructed **prose-only** for those turns; server **strips** redundant Rank/Country-style pipe tables from the narrative. Residual duplication should be rare; users should still verify critical ranks on the **Global** view if decisions depend on them. |
+| **Assistant web** | At most **one** web excerpt is tagged **[W1]** in the compacted context; Tavily synthesis may still appear in fallback copy—users must **verify** consequential claims on source pages. |
+| **Persona banner** | UI personas (**Elena Marchetti**, **Sofia Reyes**, etc.) are **presentational** labels derived from routing—they do not imply separate LLM characters or third-party endorsement. |
 
 ## 3. Product and legal positioning
 

@@ -111,6 +111,8 @@ export type AssistantRankingPayload = {
   plainBlock: string;
   /** GitHub-flavored markdown table + caption for the user interface. */
   markdownTable: string;
+  /** When the user has a dashboard focus country, compares it to the leaderboard (same metric/year). */
+  focusComparisonMarkdown?: string;
 };
 
 function buildRankingMarkdownTable(
@@ -134,12 +136,54 @@ function buildRankingMarkdownTable(
   return `${caption}\n\n${header}\n${body}`;
 }
 
+function buildFocusVsRankingMarkdown(
+  metricId: string,
+  label: string,
+  dataYear: number,
+  slice: GlobalRow[],
+  candidates: GlobalRow[],
+  focusCca3: string,
+  focusName: string,
+  formatMetricValue: (metricId: string, value: number) => string
+): string {
+  const focusRow = candidates.find((r) => r.countryIso3 === focusCca3);
+  const caption = `**Dashboard focus vs this leaderboard** · ${escapeMdCell(label)} · **${dataYear}** · ${candidates.length} economies with data`;
+  if (
+    !focusRow ||
+    focusRow.value === null ||
+    focusRow.value === undefined ||
+    !Number.isFinite(focusRow.value as number)
+  ) {
+    return `${caption}\n\n*No ${escapeMdCell(label)} value for **${escapeMdCell(focusName)}** (${focusCca3}) in this global snapshot year.*`;
+  }
+  const v = focusRow.value as number;
+  const rankAll = candidates.findIndex((r) => r.countryIso3 === focusCca3) + 1;
+  const inSliceIdx = slice.findIndex((r) => r.countryIso3 === focusCca3);
+  const leader = slice[0];
+  const tail = slice[slice.length - 1];
+  if (!leader || !tail) return caption;
+
+  const posNote =
+    inSliceIdx >= 0
+      ? `Shown rank in table above: **#${inSliceIdx + 1}** of ${slice.length}`
+      : `**Not** in the top-${slice.length} table above (global rank **#${rankAll}** of ${candidates.length})`;
+
+  const header =
+    `| | ${escapeMdCell(focusName)} (${focusCca3}) | #1 in table above | #${slice.length} in table above | All economies |\n` +
+    `| :--- | --- | --- | --- | --- |`;
+  const row =
+    `| ${escapeMdCell(label)} | ${escapeMdCell(formatMetricValue(metricId, v))} | ${escapeMdCell(formatMetricValue(metricId, leader.value as number))} | ${escapeMdCell(formatMetricValue(metricId, tail.value as number))} | ${posNote} |`;
+
+  return `${caption}\n\n${header}\n${row}`;
+}
+
 /**
  * Global top/bottom ranking: plain context for the model + a markdown table for the UI.
  */
 export async function buildAssistantRankingPayload(
   message: string,
-  formatMetricValue: (metricId: string, value: number) => string
+  formatMetricValue: (metricId: string, value: number) => string,
+  options?: { focusCca3?: string }
 ): Promise<AssistantRankingPayload | null> {
   const ql = message.toLowerCase();
   if (!looksLikeGlobalRankingQuery(message)) return null;
@@ -163,8 +207,14 @@ export async function buildAssistantRankingPayload(
   if (slice.length === 0) return null;
 
   const label = METRIC_BY_ID[metricId]!.label;
+  const focusCca3 = options?.focusCca3?.trim().toUpperCase();
+  const focusMeta =
+    focusCca3 && /^[A-Z]{3}$/.test(focusCca3)
+      ? countries.find((c) => c.cca3 === focusCca3)
+      : undefined;
+
   const lines: string[] = [
-    "GLOBAL CROSS-COUNTRY RANKING (full platform global snapshot — same pipeline as dashboard map/global table)",
+    "GLOBAL CROSS-COUNTRY RANKING (full platform global snapshot — same pipeline as dashboard map/global table; values are the latest year available for this indicator in our database, typically stepped back for WDI coverage)",
     `Metric: ${label} (${metricId})`,
     `Reference year: ${dataYear} (chosen for coverage when latest WDI page is sparse)`,
     `Order: ${order === "desc" ? "highest first" : "lowest first"} · showing ${slice.length} of ${candidates.length} countries with data`,
@@ -176,6 +226,23 @@ export async function buildAssistantRankingPayload(
     );
   });
 
+  if (focusMeta && focusCca3) {
+    const fr = candidates.find((r) => r.countryIso3 === focusCca3);
+    const gr = fr ? candidates.findIndex((r) => r.countryIso3 === focusCca3) + 1 : null;
+    lines.push("");
+    lines.push(`Dashboard focus country: ${focusMeta.name} (${focusCca3})`);
+    if (fr && fr.value !== null && Number.isFinite(fr.value as number)) {
+      lines.push(
+        `Global rank on this metric (among ${candidates.length} with data): ${gr} · Value: ${formatMetricValue(metricId, fr.value as number)}`
+      );
+      const ix = slice.findIndex((r) => r.countryIso3 === focusCca3);
+      if (ix >= 0) lines.push(`Position within the top-${slice.length} table above: #${ix + 1}`);
+      else lines.push(`Not among the top-${slice.length} shown in the table above (see focus comparison table in the UI).`);
+    } else {
+      lines.push("No value for this country in this snapshot year.");
+    }
+  }
+
   const markdownTable = buildRankingMarkdownTable(
     metricId,
     label,
@@ -186,5 +253,19 @@ export async function buildAssistantRankingPayload(
     formatMetricValue
   );
 
-  return { plainBlock: lines.join("\n"), markdownTable };
+  let focusComparisonMarkdown: string | undefined;
+  if (focusMeta && focusCca3) {
+    focusComparisonMarkdown = buildFocusVsRankingMarkdown(
+      metricId,
+      label,
+      dataYear,
+      slice,
+      candidates,
+      focusCca3,
+      focusMeta.name,
+      formatMetricValue
+    );
+  }
+
+  return { plainBlock: lines.join("\n"), markdownTable, focusComparisonMarkdown };
 }

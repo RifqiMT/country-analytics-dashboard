@@ -66,7 +66,7 @@ See [USER_PERSONAS.md](./USER_PERSONAS.md). Summary: **Country analyst**, **Glob
 | **PESTEL** | `/pestel` | Indicator digest from catalog subset; optional Tavily + Groq structured JSON; server-side merge with data scaffold, cross-quadrant SWOT deduplication, client-facing prose polish; data-only fallback without API keys. |
 | **Porter 5 Forces** | `/porter` | Industry sector from **ILO ISIC** divisions via API; same optional AI pattern as PESTEL; data-only template fallback. |
 | **Business Analytics** | `/business` | Global Pearson correlation and scatter (optional IQR exclusion, country highlight); country pairwise correlation over time; **residuals** view for regression diagnostics education. |
-| **Analytics Assistant** | `/assistant` | Chat UI with dashboard-grounded digest when a country is selected; optional Tavily + Groq; markdown-oriented rendering and attribution metadata where implemented; suggested prompts by category. |
+| **Analytics Assistant** | `/assistant` | Chat UI synced to **dashboard country** (`dashboardCountryStorage`). **Starter prompts** (six categories, 25+ each) cover metrics, rankings, comparisons, live web, culture/society, and data literacy. **Answer style:** Auto (balanced routing) vs Web-first (`webSearchPriority`). Backend **classifies intent**, may **skip Tavily** when platform data suffice, **omits focus-country snapshot** for off-scope questions, **prepends ranking markdown** for leaderboard queries, **tags platform/web lines** with **[D#]/[W1]**, returns **`citations`** for chips. **Groq** per-use-case primaries/fallbacks, **transport retries**, **prompt clamp** (`assistantPromptBudget.ts`), **strip duplicate ranking tables** from LLM body (`assistantReplyTableDedupe.ts`). **Tavily-only fallback** if all Groq models fail. UI: **persona banner** (source-derived category + professional voice), **Steps & actions** executable workflow, **MessageContent** GFM tables + dedupe of consecutive identical tables. |
 | **Sources** | `/sources` | Searchable metric catalog and data provider narrative from the API. |
 
 ---
@@ -82,7 +82,11 @@ See [USER_PERSONAS.md](./USER_PERSONAS.md). Summary: **Country analyst**, **Glob
 | **FR-5** | Full-screen chart/table modals lock body scroll, support Escape/Close, and use enlarged Recharts tick styles via `.cap-viz-fullscreen`. |
 | **FR-6** | `POST /api/bootstrap/warm` enqueues background cache warmup (HTTP **202** with `{ status: "started" }`) so first navigation can hit warm entries; with server env `DISABLE_BOOTSTRAP_WARMUP=1`, returns **200** `{ status: "skipped" }` and no background work. |
 | **FR-7** | `GET /api/metrics` returns catalog entries augmented with `shortLabel` for consistent UI copy. |
-| **FR-8** | Assistant accepts chat messages and optional country context; responses include attribution metadata when the pipeline provides it. |
+| **FR-8** | Assistant accepts chat messages and optional country context; responses include **attribution** and **citations** (`D` / `W`) when the pipeline provides them. |
+| **FR-9** | For global ranking questions, the API may **prepend** platform markdown tables and require the LLM body to remain **prose-first** without duplicating leaderboard pipe tables; server **strips** redundant Rank/Country/ISO3-style tables from the narrative when needed. |
+| **FR-10** | Assistant respects **web search priority** from the client and **platform metric scope** heuristics so irrelevant dashboard series are not injected into general or culture-only turns. |
+| **FR-11** | Assistant uses **per-feature Groq routing** with **retryable failure handling** (including network errors and context-length-style 400s), **timeouts**, and optional **Tavily** resilience path. |
+| **FR-12** | Assistant UI exposes **workflow actions** (focus country, open Sources/Dashboard, expand starters, Web-first/Auto) from the Steps panel. |
 
 ---
 
@@ -95,6 +99,8 @@ See [USER_PERSONAS.md](./USER_PERSONAS.md). Summary: **Country analyst**, **Glob
 | **NFR-3** | Security | API secrets live server-side only (`dotenv`); JSON body limit **1 MB** on Express. |
 | **NFR-4** | Maintainability | Metric definitions centralized in `metrics.ts`; labels in `metricShortLabels.ts`. |
 | **NFR-5** | AI safety | PESTEL uses low temperature, grounding filters, and merge with scaffold; see **GUARDRAILS.md**. |
+| **NFR-6** | Assistant UX | Ranking answers must not present **visually duplicated** leaderboard tables; client dedupes consecutive identical GFM tables; server removes platform-shaped duplicates from LLM text. |
+| **NFR-7** | Assistant reliability | Groq requests use bounded **timeout**; fallback model chain advances on **transport** and **retryable HTTP** errors; rate-limit backoff between candidates. |
 
 ---
 
@@ -114,8 +120,9 @@ See [USER_PERSONAS.md](./USER_PERSONAS.md). Summary: **Country analyst**, **Glob
 2. **Completion:** Cross-metric derivations, range completion (edge fill, interpolation with GDP-growth step rule for growth series), short tail carry-forward, optional WLD proxy, percentage clamping where applicable.
 3. **Presentation:** Frontend merges series for charts; dashboard adds derived **unemployed** count from unemployment rate × labour force for labour visualizations.
 4. **Strategy / AI:** Digest keys for PESTEL grounding are fixed in `pestelDigestKeys.ts`. LLM output is parsed, sanitized against evidence, merged with scaffold, and polished for client-facing text.
+5. **Analytics Assistant:** `classifyAssistantIntent` and related heuristics in `assistantIntel.ts` route **statistics, comparison, overview, and general web** paths. `compactAssistantRetrievalForLlm` (`assistantCitationContext.ts`) labels dashboard/ranking lines and **at most one** web bullet for **[W1]**. `buildAssistantRankingPayload` supplies tables prepended to the reply string; `stripRedundantRankingTablesFromLlmMarkdown` prevents echo tables. `questionInvokesFocusCountryPlatformMetrics` gates focus-country injection. Client `resolveAssistantAnswerPresentation` maps **attribution + citations** to **source category** and **named persona** copy.
 
-*Detail:* [ARCHITECTURE.md](./ARCHITECTURE.md), [GUARDRAILS.md](./GUARDRAILS.md).
+*Detail:* [ARCHITECTURE.md](./ARCHITECTURE.md), [GUARDRAILS.md](./GUARDRAILS.md), [VARIABLES.md](./VARIABLES.md) (Assistant request fields).
 
 ---
 
@@ -144,7 +151,8 @@ Full dictionary: [VARIABLES.md](./VARIABLES.md), `.env.example`.
 
 - PESTEL: merged analysis with **cross-quadrant SWOT deduplication** and **prose polish** to reduce scaffolding language in client output.
 - API: **`POST /api/bootstrap/warm`** documented for first-session performance behavior.
+- Assistant: **citation map**, **single-web-excerpt policy**, **platform scope** for focus metrics, **prepended ranking tables** + **duplicate table stripping**, **persona/category UI**, **Steps & actions**, **prompt budget** and **Groq resilience** (timeouts, transport retry, backoff).
 
 ---
 
-*Last aligned to `frontend/src/App.tsx`, `backend/src/index.ts`, and `backend/src/metrics.ts`.*
+*Last aligned to `frontend/src/App.tsx`, `frontend/src/pages/Assistant.tsx`, `backend/src/index.ts`, `backend/src/metrics.ts`, and Assistant modules under `backend/src/assistant*.ts`.*

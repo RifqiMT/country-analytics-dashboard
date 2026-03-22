@@ -59,9 +59,16 @@ Acceptance notes are indicative; automated tests may not cover all UI flows.
 
 | ID | Story | Acceptance notes |
 |----|--------|-------------------|
-| US-A1 | As a **user**, I want to **ask questions with optional country context** so that **answers respect dashboard series**. | Injects digest when ISO3 valid; metadata lists sources where implemented. |
-| US-A2 | As a **user**, I want to **use suggested prompts** so that **I can discover capabilities quickly**. | `assistantSuggestionCategories` + UI chips or list. |
-| US-A3 | As a **user**, I want to **read formatted replies (e.g. links, emphasis)** so that **answers are scannable**. | `MessageContent` (or equivalent) renders markdown-safe content. |
+| US-A1 | As a **user**, I want to **ask questions with optional country context** so that **answers respect dashboard series when metrics are on-topic**. | Valid ISO3 loads bundle; `questionInvokesFocusCountryPlatformMetrics` may omit focus snapshot for off-scope general questions; attribution notes omission when applicable. |
+| US-A2 | As a **user**, I want to **browse grouped starter prompts** so that **I can discover rankings, comparisons, web, and literacy workflows**. | `ASSISTANT_SUGGESTION_CATEGORIES` (six groups, ≥25 prompts each); empty-state accordions + composer **Prompts** menu. |
+| US-A3 | As a **user**, I want to **read formatted replies (tables, links, bold, citation chips)** so that **answers are scannable**. | `MessageContent`: GFM tables, `[D#]`/`[W#]` superscripts/links, **Web source** section split; consecutive **duplicate tables** collapsed in UI. |
+| US-A4 | As a **user**, I want to **choose Web-first vs Auto routing** so that **I control how often live search runs**. | `webSearchPriority: true` when UI mode is Web-first; server respects `assistantMode: "web_priority"`. |
+| US-A5 | As a **benchmarking user**, I want **global ranking tables prepended by the platform** so that **I see authoritative ranks before narrative**. | `buildAssistantRankingPayload` markdown prepended to reply; LLM instructed prose-only for ranking turns; `stripRedundantRankingTablesFromLlmMarkdown` removes echo tables. |
+| US-A6 | As a **user**, I want **inline citations mapped to tooltips and links** so that **I can trace numbers to platform or web**. | API returns `citations: { D, W }`; `MessageContent` renders chips. |
+| US-A7 | As a **user**, I want a **source-based persona banner** so that **I understand how the answer was grounded**. | `resolveAssistantAnswerPresentation(attribution, citations)` → category label + name + title + description. |
+| US-A8 | As a **user**, I want **executable Steps & actions** so that **I can jump to country, Sources, dashboard, starters, or answer mode without hunting the UI**. | Details panel: scroll/focus country, links, expand starters / open Prompts, set Web-first or Auto. |
+| US-A9 | As a **user**, I want **reliable assistant responses under API stress** so that **fallback models and Tavily path activate when Groq fails**. | `groqChatWithFallbackForUseCase`, transport retry, timeouts, backoff; optional `tavilyAssistantFallbackReply`. |
+| US-A10 | As a **product owner**, I want **routing and LLM lines in a footer** so that **I can debug intent and model without exposing machinery in the main prose**. | `attribution` array; “Routing:” line under reply. |
 
 ---
 

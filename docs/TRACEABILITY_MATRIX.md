@@ -17,14 +17,18 @@ Maps **product intent** to **implementation anchors** for the Country Analytics 
 | PRD FR-5 | Fullscreen modals | `ChartTableToggle`, `DashboardComparisonTable`, stepper overlay | — | Escape closes; body scroll locked; `.cap-viz-fullscreen` ticks |
 | PRD FR-6 | Bootstrap cache warmup | SPA first load | `POST /api/bootstrap/warm`, `dataWarmup.ts`, `index.ts` | 202 + `started` or 200 + `skipped`; faster navigation when warm |
 | PRD FR-7 | Short labels in API | All chart consumers | `GET /api/metrics`, `metricShortLabels.ts` | `shortLabel` present per metric |
-| PRD FR-8 | Assistant chat | `Assistant.tsx`, `MessageContent.tsx` | `POST /api/assistant/chat`, `llm.ts` | Reply + metadata; optional Tavily |
+| PRD FR-8 | Assistant chat + citations | `Assistant.tsx`, `MessageContent.tsx`, `assistantAnswerPresentation.ts` | `POST /api/assistant/chat`, `llm.ts`, `assistantCitationContext.ts` | `reply`, `attribution`, `citations` |
+| PRD FR-9 | Ranking table dedupe | — | `assistantReplyTableDedupe.ts`, `index.ts` assemble reply | Leaderboard prepended; LLM echo tables stripped |
+| PRD FR-10 | Assistant metric scope | — | `assistantIntel.ts` `questionInvokesFocusCountryPlatformMetrics` | Off-scope turns omit focus snapshot; attribution log |
+| PRD FR-11 | Groq resilience | — | `llm.ts` timeouts, transport retry, backoff | Fallback chain exhaust → Tavily path |
+| PRD FR-12 | Steps & actions | `Assistant.tsx` handlers | — | Scroll/focus country, links, expand starters, mode toggles |
 | US-D1 | Country search | `CountrySelect.tsx` | `GET /api/countries` | Typeahead → ISO3 |
 | US-D2 | Year presets | `YearRangePresetDropdown.tsx` | `start`/`end` query params | Presets clamp correctly |
 | US-D4–D9 | Chart/table/FS/granularity/comparison | `Dashboard.tsx`, `ChartTableToggle.tsx`, `VisualizationStepper.tsx` | Comparison: `GET /api/dashboard/comparison` | Fullscreen + slideshow + export |
 | US-G1–G4 | Global analytics + WLD | `GlobalAnalytics.tsx` | `/api/global/snapshot`, `/api/global/table`, `/api/global/wld-series` | Map + table + CSV |
 | US-P1–P4 | Strategy pages + SWOT quality | `Pestel.tsx`, `Porter.tsx` | `/api/analysis/pestel`, `/api/analysis/porter` | With/without Groq; deduped SWOT |
 | US-B1–B3 | Correlation + residuals | `BusinessAnalytics.tsx`, `CorrelationScatter.tsx` | `GET /api/analysis/correlation-global`, `POST /api/analysis/correlation` | r, scatter, residuals copy |
-| US-A1–A3 | Assistant UX | `Assistant.tsx` | `assistant/chat` | Suggestions, markdown rendering |
+| US-A1–A10 | Assistant UX | `Assistant.tsx`, `assistantSuggestionCategories.ts`, `MessageContent.tsx`, `assistantWebSources.ts` | `assistant/chat`, assistant modules | Starters, personas, citations, deduped tables, Steps panel |
 | US-S1–S2 | Sources | `Sources.tsx` | `GET /api/metrics`, `GET /api/data-providers` | Search + provider narrative |
 | US-O1–O2 | API observability + warm | `ApiTransportPanel.tsx`, `ApiToastStack.tsx`, bootstrap caller | `api.ts`, `POST /api/bootstrap/warm` | Panel + toasts + 202 warm |
 | US-T1 | Cache clear | UI control | `POST /api/cache/clear` | Cache invalidated |
@@ -42,6 +46,7 @@ Maps **product intent** to **implementation anchors** for the Country Analytics 
 | **PESTEL digest** | `pestelDigestKeys.ts` → digest build in `index.ts` |
 | **PESTEL merge / polish** | `mergePestelAnalysis`, `polishPestelAnalysisForClient`, `ensureFiveBullets` in `pestelAnalysis.ts` |
 | **CORS / body limit** | `index.ts` Express config (see **GUARDRAILS**) |
+| **Assistant table UX** | `MessageContent.tsx` consecutive duplicate GFM suppression; `assistantReplyTableDedupe.ts` server strip |
 
 ---
 

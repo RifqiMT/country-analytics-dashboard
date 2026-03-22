@@ -23,6 +23,7 @@ Canonical product and engineering documentation lives in **`docs/`** and follows
 | [docs/TRACEABILITY_MATRIX.md](./docs/TRACEABILITY_MATRIX.md) | Enterprise-style requirements → UI / API / module → verification |
 | [docs/GUARDRAILS.md](./docs/GUARDRAILS.md) | Data methodology, AI, legal, security, and operational limits |
 | [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design, full API summary, data pipeline, strategy/AI overview |
+| [docs/CHANGELOG.md](./docs/CHANGELOG.md) | Documentation alignment history (e.g. Assistant suite updates) |
 
 ---
 
@@ -34,7 +35,7 @@ Canonical product and engineering documentation lives in **`docs/`** and follows
 | **Global Analytics** | Year and metric selection, choropleth map (with **requestedYear vs dataYear** when WDI is sparse), bar chart, filterable table by region and category, CSV export, WLD series where exposed. |
 | **PESTEL & Porter** | Data digest from dashboard metrics (PESTEL uses a defined subset—see `docs/VARIABLES.md`); optional **Tavily** + **Groq** JSON narrative; server-side **merge**, **SWOT cross-quadrant deduplication**, and **client prose polish**; **data-only fallback** without API keys. Porter uses **ILO ISIC** divisions from the API. |
 | **Business Analytics** | **Global** Pearson correlation and scatter (optional IQR exclusion, country highlight); **country** pairwise correlation over time; **residuals** exploration for teaching fit diagnostics. |
-| **Analytics Assistant** | Chat UI with **dashboard-grounded** context when a country is selected; **Tavily** live search for time-sensitive facts with strict “no guessing” prompts when excerpts are missing; optional Groq; suggestion categories; markdown-oriented reply rendering; attribution in responses. **Set `TAVILY_API_KEY`** for accurate current-events answers. |
+| **Analytics Assistant** | Natural-language Q&A with **intent routing** (rankings, comparisons, overview, general web). **Platform series** and **global ranking tables** are injected into context when relevant; **focus-country indicators are omitted** when the question is outside metric scope (culture, leadership, etc.) to avoid irrelevant macro padding. **Live web** (Tavily) supports current-affairs verification; **inline [D#] / [W1] citations** map to dashboard and web sources in the UI. **Prepended ranking markdown** plus **server-side table deduplication** reduce duplicate leaderboards. **Answer personas** and **source-based category chips** explain routing; **Steps & actions** runs workflow controls (country focus, Sources, starter prompts, Web-first vs Auto). Per-use-case **Groq** models, **fallback chains**, **timeouts**, and **prompt-size clamping** improve reliability. **Set `TAVILY_API_KEY`** for recency-critical answers. |
 | **Sources** | Searchable metric dictionary and **data provider** narrative from the API. |
 | **Observability** | **API transport** chip (header) and **toasts** (bottom-right) for request outcomes and timing. |
 
@@ -47,6 +48,7 @@ Canonical product and engineering documentation lives in **`docs/`** and follows
 - **No login required** for core open-data paths; API keys for AI stay **server-side**.
 - **Export-first**: CSV from dashboard sections, global table, and comparison views for memo and model workflows.
 - **Documented traceability**: PRD, user stories, variables, and a **traceability matrix** map intent to code for audits and onboarding.
+- **Assistant clarity**: Citations, source-scoped personas, ranking **prose-only** instructions after prepended tables, and defensive **duplicate-table stripping** keep table-heavy answers readable.
 
 ---
 

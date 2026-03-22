@@ -10,7 +10,7 @@ These personas guide prioritization, copy tone, and feature depth for the Countr
 |-----------|--------|
 | **Role** | Works in corporate strategy or sovereign risk; compares economies for investment or partnership decisions. |
 | **Goals** | Quickly see macro fiscal and social context for a country; export figures for memos; sanity-check trends over 10–20 years. |
-| **Behaviors** | Uses **Country Dashboard** first; cares about debt, growth, inflation, unemployment, demographics; opens **Global Analytics** for peer context; may run **PESTEL** for committee packs. |
+| **Behaviors** | Uses **Country Dashboard** first; cares about debt, growth, inflation, unemployment, demographics; opens **Global Analytics** for peer context; may run **PESTEL** for committee packs; uses **Analytics Assistant** for ranked lists and multi-country comparisons with **prepended tables** and **[D#]** cites. |
 | **Frustrations** | Inconsistent definitions across websites; charts that break when years have missing data; unclear whether a point is reported or modeled. |
 | **Platform needs** | Clear metric labels, YoY hints, comparison table, CSV export, **Sources** page, provenance in tooltips where available. |
 | **Success signals** | Exports used in live presentations; repeat visits to the same country across weeks. |
@@ -24,7 +24,7 @@ These personas guide prioritization, copy tone, and feature depth for the Countr
 |-----------|--------|
 | **Role** | NGO or multilateral program officer ranking countries on education or health proxies. |
 | **Goals** | Map and rank countries for one indicator; filter by region; understand which year the map actually represents. |
-| **Behaviors** | Lives on **Global Analytics**; downloads CSV; cross-checks a few countries on the dashboard. |
+| **Behaviors** | Lives on **Global Analytics**; downloads CSV; cross-checks a few countries on the dashboard; may ask **Analytics Assistant** for “top N” lists and read **prepended ranking tables** plus prose. |
 | **Frustrations** | Maps that show empty years without explanation; region filters that disagree with national classifications. |
 | **Platform needs** | `requestedYear` vs `dataYear` messaging, region filter, category presets, export. |
 | **Success signals** | CSV shared with program teams; fewer “which year is this?” questions after copy improvements. |
@@ -66,7 +66,7 @@ These personas guide prioritization, copy tone, and feature depth for the Countr
 |-----------|--------|
 | **Role** | Owns roadmap and stakeholder communication for the platform inside an organization or as a maintainer of the open repo. |
 | **Goals** | Keep documentation truthful; trace features to code; communicate guardrails to legal and data partners. |
-| **Behaviors** | Reads **PRD**, **TRACEABILITY_MATRIX**, **GUARDRAILS**; validates **VARIABLES** when metrics ship. |
+| **Behaviors** | Reads **PRD**, **TRACEABILITY_MATRIX**, **GUARDRAILS**; validates **VARIABLES** when metrics ship; tracks **Assistant** routing and citation behavior when changing `assistantIntel` or LLM prompts. |
 | **Frustrations** | Docs that lag the codebase; unclear ownership of AI behavior; missing env var documentation. |
 | **Platform needs** | **PRODUCT_DOCUMENTATION_STANDARD**, concise release notes, OKR scaffolding in **METRICS_AND_OKRS**. |
 | **Success signals** | Onboarding new engineers without ad-hoc tours; audit questions answered from **GUARDRAILS** and **VARIABLES**. |
@@ -79,4 +79,5 @@ These personas guide prioritization, copy tone, and feature depth for the Countr
 - **Progressive disclosure:** KPI cards → charts → full screen → group slideshow for dense dashboard sections.
 - **Trust copy:** Short notes on publisher lag, interpolation, and WLD proxy (see root **README** and **GUARDRAILS**).
 - **Optional AI:** Never the only path; structured data or template text when keys are missing; attribution when AI is used.
+- **Assistant transparency:** Source-category chips and routing footers help users see **platform vs web** grounding; off-scope questions avoid irrelevant **dashboard metric** injection.
 - **Correlation and residuals:** Language and UI should reinforce **association**, not **causation**.

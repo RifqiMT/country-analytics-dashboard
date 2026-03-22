@@ -92,6 +92,21 @@ Use **white** (`#ffffff`) or near-white for text on headers; maintain minimum co
 | `threat_substitutes` | `#0ea5e9` | Threat of substitutes |
 | `rivalry` | `#64748b` | Competitive rivalry |
 
+### 4.4 Analytics Assistant (`/assistant`)
+
+| Element | Typical tokens / classes | Notes |
+|---------|--------------------------|--------|
+| **Page canvas** | Same as shell: `bg-slate-100` outer, **white** chat card `border-slate-200` | Keeps Assistant inside the app family |
+| **User bubbles** | `bg-red-50`, `text-slate-800` | Aligns with **primary CTA red** for “you spoke” affordance |
+| **Assistant avatar** | `bg-teal-100`, `text-teal-600` | Distinct from nav red; signals “system / analyst” reply |
+| **Persona banner** | `from-slate-50/90 to-teal-50/30`, **category chip** `bg-teal-700/90 text-white` | Source-category label must stay high-contrast on teal |
+| **Primary actions in Steps** | Teal-bordered buttons for **high-impact** workflow (`border-teal-200`, `text-teal-900`, `hover:bg-teal-50`) | Neutral actions stay `border-slate-200` |
+| **Web citation links** | `text-teal-700` for titles; `text-blue-600` for inline `[W#]` and markdown links | Matches `MessageContent` split between platform (teal) and external (blue) |
+| **Tables in replies** | `border-slate-200`, `bg-slate-50` header row — same as dashboard GFM tables | Full-width scroll `overflow-x-auto` on small viewports |
+| **Starter accordions** | White cards, `hover:border-slate-300`, chevron rotation | Empty-state density matches dashboard cards |
+
+Do **not** introduce a third accent family on this page; reserve **red** for user/send, **teal** for assistant chrome and platform-trust cues.
+
 ---
 
 ## 5. Component patterns
@@ -106,6 +121,7 @@ Use **white** (`#ffffff`) or near-white for text on headers; maintain minimum co
 | **Group gallery** | `VisualizationStepper` + `VizGalleryContext`; `.cap-viz-gallery-step` for WLD height behavior |
 | **Toasts** | Bottom-right; `.toast-slide-in` animation |
 | **API debug** | Bottom-left chip expanding to transport log |
+| **Assistant chat** | `Assistant.tsx` — composer `CountrySelect`, Prompts popover, Steps `details` panel, `AssistantPersonaBanner`, `MessageContent` |
 
 ---
 

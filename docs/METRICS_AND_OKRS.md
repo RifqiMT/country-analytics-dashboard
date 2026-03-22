@@ -28,10 +28,13 @@ This document defines **product health metrics** (how the product is measured in
 | **Error toast rate** | Failed `getJson` / `postJson` divided by total client API calls | Client-visible friction |
 | **Cache clear usage** | Count of `POST /api/cache/clear` | Power-user behavior or stale-data signals |
 | **Sources page depth** | Sessions on `/sources` with search or scroll engagement (if instrumented) | Trust tooling usage |
+| **Assistant ranking duplicate rate** | Share of ranking-thread responses where the raw `reply` contained more than one **structurally identical** GFM leaderboard table after server dedupe (if logged) | UX quality; target **↓** toward zero |
+| **Assistant Groq fallback rate** | Share of assistant turns where `attribution` notes primary model failure or **Groq exhausted** before success | Reliability signal; monitor alongside Tavily fallback rate |
+| **Assistant citation coverage** | Share of metric-heavy assistant replies where `citations.D` is non-empty (and `W` when web ran) | Grounding transparency |
 
 ### Leading indicators (qualitative)
 
-- **Support themes:** confusion about PPP vs nominal, interpolation, map year vs selected year, SWOT duplication (should decrease with server-side dedupe).
+- **Support themes:** confusion about PPP vs nominal, interpolation, map year vs selected year, SWOT duplication (should decrease with server-side dedupe), **duplicate ranking tables** in Assistant (should decrease with prepended-table + strip + UI dedupe).
 - **Documentation traffic:** views of `docs/` or README (if hosted).
 
 ---
@@ -74,7 +77,8 @@ This document defines **product health metrics** (how the product is measured in
 | KR1 | **100%** of LLM-backed responses include structured attribution metadata where the route defines it |
 | KR2 | **GUARDRAILS.md** reviewed quarterly with product and legal stakeholders |
 | KR3 | Assistant P95 latency below **Z s** with keys configured (measure server-side) |
-| KR4 | Documented runbook for Groq outage (fallback models + Tavily-only assistant path) exercised once per quarter |
+| KR4 | Documented runbook for Groq outage (fallback models + Tavily-only assistant path + transport retry/timeouts) exercised once per quarter |
+| KR5 | Qualitative review: Assistant **ranking** answers rarely show **duplicate** leaderboard tables in sampled sessions |
 
 ### Objective O4 — **Global and pedagogy surfaces**
 

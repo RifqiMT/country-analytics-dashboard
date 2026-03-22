@@ -38,6 +38,7 @@ This standard applies to all product-facing documentation under `docs/` and to t
 | **Traceability matrix** | Requirements and stories → UI, API, modules, verification hints | QA, release management |
 | **Guardrails** | Data methodology limits, AI safety, legal positioning, security and ops boundaries | Everyone building or selling the product |
 | **Architecture** | Context diagrams, routes, API surface, data pipeline, key modules | Engineering |
+| **CHANGELOG** (`docs/CHANGELOG.md`) | Dated notes when documentation or described product behavior is aligned to a release (optional but recommended for enterprise audit trails) | Product, engineering |
 
 ---
 
@@ -87,6 +88,9 @@ For significant releases, add a dated subsection under **PRD → Release / maint
 | **Digest** | Compact indicator block passed into PESTEL/Porter/Assistant grounding; metric keys are listed in `backend/src/pestelDigestKeys.ts` for PESTEL. |
 | **Data-only / scaffold** | Structured analysis generated without LLM keys, from indicators and templates. |
 | **Provenance** | Per-point metadata on some series (e.g. reported vs interpolated); not every point carries it. |
+| **Citation map (`D` / `W`)** | Parallel JSON on `POST /api/assistant/chat`: `citations.D` maps numeric ids to platform lines; `citations.W` maps to at most one web excerpt for inline **[W1]** chips in the UI. |
+| **Prepended ranking block** | For global leaderboard questions, the API may concatenate **platform-built markdown tables** before the LLM narrative so the UI shows authoritative ranks first; the model is instructed **not** to repeat them as pipe tables. |
+| **Web-first (Assistant)** | Client sends `webSearchPriority: true` (or `assistantMode: "web_priority"`) so Tavily is not skipped on platform-heavy intents when fresh retrieval is required. |
 
 ---
 
@@ -98,6 +102,7 @@ When merging a feature branch, verify:
 - [ ] `backend/src/index.ts` registered routes match **ARCHITECTURE** API summary.
 - [ ] `backend/src/metrics.ts` length matches **VARIABLES** catalog count claim.
 - [ ] `.env.example` matches **VARIABLES** environment section.
+- [ ] Assistant pipeline modules (`backend/src/assistantIntel.ts`, `assistantCitationContext.ts`, `assistantTavilyFallback.ts`, `assistantReplyTableDedupe.ts`, `assistantPromptBudget.ts`; `frontend/src/lib/assistantAnswerPresentation.ts`, `assistantSuggestionCategories.ts`) are reflected in **ARCHITECTURE**, **GUARDRAILS**, and **TRACEABILITY_MATRIX** when behavior changes.
 
 ---
 

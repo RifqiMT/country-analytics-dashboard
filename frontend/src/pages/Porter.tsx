@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import CountrySelect from "../components/CountrySelect";
 import { getJson, postJson } from "../api";
 import type { PorterAnalysis, IloIsicDivision } from "../types/porter";
@@ -6,6 +6,7 @@ import PorterForcesHub from "../components/porter/PorterForcesHub";
 import PorterComprehensiveCard from "../components/porter/PorterComprehensiveCard";
 import PestelBulletCard from "../components/pestel/PestelBulletCard";
 import { maxSelectableYear } from "../lib/yearBounds";
+import { loadPorterFromCache, savePorterToCache } from "../lib/porterAnalysisCache";
 
 const LightningIcon = () => (
   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -19,6 +20,12 @@ const LightningIcon = () => (
 );
 
 const defaultIndustry = "10 - Manufacture of food products";
+
+function resolvedIndustrySector(industry: string, divisions: IloIsicDivision[]): string {
+  if (industry.trim()) return industry;
+  if (divisions.length) return `${divisions[0]!.code} - ${divisions[0]!.label}`;
+  return defaultIndustry;
+}
 
 export default function Porter() {
   const [country, setCountry] = useState("IDN");
@@ -36,23 +43,38 @@ export default function Porter() {
       .catch(() => setDivisions([]));
   }, []);
 
-  const industryOptions = divisions.length
-    ? divisions
-    : [{ code: "10", label: "Manufacture of food products" }];
+  const industryOptions = useMemo(
+    () => (divisions.length ? divisions : [{ code: "10", label: "Manufacture of food products" }]),
+    [divisions]
+  );
+
+  const industryForApi = resolvedIndustrySector(industry, divisions);
+
+  useEffect(() => {
+    if (!country) return;
+    const hit = loadPorterFromCache(country, industryForApi);
+    if (hit) {
+      setAnalysis(hit.analysis);
+      setAttr(hit.attribution);
+    } else {
+      setAnalysis(null);
+      setAttr([]);
+    }
+  }, [country, industryForApi]);
 
   const run = async () => {
     if (!country) return;
     setLoading(true);
     setErr(null);
     try {
-      const industryValue =
-        industry || `${industryOptions[0]?.code ?? "10"} - ${industryOptions[0]?.label ?? "Manufacture of food products"}`;
+      const industryValue = industryForApi;
       const res = await postJson<{ analysis: PorterAnalysis; attribution: string[] }>(
         "/api/analysis/porter",
         { countryCode: country, year, industrySector: industryValue }
       );
       setAnalysis(res.analysis);
       setAttr(res.attribution);
+      savePorterToCache(country, industryValue, res.analysis, res.attribution);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -135,7 +157,7 @@ export default function Porter() {
           <PorterComprehensiveCard sections={analysis.comprehensiveSections} />
           <PestelBulletCard title="New Market Analysis" items={analysis.newMarketAnalysis} />
           <PestelBulletCard title="Key Takeaways" items={analysis.keyTakeaways} />
-          <PestelBulletCard title="Recommendations" items={analysis.recommendations} />
+          <PestelBulletCard title="Key Recommendations" items={analysis.recommendations} />
         </div>
       )}
     </div>
