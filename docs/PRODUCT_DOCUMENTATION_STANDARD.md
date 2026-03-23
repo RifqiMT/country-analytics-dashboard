@@ -2,79 +2,98 @@
 
 ## Purpose
 
-Ensure documentation is clear, accurate, and usable for readers without prior project knowledge.
+Define a professional, enterprise-grade documentation standard so every document remains:
+- implementation-aligned,
+- understandable by non-experts,
+- auditable for quality and governance,
+- maintainable through product and release changes.
 
-## Principles
+## Audience
 
-1. Clarity first
-2. Single source of truth
-3. Traceability
-4. Current-state accuracy
-5. Audience awareness
+This standard serves:
+- product managers and strategy leads,
+- frontend/backend engineers,
+- data and analytics contributors,
+- design and UX reviewers,
+- QA/release stakeholders and leadership reviewers.
 
-## Quality gates
+## Core principles
 
-- Facts align with implementation.
-- Cross-doc references are updated.
-- Beginner-friendly explanation exists.
-- Examples are concrete.
-- Changelog entry is added.
+1. **Clarity first**: each document must be understandable without prior codebase knowledge.
+2. **Single source of truth**: each critical definition (metric, variable, contract) has a canonical home.
+3. **Current-state accuracy**: documentation reflects behavior implemented in current code.
+4. **Traceability**: requirements map to implementation and validation.
+5. **Governance readiness**: docs must expose limitations, controls, and release implications.
+6. **Audience-aware writing**: combine technical precision with plain-language explanation.
 
-## Enterprise Requirements for This Repository
+## Mandatory structure for major docs
 
-This repository uses an enterprise-style documentation standard so that:
-- New joiners can understand product intent and usage without reading code
-- Engineering changes do not silently invalidate docs
-- Product, design, and QA teams share the same definitions and governance rules
+For major artifacts (PRD, API reference, variables, methods, guardrails, traceability), include these sections where relevant:
 
-## Required Sections (recommended minimum)
+1. Purpose and scope
+2. Reader profile / intended audience
+3. Definitions or glossary
+4. Core behavior rules (must/should)
+5. Concrete examples (UI, API payloads, formulas)
+6. Limitations and guardrails
+7. Related references and canonical dependencies
 
-When updating a documentation artifact, include (as relevant):
-1. Purpose & scope: what the doc covers and who it is for
-2. Glossary: definitions of key terms used in the doc
-3. How to use: the “reader journey” (what to read first, what to do next)
-4. Behavior rules: must/should statements and invariants
-5. Examples: concrete request/response examples or UI usage examples
-6. Limitations & guardrails: what the system cannot guarantee
-7. Related references: links to dependent docs and canonical sources
+## Writing and formatting rules
 
-## Writing Format Rules
+- Use descriptive headings and short, focused sections.
+- Use tables for structured definitions (variables, metrics, contract fields).
+- Prefer explicit terminology (`must`, `should`, `can`) over vague language.
+- Define acronyms at first mention.
+- Keep examples realistic and implementation-aligned.
+- Distinguish clearly between:
+  - user-selected values vs system-resolved values,
+  - deterministic logic vs model-generated synthesis,
+  - observed data vs derived values.
 
-- Prefer clear headings and short sections.
-- Use tables for variable definitions and contract-like documentation.
-- Avoid vague language; include concrete parameters (P95, route names, required fields).
-- Use “must” for non-negotiable rules and “should” for best practices.
-- Define acronyms the first time they appear.
+## Synchronization rules across docs
 
-## Traceability & Synchronization Rules
+Documentation updates must preserve cross-document consistency:
 
-Updates must keep the documentation set internally consistent. In particular:
-- Metrics changes require updating:
+- Metric or unit changes require updates in:
   - `docs/METRIC_CATALOG.md`
   - `docs/VARIABLES.md`
+  - `docs/API_REFERENCE.md` (if request/response fields are affected)
   - `docs/TRACEABILITY_MATRIX.md`
-- Assistant behavior changes require updating:
+- Assistant behavior/routing changes require updates in:
   - `docs/ASSISTANT_BEHAVIOR.md`
   - `docs/GUARDRAILS.md`
+  - `docs/API_REFERENCE.md`
+  - `docs/TRACEABILITY_MATRIX.md`
+- Analysis method changes require updates in:
+  - `docs/ANALYSIS_METHODS.md`
+  - `docs/VARIABLES.md` (derived variables/formulas)
+  - `docs/METRICS_AND_OKRS.md` when product quality measures are affected
+- Product scope changes require updates in:
+  - `docs/PRD.md`
+  - `docs/USER_PERSONAS.md`
+  - `docs/USER_STORIES.md`
   - `docs/TRACEABILITY_MATRIX.md`
 
-## Quality Gates (Definition of Done)
+## Definition of done for documentation updates
 
-This doc update is considered complete only if:
-- Facts align with implementation behavior
-- Any cross-doc references are updated and not broken
-- Examples are usable and reflect actual payload fields
-- The update is noted in `docs/CHANGELOG.md`
+A documentation change is complete only when:
+- facts match implemented behavior;
+- references to related documents are updated and valid;
+- examples are concrete and executable/readable;
+- limitations and assumptions are stated for affected behavior;
+- impacted traceability rows are updated where needed;
+- a change note is recorded in `docs/CHANGELOG.md`.
 
-## Review Workflow
+## Review workflow
 
-1. Author: implementer edits the doc
-2. Technical review: engineer verifies alignment to code paths and request/response contracts
-3. Product/design review: stakeholder verifies readability and whether docs match user intent
-4. Release gate: traceability + guardrails mapping are updated for impacted requirements
+1. **Authoring**: implementer prepares doc changes in the same PR as behavior changes.
+2. **Technical review**: engineering validates code/contract alignment.
+3. **Product/design review**: wording and usability are validated for non-technical readers.
+4. **Release governance check**: guardrails and traceability coverage are confirmed.
 
-## Cadence
+## Maintenance cadence
 
-- Weekly: doc drift scan for outdated references
-- Release gate: no release without traceability and guardrails alignment
-- Monthly: onboarding readability check for new joiners
+- **Per PR**: update relevant docs alongside implementation changes.
+- **Weekly**: quick drift scan for stale references, examples, and route/variable names.
+- **Per release**: ensure guardrails and traceability updates are complete.
+- **Monthly**: onboarding readability review for new joiners.
