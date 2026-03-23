@@ -1,41 +1,36 @@
 # Country Analytics Platform
 
-Country Analytics Platform is an enterprise-grade country intelligence workspace for macro, social, health, and policy analysis.
+Country Analytics Platform is a web application that helps people analyze countries using economic, social, health, education, and policy indicators.
 
-It combines:
-- Dashboard-grade indicator analytics (country and global)
-- AI-assisted narrative generation with explicit citation grounding
-- Strategy frameworks (PESTEL, Porter)
-- Business analytics (multi-country metric comparison and correlation)
+If you are new to analytics tools, this README is your starting point.
 
-## Product Benefits
+## 1) What This Product Does
 
-- Single source of truth for country indicators and derived insights
-- Faster executive analysis with auditable AI outputs
-- Structured comparison workflows for policy, investment, and market strategy teams
-- Consistent user experience across dashboard, assistant, and strategic modules
+The platform helps you answer questions like:
+- How is a country performing over time?
+- How does one country compare with another?
+- Which risks and opportunities matter for market entry?
+- What patterns appear between two variables (for example, GDP per capita and life expectancy)?
 
-## Core Features
+The app combines data exploration with AI-assisted explanation, while keeping answers tied to evidence.
 
-- Country Dashboard (KPIs, trend charts, comparison tables, exports)
-- Global Analytics (snapshot tables, map views, world aggregate series)
-- Analytics Assistant (platform-grounded + web-grounded modes with citation mapping)
+## 2) Main Features (Beginner-Friendly)
+
+- Country Dashboard
+- Global Analytics
+- Analytics Assistant
 - PESTEL Analysis
-- Porter Five Forces Analysis
-- Business Analytics (cross-country comparison and correlation)
-- Sources and metric definitions explorer
+- Porter Five Forces
+- Business Analytics
+- Sources and Metrics Explorer
 
-## Tech Stack
+## 3) Why This Is Useful
 
-- Frontend: React, TypeScript, Vite, Tailwind-like utility styling patterns
-- Backend: Node.js, Express, TypeScript
-- Data: World Bank WDI-first pipeline with controlled enrichments and fallbacks
-- LLM: Groq model routing with use-case-specific fallback chains
-- Web retrieval: Tavily (recency-biased, relevance-filtered)
+- Reduces manual time spent collecting country indicators.
+- Improves decision-readiness with consistent outputs.
+- Provides structured analysis for planning discussions.
 
-## Quick Start
-
-### 1) Install dependencies
+## 4) Quick Start
 
 ```bash
 npm install
@@ -43,24 +38,22 @@ npm -C backend install
 npm -C frontend install
 ```
 
-### 2) Configure environment
-
-Create `backend/.env` (see `docs/VARIABLES.md`):
+Create `backend/.env`:
 
 ```env
 PORT=4000
-GROQ_API_KEY=...
-TAVILY_API_KEY=...
+GROQ_API_KEY=your_groq_key_here
+TAVILY_API_KEY=your_tavily_key_here
 ```
 
-### 3) Run development
+Run:
 
 ```bash
 npm -C backend run dev
 npm -C frontend run dev
 ```
 
-## Key API Surfaces
+## 5) Core APIs
 
 - `POST /api/assistant/chat`
 - `POST /api/analysis/pestel`
@@ -68,8 +61,4 @@ npm -C frontend run dev
 - `GET /api/analysis/correlation-global`
 - `POST /api/analysis/business/correlation-narrative`
 
-Full contracts: `docs/API_REFERENCE.md`
-
-## Documentation Map
-
-See `docs/README.md` for the complete documentation index and ownership model.
+See `docs/README.md` for full documentation.

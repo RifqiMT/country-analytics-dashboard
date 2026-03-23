@@ -1,47 +1,32 @@
 # Product Metrics and OKRs
 
-## 1) Product Metrics Framework
+## Product metrics
 
-### Reliability and Quality Metrics
+### Trust and quality
+- Grounded answer rate
+- Verified-web precision
+- Fallback activation rate
 
-- Assistant Grounded Answer Rate
-  - Definition: % assistant responses that pass citation/safety gates without fallback replacement.
-- Verified-Web Precision (time-sensitive questions)
-  - Definition: % verified-web replies with proper `[W1]` usage and no safety override.
-- Deterministic Fallback Activation Rate
-  - Definition: % requests routed to deterministic/fallback paths.
+### Performance
+- Assistant latency (P50/P95)
+- Backend route latency
+- Web retrieval timeout rate
 
-### Performance Metrics
+### Usage and outcomes
+- Workflow completion rate
+- Feature usage distribution
+- Export usage rate
 
-- Assistant P50 / P95 latency (end-to-end)
-- Backend P50 / P95 for `/api/assistant/chat`
-- Tavily retrieval latency and timeout rate
+## OKRs
 
-### Engagement and Outcome Metrics
+### Objective 1: Improve trust
+- KR: reduce hallucination complaints by 60% QoQ
+- KR: >=95% grounded benchmark pass rate
 
-- Task Completion Rate for top workflows (comparison, ranking, strategy analysis)
-- Session retention for analyst users
-- Export usage rate (CSV/PNG where applicable)
+### Objective 2: Improve speed
+- KR: reduce assistant P95 latency by 35%
+- KR: reduce comparison workflow time by 30%
 
-## 2) OKR Framework (Product Team)
-
-### Objective 1: Improve assistant trust and accuracy
-- KR1: Reduce hallucination-related user complaints by 60% QoQ
-- KR2: Achieve >= 95% grounded output pass rate on monitored benchmark prompts
-- KR3: Maintain <= 2% unresolved citation placeholder leakage incidents
-
-### Objective 2: Improve analysis speed and usability
-- KR1: Reduce `/api/assistant/chat` P95 latency by 35%
-- KR2: Reduce multi-country comparison response time by 30%
-- KR3: Increase successful first-answer acceptance by 25%
-
-### Objective 3: Strengthen product-operational governance
-- KR1: 100% feature releases reflected in traceability matrix and guardrails
-- KR2: 100% core docs updated within same release cycle
-- KR3: Weekly doc drift review with action closure >= 90%
-
-## 3) Instrumentation Notes
-
-- Track route-level timings and safety-gate reasons in backend telemetry.
-- Track assistant mode usage (`Auto` vs `Web-first`) and feature path chosen.
-- Separate deterministic answers from free-form LLM answers in analytics dashboards.
+### Objective 3: Improve governance
+- KR: 100% traceability update coverage for releases
+- KR: 100% documentation alignment in release cycle

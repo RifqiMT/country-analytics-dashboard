@@ -1,44 +1,25 @@
 # Assistant Behavior
 
-## 1. Intent Routing
+## Purpose
 
-Primary intents:
-- `statistics_drill`
-- `country_compare`
-- `country_overview`
-- `general_web`
+Explain how the assistant routes questions, uses evidence, and applies safeguards.
 
-Routing determines:
-- evidence priority (platform vs web)
-- deterministic vs LLM path eligibility
-- safety gate strictness
+## Intent classes
+- statistics_drill
+- country_compare
+- country_overview
+- general_web
 
-## 2. Grounding Model
+## Evidence model
+- Platform evidence blocks (D)
+- Web evidence blocks (W)
 
-- Platform evidence lines become `[D#]` references.
-- Web evidence lines become `[W#]` references (assistant currently compacts to top web hit).
-- Facts should map to cited evidence from current turn.
+## Quality controls
+- Citation and relevance checks
+- Deterministic paths for ranking/comparison classes
+- Fallback behavior when quality thresholds are not met
 
-## 3. Deterministic Paths
-
-- Ranking requests: deterministic response with table-first behavior.
-- Country comparison requests: deterministic markdown table, including `% of top` per metric.
-- Time-sensitive officeholder asks: deterministic verified-web path when available.
-
-## 4. Safety Gates
-
-- Citation presence checks.
-- Verified-web checks for time-sensitive claims requiring `[W1]` support.
-- Non-metric drift control for `general_web` turns.
-- Fallback to grounded evidence blocks on failure.
-
-## 5. Performance Controls
-
-- Prompt budget clamp before LLM call.
-- Use-case model routing and fallback chain.
-- Metric fetch reduced to requested subsets for assistant turns.
-
-## 6. UX Signals
-
-- Persona banner for answer framing.
-- Verified Web Answer Mode badge when deterministic verified-web path is used.
+## User guidance
+- Ask metric-scoped questions for precision
+- Use web-priority mode for time-sensitive questions
+- Review attribution context before final decisions

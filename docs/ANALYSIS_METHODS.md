@@ -1,25 +1,17 @@
 # Analysis Methods
 
-## 1) Business Analytics (Correlation)
+## Business correlation
+- Computes linear association between selected metrics
+- Supports outlier exclusion
+- Returns diagnostics + narrative interpretation
 
-- Pearson correlation and linear regression on selected metric pairs.
-- Optional IQR-based outlier exclusion.
-- Residual analysis and subgroup breakdown by region.
-- Narrative generation with deterministic fallback and optional LLM refinement.
+## PESTEL
+- Combines indicator digest and optional web context
+- Uses structured output and fallback controls
 
-## 2) PESTEL
+## Porter
+- Builds force-level analysis from digest + optional web context
+- Applies grounding and fallback behavior
 
-- Indicator digest + web context synthesis.
-- Structured output constrained to stable sections.
-- Grounding/sanitization layers to limit unsupported claims.
-
-## 3) Porter Five Forces
-
-- Digest-driven baseline plus web context for competitive dynamics.
-- Grounding checks and fallback to deterministic data-only templates when evidence is thin.
-
-## 4) Assistant Comparison Method
-
-- Parses requested countries and metrics.
-- Uses latest platform snapshot lines per metric.
-- Builds deterministic comparison table with `% of top` relative values.
+## Important limitation
+Correlation indicates association, not causation.

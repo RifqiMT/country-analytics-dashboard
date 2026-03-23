@@ -1,23 +1,23 @@
-# User Stories
+# User Stories and Acceptance Guidance
 
-## Dashboard and Global Analytics
+## Dashboard and global analytics
 
-1. As a policy analyst, I want to select a country and time window so I can review trends with accurate data-year context.
-2. As a research associate, I want to compare selected countries on requested metrics so I can produce reproducible benchmark views.
-3. As a decision-maker, I want professional exports so I can share analysis in reports.
+- As an analyst, I want country and year-range controls so I can evaluate trends.
+- As a researcher, I want metric-scoped comparison views so I can benchmark countries.
+- As a decision-maker, I want export-ready outputs so I can share findings.
 
-## Analytics Assistant
+## Assistant
 
-4. As a strategy manager, I want ranking and comparison answers to use only requested metrics so I can trust scope fidelity.
-5. As an analyst, I want non-metric current-events questions to be grounded in live web evidence so I can avoid hallucinated statements.
-6. As a user, I want citations and routing transparency so I can understand answer provenance.
+- As a strategy user, I want responses to stay within requested metric scope.
+- As a user, I want current-event questions to be web-grounded.
+- As a user, I want attribution transparency to evaluate trust.
 
-## Strategic Analysis
+## Strategy modules
 
-7. As a strategy manager, I want PESTEL and Porter outputs in coherent narrative format so I can use them in planning meetings.
-8. As a product stakeholder, I want deterministic fallback behavior when LLM output is weak so the app remains dependable.
+- As a manager, I want coherent PESTEL/Porter narratives for planning.
+- As a stakeholder, I want reliable fallback behavior when AI output is weak.
 
-## Business Analytics
+## Business analytics
 
-9. As an analyst, I want variable-level comparisons and relative percentages to top performers so I can interpret gaps quickly.
-10. As a user, I want generated analysis to persist across navigation until I regenerate it so my workflow is uninterrupted.
+- As an analyst, I want variable-focused analysis and relative comparison.
+- As a user, I want analysis persistence across navigation until regenerate.
