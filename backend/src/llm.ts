@@ -8,7 +8,7 @@ export type Attribution = {
 export const DEFAULT_GROQ_MODEL = "llama-3.3-70b-versatile";
 
 /** PESTEL / Porter / Assistant use distinct primary + fallback chains by default (see `resolveGroqModelCandidatesForUseCase`). */
-export type GroqUseCase = "pestel" | "porter" | "assistant";
+export type GroqUseCase = "pestel" | "porter" | "assistant" | "business";
 
 const USE_CASE_DEFAULT_PRIMARY: Record<GroqUseCase, string> = {
   /** Long structured JSON + multi-section narrative */
@@ -17,12 +17,15 @@ const USE_CASE_DEFAULT_PRIMARY: Record<GroqUseCase, string> = {
   porter: "openai/gpt-oss-120b",
   /** Interactive chat: latency-first, then scale up on retry */
   assistant: "llama-3.1-8b-instant",
+  /** Analytics narrative: compact, low-hallucination statistical interpretation */
+  business: "llama-3.3-70b-versatile",
 };
 
 const USE_CASE_BUILTIN_FALLBACKS: Record<GroqUseCase, readonly string[]> = {
   pestel: ["llama-3.1-8b-instant", "openai/gpt-oss-120b", "qwen/qwen3-32b"],
   porter: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "qwen/qwen3-32b"],
   assistant: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "qwen/qwen3-32b"],
+  business: ["llama-3.1-8b-instant", "openai/gpt-oss-120b", "qwen/qwen3-32b"],
 };
 
 function trimEnv(key: string): string | undefined {
@@ -41,7 +44,9 @@ export function resolveGroqModelPrimaryForUseCase(useCase: GroqUseCase): string 
       ? "GROQ_MODEL_PESTEL"
       : useCase === "porter"
         ? "GROQ_MODEL_PORTER"
-        : "GROQ_MODEL_ASSISTANT";
+        : useCase === "business"
+          ? "GROQ_MODEL_BUSINESS"
+          : "GROQ_MODEL_ASSISTANT";
   return trimEnv(envKey) ?? trimEnv("GROQ_MODEL") ?? USE_CASE_DEFAULT_PRIMARY[useCase];
 }
 
@@ -55,7 +60,9 @@ export function resolveGroqModelCandidatesForUseCase(useCase: GroqUseCase): stri
       ? "GROQ_FALLBACK_MODELS_PESTEL"
       : useCase === "porter"
         ? "GROQ_FALLBACK_MODELS_PORTER"
-        : "GROQ_FALLBACK_MODELS_ASSISTANT";
+        : useCase === "business"
+          ? "GROQ_FALLBACK_MODELS_BUSINESS"
+          : "GROQ_FALLBACK_MODELS_ASSISTANT";
   const fromUseCase = parseModelList(process.env[fallbacksEnvKey]);
   const fromGlobal = parseModelList(process.env.GROQ_FALLBACK_MODELS);
   const builtIns = [...USE_CASE_BUILTIN_FALLBACKS[useCase]];

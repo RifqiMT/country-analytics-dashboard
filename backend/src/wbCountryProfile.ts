@@ -1,13 +1,21 @@
 import { getCache, setCache } from "./cache.js";
 import { fetchWithRetry } from "./httpClient.js";
 
+/** World Bank Country API — same ISO3 universe as WDI; used for operational income & lending groups. */
+export const WB_COUNTRY_API_URL = "https://api.worldbank.org/v2/country";
+
 export interface WbCountryProfile {
   iso3: string;
   name: string;
   capitalCity: string;
   region: string;
+  /** Human-readable label, e.g. "High income" (from `incomeLevel.value`). */
   incomeLevel: string;
+  /** Stable WB code: LIC, LMC, UMC, HIC, INX, etc. */
+  incomeLevelId: string;
   lendingType: string;
+  /** WB lending group code (IDA, IBRD, Blend, …). */
+  lendingTypeId: string;
   latitude: string;
   longitude: string;
 }
@@ -29,10 +37,18 @@ function parse(raw: unknown): WbCountryProfile | null {
     inc && typeof inc === "object" && "value" in inc
       ? String((inc as { value?: string }).value ?? "")
       : "";
+  const incomeLevelId =
+    inc && typeof inc === "object" && "id" in inc
+      ? String((inc as { id?: string }).id ?? "")
+      : "";
   const lend = o.lendingType;
   const lendingType =
     lend && typeof lend === "object" && "value" in lend
       ? String((lend as { value?: string }).value ?? "")
+      : "";
+  const lendingTypeId =
+    lend && typeof lend === "object" && "id" in lend
+      ? String((lend as { id?: string }).id ?? "")
       : "";
   return {
     iso3: id,
@@ -40,14 +56,16 @@ function parse(raw: unknown): WbCountryProfile | null {
     capitalCity: String(o.capitalCity ?? ""),
     region,
     incomeLevel,
+    incomeLevelId,
     lendingType,
+    lendingTypeId,
     latitude: String(o.latitude ?? ""),
     longitude: String(o.longitude ?? ""),
   };
 }
 
 export async function fetchWbCountryProfile(iso3: string): Promise<WbCountryProfile | null> {
-  const key = `wbcountry:${iso3}`;
+  const key = `wbcountry:v2:${iso3}`;
   const cached = getCache<WbCountryProfile | null>(key);
   if (cached !== undefined) return cached;
   const url = `https://api.worldbank.org/v2/country/${encodeURIComponent(iso3)}?format=json`;

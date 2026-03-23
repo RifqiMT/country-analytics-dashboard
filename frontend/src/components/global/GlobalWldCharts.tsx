@@ -34,9 +34,6 @@ import { VisualizationStepperFromChildren } from "../charts/VisualizationStepper
 import AccordionSection from "../dashboard/AccordionSection";
 import type { TooltipProps } from "recharts";
 
-const WLD_METRICS =
-  "gdp,gdp_ppp,gdp_per_capita,gdp_per_capita_ppp,population,gov_debt_usd,inflation,unemployment_ilo,poverty_headcount,poverty_national,gov_debt_pct_gdp,lending_rate,maternal_mortality,mortality_under5,undernourishment,life_expectancy,enrollment_primary_count,enrollment_secondary_count,enrollment_tertiary_count,enrollment_primary_pct,enrollment_secondary,enrollment_tertiary_pct,labor_force_total,pop_age_0_14,pop_15_64_pct,pop_age_65_plus";
-
 /** WLD chart tooltip: show % for share/rate series, compact K/Mn/Bn/Tn for levels. */
 const WLD_TOOLTIP_PERCENT_KEYS = new Set([
   "gov_debt_pct_gdp",
@@ -52,6 +49,10 @@ const WLD_TOOLTIP_PERCENT_KEYS = new Set([
   "pop_15_64_pct",
   "pop_age_0_14",
   "pop_age_65_plus",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
 ]);
 
 function wldTooltipFormatter(
@@ -175,6 +176,14 @@ const WLD_VIZ_META = [
     summary: "Life expectancy in years vs undernourishment prevalence (%).",
   },
   {
+    title: "Health — systems capacity (WLD)",
+    summary: "Hospital beds, physicians, and nurses/midwives density.",
+  },
+  {
+    title: "Health — coverage, prevention & risk (WLD)",
+    summary: "UHC index, vaccination rates, health spending, smoking prevalence, birth rate, and TB incidence.",
+  },
+  {
     title: "Education enrollment (WLD)",
     summary: "Enrollment headcounts and gross enrollment ratios by level.",
   },
@@ -189,9 +198,9 @@ const WLD_VIZ_META = [
 ] as const;
 
 const WLD_FIN_META = WLD_VIZ_META.slice(0, 3);
-const WLD_HEALTH_META = WLD_VIZ_META.slice(3, 5);
-const WLD_EDU_META: readonly (typeof WLD_VIZ_META)[number][] = [WLD_VIZ_META[5]!];
-const WLD_LABOUR_META = WLD_VIZ_META.slice(6, 8);
+const WLD_HEALTH_META = WLD_VIZ_META.slice(3, 7);
+const WLD_EDU_META: readonly (typeof WLD_VIZ_META)[number][] = [WLD_VIZ_META[7]!];
+const WLD_LABOUR_META = WLD_VIZ_META.slice(8, 10);
 
 export default function GlobalWldCharts() {
   const [bundle, setBundle] = useState<Bundle>({});
@@ -209,13 +218,15 @@ export default function GlobalWldCharts() {
   useEffect(() => {
     const end = maxSelectableYear();
     setLoading(true);
+    const metricIds = metricCatalog.map((m) => m.id);
+    if (metricIds.length === 0) return;
     getJson<{ series: Bundle }>(
-      `/api/global/wld-series?metrics=${encodeURIComponent(WLD_METRICS)}&start=${MIN_DATA_YEAR}&end=${end}`
+      `/api/global/wld-series?metrics=${encodeURIComponent(metricIds.join(","))}&start=${MIN_DATA_YEAR}&end=${end}`
     )
       .then((r) => setBundle(r.series))
       .catch((e) => setErr(String(e)))
       .finally(() => setLoading(false));
-  }, []);
+  }, [metricCatalog]);
 
   const labour = useMemo(() => labourChartRows(bundle, MIN_DATA_YEAR, chartEnd), [bundle, chartEnd]);
 
@@ -225,7 +236,12 @@ export default function GlobalWldCharts() {
   );
   const gdpPcPop = useMemo(
     () =>
-      mergeSeriesForLineChart(bundle, ["gdp_per_capita", "gdp_per_capita_ppp", "population"], MIN_DATA_YEAR, chartEnd),
+      mergeSeriesForLineChart(
+        bundle,
+        ["gdp_per_capita", "gdp_per_capita_ppp", "gni_per_capita_atlas", "population"],
+        MIN_DATA_YEAR,
+        chartEnd
+      ),
     [bundle, chartEnd]
   );
   const macro = useMemo(
@@ -246,6 +262,34 @@ export default function GlobalWldCharts() {
   );
   const healthLife = useMemo(
     () => mergeSeriesForLineChart(bundle, ["life_expectancy", "undernourishment"], MIN_DATA_YEAR, chartEnd),
+    [bundle, chartEnd]
+  );
+  const healthSystems = useMemo(
+    () =>
+      mergeSeriesForLineChart(
+        bundle,
+        ["hospital_beds", "physicians_density", "nurses_midwives_density"],
+        MIN_DATA_YEAR,
+        chartEnd
+      ),
+    [bundle, chartEnd]
+  );
+  const healthCoverage = useMemo(
+    () =>
+      mergeSeriesForLineChart(
+        bundle,
+        [
+          "uhc_service_coverage",
+          "immunization_dpt",
+          "immunization_measles",
+          "health_expenditure_gdp",
+          "smoking_prevalence",
+          "birth_rate",
+          "tb_incidence",
+        ],
+        MIN_DATA_YEAR,
+        chartEnd
+      ),
     [bundle, chartEnd]
   );
   const edu = useMemo(
@@ -354,9 +398,9 @@ export default function GlobalWldCharts() {
       </WldGranulatedCard>
 
       <WldGranulatedCard
-        title="Global GDP per capita & population (WLD)"
+        title="Global GDP / GNI per capita & population (WLD)"
         annualData={gdpPcPop}
-        valueKeys={["gdp_per_capita", "gdp_per_capita_ppp", "population"]}
+        valueKeys={["gdp_per_capita", "gdp_per_capita_ppp", "gni_per_capita_atlas", "population"]}
       >
         {({ data, xAxis, vizTitle }) => (
           <ChartTableToggle
@@ -404,6 +448,16 @@ export default function GlobalWldCharts() {
                     connectNulls={false}
                   />
                   <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="gni_per_capita_atlas"
+                    name={L("gni_per_capita_atlas")}
+                    stroke="#0d9488"
+                    dot={false}
+                    strokeWidth={2}
+                    connectNulls={false}
+                  />
+                  <Line
                     yAxisId="right"
                     type="monotone"
                     dataKey="population"
@@ -422,6 +476,7 @@ export default function GlobalWldCharts() {
                 columns={[
                   wldTableColumn("gdp_per_capita", L("gdp_per_capita")),
                   wldTableColumn("gdp_per_capita_ppp", L("gdp_per_capita_ppp")),
+                  wldTableColumn("gni_per_capita_atlas", L("gni_per_capita_atlas")),
                   wldTableColumn("population", L("population")),
                 ]}
               />
@@ -652,6 +707,100 @@ export default function GlobalWldCharts() {
                 columns={[
                   wldTableColumn("life_expectancy", L("life_expectancy")),
                   wldTableColumn("undernourishment", L("undernourishment")),
+                ]}
+              />
+            }
+          />
+        )}
+      </WldGranulatedCard>
+      <WldGranulatedCard
+        title="Health — systems capacity (WLD)"
+        annualData={healthSystems}
+        valueKeys={["hospital_beds", "physicians_density", "nurses_midwives_density"]}
+      >
+        {({ data, xAxis, vizTitle }) => (
+          <ChartTableToggle
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
+            vizTitle={vizTitle}
+            chart={
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  {xAxis}
+                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <Tooltip
+                    wrapperStyle={RECHARTS_TOOLTIP_WRAPPER}
+                    cursor={{ stroke: "#94a3b8", strokeWidth: 1, strokeDasharray: "5 5" }}
+                    content={WldRechartsTooltip}
+                  />
+                  <Line type="monotone" dataKey="hospital_beds" name={L("hospital_beds")} stroke="#2563eb" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="physicians_density" name={L("physicians_density")} stroke="#059669" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="nurses_midwives_density" name={L("nurses_midwives_density")} stroke="#7c3aed" dot={false} strokeWidth={2} connectNulls={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            }
+            table={
+              <SeriesLineDataTable
+                rows={data as Record<string, unknown>[]}
+                columns={[
+                  wldTableColumn("hospital_beds", L("hospital_beds")),
+                  wldTableColumn("physicians_density", L("physicians_density")),
+                  wldTableColumn("nurses_midwives_density", L("nurses_midwives_density")),
+                ]}
+              />
+            }
+          />
+        )}
+      </WldGranulatedCard>
+      <WldGranulatedCard
+        title="Health — coverage, prevention & risk (WLD)"
+        annualData={healthCoverage}
+        valueKeys={[
+          "uhc_service_coverage",
+          "immunization_dpt",
+          "immunization_measles",
+          "health_expenditure_gdp",
+          "smoking_prevalence",
+          "birth_rate",
+          "tb_incidence",
+        ]}
+      >
+        {({ data, xAxis, vizTitle }) => (
+          <ChartTableToggle
+            className="flex h-full min-h-0 w-full flex-1 flex-col"
+            vizTitle={vizTitle}
+            chart={
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  {xAxis}
+                  <YAxis tick={{ fontSize: 11, fill: "#64748b" }} />
+                  <Tooltip
+                    wrapperStyle={RECHARTS_TOOLTIP_WRAPPER}
+                    cursor={{ stroke: "#94a3b8", strokeWidth: 1, strokeDasharray: "5 5" }}
+                    content={WldRechartsTooltip}
+                  />
+                  <Line type="monotone" dataKey="uhc_service_coverage" name={L("uhc_service_coverage")} stroke="#0f766e" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="immunization_dpt" name={L("immunization_dpt")} stroke="#16a34a" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="immunization_measles" name={L("immunization_measles")} stroke="#22c55e" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="health_expenditure_gdp" name={L("health_expenditure_gdp")} stroke="#ea580c" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="smoking_prevalence" name={L("smoking_prevalence")} stroke="#b91c1c" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="birth_rate" name={L("birth_rate")} stroke="#1d4ed8" dot={false} strokeWidth={2} connectNulls={false} />
+                  <Line type="monotone" dataKey="tb_incidence" name={L("tb_incidence")} stroke="#7c2d12" dot={false} strokeWidth={2} connectNulls={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            }
+            table={
+              <SeriesLineDataTable
+                rows={data as Record<string, unknown>[]}
+                columns={[
+                  wldTableColumn("uhc_service_coverage", L("uhc_service_coverage")),
+                  wldTableColumn("immunization_dpt", L("immunization_dpt")),
+                  wldTableColumn("immunization_measles", L("immunization_measles")),
+                  wldTableColumn("health_expenditure_gdp", L("health_expenditure_gdp")),
+                  wldTableColumn("smoking_prevalence", L("smoking_prevalence")),
+                  wldTableColumn("birth_rate", L("birth_rate")),
+                  wldTableColumn("tb_incidence", L("tb_incidence")),
                 ]}
               />
             }

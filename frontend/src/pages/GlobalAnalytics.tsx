@@ -54,39 +54,11 @@ type GlobalTablePayload = {
   wdiLookbackYears?: number;
 };
 
-/**
- * Metrics supported on the choropleth (same global WDI snapshot pipeline as the financial / health tables).
- * Labels come from `/api/metrics`.
- */
-const MAP_METRIC_ALLOWLIST = new Set([
-  "gdp",
-  "gdp_ppp",
-  "gdp_per_capita",
-  "gdp_per_capita_ppp",
-  "gdp_growth",
-  "population",
-  "life_expectancy",
-  "gov_debt_usd",
-  "gov_debt_pct_gdp",
-  "inflation",
-  "lending_rate",
-  "interest_real",
-  "unemployment_ilo",
-  "labor_force_total",
-  "poverty_headcount",
-  "poverty_national",
-  "mortality_under5",
-  "maternal_mortality",
-  "undernourishment",
-  "pop_age_0_14",
-  "pop_15_64_pct",
-  "pop_age_65_plus",
-]);
-
 const MAP_METRIC_FALLBACK_ORDER = [
   "gdp",
   "gdp_ppp",
   "gdp_per_capita",
+  "gni_per_capita_atlas",
   "population",
   "life_expectancy",
   "gov_debt_pct_gdp",
@@ -104,6 +76,10 @@ const MAP_METRIC_VALUE_PERCENT = new Set([
   "poverty_headcount",
   "poverty_national",
   "undernourishment",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
   "pop_age_0_14",
   "pop_15_64_pct",
   "pop_age_65_plus",
@@ -297,7 +273,7 @@ export default function GlobalAnalytics() {
   }, [countries, region]);
 
   const mapMetricOptions = useMemo(() => {
-    const picked = metrics.filter((m) => MAP_METRIC_ALLOWLIST.has(m.id));
+    const picked = [...metrics];
     picked.sort((a, b) => {
       const ca = a.category.localeCompare(b.category);
       if (ca !== 0) return ca;
@@ -350,7 +326,11 @@ export default function GlobalAnalytics() {
 
   const mapSelectOptions = mapMetricOptions.length > 0 ? mapMetricOptions : null;
 
-  const mapValueFormat = MAP_METRIC_VALUE_PERCENT.has(mapMetric) ? ("percent" as const) : ("compact" as const);
+  const mapMetricDef = useMemo(() => metrics.find((m) => m.id === mapMetric), [metrics, mapMetric]);
+  const mapValueFormat =
+    MAP_METRIC_VALUE_PERCENT.has(mapMetric) || mapMetricDef?.unit.includes("%")
+      ? ("percent" as const)
+      : ("compact" as const);
 
   useEffect(() => {
     getJson<MetricDef[]>("/api/metrics").then(setMetrics).catch(console.error);
@@ -562,7 +542,7 @@ export default function GlobalAnalytics() {
               </span>
             ) : null}
           </p>
-          <div className="mt-4 flex h-[min(55vh,520px)] min-h-[320px] w-full flex-col">
+          <div className="cap-map-shell mt-4 flex h-[min(55vh,520px)] min-h-[320px] w-full flex-col">
             <ChartTableToggle
               chartLabel="Map"
               tableLabel="Table"

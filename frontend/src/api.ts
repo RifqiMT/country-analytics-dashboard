@@ -285,6 +285,8 @@ export type CountrySummary = {
   currencyDisplay?: string;
   /** ISO 3166-1 alpha-2 (REST Countries) — flag emoji / map patterns */
   cca2?: string;
+  /** World Bank Country API — income & lending groups aligned with WDI (same request as profile metadata). */
+  worldBankProfile?: WbCountryProfile | null;
 };
 
 export type WbCountryProfile = {
@@ -293,7 +295,10 @@ export type WbCountryProfile = {
   capitalCity: string;
   region: string;
   incomeLevel: string;
+  /** WB code: LIC, LMC, UMC, HIC, INX, … */
+  incomeLevelId?: string;
   lendingType: string;
+  lendingTypeId?: string;
   latitude: string;
   longitude: string;
 } | null;

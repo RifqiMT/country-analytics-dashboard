@@ -31,6 +31,12 @@ function sourceLabel(attribution: string[]): string {
   return "Dashboard";
 }
 
+function isVerifiedWebAnswerMode(attribution: string[]): boolean {
+  return attribution.some((a) =>
+    a.toLowerCase().includes("deterministic: verified-web reply path")
+  );
+}
+
 function AssistantPersonaBanner({
   attribution,
   citations,
@@ -49,6 +55,20 @@ function AssistantPersonaBanner({
         <span className="text-xs text-slate-500">· {pres.personaTitle}</span>
       </div>
       <p className="mt-1.5 text-[11px] leading-snug text-slate-600">{pres.personaDescription}</p>
+    </div>
+  );
+}
+
+function VerifiedWebModeBadge({ attribution }: { attribution: string[] }) {
+  if (!isVerifiedWebAnswerMode(attribution)) return null;
+  return (
+    <div className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50/80 px-3 py-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+        Verified Web Answer Mode
+      </p>
+      <p className="mt-0.5 text-[11px] leading-snug text-emerald-900">
+        Time-sensitive answer generated from retrieved live-web evidence only.
+      </p>
     </div>
   );
 }
@@ -518,7 +538,10 @@ export default function Assistant() {
                     </div>
                     <div className="max-w-[85%] flex-1 rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
                       {msg.attribution && msg.attribution.length > 0 ? (
-                        <AssistantPersonaBanner attribution={msg.attribution} citations={msg.citations} />
+                        <>
+                          <VerifiedWebModeBadge attribution={msg.attribution} />
+                          <AssistantPersonaBanner attribution={msg.attribution} citations={msg.citations} />
+                        </>
                       ) : null}
                       <MessageContent text={msg.content} citations={msg.citations} />
                       {msg.attribution && msg.attribution.length > 0 && (

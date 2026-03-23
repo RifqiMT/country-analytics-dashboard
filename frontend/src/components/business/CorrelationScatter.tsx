@@ -139,6 +139,7 @@ export default function CorrelationScatter({
   }, [points, ciBand, regLine]);
 
   const corrStr = correlation !== null ? correlation.toFixed(3) : "—";
+  const highlightStr = highlightName && highlightName !== "None" ? highlightName : "None";
 
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -355,7 +356,7 @@ export default function CorrelationScatter({
         }
       />
       <p className="mt-2 text-center text-sm font-medium text-slate-600">
-        Scatter plot: {labelX} vs {labelY} | Corr = {corrStr}
+        Scatter plot: {labelX} vs {labelY} | Corr = {corrStr} | Highlight = {highlightStr}
       </p>
     </div>
   );

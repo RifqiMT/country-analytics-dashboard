@@ -72,7 +72,7 @@ export function looksLikeGlobalRankingQuery(message: string): boolean {
     ) ||
     /\brank(ing)?\s+(of\s+)?(countries|nations|economies)\b/i.test(ql);
   const metricHint =
-    /\b(gdp|population|inflation|unemployment|debt|growth|per\s+capita|ppp|literacy|life\s+expectancy|poverty)\b/i.test(
+    /\b(gdp|gni|population|inflation|unemployment|debt|growth|per\s+capita|ppp|literacy|life\s+expectancy|poverty|birth\s+rate|tuberculosis|tb|uhc|hospital\s+beds|health\s+workforce|immunization|vaccination|health\s+expenditure|smoking|tax|revenue)\b/i.test(
       ql
     );
   if (rankCue && (scope || metricHint)) return true;
@@ -81,7 +81,16 @@ export function looksLikeGlobalRankingQuery(message: string): boolean {
 }
 
 function inferRankingMetricId(ql: string): string | null {
+  if (
+    /\btax\b/i.test(ql) &&
+    /\b(revenue|receipt|collection|burden|ratio)\b/i.test(ql)
+  ) {
+    // No tax-revenue metric exists in the platform catalog yet.
+    return null;
+  }
   if (/\bgdp\s+per\s+capita\s+ppp\b|\bppp\s+per\s+capita\b/i.test(ql)) return "gdp_per_capita_ppp";
+  if (/\bgni(\s+per\s+capita)?\b|\bworld\s+bank\s+income\b|\bincome\s+(group|classification)\b/i.test(ql))
+    return "gni_per_capita_atlas";
   if (/\bgdp\s+per\s+capita\b|\bper\s+capita\s+gdp\b/i.test(ql)) return "gdp_per_capita";
   if (/\bgdp\s+ppp\b|\bppp\s+gdp\b/i.test(ql)) return "gdp_ppp";
   if (/\bgdp\s+growth\b|\beconomic\s+growth\s+rate\b/i.test(ql)) return "gdp_growth";
@@ -92,6 +101,19 @@ function inferRankingMetricId(ql: string): string | null {
   if (/\binflation\b|\bcpi\b/i.test(ql)) return "inflation";
   if (/\bunemployment\b/i.test(ql)) return "unemployment_ilo";
   if (/\b(life\s+expectancy|how\s+long\s+people\s+live)\b/i.test(ql)) return "life_expectancy";
+  if (/\bbirth\s+rate\b|\bcrude\s+birth\b/i.test(ql)) return "birth_rate";
+  if (/\b(tuberculosis|tb)\b.*\b(incidence|burden|morbidity)\b|\bdisease\s+burden\b/i.test(ql))
+    return "tb_incidence";
+  if (/\buhc\b|\buniversal\s+health\s+coverage\b|\bcoverage\s+index\b/i.test(ql))
+    return "uhc_service_coverage";
+  if (/\bhospital\s+beds?\b/i.test(ql)) return "hospital_beds";
+  if (/\bphysicians?\b|\bdoctors?\s+per\b/i.test(ql)) return "physicians_density";
+  if (/\bnurses?\b|\bmidwives?\b|\bhealth\s+workforce\b/i.test(ql)) return "nurses_midwives_density";
+  if (/\bdpt\b|\bdiphtheria\b|\bpertussis\b|\btetanus\b/i.test(ql)) return "immunization_dpt";
+  if (/\bmeasles\b|\bvaccin|immunization|immunisation\b/i.test(ql)) return "immunization_measles";
+  if (/\bhealth\s+spend|healthcare\s+spend|health\s+expenditure\b/i.test(ql))
+    return "health_expenditure_gdp";
+  if (/\bsmok|tobacco\b|\brisk\s+factor\b/i.test(ql)) return "smoking_prevalence";
   if (/\bliteracy\b/i.test(ql)) return "literacy_adult";
   if (/\bpoverty\b|\bheadcount\b/i.test(ql)) return "poverty_headcount";
   if (/\b(undernourish|hunger|malnutrition)\b/i.test(ql)) return "undernourishment";

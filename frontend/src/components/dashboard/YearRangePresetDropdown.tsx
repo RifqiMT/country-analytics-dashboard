@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { MIN_DATA_YEAR } from "../../lib/yearBounds";
 
-export type YearPresetKind = "full" | "10" | "5";
+export type YearPresetKind =
+  | "full"
+  | "current"
+  | "y2"
+  | "y3"
+  | "y5"
+  | "y8"
+  | "y10"
+  | "y15"
+  | "y20";
 
 type Props = {
   start: number;
@@ -10,23 +19,70 @@ type Props = {
   onSelect: (kind: YearPresetKind) => void;
 };
 
+function spanStart(maxYear: number, spanYears: number): number {
+  return Math.max(MIN_DATA_YEAR, maxYear - (spanYears - 1));
+}
+
+function spanForKind(kind: "y2" | "y3" | "y5" | "y8" | "y10" | "y15" | "y20"): number {
+  switch (kind) {
+    case "y2":
+      return 2;
+    case "y3":
+      return 3;
+    case "y5":
+      return 5;
+    case "y8":
+      return 8;
+    case "y10":
+      return 10;
+    case "y15":
+      return 15;
+    default:
+      return 20;
+  }
+}
+
 function activePreset(start: number, end: number, maxYear: number): YearPresetKind | "custom" {
   if (start === MIN_DATA_YEAR && end === maxYear) return "full";
-  if (end === maxYear && start === maxYear - 9) return "10";
-  if (end === maxYear && start === maxYear - 4) return "5";
+  if (start === end && end === maxYear) return "current";
+  if (end !== maxYear) return "custom";
+  const spans = [2, 3, 5, 8, 10, 15, 20] as const;
+  for (const n of spans) {
+    if (start === spanStart(maxYear, n)) {
+      if (n === 2) return "y2";
+      if (n === 3) return "y3";
+      if (n === 5) return "y5";
+      if (n === 8) return "y8";
+      if (n === 10) return "y10";
+      if (n === 15) return "y15";
+      return "y20";
+    }
+  }
   return "custom";
 }
 
 const LABELS: Record<YearPresetKind, string> = {
   full: "Full range",
-  "10": "Last 10 years",
-  "5": "Last 5 years",
+  current: "The current year",
+  y2: "Last 2 years",
+  y3: "Last 3 years",
+  y5: "Last 5 years",
+  y8: "Last 8 years",
+  y10: "Last 10 years",
+  y15: "Last 15 years",
+  y20: "Last 20 years",
 };
 
 const ROWS: readonly { kind: YearPresetKind; title: string; sub: (max: number) => string }[] = [
+  { kind: "current", title: "The current year", sub: (max) => `${max} (latest data year)` },
+  { kind: "y2", title: "Last 2 years", sub: (max) => `${spanStart(max, 2)}–${max}` },
+  { kind: "y3", title: "Last 3 years", sub: (max) => `${spanStart(max, 3)}–${max}` },
+  { kind: "y5", title: "Last 5 years", sub: (max) => `${spanStart(max, 5)}–${max}` },
+  { kind: "y8", title: "Last 8 years", sub: (max) => `${spanStart(max, 8)}–${max}` },
+  { kind: "y10", title: "Last 10 years", sub: (max) => `${spanStart(max, 10)}–${max}` },
+  { kind: "y15", title: "Last 15 years", sub: (max) => `${spanStart(max, 15)}–${max}` },
+  { kind: "y20", title: "Last 20 years", sub: (max) => `${spanStart(max, 20)}–${max}` },
   { kind: "full", title: "Full range", sub: (max) => `${MIN_DATA_YEAR}–${max}` },
-  { kind: "10", title: "Last 10 years", sub: (max) => `${max - 9}–${max}` },
-  { kind: "5", title: "Last 5 years", sub: (max) => `${max - 4}–${max}` },
 ];
 
 export default function YearRangePresetDropdown({ start, end, maxYear, onSelect }: Props) {
@@ -61,12 +117,14 @@ export default function YearRangePresetDropdown({ start, end, maxYear, onSelect 
 
   const summary =
     active === "custom"
-      ? `${start}–${end}`
+      ? start === end
+        ? `${start}`
+        : `${start}–${end}`
       : active === "full"
         ? `${MIN_DATA_YEAR}–${maxYear}`
-        : active === "10"
-          ? `${maxYear - 9}–${maxYear}`
-          : `${maxYear - 4}–${maxYear}`;
+        : active === "current"
+          ? `${maxYear}`
+          : `${spanStart(maxYear, spanForKind(active))}–${maxYear}`;
 
   const headline = active === "custom" ? "Custom range" : LABELS[active];
 

@@ -6,10 +6,12 @@ import DashboardComparisonTable, {
 } from "../components/dashboard/DashboardComparisonTable";
 import MetricCard from "../components/dashboard/MetricCard";
 import TimezoneClockCard from "../components/dashboard/TimezoneClockCard";
-import YearRangePresetDropdown from "../components/dashboard/YearRangePresetDropdown";
+import YearRangePresetDropdown, {
+  type YearPresetKind,
+} from "../components/dashboard/YearRangePresetDropdown";
 import ToggleLineChart, { type SeriesSpec } from "../components/dashboard/ToggleLineChart";
 import { VisualizationStepperFromChildren } from "../components/charts/VisualizationStepper";
-import { getJson, postJson, type CountrySummary, type MetricDef, type SeriesPoint, type WbCountryProfile } from "../api";
+import { getJson, postJson, type CountrySummary, type MetricDef, type SeriesPoint } from "../api";
 import { downloadCsv } from "../lib/csv";
 import { metricDisplayLabelFromId } from "../lib/metricDisplay";
 import { formatCompactNumber, formatYoY } from "../lib/formatValue";
@@ -22,9 +24,6 @@ import {
 import { labourChartRows, mergeSeriesForLineChart } from "../lib/chartSeries";
 import { readStoredDashboardCountry, writeStoredDashboardCountry } from "../dashboardCountryStorage";
 
-const DASHBOARD_METRICS =
-  "gdp,gdp_ppp,gdp_per_capita,gdp_per_capita_ppp,gdp_growth,population,gov_debt_pct_gdp,gov_debt_usd,inflation,lending_rate,interest_real,unemployment_ilo,labor_force_total,poverty_headcount,poverty_national,life_expectancy,mortality_under5,maternal_mortality,undernourishment,pop_age_0_14,pop_age_65_plus,pop_15_64_pct,labour_force_participation,literacy_adult,school_primary_completion,enrollment_secondary,completion_secondary,completion_tertiary,oosc_primary,oosc_secondary,oosc_tertiary,reading_proficiency,gpi_primary,gpi_secondary,gpi_tertiary,trained_teachers_pri,trained_teachers_sec,trained_teachers_ter,edu_expenditure_gdp,enrollment_primary_pct,enrollment_tertiary_pct,enrollment_primary_count,enrollment_secondary_count,enrollment_tertiary_count,teachers_primary_count,teachers_secondary_count,teachers_tertiary_count";
-
 const LINE_CHARTS_NOTE =
   "After WB/IMF/UIS merges and cross-metric fills, the API densifies each year in your range: short tails use the last published value; leading/trailing gaps use the nearest real observation; interior gaps up to eight years are linearly interpolated (GDP growth uses step fill instead). Remaining nulls for a country are filled from the WLD (world) aggregate for the same year when available. PPP GDP uses the latest PPP/nominal ratio when needed; gov. debt (US$) uses WDI or nominal GDP × (debt % of GDP).";
 
@@ -34,8 +33,8 @@ const DASHBOARD_FIN_VIZ_META = [
     summary: "Nominal and PPP GDP with government debt in US dollars.",
   },
   {
-    title: "GDP per capita & population",
-    summary: "Income per person (nominal & PPP) and total population.",
+    title: "GDP / GNI per capita & population",
+    summary: "Income per person (nominal & PPP), GNI per capita (Atlas — WB classification input), and population.",
   },
   {
     title: "Macro, poverty & rates",
@@ -51,6 +50,14 @@ const DASHBOARD_HEALTH_VIZ_META = [
   {
     title: "Life expectancy & undernourishment",
     summary: "Life expectancy in years vs undernourishment prevalence.",
+  },
+  {
+    title: "Health systems capacity",
+    summary: "Hospital beds and health workforce density indicators.",
+  },
+  {
+    title: "Coverage, prevention & risk factors",
+    summary: "UHC, immunization, spending share, smoking prevalence, and birth/TB burden.",
   },
   {
     title: "Age structure shares (%)",
@@ -109,7 +116,6 @@ export default function Dashboard() {
   const [start, setStart] = useState(MIN_DATA_YEAR);
   const [end, setEnd] = useState(maxYear);
   const [meta, setMeta] = useState<CountrySummary | null>(null);
-  const [wb, setWb] = useState<WbCountryProfile>(null);
   const [bundle, setBundle] = useState<Record<string, SeriesPoint[]>>({});
   const [comparison, setComparison] = useState<ComparisonRow[]>([]);
   const [compYear, setCompYear] = useState(maxYear);
@@ -133,12 +139,16 @@ export default function Dashboard() {
     [metricCatalog]
   );
 
+  const wbProfile = meta?.worldBankProfile ?? null;
+  const dashboardMetricIds = useMemo(() => metricCatalog.map((m) => m.id), [metricCatalog]);
+
   const load = useCallback(async () => {
     if (!country) return;
     setLoading(true);
     setLoadingExtras(true);
     setErr(null);
-    const q = new URLSearchParams({ start: String(start), end: String(end), metrics: DASHBOARD_METRICS });
+    const q = new URLSearchParams({ start: String(start), end: String(end) });
+    if (dashboardMetricIds.length > 0) q.set("metrics", dashboardMetricIds.join(","));
     try {
       const [m, b] = await Promise.all([
         getJson<CountrySummary>(`/api/country/${country}`),
@@ -155,13 +165,9 @@ export default function Dashboard() {
     }
 
     try {
-      const [w, cmp] = await Promise.all([
-        getJson<WbCountryProfile>(`/api/country/${country}/wb-profile`),
-        getJson<{ rows: ComparisonRow[]; year: number; countryName: string }>(
-          `/api/dashboard/comparison?cca3=${country}&year=${end}`
-        ),
-      ]);
-      setWb(w);
+      const cmp = await getJson<{ rows: ComparisonRow[]; year: number; countryName: string }>(
+        `/api/dashboard/comparison?cca3=${country}&year=${end}`
+      );
       setComparison(cmp.rows);
       setCompYear(cmp.year);
       setCompName(cmp.countryName);
@@ -171,7 +177,7 @@ export default function Dashboard() {
     } finally {
       setLoadingExtras(false);
     }
-  }, [country, start, end, tick]);
+  }, [country, start, end, tick, dashboardMetricIds]);
 
   useEffect(() => {
     void load();
@@ -182,16 +188,30 @@ export default function Dashboard() {
     setTick((t) => t + 1);
   };
 
-  const setPreset = (kind: "full" | "10" | "5") => {
+  const setPreset = (kind: YearPresetKind) => {
     const hi = maxSelectableYear();
     if (kind === "full") {
       setStart(MIN_DATA_YEAR);
       setEnd(hi);
-    } else if (kind === "10") {
-      setStart(hi - 9);
+    } else if (kind === "current") {
+      setStart(hi);
       setEnd(hi);
     } else {
-      setStart(hi - 4);
+      const span =
+        kind === "y2"
+          ? 2
+          : kind === "y3"
+            ? 3
+            : kind === "y5"
+              ? 5
+              : kind === "y8"
+                ? 8
+                : kind === "y10"
+                  ? 10
+                  : kind === "y15"
+                    ? 15
+                    : 20;
+      setStart(Math.max(MIN_DATA_YEAR, hi - (span - 1)));
       setEnd(hi);
     }
   };
@@ -267,6 +287,12 @@ export default function Dashboard() {
       {
         metricId: "gdp_per_capita_ppp",
         series: bundle.gdp_per_capita_ppp,
+        fmt: (v: number) => formatCompactNumber(v, { maxFrac: 2 }),
+        yoy: numYoY,
+      },
+      {
+        metricId: "gni_per_capita_atlas",
+        series: bundle.gni_per_capita_atlas,
         fmt: (v: number) => formatCompactNumber(v, { maxFrac: 2 }),
         yoy: numYoY,
       },
@@ -405,7 +431,12 @@ export default function Dashboard() {
 
   const gdpPcPopChartData = useMemo(
     () =>
-      mergeSeriesForLineChart(bundle, ["gdp_per_capita", "gdp_per_capita_ppp", "population"], start, end),
+      mergeSeriesForLineChart(
+        bundle,
+        ["gdp_per_capita", "gdp_per_capita_ppp", "gni_per_capita_atlas", "population"],
+        start,
+        end
+      ),
     [bundle, start, end]
   );
 
@@ -414,6 +445,7 @@ export default function Dashboard() {
       [
         { key: "gdp_per_capita", color: "#ea580c", yAxisId: "left" as const },
         { key: "gdp_per_capita_ppp", color: "#ca8a04", yAxisId: "left" as const },
+        { key: "gni_per_capita_atlas", color: "#0d9488", yAxisId: "left" as const },
         { key: "population", color: "#0f172a", yAxisId: "right" as const },
       ].map((s) => ({ ...s, label: lbl(s.key) })),
     [lbl]
@@ -443,6 +475,60 @@ export default function Dashboard() {
       [
         { key: "life_expectancy", color: "#0f766e", yAxisId: "left" as const },
         { key: "undernourishment", color: "#22c55e", yAxisId: "right" as const, tooltipFormat: "percent" as const },
+      ].map((s) => ({ ...s, label: lbl(s.key) })),
+    [lbl]
+  );
+
+  const healthSystemChartData = useMemo(
+    () =>
+      mergeSeriesForLineChart(
+        bundle,
+        ["hospital_beds", "physicians_density", "nurses_midwives_density"],
+        start,
+        end
+      ),
+    [bundle, start, end]
+  );
+
+  const healthSystemSeries: SeriesSpec[] = useMemo(
+    () =>
+      [
+        { key: "hospital_beds", color: "#2563eb", yAxisId: "left" as const },
+        { key: "physicians_density", color: "#059669", yAxisId: "left" as const },
+        { key: "nurses_midwives_density", color: "#7c3aed", yAxisId: "left" as const },
+      ].map((s) => ({ ...s, label: lbl(s.key) })),
+    [lbl]
+  );
+
+  const healthCoverageChartData = useMemo(
+    () =>
+      mergeSeriesForLineChart(
+        bundle,
+        [
+          "uhc_service_coverage",
+          "immunization_dpt",
+          "immunization_measles",
+          "health_expenditure_gdp",
+          "smoking_prevalence",
+          "birth_rate",
+          "tb_incidence",
+        ],
+        start,
+        end
+      ),
+    [bundle, start, end]
+  );
+
+  const healthCoverageSeries: SeriesSpec[] = useMemo(
+    () =>
+      [
+        { key: "uhc_service_coverage", color: "#0f766e", yAxisId: "left" as const },
+        { key: "immunization_dpt", color: "#16a34a", yAxisId: "left" as const, tooltipFormat: "percent" as const },
+        { key: "immunization_measles", color: "#22c55e", yAxisId: "left" as const, tooltipFormat: "percent" as const },
+        { key: "health_expenditure_gdp", color: "#ea580c", yAxisId: "left" as const, tooltipFormat: "percent" as const },
+        { key: "smoking_prevalence", color: "#b91c1c", yAxisId: "left" as const, tooltipFormat: "percent" as const },
+        { key: "birth_rate", color: "#1d4ed8", yAxisId: "left" as const },
+        { key: "tb_incidence", color: "#7c2d12", yAxisId: "left" as const },
       ].map((s) => ({ ...s, label: lbl(s.key) })),
     [lbl]
   );
@@ -667,7 +753,25 @@ export default function Dashboard() {
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">
                           Income level
                         </p>
-                        <div className="mt-2">{badge(wb?.incomeLevel || "—")}</div>
+                        <div className="mt-2 space-y-1">
+                          {badge(wbProfile?.incomeLevel || "—")}
+                          {wbProfile?.incomeLevelId ? (
+                            <p className="text-xs font-mono text-slate-500">WB code: {wbProfile.incomeLevelId}</p>
+                          ) : null}
+                          <p className="text-[11px] leading-snug text-slate-400">
+                            Operational group from the{" "}
+                            <a
+                              href="https://datahelpdesk.worldbank.org/knowledgebase/articles/906519-world-bank-country-and-lending-groups"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="font-medium text-red-800 underline decoration-red-200 underline-offset-2 hover:text-red-950"
+                            >
+                              World Bank Country API
+                            </a>
+                            . GNI per capita (Atlas, US$) in Financial metrics is the WDI series used with annual
+                            thresholds for these classifications.
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -698,7 +802,7 @@ export default function Dashboard() {
                           Capital city
                         </p>
                         <p className="mt-2 text-lg font-semibold text-slate-900">
-                          {meta.capital?.[0] ?? wb?.capitalCity ?? "—"}
+                          {meta.capital?.[0] ?? wbProfile?.capitalCity ?? "—"}
                         </p>
                       </div>
                       <TimezoneClockCard timezone={meta.timezones?.[0]} />
@@ -768,6 +872,7 @@ export default function Dashboard() {
                   "gdp_ppp",
                   "gdp_per_capita",
                   "gdp_per_capita_ppp",
+                  "gni_per_capita_atlas",
                   "gov_debt_usd",
                   "gov_debt_pct_gdp",
                   "inflation",
@@ -781,9 +886,9 @@ export default function Dashboard() {
             >
               <div className="space-y-8">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">GDP</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">GDP &amp; income</p>
                     <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
-                    {finCards.slice(0, 4).map((c) => {
+                    {finCards.slice(0, 5).map((c) => {
                       const lv = c.series.length ? latest(c.series) : null;
                       const val =
                         c.series.length && lv
@@ -804,7 +909,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Debt</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {finCards.slice(4, 6).map((c) => {
+                    {finCards.slice(5, 7).map((c) => {
                       const lv = latest(c.series);
                       const val = lv ? c.fmt(lv.value) : "—";
                       const yoy = c.yoy(c.series);
@@ -817,7 +922,7 @@ export default function Dashboard() {
                     Inflation &amp; rates
                   </p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {finCards.slice(6, 11).map((c) => {
+                    {finCards.slice(7, 12).map((c) => {
                       const lv = c.series.length ? latest(c.series) : null;
                       const val =
                         c.series.length && lv
@@ -838,7 +943,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Poverty</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {finCards.slice(11, 13).map((c) => {
+                    {finCards.slice(12, 14).map((c) => {
                       const lv = latest(c.series);
                       const val = lv ? c.fmt(lv.value) : "—";
                       const yoy = c.yoy(c.series);
@@ -856,7 +961,7 @@ export default function Dashboard() {
                     leftTickFormatter={(v) => formatCompactNumber(v, { maxFrac: 1 })}
                   />
                   <ToggleLineChart
-                    title="GDP per capita & population"
+                    title="GDP / GNI per capita & population"
                     data={gdpPcPopChartData}
                     series={gdpPcPopSeries}
                     leftTickFormatter={(v) => formatCompactNumber(v, { maxFrac: 1 })}
@@ -881,6 +986,16 @@ export default function Dashboard() {
                   "mortality_under5",
                   "maternal_mortality",
                   "undernourishment",
+                  "birth_rate",
+                  "tb_incidence",
+                  "uhc_service_coverage",
+                  "hospital_beds",
+                  "physicians_density",
+                  "nurses_midwives_density",
+                  "immunization_dpt",
+                  "immunization_measles",
+                  "health_expenditure_gdp",
+                  "smoking_prevalence",
                   "pop_age_0_14",
                   "pop_15_64_pct",
                   "pop_age_65_plus",
@@ -944,6 +1059,49 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Health systems, coverage & risk
+                  </p>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {(
+                      [
+                        "birth_rate",
+                        "tb_incidence",
+                        "uhc_service_coverage",
+                        "hospital_beds",
+                        "physicians_density",
+                        "nurses_midwives_density",
+                        "immunization_dpt",
+                        "immunization_measles",
+                        "health_expenditure_gdp",
+                        "smoking_prevalence",
+                      ] as const
+                    ).map((key) => {
+                      const s = bundle[key] ?? [];
+                      const lv = latest(s);
+                      const pctMetric =
+                        key === "immunization_dpt" ||
+                        key === "immunization_measles" ||
+                        key === "health_expenditure_gdp" ||
+                        key === "smoking_prevalence";
+                      const val =
+                        lv == null
+                          ? "—"
+                          : pctMetric
+                            ? `${lv.value.toFixed(1)}%`
+                            : formatCompactNumber(lv.value, { maxFrac: 2 });
+                      return (
+                        <MetricCard
+                          key={key}
+                          label={lbl(key)}
+                          value={val}
+                          yoy={formatYoY(yoyPct(s), pctMetric ? yoyBpsRate(s) : null, pctMetric)}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Age structure</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {(["pop_age_0_14", "pop_15_64_pct", "pop_age_65_plus"] as const).map((key) => {
@@ -984,6 +1142,18 @@ export default function Dashboard() {
                     series={healthLifeSeries}
                     leftTickFormatter={(v) => `${v.toFixed(0)} yrs`}
                     rightTickFormatter={(v) => `${v.toFixed(1)}%`}
+                  />
+                  <ToggleLineChart
+                    title="Health systems capacity"
+                    data={healthSystemChartData}
+                    series={healthSystemSeries}
+                    dualAxis={false}
+                  />
+                  <ToggleLineChart
+                    title="Coverage, prevention & risk factors"
+                    data={healthCoverageChartData}
+                    series={healthCoverageSeries}
+                    dualAxis={false}
                   />
                   <ToggleLineChart
                     title="Age structure shares (%)"

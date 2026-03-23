@@ -144,7 +144,7 @@ export default function ToggleLineChart({
   );
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+    <div className="cap-line-chart-root rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</p>
         <div className="flex flex-col items-stretch gap-2 sm:items-end">
@@ -172,7 +172,7 @@ export default function ToggleLineChart({
           );
         })}
       </div>
-      <div className="h-80 w-full">
+      <div className="cap-line-chart-shell h-80 w-full">
         <ChartTableToggle
           className="h-full w-full"
           vizTitle={title}

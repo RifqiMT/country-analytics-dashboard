@@ -10,18 +10,7 @@ import { isUsableNumber } from "./wdiParse.js";
 import { getCache, setCache } from "./cache.js";
 
 /** Only metrics needed for comparison rows (not full METRIC_BY_ID). */
-const COMPARISON_COUNTRY_METRIC_IDS = [
-  "gdp",
-  "gdp_ppp",
-  "gdp_per_capita",
-  "gdp_per_capita_ppp",
-  "inflation",
-  "unemployment_ilo",
-  "labor_force_total",
-  "lending_rate",
-  "poverty_headcount",
-  "poverty_national",
-] as const;
+const COMPARISON_COUNTRY_METRIC_IDS: string[] = Object.keys(METRIC_BY_ID);
 
 const COMPARISON_CACHE_TTL_MS = 1000 * 60 * 15;
 
@@ -338,18 +327,7 @@ async function computeDashboardComparison(iso3: string, year: number) {
     meta?.landlocked === true ? null : (eezMap.get(upper) ?? null);
   const bundle = await fetchCountryBundle(upper, [...COMPARISON_COUNTRY_METRIC_IDS], MIN_DATA_YEAR, currentDataYear());
 
-  const wldMetricIds = [
-    "gdp",
-    "gdp_ppp",
-    "gdp_per_capita",
-    "gdp_per_capita_ppp",
-    "inflation",
-    "unemployment_ilo",
-    "lending_rate",
-    "poverty_headcount",
-    "poverty_national",
-    "labor_force_total",
-  ];
+  const wldMetricIds = [...COMPARISON_COUNTRY_METRIC_IDS];
   const wldBundle = await fetchCountryBundle("WLD", [...new Set(wldMetricIds)], MIN_DATA_YEAR, currentDataYear());
 
   const unemployedSeries = bundle.unemployment_ilo ?? [];
@@ -392,6 +370,11 @@ async function computeDashboardComparison(iso3: string, year: number) {
       const implied = await impliedPerCapitaAtYear("gdp_ppp", refY, members);
       avg = implied ?? s.mean;
       weightedFallback = implied ?? s.mean;
+    } else if (metricId === "gni_per_capita_atlas") {
+      const s = await snapshotMemberAggregates("gni_per_capita_atlas", year, members);
+      refY = s.refYear ?? year;
+      stats = { mean: s.mean, sum: s.sum, median: s.median };
+      avg = s.median;
     } else if (metricId === "unemployment_ilo") {
       const w = await laborForceWeightedUnemploymentWithFallback(year, members);
       refY = w.refYear ?? year;
@@ -466,9 +449,27 @@ async function computeDashboardComparison(iso3: string, year: number) {
     { id: "gdp_ppp", globalKind: "level_total" },
     { id: "gdp_per_capita", globalKind: "rate_or_pc" },
     { id: "gdp_per_capita_ppp", globalKind: "rate_or_pc" },
+    { id: "gni_per_capita_atlas", globalKind: "rate_or_pc" },
     { id: "inflation", globalKind: "rate_or_pc" },
     { id: "unemployment_ilo", globalKind: "rate_or_pc" },
   ];
+  const explicitlyRanked = new Set<string>([
+    ...financialIds.map((f) => f.id),
+    "lending_rate",
+    "poverty_headcount",
+    "poverty_national",
+    "birth_rate",
+    "tb_incidence",
+    "uhc_service_coverage",
+    "hospital_beds",
+    "physicians_density",
+    "nurses_midwives_density",
+    "immunization_dpt",
+    "immunization_measles",
+    "health_expenditure_gdp",
+    "smoking_prevalence",
+    "labor_force_total",
+  ]);
 
   const lfCur = latestUpToYear(laborSeries, year);
   const lfYo = yoyFromSeries(laborSeries, lfCur?.year ?? year);
@@ -477,7 +478,7 @@ async function computeDashboardComparison(iso3: string, year: number) {
   let duPct: number | null = null;
   if (du !== null && duPrev !== null && duPrev !== 0) duPct = ((du - duPrev) / Math.abs(duPrev)) * 100;
 
-  const [finRows, unempAgg, lfStats, tailRows] = await Promise.all([
+  const [finRows, unempAgg, lfStats, tailRows, healthRows, remainingRows] = await Promise.all([
     Promise.all(financialIds.map((f) => cellFromMetric(f.id, f.globalKind))),
     aggregatesUnemployedNumber(year, wldBundle, members),
     snapshotMemberAggregates("labor_force_total", year, members),
@@ -486,6 +487,23 @@ async function computeDashboardComparison(iso3: string, year: number) {
       cellFromMetric("poverty_headcount", "rate_or_pc"),
       cellFromMetric("poverty_national", "rate_or_pc"),
     ]),
+    Promise.all([
+      cellFromMetric("birth_rate", "rate_or_pc"),
+      cellFromMetric("tb_incidence", "rate_or_pc"),
+      cellFromMetric("uhc_service_coverage", "rate_or_pc"),
+      cellFromMetric("hospital_beds", "rate_or_pc"),
+      cellFromMetric("physicians_density", "rate_or_pc"),
+      cellFromMetric("nurses_midwives_density", "rate_or_pc"),
+      cellFromMetric("immunization_dpt", "rate_or_pc"),
+      cellFromMetric("immunization_measles", "rate_or_pc"),
+      cellFromMetric("health_expenditure_gdp", "rate_or_pc"),
+      cellFromMetric("smoking_prevalence", "rate_or_pc"),
+    ]),
+    Promise.all(
+      COMPARISON_COUNTRY_METRIC_IDS.filter((id) => !explicitlyRanked.has(id)).map((id) =>
+        cellFromMetric(id, "rate_or_pc")
+      )
+    ),
   ]);
 
   rows.push(...finRows);
@@ -515,6 +533,8 @@ async function computeDashboardComparison(iso3: string, year: number) {
   });
 
   rows.push(...tailRows);
+  rows.push(...healthRows);
+  rows.push(...remainingRows);
 
   return {
     year,

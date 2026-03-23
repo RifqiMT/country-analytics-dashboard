@@ -65,6 +65,8 @@ import {
   buildDataOnlyPorter,
   mergePorterAnalysis,
   parsePorterFromLlm,
+  type PorterAnalysis,
+  type PorterForce,
 } from "./porterAnalysis.js";
 import { fetchPorterTemporalHorizonWeb, PORTER_TEMPORAL_SECTION_MARKER } from "./porterTavily.js";
 import { ILO_ISIC_DIVISIONS } from "./iloIsicDivisions.js";
@@ -78,7 +80,7 @@ import {
   resolveGlobalWdiYear,
 } from "./yearBounds.js";
 import { listDataProvidersResponse } from "./dataProviders.js";
-import { buildAssistantRankingPayload } from "./assistantRankingBlock.js";
+import { buildAssistantRankingPayload, looksLikeGlobalRankingQuery } from "./assistantRankingBlock.js";
 import {
   ASSISTANT_MAX_COMPARISON_COUNTRIES,
   buildAssistantWebSearchQuery,
@@ -140,14 +142,15 @@ app.get("/api/country/:cca3", async (req, res) => {
     const c = await getCountry(req.params.cca3);
     if (!c) return res.status(404).json({ error: "Country not found" });
     const iso = c.cca3.toUpperCase();
-    const [wd, eezApi] = await Promise.all([
+    const [wd, eezApi, worldBankProfile] = await Promise.all([
       fetchWikidataCountryEnrichment(iso),
       c.landlocked ? Promise.resolve(null) : fetchSeaAroundUsEezAreaKm2(c.ccn3),
+      fetchWbCountryProfile(iso),
     ]);
     const government = c.government ?? wd?.government;
     const headOfGovernmentTitle = wd?.headOfGovernmentTitle;
     const eezSqKm = c.landlocked ? null : eezApi ?? EEZ_SQKM_FALLBACK[iso] ?? null;
-    res.json({ ...c, government, headOfGovernmentTitle, eezSqKm });
+    res.json({ ...c, government, headOfGovernmentTitle, eezSqKm, worldBankProfile });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -335,23 +338,27 @@ function yoyChange(points: { year: number; value: number | null }[]): number | n
 }
 
 /** Core metrics pulled for the assistant — same pipeline as the dashboard. */
-const ASSISTANT_PRIMARY_METRIC_IDS: string[] = [
+const ASSISTANT_PRIMARY_METRIC_IDS: string[] = allMetricIds();
+/** Default compact subset used for focus-country narrative unless user asks specific metrics. */
+const ASSISTANT_OVERVIEW_METRIC_IDS: string[] = [
   "gdp",
-  "gdp_ppp",
-  "gdp_per_capita",
-  "gdp_per_capita_ppp",
   "gdp_growth",
+  "gdp_per_capita",
+  "gni_per_capita_atlas",
   "population",
   "inflation",
-  "gov_debt_pct_gdp",
-  "gov_debt_usd",
   "unemployment_ilo",
-  "life_expectancy",
-  "literacy_adult",
+  "gov_debt_pct_gdp",
   "poverty_headcount",
-  "poverty_national",
-  "undernourishment",
-  "lending_rate",
+  "life_expectancy",
+  "birth_rate",
+  "tb_incidence",
+  "uhc_service_coverage",
+  "hospital_beds",
+  "physicians_density",
+  "nurses_midwives_density",
+  "immunization_measles",
+  "health_expenditure_gdp",
 ];
 
 function formatAssistantMetricValue(id: string, value: number): string {
@@ -363,11 +370,17 @@ function formatAssistantMetricValue(id: string, value: number): string {
     "poverty_headcount",
     "poverty_national",
     "undernourishment",
+    "immunization_dpt",
+    "immunization_measles",
+    "health_expenditure_gdp",
+    "smoking_prevalence",
     "literacy_adult",
     "lending_rate",
   ]);
   if (pctIds.has(id)) return `${Number(value.toFixed(1))}%`;
   if (id === "life_expectancy") return `${value.toFixed(1)} years`;
+  if (id === "birth_rate") return `${value.toFixed(1)} per 1,000`;
+  if (id === "tb_incidence") return `${value.toFixed(1)} per 100,000`;
   if (id === "population") {
     if (value >= 1e9) return `${(value / 1e9).toFixed(2)} billion`;
     if (value >= 1e6) return `${(value / 1e6).toFixed(2)} million`;
@@ -378,6 +391,7 @@ function formatAssistantMetricValue(id: string, value: number): string {
     id === "gdp_ppp" ||
     id === "gdp_per_capita" ||
     id === "gdp_per_capita_ppp" ||
+    id === "gni_per_capita_atlas" ||
     id === "gov_debt_usd"
   ) {
     const x = Math.abs(value);
@@ -403,24 +417,47 @@ function extractAssistantComparisonMetricIds(message: string): string[] | undefi
   const add = (id: string) => {
     if (ASSISTANT_PRIMARY_METRIC_IDS.includes(id) && !picked.includes(id)) picked.push(id);
   };
+  const asksPpp = /\bppp\b|\bpurchasing\s+power\b/i.test(text);
   if (/\bgdp\s+per\s+capita\s+ppp\b|\bppp\s+per\s+capita\b/i.test(text)) {
     add("gdp_per_capita_ppp");
   } else if (/\bgdp\s+per\s+capita\b|\bper\s+capita\s+gdp\b/i.test(text)) {
     add("gdp_per_capita");
-    add("gdp_per_capita_ppp");
+    if (asksPpp) add("gdp_per_capita_ppp");
+  } else if (
+    /\bgni(\s+per\s+capita)?\b|\bworld\s+bank\s+income\b|\bincome\s+(group|classification)\b|\batlas\s+method\b.*\b(per\s+capita|gni)\b/i.test(
+      text
+    )
+  ) {
+    add("gni_per_capita_atlas");
   } else if (/\bgdp\b|\bgross\s+domestic\b/i.test(text)) {
-    add("gdp");
-    add("gdp_ppp");
+    if (asksPpp) add("gdp_ppp");
+    else add("gdp");
   }
   if (/\bgdp\s+growth\b|\beconomic\s+growth\s+rate\b/i.test(text)) add("gdp_growth");
   if (/\bpopulation\b|\bpopulous\b/i.test(text)) add("population");
   if (/\bunemployment\b/i.test(text)) add("unemployment_ilo");
   if (/\binflation\b|\bcpi\b/i.test(text)) add("inflation");
   if (/\bdebt\b|\bgovernment\s+debt\b/i.test(text)) {
-    add("gov_debt_pct_gdp");
-    add("gov_debt_usd");
+    if (/\b(usd|dollar|nominal|amount|value)\b/i.test(text)) add("gov_debt_usd");
+    else add("gov_debt_pct_gdp");
   }
   if (/\blife\s+expectancy\b/i.test(text)) add("life_expectancy");
+  if (/\bbirth\s+rate\b|\bcrude\s+birth\b/i.test(text)) add("birth_rate");
+  if (/\b(tuberculosis|tb)\b.*\b(incidence|burden|morbidity)\b|\bdisease\s+burden\b/i.test(text))
+    add("tb_incidence");
+  if (/\buhc\b|\buniversal\s+health\s+coverage\b|\bcoverage\s+index\b/i.test(text))
+    add("uhc_service_coverage");
+  if (/\bhospital\s+beds?\b/i.test(text)) add("hospital_beds");
+  if (/\bphysicians?\b|\bdoctors?\s+per\b/i.test(text)) add("physicians_density");
+  if (/\bnurses?\b|\bmidwives?\b|\bhealth\s+workforce\b/i.test(text))
+    add("nurses_midwives_density");
+  if (/\bvaccin|immunization|immunisation|dpt|measles\b/i.test(text)) {
+    add("immunization_dpt");
+    add("immunization_measles");
+  }
+  if (/\bhealth\s+spend|healthcare\s+spend|health\s+expenditure\b/i.test(text))
+    add("health_expenditure_gdp");
+  if (/\bsmok|tobacco\b|\brisk\s+factor\b/i.test(text)) add("smoking_prevalence");
   if (/\bliteracy\b/i.test(text)) add("literacy_adult");
   if (/\bpoverty\b/i.test(text)) {
     add("poverty_headcount");
@@ -435,6 +472,328 @@ function extractAssistantComparisonMetricIds(message: string): string[] | undefi
   if (/\b(undernourishment|hunger|malnutrition)\b/i.test(text)) add("undernourishment");
   if (/\blending\b|\binterest\s+rate\b/i.test(text)) add("lending_rate");
   return picked.length > 0 ? picked : undefined;
+}
+
+function extractAssistantFocusMetricIds(message: string): string[] {
+  const picked = extractAssistantComparisonMetricIds(message);
+  if (picked && picked.length > 0) return picked;
+  return ASSISTANT_OVERVIEW_METRIC_IDS.filter((id) => ASSISTANT_PRIMARY_METRIC_IDS.includes(id));
+}
+
+function assistantReplyContainsCitationTag(text: string): boolean {
+  return /\[(?:D|W)\d+\]/.test(text);
+}
+
+function assistantReplyContainsPlatformCitation(text: string): boolean {
+  return /\[D\d+\]/.test(text);
+}
+
+function assistantReplyTimeSensitiveMentionsWithoutWebCitation(text: string, opts?: { webTag?: string }): boolean {
+  const webTag = opts?.webTag ?? "[W1]";
+  const timeSensitiveRe =
+    /\b(today|current|latest|now|right now|as of|this week|this month|current events|incumbent|in office|president|prime\s+minister|chancellor|head\s+of\s+state|head\s+of\s+government|minister|election|parliament)\b/i;
+  const hasWebTag = (s: string) => s.includes(webTag);
+  const parts = text.split(/(?<=[.!?])\s+/g);
+  for (const p of parts) {
+    if (!timeSensitiveRe.test(p)) continue;
+    if (!hasWebTag(p)) return true;
+  }
+  return false;
+}
+
+function assistantReplyOfficeholderCoverageFails(args: {
+  asked: string;
+  reply: string;
+  webTag?: string;
+}): boolean {
+  const webTag = args.webTag ?? "[W1]";
+  const q = args.asked.toLowerCase();
+  const r = args.reply;
+
+  const sentenceParts = r.split(/(?<=[.!?])\s+/g);
+  const sentenceHas = (re: RegExp, s: string) => re.test(s);
+  const sentenceHasWeb = (s: string) => s.includes(webTag);
+
+  const asksHeadState = /\b(head of state|president|monarch|king|queen)\b/i.test(q);
+  const asksHeadGov = /\b(head of government|prime\s+minister|chancellor|pm)\b/i.test(q);
+  const asksTakeOffice =
+    /\bwhen\b.*\b(take office|took office|assume[d]?|assumed|in office|since)\b/i.test(q) ||
+    /\b(take office|took office|assume[d]?|in office|since)\b/i.test(q);
+
+  const headStateRe = /\b(head of state|president|monarch|king|queen)\b/i;
+  const headGovRe = /\b(head of government|prime\s+minister|chancellor|pm)\b/i;
+  const takeOfficeRe = /\b(take office|took office|assume[d]?|in office|since|sworn|inaugurated|appointed|began serving)\b/i;
+
+  if (asksHeadState) {
+    const found = sentenceParts.some((s) => sentenceHas(headStateRe, s));
+    if (!found) return true;
+    const needsWeb = sentenceParts.find((s) => sentenceHas(headStateRe, s));
+    if (needsWeb && !sentenceHasWeb(needsWeb)) return true;
+  }
+
+  if (asksHeadGov) {
+    const found = sentenceParts.some((s) => sentenceHas(headGovRe, s));
+    if (!found) return true;
+    const needsWeb = sentenceParts.find((s) => sentenceHas(headGovRe, s));
+    if (needsWeb && !sentenceHasWeb(needsWeb)) return true;
+  }
+
+  if (asksTakeOffice) {
+    const found = sentenceParts.some((s) => sentenceHas(takeOfficeRe, s));
+    if (!found) return true;
+    const needsWeb = sentenceParts.find((s) => sentenceHas(takeOfficeRe, s));
+    if (needsWeb && !sentenceHasWeb(needsWeb)) return true;
+  }
+
+  return false;
+}
+
+function parseFirstWebCitationFromCitedBlock(raw: string): { title: string; url: string; snippet: string } | null {
+  if (!raw.trim()) return null;
+  const lines = raw.split(/\r?\n/);
+  let title = "";
+  let url = "";
+  let snippet = "";
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i]!.trim();
+    const m = t.match(/^\[W1\]\s+(.+?)\s+\((https?:\/\/[^)]+)\)(?:\s*·\s*published\/updated:\s*.+)?$/i);
+    if (m?.[1] && m[2]) {
+      title = m[1].trim();
+      url = m[2].trim();
+      const next = lines[i + 1]?.trim() ?? "";
+      snippet = next.replace(/^\s+/, "").trim();
+      break;
+    }
+  }
+  if (!title || !url) return null;
+  return { title, url, snippet };
+}
+
+function buildDeterministicVerifiedWebReply(message: string, webCitedBlock: string): string | null {
+  const w = parseFirstWebCitationFromCitedBlock(webCitedBlock);
+  if (!w) return null;
+  const q = message.toLowerCase();
+  const asksOfficeholder =
+    /\b(president|prime\s+minister|head\s+of\s+state|head\s+of\s+government|in office|incumbent)\b/i.test(q);
+  const asksTakeOffice =
+    /\b(when|since)\b.*\b(take office|took office|in office|assume[d]?|inaugurat)\b/i.test(q) ||
+    /\b(take office|took office|assume[d]?|in office|since|inaugurat)\b/i.test(q);
+  if (!asksOfficeholder) return null;
+
+  const s = w.snippet;
+  const hasRoleSignal =
+    /\b(president|prime minister|head of state|head of government|incumbent|officeholder|in office)\b/i.test(
+      s
+    );
+  const hasDateSignal =
+    /\b(20\d{2}|19\d{2})\b/.test(s) ||
+    /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(s);
+
+  if (!hasRoleSignal) {
+    return `I could not verify the requested current officeholder details from the retrieved live-web excerpt [W1]. Please verify on the official government site linked in [W1].`;
+  }
+
+  if (asksTakeOffice && !hasDateSignal) {
+    return `From the retrieved excerpt [W1], I can reference the officeholder context, but I could not verify a reliable take-office date. Please confirm the exact date from the official source in [W1].`;
+  }
+
+  return `Based on the retrieved live-web excerpt [W1], here is the verified officeholder context: ${s} [W1]`;
+}
+
+function capLines(raw: string, maxLines: number): string {
+  const lines = raw.split(/\r?\n/);
+  if (lines.length <= maxLines) return raw.trim();
+  return `${lines.slice(0, maxLines).join("\n").trim()}\n…`;
+}
+
+function buildAssistantGroundedFallbackFromCited(opts: {
+  asked: string;
+  focusBlock: string;
+  comparisonBlock: string;
+  rankingBlock: string;
+  webBlock: string;
+  includeWeb?: boolean;
+}): string {
+  const lines: string[] = [];
+  const q = opts.asked.trim();
+  if (q) lines.push(`I’m returning a grounded answer only from retrieved evidence for: "${q}"`);
+
+  if (opts.rankingBlock.trim()) {
+    lines.push("");
+    lines.push("### Ranking snapshot");
+    lines.push(capLines(opts.rankingBlock, 16));
+  }
+  if (opts.comparisonBlock.trim()) {
+    lines.push("");
+    lines.push("### Comparison snapshot");
+    lines.push(capLines(opts.comparisonBlock, 18));
+  }
+  if (opts.focusBlock.trim()) {
+    lines.push("");
+    lines.push("### Focus-country indicators");
+    lines.push(capLines(opts.focusBlock, 14));
+  }
+  if (opts.includeWeb && opts.webBlock.trim()) {
+    lines.push("");
+    lines.push("### Recent web context");
+    lines.push(capLines(opts.webBlock, 10));
+  }
+
+  if (lines.length === 0) {
+    return "I don’t have enough grounded evidence in this turn to answer reliably. Please ask again with a specific country and metric (or ranking request), and I will answer strictly from cited data.";
+  }
+  return lines.join("\n");
+}
+
+function extractTaggedLines(section: string, re: RegExp, max = 6): string[] {
+  if (!section.trim()) return [];
+  const out: string[] = [];
+  for (const line of section.split(/\r?\n/)) {
+    const m = line.match(re);
+    if (!m?.[1]) continue;
+    out.push(m[1].trim());
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+type ParsedComparisonCountry = {
+  countryName: string;
+  iso3: string;
+  metrics: Record<string, string>;
+};
+
+function parseComparisonCountrySections(raw: string): ParsedComparisonCountry[] {
+  if (!raw.trim()) return [];
+  const sections = raw.split(/\n\n────────\n\n/).map((s) => s.trim()).filter(Boolean);
+  const out: ParsedComparisonCountry[] = [];
+  for (const sec of sections) {
+    const lines = sec.split(/\r?\n/);
+    const countryLine = lines.find((l) => /^Country:\s+/i.test(l.trim()));
+    if (!countryLine) continue;
+    const cm = countryLine.trim().match(/^Country:\s+(.+?)\s+\(([A-Z]{3})\)\s*$/i);
+    if (!cm?.[1] || !cm[2]) continue;
+    const countryName = cm[1].trim();
+    const iso3 = cm[2].toUpperCase();
+    const metrics: Record<string, string> = {};
+    for (const l of lines) {
+      const t = l.trim();
+      if (!/^•\s+/.test(t)) continue;
+      const m = t.match(/^•\s+(.+?):\s+(.+)$/);
+      if (!m?.[1] || !m[2]) continue;
+      metrics[m[1].trim()] = m[2].trim();
+    }
+    out.push({ countryName, iso3, metrics });
+  }
+  return out;
+}
+
+function compactMetricCell(raw: string): string {
+  const head = raw.split(/\s*;\s*/)[0]?.trim() ?? raw.trim();
+  return head.length > 72 ? `${head.slice(0, 72)}…` : head;
+}
+
+function parseComparableMetricNumber(raw: string): number | null {
+  const head = raw.split(/\s*;\s*/)[0]?.trim() ?? raw.trim();
+  if (!head) return null;
+  if (/^(?:n\/a|na|—|-|not available)$/i.test(head)) return null;
+
+  const lc = head.toLowerCase();
+  let mul = 1;
+  if (/\btrillion\b/.test(lc)) mul = 1e12;
+  else if (/\bbillion\b/.test(lc)) mul = 1e9;
+  else if (/\bmillion\b/.test(lc)) mul = 1e6;
+  else if (/\bthousand\b|\bk\b/.test(lc)) mul = 1e3;
+
+  const normalized = head.replace(/,/g, "");
+  const m = normalized.match(/-?\d+(?:\.\d+)?/);
+  if (!m?.[0]) return null;
+  const n = Number(m[0]);
+  if (!Number.isFinite(n)) return null;
+  return n * mul;
+}
+
+function formatPctOfTop(value: number, top: number): string {
+  if (!Number.isFinite(value) || !Number.isFinite(top) || top <= 0) return "";
+  const ratio = (value / top) * 100;
+  if (!Number.isFinite(ratio) || ratio <= 0) return "";
+  if (Math.abs(ratio - 100) < 1e-9) return "100% of top";
+  return ratio >= 10 ? `${ratio.toFixed(1)}% of top` : `${ratio.toFixed(2)}% of top`;
+}
+
+function buildDeterministicRankingOrComparisonReply(opts: {
+  intent: AssistantIntent;
+  rankingSection: string;
+  comparisonBlock: string;
+  rankingMarkdown: string;
+  cited: {
+    rankingSection: string;
+    comparisonBlock: string;
+  };
+  comparisonMetricIds?: string[];
+}): string | null {
+  const rankTurn = opts.intent === "statistics_drill" && opts.rankingSection.trim().length > 0;
+  const compareTurn = opts.intent === "country_compare" && opts.comparisonBlock.trim().length > 0;
+  if (!rankTurn && !compareTurn) return null;
+
+  if (rankTurn) {
+    // Keep deterministic ranking fallback intentionally minimal: the table above
+    // is already authoritative and avoids accidental synthetic prose drift.
+    return "The platform ranking table above contains the requested metric snapshot and ordered results.";
+  }
+
+  const countries = parseComparisonCountrySections(opts.comparisonBlock);
+  if (countries.length < 2) {
+    return "The platform comparison snapshot is limited for this turn, so I cannot produce a reliable side-by-side yet.";
+  }
+
+  const requestedDefs = (opts.comparisonMetricIds ?? [])
+    .map((id) => METRIC_BY_ID[id]?.label)
+    .filter((x): x is string => Boolean(x));
+  const requestedLabels = requestedDefs.slice(0, 8);
+  const commonMetricLabels = (() => {
+    if (requestedLabels.length > 0) return requestedLabels;
+    const counts = new Map<string, number>();
+    for (const c of countries) {
+      for (const k of Object.keys(c.metrics)) {
+        counts.set(k, (counts.get(k) ?? 0) + 1);
+      }
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 4)
+      .map(([k]) => k);
+  })();
+  if (commonMetricLabels.length === 0) {
+    return `Compared countries: ${countries.map((c) => `${c.countryName} (${c.iso3})`).join(", ")}. I could not find comparable metric rows in this snapshot.`;
+  }
+
+  const topByMetric = new Map<string, number>();
+  for (const k of commonMetricLabels) {
+    const vals = countries
+      .map((c) => parseComparableMetricNumber(c.metrics[k] ?? ""))
+      .filter((v): v is number => v !== null && Number.isFinite(v));
+    if (vals.length > 0) topByMetric.set(k, Math.max(...vals));
+  }
+
+  const header = `| Country | ${commonMetricLabels.map((x) => x.replace(/\|/g, "·")).join(" | ")} |\n| --- | ${commonMetricLabels.map(() => "---").join(" | ")} |`;
+  const rows = countries
+    .map((c) => {
+      const cells = commonMetricLabels.map((k) => {
+        const v = c.metrics[k];
+        if (!v) return "n/a";
+        const base = compactMetricCell(v).replace(/\|/g, "·");
+        const parsed = parseComparableMetricNumber(v);
+        const top = topByMetric.get(k);
+        if (parsed === null || top === undefined) return base;
+        const pct = formatPctOfTop(parsed, top);
+        return pct ? `${base} · ${pct}` : base;
+      });
+      return `| ${c.countryName} (${c.iso3}) | ${cells.join(" | ")} |`;
+    })
+    .join("\n");
+  const intro = `Compared countries: ${countries.map((c) => `${c.countryName} (${c.iso3})`).join(", ")}. Values below use the latest platform snapshot for the requested indicators; each cell also shows the country's percentage relative to the highest value on that metric.`;
+  return `${intro}\n\n${header}\n${rows}`;
 }
 
 function buildAssistantPrimaryDataBlock(
@@ -525,6 +884,9 @@ app.post("/api/assistant/chat", async (req, res) => {
       `Intent: ${intentLabel(intent)}${webSearchPriority ? " · Web search prioritized (user mode)" : ""}`,
     ];
 
+    const requestedFocusMetricIds = extractAssistantFocusMetricIds(message);
+    const requestedFocusMetricIdsForFetch =
+      requestedFocusMetricIds && requestedFocusMetricIds.length > 0 ? requestedFocusMetricIds : ASSISTANT_OVERVIEW_METRIC_IDS;
     const [dashFocus, rankingPayload, comparisonBlock] = await Promise.all([
       (async (): Promise<{
         block: string;
@@ -532,11 +894,13 @@ app.post("/api/assistant/chat", async (req, res) => {
         bundle?: Record<string, SeriesPoint[]>;
       }> => {
         if (!cca3 || !/^[A-Z]{3}$/.test(cca3)) return { block: "" };
-        const meta = await getCountry(cca3);
-        const bundle = await fetchCountryBundle(cca3, allMetricIds(), MIN_DATA_YEAR, currentDataYear());
+        const [meta, bundle] = await Promise.all([
+          getCountry(cca3),
+          fetchCountryBundle(cca3, requestedFocusMetricIdsForFetch, MIN_DATA_YEAR, currentDataYear()),
+        ]);
         if (!meta) return { block: "" };
         return {
-          block: buildAssistantPrimaryDataBlock(meta, bundle),
+          block: buildAssistantPrimaryDataBlock(meta, bundle, requestedFocusMetricIds),
           meta,
           bundle,
         };
@@ -546,12 +910,19 @@ app.post("/api/assistant/chat", async (req, res) => {
       }),
       (async () => {
         if (comparisonCodes.length < 2) return "";
-        const parts: string[] = [];
-        for (const code of comparisonCodes.slice(0, ASSISTANT_MAX_COMPARISON_COUNTRIES)) {
-          const meta = await getCountry(code);
-          const bundle = await fetchCountryBundle(code, allMetricIds(), MIN_DATA_YEAR, currentDataYear());
-          if (meta) parts.push(buildAssistantPrimaryDataBlock(meta, bundle, comparisonMetricIds));
-        }
+        const comparisonMetricIdsForFetch =
+          comparisonMetricIds && comparisonMetricIds.length > 0 ? comparisonMetricIds : ASSISTANT_OVERVIEW_METRIC_IDS;
+        const parts = (await Promise.all(
+          comparisonCodes
+            .slice(0, ASSISTANT_MAX_COMPARISON_COUNTRIES)
+            .map(async (code) => {
+              const [meta, bundle] = await Promise.all([
+                getCountry(code),
+                fetchCountryBundle(code, comparisonMetricIdsForFetch, MIN_DATA_YEAR, currentDataYear()),
+              ]);
+              return meta ? buildAssistantPrimaryDataBlock(meta, bundle, comparisonMetricIdsForFetch) : null;
+            })
+        )).filter((x): x is string => Boolean(x));
         return parts.length >= 2 ? parts.join("\n\n────────\n\n") : "";
       })(),
     ]);
@@ -564,6 +935,26 @@ app.post("/api/assistant/chat", async (req, res) => {
     const rankingMarkdownMain = rankingPayload?.markdownTable ?? "";
     const rankingMarkdownFocus = rankingPayload?.focusComparisonMarkdown?.trim() ?? "";
     const rankingMarkdown = [rankingMarkdownMain, rankingMarkdownFocus].filter(Boolean).join("\n\n");
+    const rankingRequested = looksLikeGlobalRankingQuery(message);
+    if (rankingRequested && !rankingPayload) {
+      const quickRankables = [
+        "GDP (Nominal, US$)",
+        "GDP growth (annual %)",
+        "GDP per capita (Nominal, US$)",
+        "GNI per capita (Atlas method)",
+        "Population",
+        "Inflation",
+        "Unemployment",
+        "Government debt (% of GDP)",
+        "Poverty headcount ($2.15/day)",
+        "Life expectancy",
+      ];
+      const reply =
+        `I can rank countries only on metrics available in this platform's catalog, and your requested ranking metric is not currently available.\n\n` +
+        `Try one of these ranking metrics instead: ${quickRankables.join("; ")}.`;
+      attribution.push("Ranking: requested metric not in platform catalog (no fallback substitution applied)");
+      return res.json({ reply, attribution, citations: { D: {}, W: {} } });
+    }
     if (rankingSection) {
       attribution.push(
         "Global ranking: full-country snapshot (same API path as dashboard global view; year may step back for WDI coverage)"
@@ -578,8 +969,14 @@ app.post("/api/assistant/chat", async (req, res) => {
     const omitDuplicateDashboard =
       Boolean(comparisonBlock) && /^[A-Z]{3}$/.test(cca3) && comparisonCodes.includes(cca3);
     const focusMetricsInScope = questionInvokesFocusCountryPlatformMetrics(message, intent);
+    // For non-metric, time-sensitive “who is in office right now” turns, avoid injecting
+    // platform indicator snapshots that can distract the model from live excerpt grounding.
     const dashboardForPrompt =
-      omitDuplicateDashboard || !focusMetricsInScope ? "" : dashboardBlock;
+      intent === "general_web"
+        ? ""
+        : omitDuplicateDashboard || !focusMetricsInScope
+          ? ""
+          : dashboardBlock;
     if (dashboardBlock.trim() && !focusMetricsInScope) {
       attribution.push("Platform: focus-country indicators omitted (question outside dashboard metric scope)");
     }
@@ -605,10 +1002,15 @@ app.post("/api/assistant/chat", async (req, res) => {
       Boolean(comparisonBlock) ||
       (Boolean(dashboardBlock) && focusMetricsInScope);
     const tavilyConfigured = Boolean(process.env.TAVILY_API_KEY?.trim());
+    const metricScopedTurn =
+      (intent === "statistics_drill" || intent === "country_compare" || questionLooksMetricAnchored(message)) &&
+      !needsVerifiedWeb;
+    const forceSkipWebForMetricTurn = tavilyConfigured && !webSearchPriority && metricScopedTurn;
     const skipWebForPlatform =
-      !webSearchPriority &&
-      tavilyConfigured &&
-      shouldSkipTavilyForPlatformFirst(intent, hasAuthoritativePayload, message);
+      forceSkipWebForMetricTurn ||
+      (!webSearchPriority &&
+        tavilyConfigured &&
+        shouldSkipTavilyForPlatformFirst(intent, hasAuthoritativePayload, message));
 
     let webContext = "";
     if (tavilyConfigured && !skipWebForPlatform) {
@@ -721,6 +1123,35 @@ app.post("/api/assistant/chat", async (req, res) => {
     });
     const hasCitationKeys =
       Object.keys(cited.citations.D).length + Object.keys(cited.citations.W).length > 0;
+
+    // Hard gate for non-metric time-sensitive turns: prefer deterministic web-grounded reply
+    // over free-form generation to minimize hallucination and irrelevant spillover.
+    if (needsVerifiedWeb) {
+      const deterministicWebReply = buildDeterministicVerifiedWebReply(message, cited.webContext);
+      if (deterministicWebReply) {
+        attribution.push("Deterministic: verified-web reply path for time-sensitive non-metric question");
+        return res.json({ reply: deterministicWebReply, attribution, citations: cited.citations });
+      }
+    }
+
+    const deterministicReply = buildDeterministicRankingOrComparisonReply({
+      intent,
+      rankingSection,
+      comparisonBlock,
+      rankingMarkdown,
+      cited: {
+        rankingSection: cited.rankingSection,
+        comparisonBlock: cited.comparisonBlock,
+      },
+      comparisonMetricIds,
+    });
+    if (deterministicReply) {
+      attribution.push("Deterministic: platform-templated answer for ranking/comparison turn");
+      const reply = rankingMarkdown
+        ? `${rankingMarkdown.trim()}\n\n${deterministicReply}`.trim()
+        : deterministicReply;
+      return res.json({ reply, attribution, citations: cited.citations });
+    }
     const citationInstruction = hasCitationKeys
       ? `
 
@@ -779,13 +1210,7 @@ TRUTH (non-negotiable):
 - **Today is ${todayUtc} (UTC).** For non-database topics, treat “latest” and “current” **relative to this date**; prioritize **recent excerpts** and their publication dates over stale training data.
 - When **recent excerpts** below answer the question, lead with them; newer publication dates beat older ones when they conflict.
 - If a **country indicator snapshot** is attached, use it only for hard economic/demographic numbers—and never override clearly dated breaking news from excerpts.
-${
-  needsVerifiedWeb && !webSearchThin
-    ? "- **Leadership / who is in office:** If excerpts name the officeholder or cite an inauguration or election date, treat that as authoritative over model cutoff knowledge."
-    : needsVerifiedWeb && webSearchThin
-      ? "- **Leadership:** Search came back thin. You may draw on general knowledge for stable facts, but for *who holds office right now* say clearly that the user should confirm on an official government or major news site."
-      : "- If excerpts are thin, still be helpful; avoid inventing specific headlines or dates you did not see."
-}`;
+${needsVerifiedWeb ? (webSearchThin ? "- **Leadership:** Search came back thin. You may draw on general knowledge for stable facts, but for *who holds office right now* and *when they took office* you must not guess—say you could not verify from the retrieved excerpts and recommend official sources." : "- **Leadership / who is in office:** If excerpts name the officeholder and include any inauguration/assumption/take-office timing, treat that as authoritative over model cutoff knowledge. If a requested element (especially take-office timing) is not present in the excerpts, say you could not verify rather than inferring.") : "- If excerpts are thin, still be helpful; avoid inventing specific headlines or dates you did not see."}`;
 
     const ephemeralFactBlock =
       needsVerifiedWeb && !webSearchThin
@@ -897,7 +1322,7 @@ The message the user sees **opens with** the platform’s ranking markdown table
           userForLlm,
           {
             temperature: needsVerifiedWeb && !webSearchThin ? 0.22 : groqTemperatureForIntent(intent),
-            topP: needsVerifiedWeb && !webSearchThin ? 0.86 : 0.9,
+            topP: needsVerifiedWeb && !webSearchThin ? 0.82 : 0.86,
             analyticsRecencyHint:
               (needsVerifiedWeb && !webSearchThin) ||
               intent === "general_web" ||
@@ -913,6 +1338,69 @@ The message the user sees **opens with** the platform’s ranking markdown table
         if (rankingMarkdown.trim()) {
           assistantLlmText = stripRedundantRankingTablesFromLlmMarkdown(assistantLlmText);
           assistantLlmText = polishAssistantLlmReply(assistantLlmText);
+        }
+        if (hasCitationKeys && !assistantReplyContainsCitationTag(assistantLlmText)) {
+          attribution.push("Safety: model draft lacked citation tags; retrying with strict citation-only instruction");
+          try {
+            const strictSystem = `${system}
+
+CITATION ENFORCEMENT (mandatory):
+- Every factual sentence must include at least one inline [D#] or [W1] tag from this turn.
+- Do not output headings that restate raw context blocks.
+- Keep the answer concise and directly scoped to the user question.`;
+            const retry = await groqChatWithFallbackForUseCase("assistant", strictSystem, userForLlm, {
+              temperature: 0.18,
+              topP: 0.8,
+              analyticsRecencyHint:
+                (needsVerifiedWeb && !webSearchThin) ||
+                intent === "general_web" ||
+                intent === "country_overview",
+            });
+            assistantLlmText = polishAssistantLlmReply(retry.text);
+            if (rankingMarkdown.trim()) {
+              assistantLlmText = stripRedundantRankingTablesFromLlmMarkdown(assistantLlmText);
+              assistantLlmText = polishAssistantLlmReply(assistantLlmText);
+            }
+          } catch {
+            // Fall through to grounded fallback below.
+          }
+          if (hasCitationKeys && !assistantReplyContainsCitationTag(assistantLlmText)) {
+            attribution.push("Safety: strict citation retry failed; switched to compact grounded fallback");
+            assistantLlmText = buildAssistantGroundedFallbackFromCited({
+              asked: message,
+              focusBlock: cited.dashboardForPrompt,
+              comparisonBlock: cited.comparisonBlock,
+              rankingBlock: cited.rankingSection,
+              webBlock: cited.webContext,
+              includeWeb: !metricScopedTurn,
+            });
+          }
+        }
+
+        // Extra anti-hallucination gate for "live/real-time verified" intents:
+        // the reply must actually use the live excerpt tag ([W1]) for any time-sensitive sentences.
+        const webTagKeys = Object.keys(cited.citations.W);
+        const liveWebAvailable = needsVerifiedWeb && webTagKeys.length > 0;
+        if (liveWebAvailable) {
+          const missingW1 = !/\[W1\]/.test(assistantLlmText);
+          const timeSensitiveMissingW1 = assistantReplyTimeSensitiveMentionsWithoutWebCitation(assistantLlmText, {
+            webTag: "[W1]",
+          });
+        const officeholderCoverageFails =
+          needsVerifiedWeb && assistantReplyOfficeholderCoverageFails({ asked: message, reply: assistantLlmText, webTag: "[W1]" });
+        if (missingW1 || timeSensitiveMissingW1 || officeholderCoverageFails) {
+            attribution.push(
+              "Safety: verified web reply missing [W1] for time-sensitive statements; returned grounded evidence-only fallback"
+            );
+            assistantLlmText = buildAssistantGroundedFallbackFromCited({
+              asked: message,
+              focusBlock: cited.dashboardForPrompt,
+              comparisonBlock: cited.comparisonBlock,
+              rankingBlock: cited.rankingSection,
+              webBlock: cited.webContext,
+              includeWeb: !metricScopedTurn,
+            });
+          }
         }
       } catch (groqErr) {
         const brief = groqErr instanceof Error ? groqErr.message : String(groqErr);
@@ -939,6 +1427,56 @@ The message the user sees **opens with** the platform’s ranking markdown table
     }
 
     if (assistantLlmText !== null) {
+      if (hasCitationKeys && !assistantReplyContainsCitationTag(assistantLlmText)) {
+        attribution.push("Safety: final assistant text had no citation tags; returned compact grounded fallback");
+        assistantLlmText = buildAssistantGroundedFallbackFromCited({
+          asked: message,
+          focusBlock: cited.dashboardForPrompt,
+          comparisonBlock: cited.comparisonBlock,
+          rankingBlock: cited.rankingSection,
+          webBlock: cited.webContext,
+          includeWeb: !metricScopedTurn,
+        });
+      }
+
+      // Non-metric general-web turns should not drift back into platform-metric padding.
+      if (intent === "general_web" && assistantReplyContainsPlatformCitation(assistantLlmText)) {
+        attribution.push("Safety: general-web reply drifted into platform metric citations; returned web-grounded fallback");
+        assistantLlmText = buildAssistantGroundedFallbackFromCited({
+          asked: message,
+          focusBlock: "",
+          comparisonBlock: "",
+          rankingBlock: "",
+          webBlock: cited.webContext,
+          includeWeb: true,
+        });
+      }
+
+      // Final verified-web gate in case the response was produced by a different path.
+      const webTagKeys = Object.keys(cited.citations.W);
+      const liveWebAvailable = needsVerifiedWeb && webTagKeys.length > 0;
+      if (liveWebAvailable) {
+        const missingW1 = !/\[W1\]/.test(assistantLlmText);
+        const timeSensitiveMissingW1 = assistantReplyTimeSensitiveMentionsWithoutWebCitation(assistantLlmText, {
+          webTag: "[W1]",
+        });
+        const officeholderCoverageFails =
+          needsVerifiedWeb &&
+          assistantReplyOfficeholderCoverageFails({ asked: message, reply: assistantLlmText, webTag: "[W1]" });
+        if (missingW1 || timeSensitiveMissingW1 || officeholderCoverageFails) {
+          attribution.push(
+            "Safety: final verified web reply missing [W1] for time-sensitive sentences; returned grounded evidence-only fallback"
+          );
+          assistantLlmText = buildAssistantGroundedFallbackFromCited({
+            asked: message,
+            focusBlock: cited.dashboardForPrompt,
+            comparisonBlock: cited.comparisonBlock,
+            rankingBlock: cited.rankingSection,
+            webBlock: cited.webContext,
+            includeWeb: !metricScopedTurn,
+          });
+        }
+      }
       const reply = rankingMarkdown
         ? `${rankingMarkdown.trim()}\n\n${assistantLlmText}`.trim()
         : assistantLlmText;
@@ -978,6 +1516,7 @@ function buildDataDigest(
     "gov_debt_pct_gdp",
     "life_expectancy",
     "gdp_per_capita",
+    "gni_per_capita_atlas",
     "population",
     "literacy_adult",
     "unemployment_ilo",
@@ -1095,11 +1634,12 @@ app.post("/api/analysis/pestel", async (req, res) => {
       );
     }
     const webPresent = Boolean(webFull.trim());
+    const webIsThin = webFull.trim().length < 900;
     const hasTemporalWindows = webFull.includes("Multi-horizon web research");
     const staticProfile = [
       `Government type (country profile): ${meta?.government ?? "—"}`,
       `Region: ${meta?.region ?? "—"}${meta?.subregion ? ` · Subregion: ${meta.subregion}` : ""}`,
-      `World Bank income level: ${profile?.incomeLevel ?? "—"}`,
+      `World Bank income level: ${profile?.incomeLevel ?? "—"}${profile?.incomeLevelId ? ` (${profile.incomeLevelId})` : ""}`,
       typeof meta?.area === "number" ? `Land area (km², country profile): ${meta.area}` : null,
     ]
       .filter(Boolean)
@@ -1139,7 +1679,7 @@ ${
 - **No web research** is available. Do **not** invent internet-era facts. For every PESTEL comprehensive subsection except Executive summary: paragraph 2 must be **one or two short sentences** stating that live web context was not available and that qualitative colour rests on platform indicators and country profile only. Executive summary paragraph 2 may say once that live web context was unavailable.`
 }
 - PESTEL & SWOT bullets: tight, analytical mini-paragraphs; no laundry lists of internal labels.
-- Comprehensive & strategicBusiness: **exactly three paragraphs** each (blank line between), each paragraph reads as **one continuous argument**, not a labeled outline.
+- Comprehensive & strategicBusiness: **exactly two paragraphs** each (blank line between), each paragraph reads as **one continuous argument**, not a labeled outline.
 - TECHNOLOGICAL: use literacy / enrollment / education spend from **indicators** for skills; never use GDP per capita as digital adoption. Digital policy themes only when web excerpts support them.
 - strategicBusiness: four distinct voices; no duplicated closings across quadrants.
 - **SWOT integrity:** Each quadrant must contain **five genuinely distinct** points. **Do not** repeat, paraphrase, or paste the same idea across strengths, weaknesses, opportunities, or threats. If a fact could fit two quadrants, place it **once** where it is strongest and develop a **different** angle for the other quadrant.`;
@@ -1161,19 +1701,19 @@ ${
     "threats": ["EXACTLY 5"]
   },
   "comprehensiveSections": [
-    {"title":"Executive summary","body":"EXACTLY three flowing paragraphs (blank lines between): macro snapshot from official series with years; cross-cutting themes from recent coverage as of ${todayIso}; outlook and what to monitor."},
-    {"title":"Political factors","body":"EXACTLY three integrated paragraphs: anchors from indicators/profile, web-supported political context, implications."},
-    {"title":"Economic factors","body":"EXACTLY three paragraphs: same integrated pattern."},
-    {"title":"Sociocultural factors","body":"EXACTLY three paragraphs: same pattern."},
-    {"title":"Technological factors","body":"EXACTLY three paragraphs: same pattern."},
-    {"title":"Environmental factors","body":"EXACTLY three paragraphs: same pattern."},
-    {"title":"Legal factors","body":"EXACTLY three paragraphs: same pattern."}
+    {"title":"Executive summary","body":"EXACTLY two flowing paragraphs (blank lines between): macro snapshot from official series with years; cross-cutting themes from recent coverage as of ${todayIso}; outlook and what to monitor."},
+    {"title":"Political factors","body":"EXACTLY two integrated paragraphs: anchors from indicators/profile plus web-supported political context, and then implications."},
+    {"title":"Economic factors","body":"EXACTLY two paragraphs: same integrated pattern."},
+    {"title":"Sociocultural factors","body":"EXACTLY two paragraphs: same pattern."},
+    {"title":"Technological factors","body":"EXACTLY two paragraphs: same pattern."},
+    {"title":"Environmental factors","body":"EXACTLY two paragraphs: same pattern."},
+    {"title":"Legal factors","body":"EXACTLY two paragraphs: same pattern."}
   ],
   "strategicBusiness": [
-    {"title":"Strengths","paragraphs":["EXACTLY three strings: grounded strengths, external validation from coverage, how to operationalize"]},
-    {"title":"Weaknesses","paragraphs":["EXACTLY three strings: data gaps or structural frictions, external risks from coverage, mitigation"]},
-    {"title":"Opportunities","paragraphs":["EXACTLY three strings: indicator-backed openings, catalysts from coverage, sequencing"]},
-    {"title":"Threats","paragraphs":["EXACTLY three strings: dashboard risk signals, external shocks from coverage, resilience"]}
+    {"title":"Strengths","paragraphs":["EXACTLY two strings: grounded strengths, external validation from coverage and how to operationalize"]},
+    {"title":"Weaknesses","paragraphs":["EXACTLY two strings: data gaps or structural frictions and external risks from coverage, plus mitigation"]},
+    {"title":"Opportunities","paragraphs":["EXACTLY two strings: indicator-backed openings with catalysts from coverage, plus sequencing"]},
+    {"title":"Threats","paragraphs":["EXACTLY two strings: dashboard risk signals with external shocks from coverage, plus resilience"]}
   ],
   "newMarketAnalysis": ["EXACTLY 5 bullets for market entry / expansion"],
   "keyTakeaways": ["EXACTLY 5 bullets"],
@@ -1347,14 +1887,14 @@ app.post("/api/analysis/porter", async (req, res) => {
       const tavilyBase = { searchDepth: "advanced" as const, includeAnswer: "advanced" as const };
       const queries: { label: string; q: string; topic: "general" | "news" }[] = [
         {
-          label: "Industry competition & market structure",
-          q: `${name} ${industrySector} Porter five forces competitive rivalry market structure M&A consolidation ${year} ${calY}`,
-          topic: "news",
-        },
-        {
           label: "Regulation, trade, investment & entry barriers",
           q: `${name} ${industrySector} regulation FDI trade policy licensing barriers to entry ${calY}`,
           topic: "general",
+        },
+        {
+          label: "Industry competition & market structure",
+          q: `${name} ${industrySector} Porter five forces competitive rivalry market structure M&A consolidation ${year} ${calY}`,
+          topic: "news",
         },
         {
           label: "Supply chain, suppliers, buyers & demand",
@@ -1415,6 +1955,7 @@ app.post("/api/analysis/porter", async (req, res) => {
       );
     }
     const webPresent = Boolean(webFull.trim());
+    const webIsThin = webFull.trim().length < 900;
 
     const porterNarrativeRules = `
 SCOPE: Analyze **only** ${meta?.name ?? cca3} (${cca3}) and industry **${industrySector}**.
@@ -1436,14 +1977,13 @@ ${
   webPresent
     ? ""
     : `
-- **No web research** is available. State briefly in paragraph 2 of each comprehensive section (except Executive Summary may say once in paragraph 2) that live web context was unavailable; still deliver three paragraphs using digest + careful sector inference.`
+- **No web research** is available. State briefly in paragraph 2 of each comprehensive section (except Executive Summary may say once in paragraph 2) that live web context was unavailable; still deliver two paragraphs using digest + careful sector inference.`
 }
 
 NARRATIVE & SOURCE INTEGRATION (mandatory):
-- Each comprehensive \`body\` is **EXACTLY three prose paragraphs**, separated by one blank line (\\n\\n). No markdown inside \`body\`.
+- Each comprehensive \`body\` is **EXACTLY two prose paragraphs**, separated by one blank line (\\n\\n). No markdown inside \`body\`.
 - Paragraph 1: **Digest-first**—concrete metrics with matching years from the indicator list; tie to this ISIC sector.
-- Paragraph 2: Web-supported themes for that force (competition, regulation, supply chain, substitutes, buyers)—blend time horizons when excerpts allow. If thin, say so once briefly.
-- Paragraph 3: Strategy implications **specific to that force only**—no duplicated closing across sections.
+- Paragraph 2: Web-supported themes for that force plus a tight, force-specific implication; if web is thin, say so once briefly.
 - **Forces bullets:** five distinct, analytical mini-paragraphs per force; digest anchors before speculative industry colour.
 - **newMarketAnalysis, keyTakeaways, recommendations:** each **exactly five** bullets, non-redundant, digest-aware where metrics apply.
 - Quantitative claims only from the digest or explicit figures in web excerpts.`;
@@ -1458,12 +1998,12 @@ NARRATIVE & SOURCE INTEGRATION (mandatory):
     {"number":5,"title":"Competitive Rivalry","accent":"rivalry","bullets":["EXACTLY 5"]}
   ],
   "comprehensiveSections": [
-    {"title":"Executive Summary","body":"EXACTLY three paragraphs (\\n\\n between). (1) Country + industry + **digest metrics with years**. (2) Competitive / policy themes from web across time horizons. (3) Integrated five-forces outlook and what to monitor."},
-    {"title":"1. Threat of new entrants","body":"EXACTLY three paragraphs: digest entry economics first; web on regulation/investment/disruption; implications for entry threat."},
-    {"title":"2. Bargaining power of suppliers","body":"EXACTLY three paragraphs: digest macro/input proxies first; web on supply chain and commodities; supplier power implications."},
-    {"title":"3. Bargaining power of buyers","body":"EXACTLY three paragraphs: digest demand/income/labour first; web on channels and pricing; buyer power implications."},
-    {"title":"4. Threat of substitutes","body":"EXACTLY three paragraphs: digest trade/income/tech proxies first; web on alternatives and innovation; substitute threat implications."},
-    {"title":"5. Competitive rivalry","body":"EXACTLY three paragraphs: digest growth/macro rivalry signals first; web on competitors and pricing; rivalry implications."}
+    {"title":"Executive Summary","body":"EXACTLY two flowing paragraphs (\\n\\n between): (1) Country + industry + **digest metrics with years**; (2) competitive / policy themes from web (if any) plus an integrated five-forces outlook and what to monitor."},
+    {"title":"1. Threat of new entrants","body":"EXACTLY two paragraphs: digest entry economics first; then web on regulation/investment/disruption plus implications for entry threat."},
+    {"title":"2. Bargaining power of suppliers","body":"EXACTLY two paragraphs: digest macro/input proxies first; then web on supply chain and commodities plus supplier power implications."},
+    {"title":"3. Bargaining power of buyers","body":"EXACTLY two paragraphs: digest demand/income/labour first; then web on channels and pricing plus buyer power implications."},
+    {"title":"4. Threat of substitutes","body":"EXACTLY two paragraphs: digest trade/income/tech proxies first; then web on alternatives and innovation plus substitute threat implications."},
+    {"title":"5. Competitive rivalry","body":"EXACTLY two paragraphs: digest growth/macro rivalry signals first; then web on competitors and pricing plus rivalry implications."}
   ],
   "newMarketAnalysis": ["EXACTLY 5 bullets"],
   "keyTakeaways": ["EXACTLY 5 bullets"],
@@ -1482,28 +2022,114 @@ ${digest}
 WEB RESEARCH — Tavily excerpts (may be empty). Synthesize; do not invent facts:
 ${webForLlm || "(none — follow no-web rules above)"}`;
 
+    const extractDigestYears = (d: string): Set<string> => {
+      const out = new Set<string>();
+      const re = /\((19\d{2}|20\d{2})\):/g;
+      for (;;) {
+        const m = re.exec(d);
+        if (!m) break;
+        out.add(m[1]!);
+      }
+      return out;
+    };
+
+    const sanitizePorterByGrounding = (analysis: PorterAnalysis, fallback: PorterAnalysis): PorterAnalysis => {
+      // If web context is too thin, trust the deterministic scaffold instead of the model.
+      if (!webPresent || webIsThin) return fallback;
+
+      const digestYears = extractDigestYears(digest);
+      const webLower = (webForLlm || "").toLowerCase();
+
+      const fbForceByNo = new Map<number, PorterForce>();
+      for (const f of fallback.forces) fbForceByNo.set(f.number, f);
+
+      const forces = analysis.forces.map((f) => {
+        const fb = fbForceByNo.get(f.number);
+        if (!fb) return f;
+
+        let bullets = [...f.bullets];
+
+        // Keep the exact scaffold language for the New Entry force (prevents overconfident regulatory assertions).
+        if (f.number === 1) {
+          const scaffold = fb.bullets.find((b) => /barriers to entry/i.test(b)) ?? fb.bullets[0];
+          if (scaffold) bullets[0] = scaffold;
+        }
+
+        const sanitizeBullet = (b: string, idx: number): string => {
+          const years = [...b.matchAll(/\b(19\d{2}|20\d{2})\b/g)].map((m) => m[1]!);
+          if (years.length > 0 && !years.some((y) => digestYears.has(y))) {
+            return fb.bullets[idx] ?? b;
+          }
+
+          // If a bullet asserts regulatory/licensing specifics, ensure the web bundle contains the theme terms.
+          if (/(licens|permit|regulation|investment promotion|entry barrier|barriers to entry|fdi)/i.test(b)) {
+            if (!/(licens|permit|regulation|investment promotion|entry barrier|barriers to entry|fdi)/i.test(webLower)) {
+              return fb.bullets[idx] ?? b;
+            }
+          }
+          return b;
+        };
+
+        bullets = bullets.map((b, i) => sanitizeBullet(b, i));
+        return { ...f, bullets };
+      });
+
+      const fbSectionByTitle = new Map<string, string>();
+      for (const s of fallback.comprehensiveSections) fbSectionByTitle.set(s.title.trim().toLowerCase(), s.body);
+
+      const comprehensiveSections = analysis.comprehensiveSections.map((s) => {
+        const fbBody = fbSectionByTitle.get(s.title.trim().toLowerCase());
+        if (!fbBody) return s;
+
+        const paras = s.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+        const fbParas = fbBody.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+        const p1 = paras[0] ?? "";
+        const p1HasDigestYear = [...p1.matchAll(/\b(19\d{2}|20\d{2})\b/g)].some((m) => digestYears.has(m[1]!));
+
+        if (!p1HasDigestYear) return { ...s, body: fbBody };
+
+        if (/(licens|permit|regulation|investment promotion|entry barrier|barriers to entry)/i.test(s.body)) {
+          if (!/(licens|permit|regulation|investment promotion|entry barrier|barriers to entry)/i.test(webLower)) {
+            return { ...s, body: fbBody };
+          }
+        }
+
+        // Keep original.
+        if (paras.length !== fbParas.length) return { ...s, body: fbBody };
+        return s;
+      });
+
+      return { ...analysis, forces, comprehensiveSections };
+    };
+
     if (!process.env.GROQ_API_KEY) {
-      attribution.push("LLM: disabled — data-only template (set GROQ_API_KEY for sector narrative)");
+      attribution.push("Porter: AI narrative disabled; using digest-based Porter analysis");
+      return res.json({ analysis: fallback, attribution });
+    }
+
+    if (webIsThin) {
+      attribution.push("Porter: sector reporting too thin; using digest-based Porter analysis");
       return res.json({ analysis: fallback, attribution });
     }
     try {
       const { text, model, primaryFailed } = await groqChatWithFallbackForUseCase(
         "porter",
-        `You are a competitive strategy analyst. Output **only** valid JSON. Every string is client-facing: no "SOURCE A/B", no internal labels. Exactly **5 bullets** per force; **3 paragraphs** per comprehensive body; **5 bullets** each for newMarketAnalysis, keyTakeaways, and recommendations. Prioritize PLATFORM INDICATORS for numbers and years, then web themes across time horizons.`,
+        `You are a competitive strategy analyst. Output **only** valid JSON. Every string is client-facing: no "SOURCE A/B", no internal labels. Exactly **5 bullets** per force; **2 paragraphs** per comprehensive body; **5 bullets** each for newMarketAnalysis, keyTakeaways, and recommendations. Priorize PLATFORM INDICATORS for numbers and years, then web themes across time horizons.`,
         prompt,
-        { jsonObject: true, analyticsRecencyHint: true }
+        { jsonObject: true, temperature: 0.2, topP: 0.86, analyticsRecencyHint: true }
       );
       attribution.push(
         primaryFailed
-          ? `LLM: Groq — Porter stack (${model}, fallback after primary error)`
-          : `LLM: Groq — Porter stack (${model})`
+          ? `Porter: AI narrative refined`
+          : `Porter: AI narrative refined`
       );
       const partial = parsePorterFromLlm(text);
       const analysis = partial ? mergePorterAnalysis(partial, fallback) : fallback;
-      res.json({ analysis, attribution });
+      const grounded = sanitizePorterByGrounding(analysis, fallback);
+      res.json({ analysis: grounded, attribution });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      attribution.push(`LLM: Groq failed — ${msg.slice(0, 200)}${msg.length > 200 ? "…" : ""}; using data scaffold`);
+      attribution.push("Porter: using digest-based Porter analysis");
       res.json({ analysis: fallback, attribution });
     }
   } catch (e) {
@@ -1543,6 +2169,439 @@ app.get("/api/analysis/correlation-global", async (req, res) => {
       startYear,
       endYear,
     });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+function correlationStrengthLabel(r: number): string {
+  const a = Math.abs(r);
+  if (a >= 0.7) return "strong";
+  if (a >= 0.4) return "moderate";
+  if (a >= 0.2) return "weak";
+  return "negligible";
+}
+
+function pValueIsSignificant(p: string | null | undefined): boolean {
+  if (!p || p === "—") return false;
+  if (p.startsWith("<")) return true;
+  const n = Number(p);
+  return Number.isFinite(n) && n < 0.05;
+}
+
+function buildBusinessCorrelationNarrativeFallback(args: {
+  metricX: string;
+  metricY: string;
+  labelX: string;
+  labelY: string;
+  startYear: number;
+  endYear: number;
+  yearCount: number;
+  excludeIqr: boolean;
+  highlightCountryIso3?: string;
+  highlightCountryName?: string;
+  correlation: number | null;
+  pValue: string | null;
+  rSquared: number | null;
+  slope: number | null;
+  intercept: number | null;
+  n: number;
+  nMissing: number;
+  nIqrFlagged: number;
+  subgroups: { region: string; r: number; n: number; pValue: string }[];
+  highlightStats?: {
+    pointCount: number;
+    meanX: number | null;
+    meanY: number | null;
+    meanResidual: number | null;
+    meanFitted: number | null;
+    nIqrOutliers: number;
+  };
+  residualDiagnostics?: {
+    meanAbsResidual: number | null;
+    medianResidual: number | null;
+    residualIqr: number | null;
+  };
+}): {
+  associationParagraphs: string[];
+  correlationBullets: string[];
+  causationParagraph: string;
+  causationHypotheses: string[];
+  recommendedAnalyses: string[];
+} {
+  const {
+    labelX,
+    labelY,
+    startYear,
+    endYear,
+    yearCount,
+    excludeIqr,
+    correlation,
+    pValue,
+    rSquared,
+    slope,
+    n,
+    nMissing,
+    nIqrFlagged,
+    subgroups,
+    highlightStats,
+    residualDiagnostics,
+  } = args;
+
+  const xCategory = METRIC_BY_ID[args.metricX]?.category ?? "general";
+  const yCategory = METRIC_BY_ID[args.metricY]?.category ?? "general";
+
+  const significant = pValueIsSignificant(pValue);
+  const strength = correlation !== null ? correlationStrengthLabel(correlation) : "negligible";
+  const direction =
+    slope === null
+      ? correlation === null
+        ? "an interpretable linear relationship"
+        : correlation >= 0
+          ? "a tendency for Y to rise with X"
+          : "a tendency for Y to fall as X rises"
+      : slope >= 0
+        ? "higher X is associated with higher Y"
+        : "higher X is associated with lower Y";
+
+  const associationP1 =
+    correlation === null
+      ? `Across ${yearCount} years (${startYear}–${endYear}), the platform has insufficient overlapping data to estimate a stable linear association between ${labelX} and ${labelY}.`
+      : `Across ${yearCount} years (${startYear}–${endYear}) using ${n} point(s), the relationship between ${labelX} (X) and ${labelY} (Y) shows ${strength} linear association: ${direction}. ${significant ? "The association is statistically significant at the 5% level." : "The statistical evidence is not clearly significant at the 5% level."}`;
+
+  const associationP2 = correlation === null
+    ? `Data context: ${nMissing} point(s) were missing and ${nIqrFlagged} point(s) were flagged by the IQR rule (with “Exclude IQR outliers” = ${excludeIqr ? "on" : "off"}). For interpretation, treat any apparent pattern as exploratory and confirm with additional robustness checks.`
+    : (() => {
+        const residualMedianVal = residualDiagnostics?.medianResidual ?? null;
+        const medianResidualStr =
+          residualMedianVal !== null && Number.isFinite(residualMedianVal) ? residualMedianVal.toFixed(3) : null;
+
+        const residualMeanAbsVal = residualDiagnostics?.meanAbsResidual ?? null;
+        const meanAbsResidualStr =
+          residualMeanAbsVal !== null && Number.isFinite(residualMeanAbsVal) ? residualMeanAbsVal.toFixed(3) : null;
+
+        const highlightName = args.highlightCountryName?.trim();
+        const highlightMeanResidual = highlightStats?.meanResidual ?? null;
+        const highlightMeanResidualStr =
+          highlightMeanResidual !== null ? highlightMeanResidual.toExponential(2) : null;
+        const highlightPos =
+          highlightMeanResidual === null
+            ? null
+            : Math.abs(highlightMeanResidual) < 1e-12
+              ? "close to the fitted line"
+              : highlightMeanResidual > 0
+                ? "above the fitted line"
+                : "below the fitted line";
+
+        const residualSentence =
+          medianResidualStr !== null && meanAbsResidualStr !== null
+            ? ` Residuals are centered around a median of ${medianResidualStr} (mean absolute residual ${meanAbsResidualStr}), so most points largely follow the linear pattern while larger deviations show up as IQR outliers.`
+            : medianResidualStr !== null
+              ? ` Residuals are centered around a median of ${medianResidualStr}, which indicates the fitted line captures the central tendency, with deviations concentrated among outliers.`
+              : "";
+
+        const highlightSentence =
+          highlightName && highlightPos && highlightMeanResidualStr
+            ? ` Relative to the fitted line, ${highlightName} sits ${highlightPos} on average (mean residual ${highlightMeanResidualStr}). Use this as a hypothesis-generation cue rather than a conclusion about causality.`
+            : "";
+
+        const base =
+          `If you translate the fitted line into intuition, the slope implies how changes in X align with changes in Y within the observed range. The model also reports ${
+            rSquared !== null ? `r² ≈ ${rSquared.toFixed(3)} (explained variance proxy).` : "an R² estimate (if available)."
+          } Outliers flagged by the IQR rule (nIqrFlagged = ${nIqrFlagged}) can strongly influence linear fits, so it is useful to compare results with and without IQR exclusion.`;
+
+        return `${base}${residualSentence}${highlightSentence}`;
+      })();
+
+  const correlationBullets: string[] = [];
+  correlationBullets.push(
+    correlation !== null
+      ? `Pearson r = ${correlation.toFixed(3)} (${strength}) over ${n} point(s).`
+      : `Pearson r unavailable (insufficient overlap).`
+  );
+  correlationBullets.push(
+    pValue !== null && pValue !== "—"
+      ? `p-value = ${pValue} (${significant ? "significant" : "not clearly significant"}).`
+      : `p-value unavailable for this pairing.`
+  );
+  if (slope !== null) {
+    correlationBullets.push(`Slope indicates the direction and magnitude of the fitted relationship (beta / 1-unit X → ${slope.toExponential(2)} units of Y).`);
+  } else {
+    correlationBullets.push(`Slope unavailable; focus on the qualitative direction implied by r and subgroup patterns.`);
+  }
+
+  const channelCandidates: string[] = [];
+  if ((xCategory === "financial" || xCategory === "education" || xCategory === "general") && yCategory === "health") {
+    channelCandidates.push("economic capacity translating into access to services (health, nutrition, and prevention)");
+    channelCandidates.push("health system readiness and coverage mediating outcomes tied to development");
+  } else if (xCategory === "health" && (yCategory === "financial" || yCategory === "education")) {
+    channelCandidates.push("human-capital effects where health conditions shape productivity and economic performance");
+    channelCandidates.push("reverse causality where economic/educational resources drive improvements in health indicators");
+  } else if (yCategory === xCategory && xCategory !== "general") {
+    channelCandidates.push("shared drivers within the same domain (policy, institutions, infrastructure, and measurement scope)");
+    channelCandidates.push("both metrics responding to broader macro/sector conditions that move them together");
+  } else {
+    channelCandidates.push("common macro drivers affecting both metrics (e.g., institutions, infrastructure, and broader sector capacity)");
+    channelCandidates.push("mediating pathways where the X metric influences an intermediate factor that then affects Y");
+  }
+
+  const topRegions = [...subgroups]
+    .sort((a, b) => Math.abs(b.r) - Math.abs(a.r))
+    .slice(0, 3);
+
+  const highlightCausationHint = (() => {
+    const name = args.highlightCountryName?.trim();
+    const meanResidual = highlightStats?.meanResidual ?? null;
+    if (!name || meanResidual === null || !Number.isFinite(meanResidual)) return "";
+    const pos =
+      Math.abs(meanResidual) < 1e-12 ? "close to" : meanResidual > 0 ? "above" : "below";
+    const meanResidualStr = meanResidual.toExponential(2);
+    return ` In this window, ${name} sits ${pos} the fitted line on average (mean residual ${meanResidualStr}). Use that deviation to prioritize where to investigate mechanisms, not to infer causality.`;
+  })();
+
+  const residualCausationHint = (() => {
+    const medianResidual = residualDiagnostics?.medianResidual ?? null;
+    if (medianResidual === null || !Number.isFinite(medianResidual)) return "";
+    const residualMedianStr = medianResidual.toFixed(3);
+    return ` The residual center (median residual ${residualMedianStr}) supports the linear specification as a first-pass summary, while IQR outliers flag where the relationship may differ across countries.`;
+  })();
+
+  const causationParagraph =
+    `Correlation does not imply causation. The patterns you see are consistent with multiple causal structures: ${channelCandidates[0] || "shared drivers"} and ${channelCandidates[1] || "mediated pathways"}. The strongest region-level associations can help you prioritize where to investigate context: ${topRegions.length ? topRegions.map((r) => `${r.region} (r ≈ ${r.r.toFixed(3)})`).join("; ") : "subgroup strength varies by region"}.${highlightCausationHint}${residualCausationHint} Treat these as hypothesis-generation signals, not proof of causal direction.`;
+
+  const causationHypotheses = [
+    `If ${labelX} improves (or reflects stronger underlying capacity), it plausibly increases ${labelY} through a development or capacity channel; confirm directionality with time-lagged patterns.`,
+    `A confounder (institutions, education, infrastructure, governance) may drive both ${labelX} and ${labelY}; test by adding controls or subgroup stability across comparable regions.`,
+    `Reverse causality may be operating (where ${labelY} influences underlying resources that also shape ${labelX}); test by comparing lag structures and checking whether effects persist when reversing the regression direction.`,
+  ];
+
+  const recommendedAnalyses = [
+    "Check robustness with and without IQR outliers, then test whether the sign/direction remains stable.",
+    "Run time-lag or panel-style comparisons (X leading Y by 1–3 years) to evaluate temporality.",
+    "Add controls (or multivariate models) to reduce confounding, and compare subgroup results by region or income band.",
+  ];
+
+  return {
+    associationParagraphs: [associationP1, associationP2],
+    correlationBullets,
+    causationParagraph,
+    causationHypotheses,
+    recommendedAnalyses,
+  };
+}
+
+app.post("/api/analysis/business/correlation-narrative", async (req, res) => {
+  try {
+    const metricX = String(req.body?.metricX ?? "").trim();
+    const metricY = String(req.body?.metricY ?? "").trim();
+    if (!METRIC_BY_ID[metricX] || !METRIC_BY_ID[metricY]) return res.status(400).json({ error: "Unknown metricX or metricY" });
+
+    const labelX = String(req.body?.labelX ?? getMetricShortLabel(metricX));
+    const labelY = String(req.body?.labelY ?? getMetricShortLabel(metricY));
+
+    const startYear = Number(req.body?.startYear ?? MIN_DATA_YEAR);
+    const endYear = Number(req.body?.endYear ?? currentDataYear());
+    const excludeIqr = String(req.body?.excludeIqr ?? "false").toLowerCase() === "true";
+    const yearCount = Math.max(1, endYear - startYear + 1);
+
+    const correlation = req.body?.correlation ?? null;
+    const pValue = req.body?.pValue ?? null;
+    const rSquared = req.body?.rSquared ?? null;
+    const slope = req.body?.slope ?? null;
+    const intercept = req.body?.intercept ?? null;
+    const n = Number(req.body?.n ?? 0);
+    const nMissing = Number(req.body?.nMissing ?? 0);
+    const nIqrFlagged = Number(req.body?.nIqrFlagged ?? 0);
+
+    const toFiniteOrNull = (v: any): number | null => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    const hs: any = req.body?.highlightStats;
+    const parsedHighlightStats =
+      hs && typeof hs === "object"
+        ? {
+            pointCount: Number(hs?.pointCount ?? 0),
+            meanX: toFiniteOrNull(hs?.meanX),
+            meanY: toFiniteOrNull(hs?.meanY),
+            meanResidual: toFiniteOrNull(hs?.meanResidual),
+            meanFitted: toFiniteOrNull(hs?.meanFitted),
+            nIqrOutliers: Number(hs?.nIqrOutliers ?? 0),
+          }
+        : undefined;
+    const highlightStats =
+      parsedHighlightStats && parsedHighlightStats.pointCount > 0 ? parsedHighlightStats : undefined;
+
+    const rd: any = req.body?.residualDiagnostics;
+    const residualDiagnostics =
+      rd && typeof rd === "object"
+        ? {
+            meanAbsResidual: toFiniteOrNull(rd?.meanAbsResidual),
+            medianResidual: toFiniteOrNull(rd?.medianResidual),
+            residualIqr: toFiniteOrNull(rd?.residualIqr),
+          }
+        : undefined;
+
+    const subgroups = Array.isArray(req.body?.subgroups) ? req.body.subgroups : [];
+    const normalizedSubgroups = subgroups
+      .map((s: any) => ({
+        region: String(s?.region ?? ""),
+        r: Number(s?.r ?? NaN),
+        n: Number(s?.n ?? NaN),
+        pValue: String(s?.pValue ?? "—"),
+      }))
+      .filter((s: any) => s.region && Number.isFinite(s.r) && Number.isFinite(s.n));
+
+    const fallback = buildBusinessCorrelationNarrativeFallback({
+      metricX,
+      metricY,
+      labelX,
+      labelY,
+      startYear,
+      endYear,
+      yearCount,
+      excludeIqr,
+      highlightCountryIso3: req.body?.highlightCountryIso3 ? String(req.body.highlightCountryIso3) : undefined,
+      highlightCountryName: req.body?.highlightCountryName ? String(req.body.highlightCountryName) : undefined,
+      correlation: correlation === null ? null : Number(correlation),
+      pValue: pValue === null ? null : String(pValue),
+      rSquared: rSquared === null ? null : Number(rSquared),
+      slope: slope === null ? null : Number(slope),
+      intercept: intercept === null ? null : Number(intercept),
+      n,
+      nMissing,
+      nIqrFlagged,
+      subgroups: normalizedSubgroups,
+      highlightStats,
+      residualDiagnostics,
+    });
+
+    if (!process.env.GROQ_API_KEY?.trim()) {
+      res.json({ narrative: fallback, modelUsed: null, triedModels: [] });
+      return;
+    }
+
+    const sys = `You are a business analytics strategist. Create a coherent, cohesive, fluid narrative that interprets multi-metric correlations across countries (association, not proof). Output ONLY valid JSON.
+
+Hard rules:
+- Do NOT invent any facts or numbers. You may only reuse numbers and labels provided in the user payload (r, p-value, slope, intercept, r², missing counts, sample size n, year range, and region subgroup r values). If highlightStats or residualDiagnostics are missing, do not mention them.
+- Correlation is not causation: any causal language must be clearly labeled as hypotheses and must mention that causation requires additional evidence (e.g. temporality, controls, instruments, experiments).
+- Keep the tone analyst-grade, readable, and non-repetitive.
+
+Structure expectations (still JSON only):
+- associationParagraphs[0] should summarize the direction + strength + statistical evidence.
+- associationParagraphs[1] should smoothly connect the fitted line, residual diagnostics (if provided), and the highlight-country position (if provided).
+- causationParagraph should stay explicitly in "hypothesis-generation" mode and reference region subgroup strength.
+
+Return schema:
+{
+  "associationParagraphs": [string, string],
+  "correlationBullets": [string, string, string],
+  "causationParagraph": string,
+  "causationHypotheses": [string, string, string],
+  "recommendedAnalyses": [string, string, string]
+}`;
+
+    const user = JSON.stringify({
+      metricX,
+      metricY,
+      labelX,
+      labelY,
+      startYear,
+      endYear,
+      yearCount,
+      excludeIqr,
+      highlightCountryIso3: req.body?.highlightCountryIso3 ? String(req.body.highlightCountryIso3) : "",
+      highlightCountryName: req.body?.highlightCountryName ? String(req.body.highlightCountryName) : "",
+      stats: {
+        correlation: fallback.associationParagraphs[0].includes("insufficient") ? null : (correlation === null ? null : Number(correlation)),
+        pValue: pValue === null ? null : String(pValue),
+        rSquared: rSquared === null ? null : Number(rSquared),
+        slope: slope === null ? null : Number(slope),
+        intercept: intercept === null ? null : Number(intercept),
+        n,
+        nMissing,
+        nIqrFlagged,
+      },
+      topSubgroupsByAbsR: normalizedSubgroups
+        .slice()
+        .sort((a: any, b: any) => Math.abs(b.r) - Math.abs(a.r))
+        .slice(0, 5),
+      categoryX: METRIC_BY_ID[metricX]?.category,
+      categoryY: METRIC_BY_ID[metricY]?.category,
+      highlightStats: highlightStats ?? null,
+      residualDiagnostics: residualDiagnostics ?? null,
+      fallback,
+    });
+
+    const { text } = await groqChatWithFallbackForUseCase(
+      "business",
+      sys,
+      `Payload (stats + context) is below. Produce JSON only.\n${user}`,
+      { jsonObject: true, temperature: 0.22, topP: 0.84, timeoutMs: 70_000 }
+    );
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      parsed = null;
+    }
+
+    if (
+      parsed &&
+      Array.isArray(parsed.associationParagraphs) &&
+      parsed.associationParagraphs.length === 2 &&
+      Array.isArray(parsed.correlationBullets) &&
+      parsed.correlationBullets.length === 3 &&
+      Array.isArray(parsed.causationHypotheses) &&
+      parsed.causationHypotheses.length === 3 &&
+      Array.isArray(parsed.recommendedAnalyses) &&
+      parsed.recommendedAnalyses.length === 3
+    ) {
+      res.json({ narrative: parsed, modelUsed: null, triedModels: [] });
+      return;
+    }
+
+    const strictSys = `${sys}
+
+STRICT OUTPUT REQUIREMENTS:
+- Output ONLY a JSON object (no markdown, no surrounding text).
+- Exactly these keys must exist.
+- Array lengths: associationParagraphs=2, correlationBullets=3, causationHypotheses=3, recommendedAnalyses=3.
+`;
+
+    const { text: retryText } = await groqChatWithFallbackForUseCase(
+      "business",
+      strictSys,
+      `Payload (stats + context) is below. Produce JSON only.\n${user}`,
+      { jsonObject: true, temperature: 0.12, topP: 0.78, timeoutMs: 70_000 }
+    );
+
+    let retryParsed: any = null;
+    try {
+      retryParsed = JSON.parse(retryText);
+    } catch {
+      retryParsed = null;
+    }
+
+    if (
+      retryParsed &&
+      Array.isArray(retryParsed.associationParagraphs) &&
+      retryParsed.associationParagraphs.length === 2 &&
+      Array.isArray(retryParsed.correlationBullets) &&
+      retryParsed.correlationBullets.length === 3 &&
+      Array.isArray(retryParsed.causationHypotheses) &&
+      retryParsed.causationHypotheses.length === 3 &&
+      Array.isArray(retryParsed.recommendedAnalyses) &&
+      retryParsed.recommendedAnalyses.length === 3
+    ) {
+      res.json({ narrative: retryParsed, modelUsed: null, triedModels: [] });
+      return;
+    }
+
+    res.json({ narrative: fallback, modelUsed: null, triedModels: [] });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

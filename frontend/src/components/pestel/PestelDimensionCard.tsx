@@ -1,14 +1,26 @@
+import { useRef } from "react";
 import type { PestelDimension } from "../../types/pestel";
 import { PESTEL_DIMENSION_STYLES } from "./pestelTheme";
+import ExportPngButton from "../ExportPngButton";
 
 export default function PestelDimensionCard({ dim }: { dim: PestelDimension }) {
   const style = PESTEL_DIMENSION_STYLES[dim.label] ?? {
     header: "#475569",
     tint: "#f1f5f9",
   };
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  const filename = `pestel_${dim.label.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}.png`;
 
   return (
-    <div className="flex overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+    <div ref={(n) => (cardRef.current = n)} className="relative flex overflow-hidden rounded-xl border border-slate-200 shadow-sm">
+      <div className="absolute right-2 top-2 z-10">
+        <ExportPngButton
+          getTarget={() => cardRef.current}
+          filename={filename}
+          size="sm"
+          title={`Export ${dim.label} chart (PNG)`}
+        />
+      </div>
       <div
         className="flex w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1 px-2 py-6 text-center text-white sm:w-28"
         style={{ backgroundColor: style.header }}

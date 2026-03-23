@@ -78,11 +78,60 @@ body {
  */
 .cap-viz-gallery-step .cap-wld-chart-host {
   flex: 1 1 0% !important;
-  height: auto !important;
-  min-height: min(48dvh, 520px);
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
 }
 
 /** Per-chart / per-map fullscreen (ChartTableToggle): Recharts fills the flex plot shell */
+.cap-viz-fullscreen {
+  width: 100vw;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+}
+
+.cap-viz-fullscreen .cap-viz-fs-table,
+.cap-viz-fullscreen .cap-fs-table-shell,
+.cap-viz-fullscreen .cap-viz-gallery-step,
+.cap-viz-fullscreen .cap-wld-chart-host {
+  min-height: 0 !important;
+}
+
+.cap-viz-fullscreen .cap-line-chart-shell,
+.cap-viz-gallery-step .cap-line-chart-shell,
+.cap-viz-fullscreen .cap-map-shell,
+.cap-viz-gallery-step .cap-map-shell {
+  min-height: 0 !important;
+  height: auto !important;
+  max-height: none !important;
+  flex: 1 1 0% !important;
+}
+
+.cap-viz-fullscreen .cap-line-chart-root,
+.cap-viz-gallery-step .cap-line-chart-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0 !important;
+  height: 100% !important;
+}
+
+.cap-viz-fullscreen .cap-chart-inner-shell,
+.cap-viz-gallery-step .cap-chart-inner-shell,
+.cap-viz-fullscreen .cap-choropleth-shell,
+.cap-viz-gallery-step .cap-choropleth-shell,
+.cap-viz-fullscreen .cap-choropleth-map-box,
+.cap-viz-gallery-step .cap-choropleth-map-box {
+  min-height: 0 !important;
+  height: 100% !important;
+  max-height: none !important;
+}
+
+.cap-viz-fullscreen .cap-viz-fs-table table,
+.cap-viz-fullscreen .cap-fs-table-shell table {
+  width: 100%;
+}
+
 .cap-viz-fullscreen .recharts-responsive-container {
   width: 100% !important;
   height: 100% !important;

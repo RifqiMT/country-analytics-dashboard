@@ -150,7 +150,7 @@ export default function GlobalChoropleth({
   }
 
   return (
-    <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div className="cap-choropleth-shell relative flex h-full min-h-0 w-full min-w-0 flex-col rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <div className="flex flex-1 flex-wrap items-center gap-3">
           <span className="text-xs text-slate-500">
@@ -193,7 +193,7 @@ export default function GlobalChoropleth({
 
       <div
         ref={mapBoxRef}
-        className="relative min-h-[240px] w-full min-w-0 flex-1 overflow-hidden rounded-xl border border-slate-100 bg-slate-50"
+        className="cap-choropleth-map-box relative min-h-[240px] w-full min-w-0 flex-1 overflow-hidden rounded-xl border border-slate-100 bg-slate-50"
       >
         <ComposableMap
           projection="geoMercator"

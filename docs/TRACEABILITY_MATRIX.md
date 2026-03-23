@@ -1,65 +1,25 @@
-# Traceability matrix
+# Enterprise Traceability Matrix
 
-Maps **product intent** to **implementation anchors** for the Country Analytics Platform. Use for release reviews, QA planning, compliance checklists, and onboarding.
+## Requirement to Implementation Mapping
 
-**Legend:** ✓ = implemented in current codebase; *(partial)* = optional or environment-dependent path.
+| Req ID | Requirement | Primary Implementation | Supporting Files | Validation |
+| --- | --- | --- | --- | --- |
+| FR-01 | Country dashboard indicators and trends | `frontend/src/pages/Dashboard.tsx` | `backend/src/index.ts`, `backend/src/worldBank.ts` | Manual UX + API checks |
+| FR-02 | Global table and snapshots | `frontend/src/pages/GlobalAnalytics.tsx` | `backend/src/globalTable.ts`, `backend/src/globalSnapshot.ts` | Snapshot year fallback test |
+| FR-03 | Assistant grounded answers with citations | `backend/src/index.ts` (`/api/assistant/chat`) | `assistantCitationContext.ts`, `assistantIntel.ts` | Citation/safety gate verification |
+| FR-04 | Verified web mode for time-sensitive non-metrics | `backend/src/index.ts` deterministic verified path | `assistantTavilyFallback.ts` | Prompt benchmark checks |
+| FR-05 | PESTEL analysis generation | `frontend/src/pages/Pestel.tsx` | `backend/src/pestelAnalysis.ts`, `/api/analysis/pestel` | JSON schema + fallback checks |
+| FR-06 | Porter analysis generation | `frontend/src/pages/Porter.tsx` | `backend/src/porterAnalysis.ts`, `/api/analysis/porter` | Grounding and fallback checks |
+| FR-07 | Business correlation analysis | `frontend/src/pages/BusinessAnalytics.tsx` | `backend/src/correlationGlobal.ts` | Numeric sanity checks |
+| FR-08 | Country comparison in assistant with % of top | deterministic comparison table | `backend/src/index.ts` | Table output validation |
+| FR-09 | Persisted business analysis across feature navigation | `frontend/src/pages/BusinessAnalytics.tsx` | `frontend/src/lib/businessCorrelationCache.ts` | Navigation persistence QA |
+| FR-10 | Source transparency UI | `frontend/src/pages/Sources.tsx` | `backend/src/metrics.ts` | Source coverage spot check |
 
----
+## Business and Compliance Links
 
-## Functional traceability
-
-| Req / story ID | Requirement (summary) | Primary UI | Primary API / module | Verification hint |
-|----------------|----------------------|------------|----------------------|-------------------|
-| PRD FR-1 | Country + year range selection | `Dashboard.tsx`, `CountrySelect`, `YearRangePresetDropdown` | `GET /api/country/:cca3/series` | Change country and range; series reloads; 400 on bad metrics |
-| PRD FR-2 | Metric validation | `Sources.tsx`, all callers | `GET /api/metrics`, `METRIC_BY_ID` in `index.ts` | Unknown metric → 400 |
-| PRD FR-3 | Global year fallback | `GlobalAnalytics.tsx` | `GET /api/global/snapshot`, `globalSnapshot.ts` | Future-empty year → `dataYear` ≤ `requestedYear` |
-| PRD FR-4 | PESTEL structured output | `Pestel.tsx` | `POST /api/analysis/pestel`, `pestelAnalysis.ts`, `pestelGrounding.ts` | JSON shape + `attribution`; merge with scaffold |
-| PRD FR-5 | Fullscreen modals | `ChartTableToggle`, `DashboardComparisonTable`, stepper overlay | — | Escape closes; body scroll locked; `.cap-viz-fullscreen` ticks |
-| PRD FR-6 | Bootstrap cache warmup | SPA first load | `POST /api/bootstrap/warm`, `dataWarmup.ts`, `index.ts` | 202 + `started` or 200 + `skipped`; faster navigation when warm |
-| PRD FR-7 | Short labels in API | All chart consumers | `GET /api/metrics`, `metricShortLabels.ts` | `shortLabel` present per metric |
-| PRD FR-8 | Assistant chat + citations | `Assistant.tsx`, `MessageContent.tsx`, `assistantAnswerPresentation.ts` | `POST /api/assistant/chat`, `llm.ts`, `assistantCitationContext.ts` | `reply`, `attribution`, `citations` |
-| PRD FR-9 | Ranking table dedupe | — | `assistantReplyTableDedupe.ts`, `index.ts` assemble reply | Leaderboard prepended; LLM echo tables stripped |
-| PRD FR-10 | Assistant metric scope | — | `assistantIntel.ts` `questionInvokesFocusCountryPlatformMetrics` | Off-scope turns omit focus snapshot; attribution log |
-| PRD FR-11 | Groq resilience | — | `llm.ts` timeouts, transport retry, backoff | Fallback chain exhaust → Tavily path |
-| PRD FR-12 | Steps & actions | `Assistant.tsx` handlers | — | Scroll/focus country, links, expand starters, mode toggles |
-| US-D1 | Country search | `CountrySelect.tsx` | `GET /api/countries` | Typeahead → ISO3 |
-| US-D2 | Year presets | `YearRangePresetDropdown.tsx` | `start`/`end` query params | Presets clamp correctly |
-| US-D4–D9 | Chart/table/FS/granularity/comparison | `Dashboard.tsx`, `ChartTableToggle.tsx`, `VisualizationStepper.tsx` | Comparison: `GET /api/dashboard/comparison` | Fullscreen + slideshow + export |
-| US-G1–G4 | Global analytics + WLD | `GlobalAnalytics.tsx` | `/api/global/snapshot`, `/api/global/table`, `/api/global/wld-series` | Map + table + CSV |
-| US-P1–P4 | Strategy pages + SWOT quality | `Pestel.tsx`, `Porter.tsx` | `/api/analysis/pestel`, `/api/analysis/porter` | With/without Groq; deduped SWOT |
-| US-B1–B3 | Correlation + residuals | `BusinessAnalytics.tsx`, `CorrelationScatter.tsx` | `GET /api/analysis/correlation-global`, `POST /api/analysis/correlation` | r, scatter, residuals copy |
-| US-A1–A10 | Assistant UX | `Assistant.tsx`, `assistantSuggestionCategories.ts`, `MessageContent.tsx`, `assistantWebSources.ts` | `assistant/chat`, assistant modules | Starters, personas, citations, deduped tables, Steps panel |
-| US-S1–S2 | Sources | `Sources.tsx` | `GET /api/metrics`, `GET /api/data-providers` | Search + provider narrative |
-| US-O1–O2 | API observability + warm | `ApiTransportPanel.tsx`, `ApiToastStack.tsx`, bootstrap caller | `api.ts`, `POST /api/bootstrap/warm` | Panel + toasts + 202 warm |
-| US-T1 | Cache clear | UI control | `POST /api/cache/clear` | Cache invalidated |
-
----
-
-## Non-functional traceability
-
-| Concern | Implementation |
-|---------|----------------|
-| **Caching** | `cache.ts`, `countrySeriesCacheKey`, TTL in `index.ts` |
-| **Retries** | `httpClient.ts` (429/5xx) for configured providers |
-| **Metric labels** | `metricShortLabels.ts`, `metricDisplay.ts` |
-| **Year bounds** | `backend/src/yearBounds.ts`, `frontend/src/lib/yearBounds.ts` |
-| **PESTEL digest** | `pestelDigestKeys.ts` → digest build in `index.ts` |
-| **PESTEL merge / polish** | `mergePestelAnalysis`, `polishPestelAnalysisForClient`, `ensureFiveBullets` in `pestelAnalysis.ts` |
-| **CORS / body limit** | `index.ts` Express config (see **GUARDRAILS**) |
-| **Assistant table UX** | `MessageContent.tsx` consecutive duplicate GFM suppression; `assistantReplyTableDedupe.ts` server strip |
-
----
-
-## Change control
-
-When adding a feature:
-
-1. Add or update a row in this matrix (or linked **USER_STORIES.md**).
-2. Update **PRD.md** if user-visible scope changes.
-3. Update **VARIABLES.md** for new metrics, query parameters, or environment variables.
-4. Update **ARCHITECTURE.md** for new routes or pipeline stages.
-5. Update **GUARDRAILS.md** if data, AI, or legal assumptions shift.
-
----
-
-*Matrix maintained alongside **PRODUCT_DOCUMENTATION_STANDARD.md**.*
+| Policy/Constraint ID | Description | Technical Control |
+| --- | --- | --- |
+| GR-01 | No fabricated current-events facts | verified-web safety gates + deterministic fallback |
+| GR-02 | No placeholder citations in user output | assistant reply polish sanitizer |
+| GR-03 | Metric scope fidelity for comparisons | strict metric extraction logic |
+| GR-04 | Data-year transparency | latest observation + year shown in outputs |

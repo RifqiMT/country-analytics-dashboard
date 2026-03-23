@@ -49,8 +49,11 @@ export const DATA_PROVIDERS: DataProvider[] = [
     name: "Country API (income level, region, capital)",
     role: "Country metadata aligned with WDI economy codes",
     url: "https://datahelpdesk.worldbank.org/knowledgebase/articles/898590-country-api-queries",
-    usedFor: ["Dashboard “Income level” and World Bank-aligned country facts"],
-    notes: "Complements REST Countries; uses the same ISO3 identifiers as WDI where possible.",
+    usedFor: [
+      "Dashboard “Income level” (operational group + WB code) and World Bank-aligned country facts",
+      "Cross-linked in-app with WDI GNI per capita (Atlas, NY.GNP.PCAP.CD) as the published magnitude behind classifications",
+    ],
+    notes: "Complements REST Countries (which does not supply WB income groups); uses the same ISO3 identifiers as WDI where possible.",
   },
   {
     id: "imf-weo",

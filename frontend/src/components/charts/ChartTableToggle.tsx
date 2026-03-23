@@ -74,7 +74,7 @@ export default function ChartTableToggle({
       className={`flex shrink-0 flex-wrap items-center justify-between gap-2 ${fullscreen ? "mb-2" : "mb-2"}`}
     >
       <div className="flex items-center gap-1">
-        {!fullscreen ? (
+        {!fullscreen && !inGalleryOverlay ? (
           <button
             type="button"
             onClick={openFullscreen}
@@ -147,7 +147,7 @@ export default function ChartTableToggle({
         </div>
       ) : mode === "chart" ? (
         <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-          <div className="h-full min-h-[240px] w-full min-w-0">{chart}</div>
+          <div className="cap-chart-inner-shell h-full min-h-[240px] w-full min-w-0">{chart}</div>
         </div>
       ) : (
         table

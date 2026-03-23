@@ -102,27 +102,32 @@ function splitParagraphs(body: string): string[] {
     .filter(Boolean);
 }
 
-/** Exactly three paragraphs for comprehensive `body`. */
-export function ensureThreePorterParagraphs(primaryBody: string, fallbackBody: string): string {
+/** Exactly two paragraphs for comprehensive `body`. */
+export function ensureTwoPorterParagraphs(primaryBody: string, fallbackBody: string): string {
   const primary = splitParagraphs(primaryBody);
   const fallback = splitParagraphs(fallbackBody);
   const out: string[] = [];
   let i = 0;
-  while (out.length < 3 && i < primary.length) {
+  while (out.length < 2 && i < primary.length) {
     const p = primary[i++]!;
     if (p && !out.includes(p)) out.push(p);
   }
   let j = 0;
-  while (out.length < 3 && j < fallback.length) {
+  while (out.length < 2 && j < fallback.length) {
     const p = fallback[j++]!;
     if (p && !out.includes(p)) out.push(p);
   }
-  while (out.length < 3) {
+  while (out.length < 2) {
     out.push(
       "Validate strategic implications with updated indicator releases and sector-specific primary sources before board or investment decisions."
     );
   }
-  return out.slice(0, 3).join("\n\n");
+  if (out.length > 2) {
+    const p1 = out[0]!;
+    const p2 = out.slice(1).join(" ").trim();
+    return [p1, p2].join("\n\n");
+  }
+  return out.slice(0, 2).join("\n\n");
 }
 
 function latest(bundle: Record<string, SeriesPoint[]>, id: string): { year: number; value: number } | null {
@@ -256,7 +261,7 @@ export function mergePorterAnalysis(partial: Partial<PorterAnalysis>, fallback: 
 
   const comprehensiveSections = fallback.comprehensiveSections.map((fb, i) => {
     const pc = partial.comprehensiveSections?.[i];
-    const body = ensureThreePorterParagraphs(pc?.body ?? "", fb.body);
+    const body = ensureTwoPorterParagraphs(pc?.body ?? "", fb.body);
     return { title: fb.title, body };
   });
 
@@ -298,11 +303,11 @@ export function buildDataOnlyPorter(
       title: "Threat of New Entry",
       accent: "threat_new_entry",
       bullets: [
-        `Barriers to entry in ${industryLabel} vary by capital intensity and regulation—confirm with sector licensing and investment promotion sources.`,
+        `Entry barriers in ${industryLabel} vary with capital requirements and regulatory compliance, including permitting steps and administrative lead times.`,
         income !== "—" ? `World Bank income classification (${income}) frames domestic market scale and typical entry economics.` : "Use GDP and population from the indicator digest to size the addressable market.",
         "Regulatory and licensing requirements differ by jurisdiction—triangulate with trade associations and ministry filings.",
         "Economies of scale and incumbent branding can deter entrants in concentrated sub-segments.",
-        "When LLM and web retrieval are enabled, prioritize the latest official indicators in the digest, then layer recent policy and competitive reporting.",
+        "Where sector reporting is available, prioritize the latest official indicators in the digest, then layer recent policy and competitive developments.",
       ],
     },
     {
@@ -371,48 +376,47 @@ export function buildDataOnlyPorter(
   const execP1 = `${countryName} (${cca3}) — ${industryLabel}. ${dataPara1 ? `Latest available indicator snapshot: ${dataPara1}.` : "The platform indicator digest underpins quantitative anchors for this scaffold."} Region: ${region}; World Bank income group: ${income}.`;
 
   const execP2 =
-    "This template does not include live web retrieval. With TAVILY_API_KEY and GROQ_API_KEY configured, the service prioritizes the same digest figures first, then blends industry and competitive themes from the web across recent days through multi-year windows—without exposing internal retrieval labels in client text.";
+    "This analysis is anchored in the platform’s indicator digest. Where sector-specific reporting is available, it is layered to add regulatory, competitive, and channel context across recent days through longer-run structure.";
 
-  const execP3 =
+  const execP2b =
     "Leadership should treat the five forces as a structured hypothesis set: refresh digest-linked metrics on each review cycle and corroborate qualitative force ratings with sector filings, channel checks, and legal review where commitments are material.";
 
-  const threePara = (forceIdx: number, webPlaceholder: string, imp: string): string => {
+  const twoPara = (forceIdx: number, webPlaceholder: string, imp: string): string => {
     const f = forces[forceIdx]!;
     const p1 = `${f.title} for ${industryLabel} in ${countryName}: ${f.bullets.slice(0, 2).join(" ")}`;
-    const p2 = webPlaceholder;
-    const p3 = imp;
-    return `${p1}\n\n${p2}\n\n${p3}`;
+    const p2 = `${webPlaceholder} ${imp}`.trim();
+    return `${p1}\n\n${p2}`;
   };
 
   const comprehensiveSections: { title: string; body: string }[] = [
-    { title: "Executive Summary", body: `${execP1}\n\n${execP2}\n\n${execP3}` },
+    { title: "Executive Summary", body: `${execP1}\n\n${execP2} ${execP2b}`.trim() },
     {
       title: "1. Threat of new entrants",
-      body: threePara(
+      body: twoPara(
         0,
-        "Without live web context in this template, infer entry barriers from income group, market scale from GDP and population in the digest, and typical capital intensity for the sector—verify with national investment promotion and licensing sources.",
+        "Entry barriers are inferred from the digest baseline (income classification and market scale from GDP and population) and typical capital intensity for the sector—then refined with sector licensing and investment-promotion reporting when available.",
         "Implication: treat entry threat as directional until web-sourced regulatory and competitive intelligence is available; prioritize segments where scale and policy clearly favour incumbents."
       ),
     },
     {
       title: "2. Bargaining power of suppliers",
-      body: threePara(
+      body: twoPara(
         1,
-        "Supplier power depends on input commoditization, logistics, and concentration among vendors; with web retrieval, prioritize evidence on commodity shocks, trade measures, and supplier restructuring from the past week through longer horizons.",
+        "Supplier power depends on input commoditization, logistics, and concentration among vendors; sector reporting is used to prioritize evidence on commodity shocks, trade measures, and supplier restructuring across recent days through longer horizons.",
         "Implication: map backward-integration risk and pass-through using digest macro volatility proxies plus supplier and trade intelligence."
       ),
     },
     {
       title: "3. Bargaining power of buyers",
-      body: threePara(
+      body: twoPara(
         2,
         "Channel structure—retail, e-commerce, B2B—requires sector and press evidence; the digest’s unemployment and income proxies inform spending power only at country level until channel-specific data are added.",
-        "Implication: segment buyers and test price sensitivity against GDP per capita and inflation from the dashboard when narrative generation is enabled."
+        "Implication: segment buyers and test price sensitivity against GDP per capita and inflation from the dashboard using channel-specific context when available."
       ),
     },
     {
       title: "4. Threat of substitutes",
-      body: threePara(
+      body: twoPara(
         3,
         "Substitutes span imports, private label, digital alternatives, and adjacent categories; qualitative shifts are best tracked with multi-horizon web research tied to this ISIC division.",
         "Implication: prioritize substitute threats where trade openness is high or switching costs appear low; validate with category studies where available."
@@ -420,9 +424,9 @@ export function buildDataOnlyPorter(
     },
     {
       title: "5. Competitive rivalry",
-      body: threePara(
+      body: twoPara(
         4,
-        "Rivalry ties to growth and concentration; with web layers active, integrate very recent news with longer-run structural themes—always after anchoring the latest digest-backed macro figures.",
+        "Rivalry ties to growth and concentration; recent sector reporting is layered onto the digest-backed macro figures to sharpen competitive dynamics and timing.",
         "Implication: when growth slows in the digest, expect margin pressure unless differentiation or consolidation reshapes the game."
       ),
     },
@@ -446,7 +450,7 @@ export function buildDataOnlyPorter(
       "The five forces are interdependent; a change in one force often feeds through to others within a few planning cycles.",
     ],
     recommendations: [
-      "Configure GROQ_API_KEY and TAVILY_API_KEY so narratives prioritize digest metrics, then enrich with time-bounded web context.",
+      "To refine decisions, layer the latest regulator and sector reporting onto the digest-based baseline for this industry and country.",
       "Cross-reference Porter output with PESTEL and the Country Dashboard for a consistent macro-to-industry storyline.",
       "Assign owners to refresh digest-linked figures each quarter and log observation years cited in internal memos.",
       "For material investments, commission legal and tax review of licensing, FDI rules, and competition law independently of AI text.",

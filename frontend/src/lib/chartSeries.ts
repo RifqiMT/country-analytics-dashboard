@@ -13,6 +13,7 @@ const CORE_CHART_KEYS = new Set([
   "gdp_ppp",
   "gdp_per_capita",
   "gdp_per_capita_ppp",
+  "gni_per_capita_atlas",
   "gdp_growth",
   "population",
 ]);

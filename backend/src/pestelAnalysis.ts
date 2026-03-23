@@ -191,6 +191,12 @@ function splitParagraphs(text: string): string[] {
 const GENERIC_PAD =
   "Stress-test conclusions against the dashboard time series, primary filings, and regulator notices before capital allocation.";
 
+const GENERIC_PAD_POOL: readonly string[] = [
+  "Stress-test conclusions against the dashboard time series, primary filings, and regulator notices before capital allocation.",
+  "Validate strategic implications with updated releases and sector-specific filings, and document assumptions for decision review.",
+  "Cross-check the narrative against official registers, regulator communications, and the latest dashboard indicators before committing capital.",
+];
+
 const FIVE_ITEM_PADS = [
   "Reconcile headline indicators with charted trends and peer benchmarks before board or IC sign-off.",
   "Use Global Analytics to position this economy against regional peers on the metrics that matter for your sector.",
@@ -263,19 +269,44 @@ function ensureFiveBullets(
 }
 
 /**
- * Ensure exactly three non-empty paragraphs: pad from fallbacks, or merge overflow into the third.
+ * Ensure exactly two non-empty paragraphs.
+ * Missing paragraphs are filled from deterministic fallback paragraphs first.
+ * If the model produced more than two, merge overflow into paragraph 2 to preserve coherence.
  */
-function ensureThreeParagraphs(primary: string[], fallback: string[]): string[] {
-  const out = primary.map((p) => p.trim()).filter(Boolean);
+function ensureTwoParagraphs(primary: string[], fallback: string[]): string[] {
+  // If the model outputs the generic pad sentence, prefer the deterministic fallback paragraphs instead.
+  const cleanedPrimary = primary
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .filter((p) => p !== GENERIC_PAD);
+
+  const out: string[] = [];
+  for (const p of cleanedPrimary) {
+    const t = p.trim();
+    if (!t) continue;
+    if (!out.includes(t)) out.push(t);
+  }
+
+  // For narrative quality (and to avoid generic fillers), always fill missing paragraphs from the fallback set first.
   let fi = 0;
-  while (out.length < 3 && fi < fallback.length) {
+  while (out.length < 2 && fi < fallback.length) {
     const next = fallback[fi]!.trim();
     fi += 1;
     if (next && !out.includes(next)) out.push(next);
   }
-  while (out.length < 3) out.push(GENERIC_PAD);
-  if (out.length > 3) {
-    return [out[0]!, out[1]!, out.slice(2).join(" ")];
+
+  // Only if fallback is unexpectedly short, fall back to the non-repeating pad pool.
+  let padIdx = 0;
+  while (out.length < 2 && padIdx < 20) {
+    const pad = GENERIC_PAD_POOL[padIdx % GENERIC_PAD_POOL.length]!;
+    padIdx += 1;
+    if (!out.includes(pad)) out.push(pad);
+  }
+
+  if (out.length > 2) {
+    const p1 = out[0]!;
+    const p2 = [out[1]!, ...out.slice(2)].join(" ").trim();
+    return [p1, p2];
   }
   return out;
 }
@@ -299,15 +330,22 @@ function formatDigestMetricValue(id: string, value: number): string {
     "lending_rate",
     "interest_real",
     "edu_expenditure_gdp",
+    "immunization_dpt",
+    "immunization_measles",
+    "health_expenditure_gdp",
+    "smoking_prevalence",
   ]);
   if (pctLike.has(id)) return `${Number(value.toFixed(1))}%`;
   if (id === "life_expectancy") return `${value.toFixed(1)} years`;
+  if (id === "birth_rate") return `${value.toFixed(1)} per 1,000`;
+  if (id === "tb_incidence") return `${value.toFixed(1)} per 100,000`;
   if (id === "population" || id === "labor_force_total") return fmtPop(value);
   if (
     id === "gdp" ||
     id === "gdp_ppp" ||
     id === "gdp_per_capita" ||
     id === "gdp_per_capita_ppp" ||
+    id === "gni_per_capita_atlas" ||
     id === "gov_debt_usd"
   ) {
     return fmtUsd(value);
@@ -362,8 +400,8 @@ function normalizeComprehensiveSections(
     const rawBody = llm?.body?.trim() ? llm.body : fb.body;
     const fromLlmParas = splitParagraphs(rawBody);
     const fbParas = splitParagraphs(fb.body);
-    const three = ensureThreeParagraphs(fromLlmParas, fbParas);
-    return { title: fb.title, body: three.join("\n\n") };
+    const two = ensureTwoParagraphs(fromLlmParas, fbParas);
+    return { title: fb.title, body: two.join("\n\n") };
   });
 }
 
@@ -384,8 +422,8 @@ function normalizeStrategicSections(
       primary = splitParagraphs((llm as unknown as { body: string }).body);
     }
     if (!primary.length) primary = [...fb.paragraphs];
-    const three = ensureThreeParagraphs(primary, fb.paragraphs);
-    return { title: fb.title, paragraphs: three };
+    const two = ensureTwoParagraphs(primary, fb.paragraphs);
+    return { title: fb.title, paragraphs: two };
   });
 }
 

@@ -34,17 +34,30 @@ function formatMetricValue(id: string, v: number): string {
     "poverty_headcount",
     "poverty_national",
     "lending_rate",
+    "immunization_dpt",
+    "immunization_measles",
+    "health_expenditure_gdp",
+    "smoking_prevalence",
   ]);
   if (pct.has(id)) return `${v.toFixed(1)}%`;
   if (id === "gdp" || id === "gdp_ppp") return formatCompactNumber(v, { maxFrac: 2 });
-  if (id === "gdp_per_capita" || id === "gdp_per_capita_ppp") return formatCompactNumber(v, { maxFrac: 2 });
+  if (id === "gdp_per_capita" || id === "gdp_per_capita_ppp" || id === "gni_per_capita_atlas")
+    return formatCompactNumber(v, { maxFrac: 2 });
   return formatCompactNumber(v, { maxFrac: 2 });
 }
 
 function preferBps(id: string): boolean {
-  return ["inflation", "unemployment_ilo", "lending_rate", "poverty_headcount", "poverty_national"].includes(
-    id
-  );
+  return [
+    "inflation",
+    "unemployment_ilo",
+    "lending_rate",
+    "poverty_headcount",
+    "poverty_national",
+    "immunization_dpt",
+    "immunization_measles",
+    "health_expenditure_gdp",
+    "smoking_prevalence",
+  ].includes(id);
 }
 
 function cellBlock(id: string, c: ComparisonCell): { main: string; sub?: string; subClass?: string } {
@@ -249,7 +262,8 @@ export default function DashboardComparisonTable({ year, countryName, rows, onEx
           className={`shrink-0 px-4 py-2.5 text-xs text-slate-400 ${fullscreen ? "border-t border-slate-100" : ""}`}
         >
           Avg country uses REST sovereigns only (WDI “all” rows for WLD/regions are excluded). GDP levels: median
-          economy; GDP per capita: Σ GDP ÷ Σ population at the snapshot year; inflation / lending / poverty /
+          economy; GDP per capita: Σ GDP ÷ Σ population at the snapshot year; GNI per capita (Atlas): median economy at
+          the snapshot year; inflation / lending / poverty /
           unemployment %: population- or labour-force–weighted mean; labour force: median; unemployed (count): median
           national count. WDI year ≤ your selected year, stepping back up to ~14 years when needed. Global: WLD at that
           same snapshot year when available; else sum of countries for level totals, or the same weighted / implied

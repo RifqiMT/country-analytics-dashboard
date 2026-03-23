@@ -346,6 +346,7 @@ const FINANCIAL_METRICS = [
   "gdp_ppp",
   "gdp_per_capita",
   "gdp_per_capita_ppp",
+  "gni_per_capita_atlas",
   "gov_debt_usd",
   "inflation",
   "gov_debt_pct_gdp",
@@ -362,6 +363,16 @@ const HEALTH_METRICS = [
   "mortality_under5",
   "maternal_mortality",
   "undernourishment",
+  "birth_rate",
+  "tb_incidence",
+  "uhc_service_coverage",
+  "hospital_beds",
+  "physicians_density",
+  "nurses_midwives_density",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
 ] as const;
 
 const EDU_METRICS = [
@@ -399,15 +410,33 @@ function columnsForCategory(cat: TableCategory): TableColumn[] {
   if (cat === "health") {
     return HEALTH_METRICS.map((id) => {
       const def = METRIC_BY_ID[id];
-      const pctMetric = ["pop_age_0_14", "pop_15_64_pct", "pop_age_65_plus", "undernourishment"].includes(id);
+      const pctMetric = [
+        "pop_age_0_14",
+        "pop_15_64_pct",
+        "pop_age_65_plus",
+        "undernourishment",
+        "immunization_dpt",
+        "immunization_measles",
+        "health_expenditure_gdp",
+        "smoking_prevalence",
+      ].includes(id);
       const yoyBps = pctMetric;
+      const numericMetric = [
+        "population",
+        "maternal_mortality",
+        "mortality_under5",
+        "life_expectancy",
+        "birth_rate",
+        "tb_incidence",
+        "uhc_service_coverage",
+        "hospital_beds",
+        "physicians_density",
+        "nurses_midwives_density",
+      ].includes(id);
       return {
         id,
         label: getMetricShortLabel(id),
-        format:
-          id === "population" || id === "maternal_mortality" || id === "mortality_under5" || id === "life_expectancy"
-            ? "number"
-            : "percent",
+        format: numericMetric ? "number" : "percent",
         yoyBps,
         description: def?.description,
       };

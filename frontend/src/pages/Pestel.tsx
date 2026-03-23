@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import CountrySelect from "../components/CountrySelect";
 import { postJson } from "../api";
 import type { PestelAnalysis } from "../types/pestel";
@@ -9,6 +9,7 @@ import PestelComprehensiveCard from "../components/pestel/PestelComprehensiveCar
 import PestelStrategicCard from "../components/pestel/PestelStrategicCard";
 import PestelBulletCard from "../components/pestel/PestelBulletCard";
 import { maxSelectableYear } from "../lib/yearBounds";
+import ExportPngButton from "../components/ExportPngButton";
 
 const WandIcon = () => (
   <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -28,6 +29,7 @@ export default function Pestel() {
   const [attr, setAttr] = useState<string[]>(() => loadPestelFromCache("IDN")?.attribution ?? []);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const pestelChartRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const cached = loadPestelFromCache(country);
@@ -109,9 +111,21 @@ export default function Pestel() {
       {analysis && (
         <div className="space-y-10">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">PESTEL Analysis</h2>
-            <p className="mt-1 text-sm text-slate-500">Summarized bullet points by macro-environmental factor.</p>
-            <div className="mt-6 space-y-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">PESTEL Analysis</h2>
+                <p className="mt-1 text-sm text-slate-500">Summarized bullet points by macro-environmental factor.</p>
+              </div>
+              <div className="sm:self-end">
+                <ExportPngButton
+                  getTarget={() => pestelChartRef.current}
+                  filename="pestel_analysis.png"
+                  size="md"
+                  title="Export PESTEL Analysis (PNG)"
+                />
+              </div>
+            </div>
+            <div ref={(n) => (pestelChartRef.current = n)} className="mt-6 space-y-4">
               {analysis.pestelDimensions.map((dim) => (
                 <PestelDimensionCard key={`${dim.label}-${dim.letter}`} dim={dim} />
               ))}

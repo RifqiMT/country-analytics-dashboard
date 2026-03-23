@@ -19,5 +19,8 @@ export function polishAssistantLlmReply(text: string): string {
     /^(here(?:'s| is)|below is) (?:the )?(?:ranking|leaderboard|table|summary table)[^.:\n]*[.:]?\s*/i,
     ""
   );
+  // Remove placeholder-style citation tokens that are not real mapped ids.
+  t = t.replace(/\[(?:D|W)#\]/g, "");
+  t = t.replace(/\s{2,}/g, " ");
   return t.trim();
 }

@@ -27,7 +27,7 @@ export function questionLooksMetricAnchored(message: string): boolean {
   const q = message.toLowerCase();
   if (q.length < 3) return false;
   if (
-    /\b(gdp|inflation|population|unemployment|debt|deficit|surplus|growth|recession|wdi|world bank|imf|uis|metric|indicator|series|per capita|ppp|literacy|life expectancy|poverty|interest rate|lending|yoy|year over year)\b/.test(
+    /\b(gdp|gni|inflation|population|unemployment|debt|deficit|surplus|growth|recession|wdi|world bank|imf|uis|metric|indicator|series|per capita|income group|ppp|literacy|life expectancy|birth rate|tuberculosis|tb incidence|uhc|hospital beds|health workforce|immunization|vaccination|health expenditure|smoking|risk factor|poverty|interest rate|lending|yoy|year over year)\b/.test(
       q
     )
   ) {
@@ -350,10 +350,12 @@ export function extractCountryCodesMentionedInText(
     }
   }
 
-  const isoWord = /\b([A-Za-z]{3})\b/g;
+  // Treat ISO3 mentions as explicit uppercase tokens only (e.g., USA, IDN).
+  // This avoids false positives from common words like "and" -> AND (Andorra), "per" -> PER (Peru).
+  const isoWord = /\b([A-Z]{3})\b/g;
   let im: RegExpExecArray | null;
   while ((im = isoWord.exec(message)) !== null) {
-    const code = im[1]!.toUpperCase();
+    const code = im[1]!;
     if (countries.some((c) => c.cca3 === code)) {
       hits.push({ idx: im.index, cca3: code });
     }
@@ -527,14 +529,14 @@ export function buildAssistantWebSearchQuery(
 export function groqTemperatureForIntent(intent: AssistantIntent): number {
   switch (intent) {
     case "statistics_drill":
-      return 0.38;
+      return 0.22;
     case "country_compare":
-      return 0.4;
+      return 0.24;
     case "country_overview":
-      return 0.58;
+      return 0.34;
     case "general_web":
-      return 0.62;
+      return 0.38;
     default:
-      return 0.62;
+      return 0.38;
   }
 }

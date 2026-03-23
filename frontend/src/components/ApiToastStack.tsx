@@ -25,6 +25,7 @@ function requestKindLabel(path: string): string {
   if (base.includes("/api/global/table")) return "Global table";
   if (base.includes("/api/global/wld-series")) return "World aggregates";
   if (base.includes("/api/analysis/correlation")) return "Correlation";
+  if (base.includes("/api/analysis/business/correlation-narrative")) return "Business narrative";
   if (base.includes("/api/cache/clear")) return "Cache";
   if (base.includes("/pestel") || base.includes("pestel")) return "PESTEL analysis";
   if (base.includes("/porter") || base.includes("porter")) return "Porter 5 Forces analysis";
