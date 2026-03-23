@@ -1,25 +1,91 @@
-# User Personas
+# User Personas (Audience Model)
+
+This document defines the primary user archetypes for the Country Analytics Platform.
+
+Each persona describes:
+- Their goals (what “success” looks like)
+- Their pain points (what slows them down or introduces risk)
+- Their evidence needs (how they validate outputs)
+- Their common workflows across dashboard, assistant, and strategy modules
 
 ## Persona 1: Policy Analyst
 
-Goals: understand trends quickly and compare countries reliably.
-Pain points: fragmented sources and inconsistent year context.
-Success: briefing-ready outputs with clear evidence.
+**Primary goal:** assess country trends and policy-relevant context quickly, with clear data-year lineage.
+
+**Jobs to be done:**
+- Compare indicators across peers using consistent metric definitions
+- Identify meaningful changes over time without losing track of requested vs data year
+- Produce briefing-ready summaries with evidence attribution
+
+**Pain points:**
+- Fragmented sources and inconsistent “latest year” handling
+- Unclear interpretation of units and missing values
+- Time wasted reconciling definitions across spreadsheets
+
+**Evidence needs:**
+- Explicit data-year display (what year the numbers actually came from)
+- Units and metric definitions visible or easy to access
+- Assistant responses that do not drift outside platform scope
+
+**Success signals:**
+- The user can explain “what changed, where the numbers came from, and what it means” in a single pass.
 
 ## Persona 2: Strategy Manager
 
-Goals: evaluate opportunities and risks for expansion.
-Pain points: difficult synthesis across quantitative and qualitative signals.
-Success: coherent strategic narratives for leadership decisions.
+**Primary goal:** evaluate market attractiveness and risks for expansion using coherent strategic frameworks.
+
+**Jobs to be done:**
+- Generate PESTEL and Porter narratives grounded in indicator evidence
+- Use ranking/comparison outputs to focus leadership discussions
+- Translate analytics into hypothesis statements for further validation
+
+**Pain points:**
+- Slow synthesis across multiple indicators and qualitative context
+- Difficulty maintaining consistent assumptions across analysis iterations
+
+**Evidence needs:**
+- Deterministic structured outputs that stay within the requested metric scope
+- Optional verified-web grounding for time-sensitive “current” questions
+
+**Success signals:**
+- Leadership can review a narrative and understand which indicators drove key claims.
 
 ## Persona 3: Research Associate
 
-Goals: build reproducible country comparisons.
-Pain points: unclear variable definitions and manual rework.
-Success: consistent outputs with low cleanup effort.
+**Primary goal:** create reproducible comparisons across countries and metrics.
 
-## Persona 4: Product/Operations Leader
+**Jobs to be done:**
+- Build repeatable indicator selection and year-range windows
+- Export analysis outputs for internal review and audit
+- Reduce manual transformation overhead caused by unclear metric definitions
 
-Goals: track product reliability and value.
-Pain points: weak linkage between features and outcomes.
-Success: measurable improvement connected to releases.
+**Pain points:**
+- Metric ambiguity (unclear formula, unit, and data origin)
+- Rework when the “same metric name” maps to different definitions
+
+**Evidence needs:**
+- Metric catalog clarity: formulas, units, source summary
+- Stable API contracts and predictable behavior when data is missing
+
+**Success signals:**
+- A comparison pack can be regenerated later with the same assumptions and evidence.
+
+## Persona 4: Product / Operations Leader
+
+**Primary goal:** ensure the platform stays reliable, governed, and aligned with user value.
+
+**Jobs to be done:**
+- Track quality and trust deltas across releases
+- Ensure traceability and documentation alignment for AI behavior changes
+- Validate that performance meets analyst workflow expectations
+
+**Pain points:**
+- Unclear linkage between feature changes and user-relevant outcomes
+- Doc drift that causes confusion during audits or onboarding
+
+**Evidence needs:**
+- Quantitative quality metrics (groundedness, fallback activation)
+- Release governance evidence: traceability matrix coverage and guardrail alignment
+
+**Success signals:**
+- Doc drift is detected early; releases are auditable and measurable.

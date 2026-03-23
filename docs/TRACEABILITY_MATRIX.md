@@ -1,19 +1,54 @@
-# Enterprise Traceability Matrix
+# Enterprise Traceability Matrix (Product Requirements → Implementation)
 
-| Req ID | Requirement | Implementation | Validation |
+This matrix helps teams answer a simple enterprise question:
+
+> “When we promise a capability in the product, where is it implemented, and how do we know it works?”
+
+It is not meant to replace testing. Instead, it provides a release-ready mapping for QA planning, engineering review, and product governance.
+
+## How to read this document
+
+- **FR** = Functional requirement (feature behavior visible to users)
+- **NFR** = Non-functional requirement (reliability, performance, safety, maintainability)
+- **Implementation** lists the primary code locations that deliver the requirement
+- **Validation** describes practical verification steps (manual QA + automated checks where applicable)
+
+## 1) Functional requirements (FR)
+
+| Req ID | Requirement | Primary Implementation | Supporting Files | Validation |
+| --- | --- | --- | --- | --- |
+| FR-01 | Country dashboard shows metric KPIs, trends, and comparison blocks | `frontend/src/pages/Dashboard.tsx` | `backend/src/index.ts` routes for country series + dashboard comparison | Manual UI review + API contract checks for year range and metric scope |
+| FR-02 | Global analytics supports map, global tables, and world aggregate charts | `frontend/src/pages/GlobalAnalytics.tsx` | `backend/src/globalTable.ts`, `backend/src/globalSnapshot.ts`, `backend/src/dashboardComparison.ts`, world chart components | Year fallback tests and category filter checks |
+| FR-03 | Country/series API validates metric IDs and returns series bundles | `backend/src/index.ts` (`/api/country/:cca3/series`) | `backend/src/worldBank.ts` bundle assembly | Unknown metric → 400; valid metrics → series payload schema |
+| FR-04 | Assistant provides grounded ranking and comparison answers within platform metric scope | `backend/src/index.ts` (`/api/assistant/chat`) | `backend/src/assistantRankingBlock.ts`, `backend/src/assistantReplyPolish.ts`, `backend/src/assistantReplyTableDedupe.ts` | Benchmark ranking/comparison prompts; verify deterministic table outputs |
+| FR-05 | Assistant includes `% of top` relative values in country comparisons | `backend/src/index.ts` comparison reply builder | `backend/src/dashboardComparison.ts` | Table output validation in Assistant comparison UI |
+| FR-06 | Assistant supports web-grounded mode for time-sensitive non-metric questions | `backend/src/index.ts` (verified-web deterministic path) | `backend/src/assistantTavilyFallback.ts`, `backend/src/assistantCitationContext.ts` | Prompt suite QA for officeholder/current-events questions; verify web-only claims are cited |
+| FR-07 | Assistant enforces citation presence and sanitizes placeholder citations | `backend/src/index.ts` + `backend/src/assistantReplyPolish.ts` | `backend/src/assistantReplyPolish.ts` | Regression prompts: ensure no `[D#]`/`[W#]` placeholders leak to user-visible text |
+| FR-08 | Assistant verified-web badge shows correct mode for users | `frontend/src/pages/Assistant.tsx` | `frontend/src/lib/assistantAnswerPresentation.ts` | Visual + behavior QA: badge appears only for verified-web deterministic path |
+| FR-09 | PESTEL generates structured narrative sections (with two-paragraph comprehensive sections) | `frontend/src/pages/Pestel.tsx` | `backend/src/pestelAnalysis.ts`, `backend/src/pestelDigestKeys.ts` | JSON schema validation + UI render + fallback behavior without Groq key |
+| FR-10 | Porter Five Forces generates force-level analysis and narrative sections | `frontend/src/pages/Porter.tsx` | `backend/src/porterAnalysis.ts`, `backend/src/porterTavily.ts` | Grounding checks and fallback behavior with thin web context |
+| FR-11 | PNG export is available for Porter and PESTEL charts/cards | `frontend/src/components/ExportPngButton.tsx` | `frontend/src/lib/exportPng.ts` | Visual QA: PNG export produces non-empty output at normal + fullscreen sizes |
+| FR-12 | Standardized PESTEL SWOT card layout and bullet formatting | `frontend/src/components/pestel/*` | `backend/src/pestelAnalysis.ts` output shape | UI snapshot checks + semantic review of SWOT bullet formatting |
+| FR-13 | Business Analytics correlation computes r, p-value, regression diagnostics, and plot data | `backend/src/index.ts` (`/api/analysis/correlation-global`) | `backend/src/correlationGlobal.ts` | Numeric sanity QA: outlier counts, r/r² consistency, regression line plausibility |
+| FR-14 | Business Analytics narrative generation is triggered only when user clicks generate | `frontend/src/pages/BusinessAnalytics.tsx` | `backend/src/index.ts` (`/api/analysis/business/correlation-narrative`) | UX QA: narrative not generated on filter changes until “Generate analysis” |
+| FR-15 | Business Analytics analysis persists across navigation until user regenerates | `frontend/src/lib/businessCorrelationCache.ts` | `sessionStorage` persistence + cache load/save | Navigation QA: confirm restored analysis is still visible after route changes |
+| FR-16 | Fullscreen mode resizes tables/charts to avoid blank space and nested action bugs | `frontend/src/components/charts/ChartTableToggle.tsx` | fullscreen CSS rules in `frontend/src/index.css` | Responsive QA in fullscreen + export-from-fullscreen checks |
+| FR-17 | Sources explorer lists metric definitions with units, formulas, and source links | `frontend/src/pages/Sources.tsx` | `backend/src/index.ts` `/api/metrics`, `/api/data-providers` | Spot checks: metric formula and source links match catalog entries |
+
+## 2) Non-functional requirements (NFR)
+
+| Req ID | Requirement | Primary Implementation | Validation |
 | --- | --- | --- | --- |
-| FR-01 | Country dashboard trends | `frontend/src/pages/Dashboard.tsx` | UI + API checks |
-| FR-02 | Global table/snapshot | `frontend/src/pages/GlobalAnalytics.tsx` | fallback checks |
-| FR-03 | Assistant grounded response | `backend/src/index.ts` | citation/safety checks |
-| FR-04 | Verified web handling | `backend/src/index.ts` | prompt benchmark |
-| FR-05 | PESTEL module | `frontend/src/pages/Pestel.tsx` | schema + fallback |
-| FR-06 | Porter module | `frontend/src/pages/Porter.tsx` | grounding checks |
-| FR-07 | Business analytics | `frontend/src/pages/BusinessAnalytics.tsx` | numeric QA |
+| NFR-01 | Reliability through deterministic fallbacks when LLM/web evidence is insufficient | `backend/src/index.ts` fallback gates | Prompt suite: failure modes return stable scaffold outputs |
+| NFR-02 | Safety through citation and drift controls for assistant replies | `backend/src/index.ts`, `backend/src/assistantCitationContext.ts`, `backend/src/assistantReplyPolish.ts` | Regression prompts: placeholder tokens do not leak |
+| NFR-03 | Performance for interactive use cases | caching + reduced metric fetching in assistant | Manual timing QA + backend timing logs for endpoints |
+| NFR-04 | Explainability with attribution and visible context | assistant attribution + UI presentation | UI QA on attribution text + citation behavior |
+| NFR-05 | Maintainability through documented APIs and variables | docs set + metric catalog alignment | Doc drift review + catalog sync checks |
+| NFR-06 | Accessibility in UI states (focus, keyboard, contrast) | consistent component styling | Accessibility review (keyboard + contrast) |
 
-## Constraint mapping
+## 3) Governance controls and release rule
 
-| Constraint | Control |
-| --- | --- |
-| No fabricated current-events facts | verified-web safety + fallback |
-| No citation placeholder leakage | output sanitizer |
-| Metric scope fidelity | strict metric extraction |
+Release changes that affect any assistant/analysis output behavior must be accompanied by:
+- An update to the corresponding documentation in `docs/`
+- A review in `TRACEABILITY_MATRIX.md` mapping for the touched requirement(s)
+- A guardrails alignment check in `docs/GUARDRAILS.md`
