@@ -103,6 +103,15 @@ Highlighted country callout:
 Error notices:
 - Use red semantic palette and show actionable next steps (try again, adjust filters, check keys).
 
+### 3.9 Header-level key management panel
+
+The `AI API Keys (App-wide)` panel is a top-level operational control and must follow these rules:
+- Render key inputs in one row on medium+ screens.
+- Show per-key status chips (`Not checked`, `Checking`, `Valid`, `Invalid`) with text labels (not color-only meaning).
+- Provide explicit actions: `Validate keys`, `Clear keys`, and remember mode controls.
+- Keep helper text concise and security-aware (session vs persistent storage behavior).
+- Ensure panel does not crowd/overlap API transport widget; both should share header row cleanly at desktop sizes.
+
 ## 4) Accessibility standards (must-have)
 
 - Ensure adequate contrast between text and backgrounds.

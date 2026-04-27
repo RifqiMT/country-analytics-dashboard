@@ -226,6 +226,41 @@ function dedupeStringsPreserveOrder(items: string[]): string[] {
   return out;
 }
 
+function hasEvidenceAnchor(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    /\b(19|20)\d{2}\b/.test(t) ||
+    /\d+(\.\d+)?\s*%/.test(t) ||
+    /\$\s?\d/.test(t) ||
+    /\b(gdp|inflation|unemployment|population|debt|life expectancy|literacy|enrollment|education|series|indicator)\b/.test(
+      t
+    )
+  );
+}
+
+function strengthenBulletsWithFallbackEvidence(
+  merged: string[],
+  fallback: string[],
+  minEvidence = 2
+): string[] {
+  const out = [...merged];
+  let evidenceCount = out.filter(hasEvidenceAnchor).length;
+  if (evidenceCount >= minEvidence) return out;
+  const fallbackEvidence = fallback.filter(hasEvidenceAnchor);
+  for (const fb of fallbackEvidence) {
+    if (evidenceCount >= minEvidence) break;
+    if (out.includes(fb)) {
+      evidenceCount += hasEvidenceAnchor(fb) ? 1 : 0;
+      continue;
+    }
+    const replaceIdx = out.findIndex((b) => !hasEvidenceAnchor(b));
+    if (replaceIdx >= 0) out[replaceIdx] = fb;
+    else out.push(fb);
+    evidenceCount = out.filter(hasEvidenceAnchor).length;
+  }
+  return out.slice(0, 5);
+}
+
 /**
  * Five bullets: LLM first, then fallback, then pads. Optional `globalSeen` prevents the same point from reappearing across SWOT quadrants.
  */
@@ -266,6 +301,30 @@ function ensureFiveBullets(
     tryPush(GENERIC_PAD, false);
   }
   return out.slice(0, 5);
+}
+
+function normalizeSwotBullet(s: string): string {
+  return s
+    .replace(/\s+/g, " ")
+    .replace(/^[\-\u2022\*\s]+/, "")
+    .replace(/^\d+\)\s*/, "")
+    .replace(/^\[\s*Retrieval:[^\]]*\]\s*/i, "")
+    .replace(/^\[\s*Server:[^\]]*\]\s*/i, "")
+    .trim();
+}
+
+function swotBulletLooksUsable(s: string): boolean {
+  const t = normalizeSwotBullet(s);
+  if (t.length < 28) return false;
+  if (!/[a-zA-Z]/.test(t)) return false;
+  const alpha = (t.match(/[a-zA-Z]/g) ?? []).length;
+  return alpha >= 18;
+}
+
+function stabilizeSwotQuadrant(primary: string[], fallback: string[], globalSeen: Set<string>): string[] {
+  const cleanedPrimary = primary.map(normalizeSwotBullet).filter(swotBulletLooksUsable);
+  const merged = ensureFiveBullets(cleanedPrimary, fallback.map(normalizeSwotBullet), globalSeen);
+  return merged.map(normalizeSwotBullet);
 }
 
 /**
@@ -433,22 +492,38 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
   const pestelDimensions: PestelDimension[] = DIMENSION_TEMPLATE.map((t, i) => {
     const fromLlm = byLabel.get(t.label);
     const fb = fallback.pestelDimensions[i]!;
-    const merged = ensureFiveBullets(fromLlm ?? [], fb.bullets);
+    let merged = ensureFiveBullets(fromLlm ?? [], fb.bullets);
+    if (t.label === "ECONOMIC" || t.label === "SOCIOCULTURAL" || t.label === "TECHNOLOGICAL") {
+      merged = strengthenBulletsWithFallbackEvidence(merged, fb.bullets, 2);
+    }
     return { letter: t.letter, label: t.label, bullets: merged };
   });
 
   const swotGlobal = new Set<string>();
   const swot: PestelSwot = {
-    strengths: ensureFiveBullets(partial.swot?.strengths ?? [], fallback.swot.strengths, swotGlobal),
-    weaknesses: ensureFiveBullets(partial.swot?.weaknesses ?? [], fallback.swot.weaknesses, swotGlobal),
-    opportunities: ensureFiveBullets(partial.swot?.opportunities ?? [], fallback.swot.opportunities, swotGlobal),
-    threats: ensureFiveBullets(partial.swot?.threats ?? [], fallback.swot.threats, swotGlobal),
+    strengths: stabilizeSwotQuadrant(partial.swot?.strengths ?? [], fallback.swot.strengths, swotGlobal),
+    weaknesses: stabilizeSwotQuadrant(partial.swot?.weaknesses ?? [], fallback.swot.weaknesses, swotGlobal),
+    opportunities: stabilizeSwotQuadrant(partial.swot?.opportunities ?? [], fallback.swot.opportunities, swotGlobal),
+    threats: stabilizeSwotQuadrant(partial.swot?.threats ?? [], fallback.swot.threats, swotGlobal),
   };
 
   const comprehensiveSections = normalizeComprehensiveSections(
     partial.comprehensiveSections,
     fallback.comprehensiveSections
   );
+  const comprehensiveWithEvidence = comprehensiveSections.map((s, i) => {
+    const fb = fallback.comprehensiveSections[i];
+    if (!fb) return s;
+    const paras = splitParagraphs(s.body);
+    const fbParas = splitParagraphs(fb.body);
+    if (paras.length === 0 || fbParas.length === 0) return s;
+    // Force first paragraph to stay indicator-anchored for decision-grade value.
+    if (!hasEvidenceAnchor(paras[0]!)) {
+      const next = [fbParas[0]!, paras[1] ?? fbParas[1] ?? ""].filter(Boolean).join("\n\n").trim();
+      return { ...s, body: next };
+    }
+    return s;
+  });
 
   const strategicBusiness = normalizeStrategicSections(partial.strategicBusiness, fallback.strategicBusiness);
 
@@ -459,7 +534,7 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
   return polishPestelAnalysisForClient({
     pestelDimensions,
     swot,
-    comprehensiveSections,
+    comprehensiveSections: comprehensiveWithEvidence,
     strategicBusiness,
     newMarketAnalysis,
     keyTakeaways,

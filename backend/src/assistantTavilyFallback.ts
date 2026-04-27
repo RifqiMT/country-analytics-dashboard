@@ -8,7 +8,16 @@ export type AssistantTavilyFallbackInput = {
   cca3?: string;
   /** Pre-rendered platform markdown (dashboard block and/or poverty table). Shown before any web text. */
   platformSectionMarkdown?: string;
+  /** Optional per-request key for user-owned Tavily quota. */
+  tavilyApiKey?: string;
 };
+
+function isMetricLikeQuestion(message: string): boolean {
+  const q = message.toLowerCase();
+  return /\b(gdp|inflation|unemployment|poverty|population|debt|growth|life expectancy|literacy|rank|ranking|metric|indicator|series|year)\b/.test(
+    q
+  );
+}
 
 function latestObs(pts: SeriesPoint[]): { year: number; value: number } | null {
   const withVal = pts
@@ -251,14 +260,17 @@ export async function tavilyAssistantFallbackReply(
 ): Promise<{ text: string; hasSynthesis: boolean }> {
   const ctx: AssistantTavilyFallbackInput =
     typeof input === "string" ? { message: input } : input;
-  const { message, countryName, cca3, platformSectionMarkdown } = ctx;
+  const { message, countryName, cca3, platformSectionMarkdown, tavilyApiKey } = ctx;
+  const metricLike = isMetricLikeQuestion(message);
 
   const qParts: string[] = [message.trim()];
   if (countryName) {
     qParts.push(`${countryName} (${cca3 ?? ""})`.trim());
-    qParts.push(`${countryName} poverty national poverty line international poverty line World Bank WDI`);
+    if (metricLike) {
+      qParts.push(`${countryName} poverty national poverty line international poverty line World Bank WDI`);
+    }
   }
-  qParts.push("official statistics");
+  if (metricLike) qParts.push("official statistics");
   const searchQuery = qParts.join(" ").replace(/\s+/g, " ").slice(0, 400);
 
   const meta = await tavilySearchWithMeta(searchQuery, 6, {
@@ -267,6 +279,7 @@ export async function tavilyAssistantFallbackReply(
     topic: "general",
     timeRange: "year",
     preferNewestSourcesFirst: true,
+    apiKey: tavilyApiKey,
   });
 
   const filtered = pickTopTavilyWebResults(meta.results ?? [], message, countryName, cca3, 1);
@@ -284,23 +297,20 @@ export async function tavilyAssistantFallbackReply(
   }
 
   const lines: string[] = [];
-
-  lines.push(
-    "**Platform figures below** are from this app’s database. **Web:** one excerpt was selected for relevance—double-check anything material on the linked page."
-  );
-  lines.push("");
-
-  if (platformSectionMarkdown?.trim()) {
-    lines.push(platformSectionMarkdown.trim());
+  const includePlatformSection = metricLike && Boolean(platformSectionMarkdown?.trim());
+  if (includePlatformSection) {
+    lines.push(
+      "**Platform figures below** are from this app’s database. **Web:** one excerpt was selected for relevance—double-check anything material on the linked page."
+    );
+    lines.push("");
+    lines.push(platformSectionMarkdown!.trim());
     lines.push("");
   }
 
   if (synth) {
-    lines.push("**Web summary** (auto-generated—verify against sources below):");
-    lines.push("");
     lines.push(synth);
     lines.push("");
-  } else if (countryName && filtered.length) {
+  } else if (countryName && filtered.length && includePlatformSection) {
     lines.push(
       `**Context:** Results below mention **${countryName}** or official economic statistics where possible. There was no safe auto-summary for your exact question—use the platform table and open the links for narrative context.`
     );
@@ -308,7 +318,7 @@ export async function tavilyAssistantFallbackReply(
   }
 
   if (filtered.length) {
-    lines.push("**Web source**");
+    lines.push(includePlatformSection ? "**Web source**" : "**Source**");
     for (const r of filtered) {
       const label = escapeMdLinkLabel(r.title || r.url);
       const sum = compactSnippetForSourceList(r.content);

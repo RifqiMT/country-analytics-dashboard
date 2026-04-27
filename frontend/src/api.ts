@@ -1,4 +1,6 @@
-const base = "";
+import { getUserApiKeyHeaders } from "./lib/userApiKeys";
+
+const base = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 
 function parseErrorDetail(text: string): { message: string; excerpt: string } {
   const trimmed = text.trim();
@@ -117,7 +119,9 @@ export async function getJson<T>(path: string): Promise<T> {
   const url = `${base}${path}`;
   let status: number | null = null;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, {
+      headers: getUserApiKeyHeaders(),
+    });
     status = res.status;
     const text = await res.text();
     const durationSec = durationSecFrom(t0);
@@ -192,7 +196,7 @@ export async function postJson<T>(path: string, body: unknown): Promise<T> {
   try {
     const res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getUserApiKeyHeaders() },
       body: JSON.stringify(body),
     });
     status = res.status;

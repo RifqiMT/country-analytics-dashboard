@@ -31,6 +31,7 @@ Environment variables configure backend behavior and model/web retrieval access.
 | `GROQ_FALLBACK_MODELS_PORTER` | Porter Fallback Models | Per-use-case fallback list for Porter | Parsed as comma/space separated list | `backend/src/llm.ts` | `qwen/qwen3-32b` |
 | `GROQ_FALLBACK_MODELS_BUSINESS` | Business Fallback Models | Per-use-case fallback list for Business | Parsed as comma/space separated list | `backend/src/llm.ts` | `qwen/qwen3-32b` |
 | `GROQ_FALLBACK_MODELS_ASSISTANT` | Assistant Fallback Models | Per-use-case fallback list for Assistant | Parsed as comma/space separated list | `backend/src/llm.ts` | `qwen/qwen3-32b` |
+| `VERCEL` | Vercel Runtime Flag | Indicates serverless runtime in Vercel | When `VERCEL="1"`, backend does not open local listener | `backend/src/index.ts` | `1` |
 
 ## 3) Request Variables (API Inputs)
 
@@ -46,6 +47,17 @@ Request variables are the fields you send to endpoints. Backend validation rules
 | `countryCode` | Focus Country | ISO3 country context for grounding | Uppercase and validated as `^[A-Z]{3}$` | Assistant chat only | `IDN` |
 | `webSearchPriority` | Web-First Mode | Force web retrieval priority for the turn | If `true`, treated as web-priority | Assistant chat body | `true` |
 | `assistantMode` | Assistant Mode (Optional) | Legacy/alternate flag for web priority | If equal to `"web_priority"`, treated like `webSearchPriority=true` | Assistant chat body | `"web_priority"` |
+| `X-User-Groq-Api-Key` | User Groq Key Header | User-provided Groq key attached from frontend API layer | Header overrides server env key for request scope | `frontend/src/api.ts`, `backend/src/index.ts` | `gsk_...` |
+| `X-User-Tavily-Api-Key` | User Tavily Key Header | User-provided Tavily key attached from frontend API layer | Header overrides server env key for request scope | `frontend/src/api.ts`, `backend/src/index.ts` | `tvly_...` |
+
+### 3.1.1 Key validation endpoint
+
+#### `POST /api/keys/validate`
+
+| Variable Name | Friendly Name | Definition | Formula / Rule | Location in the apps | Example |
+| --- | --- | --- | --- | --- | --- |
+| `X-User-Groq-Api-Key` | Groq key for validation | Header sent to Groq model-list probe | Returns `ok=true` on HTTP 200 from provider | Header key panel and backend validator | `gsk_...` |
+| `X-User-Tavily-Api-Key` | Tavily key for validation | Header sent to Tavily minimal search probe | Returns `ok=true` on HTTP 200 from provider | Header key panel and backend validator | `tvly_...` |
 
 ### 3.2 PESTEL
 
@@ -225,11 +237,18 @@ These are computed on the frontend in `frontend/src/pages/BusinessAnalytics.tsx`
 
 ```mermaid
 flowchart TD
+  U[User input / UI controls] --> K1[Header key manager: Groq/Tavily keys]
+  K1 --> K2[Frontend API transport headers]
+  K2 --> E0[Backend key resolver]
   U[User input / UI controls] --> A1[Assistant: message + mode + countryCode]
   U --> B1[Business: metricX + metricY + start/end + excludeIqr + highlight]
   U --> C1[PESTEL: countryCode + year]
   U --> D1[Porter: countryCode + year + industrySector]
 
+  E0 --> E1
+  E0 --> E5
+  E0 --> E6
+  E0 --> E4
   A1 --> E1[backend /api/assistant/chat]
   B1 --> E2[backend GET /api/analysis/correlation-global]
   E2 --> E3[Compute r, pValue, rSquared, slope, intercept, residual, ciBand]

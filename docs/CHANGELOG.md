@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-04-27 (Documentation + Quality Revamp)
+
+- Completed full documentation audit and synchronized enterprise docs to current implementation state.
+- Added app-wide BYOK documentation: header key manager flow, request header contracts, and key validation endpoint (`POST /api/keys/validate`).
+- Updated PRD/personas/stories to include cross-app key reuse and strict PESTEL grounding quality behavior.
+- Expanded variables docs with request-header key variables and updated relationship chart.
+- Updated architecture, guardrails, metrics/OKRs, and traceability matrix for:
+  - strict PESTEL grounding QA gate,
+  - snippet-only PESTEL web evidence policy,
+  - SWOT rendering/quality stabilization,
+  - deterministic fallback behavior under low evidence.
+- Added `docs/RELEASE_READINESS_CHECKLIST.md` as operational governance artifact for release gate checks.
+- Added `docs/EXECUTIVE_DOCUMENTATION_SUMMARY.md` as leadership-facing documentation status brief.
+
+## 2026-04-27
+
+- Added Vercel production deployment configuration via root `vercel.json` for static frontend output plus serverless API routing.
+- Prepared backend for serverless runtime by exporting the Express app and guarding local listener startup when `VERCEL=1`.
+- Added root serverless API handler at `api/index.ts` and documented rollout/validation in `docs/DEPLOYMENT_VERCEL.md`.
+- Updated documentation index and root README to include the Vercel deployment runbook.
+
 ## 2026-03-21
 
 - Expanded all markdown documentation for beginner-friendly readability.

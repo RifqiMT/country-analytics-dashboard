@@ -34,6 +34,10 @@ It is not meant to replace testing. Instead, it provides a release-ready mapping
 | FR-15 | Business Analytics analysis persists across navigation until user regenerates | `frontend/src/lib/businessCorrelationCache.ts` | `sessionStorage` persistence + cache load/save | Navigation QA: confirm restored analysis is still visible after route changes |
 | FR-16 | Fullscreen mode resizes tables/charts to avoid blank space and nested action bugs | `frontend/src/components/charts/ChartTableToggle.tsx` | fullscreen CSS rules in `frontend/src/index.css` | Responsive QA in fullscreen + export-from-fullscreen checks |
 | FR-17 | Sources explorer lists metric definitions with units, formulas, and source links | `frontend/src/pages/Sources.tsx` | `backend/src/index.ts` `/api/metrics`, `/api/data-providers` | Spot checks: metric formula and source links match catalog entries |
+| FR-18 | App-wide AI key manager reuses user keys across AI modules | `frontend/src/components/assistant/UserApiKeysHeaderPanel.tsx`, `frontend/src/lib/userApiKeys.ts`, `frontend/src/api.ts` | backend key resolver in `backend/src/index.ts` | Enter keys once, run Assistant/PESTEL/Porter/Business narrative, verify provider usage and successful responses |
+| FR-19 | Key validation endpoint returns provider-specific status | `backend/src/index.ts` (`POST /api/keys/validate`) | header panel validate flow | Validate valid/invalid keys and confirm per-provider status text |
+| FR-20 | PESTEL strict grounding gate rejects weak LLM output | `backend/src/pestelGrounding.ts`, `backend/src/index.ts` | `backend/src/pestelTavily.ts`, `backend/src/pestelAnalysis.ts` | Prompt tests on high-risk countries/topics: verify fallback to deterministic blend when grounding QA fails |
+| FR-21 | SWOT cards render stable five bullet items per quadrant without truncation artifacts | `frontend/src/components/pestel/PestelSwotGrid.tsx` | `backend/src/pestelAnalysis.ts` SWOT normalization | Visual QA: no sentence-fragment splitting, no line-clamp clipping, exactly five usable bullets |
 
 ## 2) Non-functional requirements (NFR)
 
@@ -45,6 +49,7 @@ It is not meant to replace testing. Instead, it provides a release-ready mapping
 | NFR-04 | Explainability with attribution and visible context | assistant attribution + UI presentation | UI QA on attribution text + citation behavior |
 | NFR-05 | Maintainability through documented APIs and variables | docs set + metric catalog alignment | Doc drift review + catalog sync checks |
 | NFR-06 | Accessibility in UI states (focus, keyboard, contrast) | consistent component styling | Accessibility review (keyboard + contrast) |
+| NFR-07 | PESTEL hallucination containment through snippet-only retrieval + strict grounding QA | `backend/src/pestelTavily.ts`, `backend/src/pestelGrounding.ts`, `backend/src/index.ts` | Controlled prompt set shows grounded output or deterministic fallback with attribution signal |
 
 ## 3) Governance controls and release rule
 

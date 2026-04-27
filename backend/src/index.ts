@@ -52,7 +52,11 @@ import {
   parsePestelAnalysisFromLlm,
   type PestelAnalysis,
 } from "./pestelAnalysis.js";
-import { pestelAllowedDataYearsHint, sanitizePestelPartial } from "./pestelGrounding.js";
+import {
+  pestelAllowedDataYearsHint,
+  sanitizePestelPartial,
+  validatePestelAnalysisGrounding,
+} from "./pestelGrounding.js";
 import {
   buildPartialPestelFromTavilyWeb,
   fetchPestelSwotPartialFromTavily,
@@ -103,12 +107,100 @@ import { polishAssistantLlmReply } from "./assistantReplyPolish.js";
 import { compactAssistantRetrievalForLlm } from "./assistantCitationContext.js";
 import { clampAssistantUserForLlm } from "./assistantPromptBudget.js";
 
-const app = express();
+export const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "1mb" }));
 
+function firstHeaderValue(v: string | string[] | undefined): string | undefined {
+  if (Array.isArray(v)) return v[0];
+  return v;
+}
+
+function readRequestApiKey(req: express.Request, kind: "groq" | "tavily"): string | undefined {
+  const headerName = kind === "groq" ? "x-user-groq-api-key" : "x-user-tavily-api-key";
+  const bodyName = kind === "groq" ? "groqApiKey" : "tavilyApiKey";
+  const fromHeader = firstHeaderValue(req.headers[headerName]);
+  if (typeof fromHeader === "string" && fromHeader.trim().length > 0) return fromHeader.trim();
+  const fromBody = req.body?.[bodyName];
+  if (typeof fromBody === "string" && fromBody.trim().length > 0) return fromBody.trim();
+  return undefined;
+}
+
+async function validateGroqApiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const res = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+      signal: ac.signal,
+    });
+    if (res.ok) return { ok: true, message: "Groq key is valid." };
+    const body = await res.text();
+    const brief = body.trim().slice(0, 180);
+    return { ok: false, message: `Groq key rejected (${res.status})${brief ? `: ${brief}` : ""}` };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, message: `Groq validation failed: ${msg}` };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function validateTavilyApiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query: "country analytics platform key check",
+        search_depth: "basic",
+        max_results: 1,
+        include_answer: false,
+        topic: "general",
+      }),
+      signal: ac.signal,
+    });
+    if (res.ok) return { ok: true, message: "Tavily key is valid." };
+    const body = await res.text();
+    const brief = body.trim().slice(0, 180);
+    return { ok: false, message: `Tavily key rejected (${res.status})${brief ? `: ${brief}` : ""}` };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, message: `Tavily validation failed: ${msg}` };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+app.post("/api/keys/validate", async (req, res) => {
+  try {
+    const groqApiKey = readRequestApiKey(req, "groq");
+    const tavilyApiKey = readRequestApiKey(req, "tavily");
+    const [groq, tavily] = await Promise.all([
+      groqApiKey
+        ? validateGroqApiKey(groqApiKey)
+        : Promise.resolve({ ok: false, message: "No Groq key provided." }),
+      tavilyApiKey
+        ? validateTavilyApiKey(tavilyApiKey)
+        : Promise.resolve({ ok: false, message: "No Tavily key provided." }),
+    ]);
+    res.json({
+      groq,
+      tavily,
+      checkedAt: Date.now(),
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
 });
 
 app.get("/api/metrics", (_req, res) => {
@@ -835,6 +927,8 @@ app.post("/api/assistant/chat", async (req, res) => {
     const message = String(req.body?.message ?? "").trim();
     const cca3 = req.body?.countryCode ? String(req.body.countryCode).toUpperCase() : "";
     if (!message) return res.status(400).json({ error: "message required" });
+    const providedGroqApiKey = readRequestApiKey(req, "groq");
+    const providedTavilyApiKey = readRequestApiKey(req, "tavily");
 
     /** When true (UI “web-first” mode), never skip Tavily for platform-heavy intents so retrieval stays fresh. */
     const webSearchPriority =
@@ -1001,7 +1095,9 @@ app.post("/api/assistant/chat", async (req, res) => {
       Boolean(rankingSection) ||
       Boolean(comparisonBlock) ||
       (Boolean(dashboardBlock) && focusMetricsInScope);
-    const tavilyConfigured = Boolean(process.env.TAVILY_API_KEY?.trim());
+    const tavilyConfigured = Boolean(providedTavilyApiKey || process.env.TAVILY_API_KEY?.trim());
+    if (providedGroqApiKey) attribution.push("Auth: using user-provided Groq API key for this request");
+    if (providedTavilyApiKey) attribution.push("Auth: using user-provided Tavily API key for this request");
     const metricScopedTurn =
       (intent === "statistics_drill" || intent === "country_compare" || questionLooksMetricAnchored(message)) &&
       !needsVerifiedWeb;
@@ -1029,6 +1125,7 @@ app.post("/api/assistant/chat", async (req, res) => {
           topic: "news",
           timeRange: "month",
           preferNewestSourcesFirst: true,
+          apiKey: providedTavilyApiKey,
         });
         if (isWebSearchContextThin(webContext)) {
           const y = String(new Date().getFullYear());
@@ -1043,6 +1140,7 @@ app.post("/api/assistant/chat", async (req, res) => {
               startDate: utcDateDaysAgo(400),
               endDate: today,
               preferNewestSourcesFirst: true,
+              apiKey: providedTavilyApiKey,
             }
           );
           if (!isWebSearchContextThin(retry)) webContext = retry;
@@ -1056,6 +1154,7 @@ app.post("/api/assistant/chat", async (req, res) => {
             topic: "general",
             timeRange: "year",
             preferNewestSourcesFirst: true,
+            apiKey: providedTavilyApiKey,
           });
           if (wide.trim().length > webContext.trim().length) webContext = wide;
         }
@@ -1079,6 +1178,7 @@ app.post("/api/assistant/chat", async (req, res) => {
           startDate: strictStart,
           endDate: today,
           preferNewestSourcesFirst: true,
+          apiKey: providedTavilyApiKey,
         });
         if (!webContext.trim()) {
           webContext = await tavilySearch(webQuery, statsSupplementWebOnly ? 5 : 6, {
@@ -1087,6 +1187,7 @@ app.post("/api/assistant/chat", async (req, res) => {
             topic: statsSupplementWebOnly ? "general" : "news",
             timeRange: statsSupplementWebOnly ? "year" : "month",
             preferNewestSourcesFirst: true,
+            apiKey: providedTavilyApiKey,
           });
         }
         if (webContext) {
@@ -1314,7 +1415,7 @@ The message the user sees **opens with** the platform’s ranking markdown table
     }
 
     let assistantLlmText: string | null = null;
-    if (process.env.GROQ_API_KEY) {
+    if (providedGroqApiKey || process.env.GROQ_API_KEY) {
       try {
         const { text, model, primaryFailed } = await groqChatWithFallbackForUseCase(
           "assistant",
@@ -1327,6 +1428,7 @@ The message the user sees **opens with** the platform’s ranking markdown table
               (needsVerifiedWeb && !webSearchThin) ||
               intent === "general_web" ||
               intent === "country_overview",
+            apiKey: providedGroqApiKey,
           }
         );
         attribution.push(
@@ -1355,6 +1457,7 @@ CITATION ENFORCEMENT (mandatory):
                 (needsVerifiedWeb && !webSearchThin) ||
                 intent === "general_web" ||
                 intent === "country_overview",
+              apiKey: providedGroqApiKey,
             });
             assistantLlmText = polishAssistantLlmReply(retry.text);
             if (rankingMarkdown.trim()) {
@@ -1411,6 +1514,7 @@ CITATION ENFORCEMENT (mandatory):
             countryName: dashboardFocusMeta?.name,
             cca3: dashboardFocusMeta?.cca3 ?? (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
             platformSectionMarkdown: platformForTavilyFallback.trim() || undefined,
+            tavilyApiKey: providedTavilyApiKey,
           });
           attribution.push(
             hasSynthesis
@@ -1531,6 +1635,8 @@ function buildDataDigest(
 
 app.post("/api/analysis/pestel", async (req, res) => {
   try {
+    const providedGroqApiKey = readRequestApiKey(req, "groq");
+    const providedTavilyApiKey = readRequestApiKey(req, "tavily");
     const cca3 = String(req.body?.countryCode ?? "").toUpperCase();
     const year = req.body?.year
       ? clampYear(parseInt(String(req.body.year), 10))
@@ -1546,7 +1652,7 @@ app.post("/api/analysis/pestel", async (req, res) => {
     const fallback = buildDataOnlyPestel(meta?.name ?? cca3, cca3, digest, bundle, meta, profile);
 
     let web = "";
-    if (process.env.TAVILY_API_KEY?.trim()) {
+    if (providedTavilyApiKey || process.env.TAVILY_API_KEY?.trim()) {
       const name = meta?.name ?? cca3;
       const y = String(year);
       const calY = String(new Date().getFullYear());
@@ -1596,11 +1702,12 @@ app.post("/api/analysis/pestel", async (req, res) => {
               startDate: topic === "news" ? startNews : startGeneral,
               endDate: today,
               preferNewestSourcesFirst: true,
+              apiKey: providedTavilyApiKey,
             })
           )
         ),
-        fetchPestelTemporalHorizonWeb(name, cca3, year),
-        fetchPestelTavilyExecutiveLayer(meta?.name ?? cca3, cca3, year),
+        fetchPestelTemporalHorizonWeb(name, cca3, year, providedTavilyApiKey),
+        fetchPestelTavilyExecutiveLayer(meta?.name ?? cca3, cca3, year, providedTavilyApiKey),
       ]);
       const webParts: string[] = [];
       for (let i = 0; i < queries.length; i++) {
@@ -1611,9 +1718,7 @@ app.post("/api/analysis/pestel", async (req, res) => {
       if (web) attribution.push("Web context: Tavily (6 topic bundles × 5 results, advanced retrieval, recency-biased)");
       if (execPrefix.trim()) {
         web = `${execPrefix.trim()}${web ? `\n${web}` : ""}`;
-        attribution.push(
-          "Tavily: executive synthesis prepended to the web research bundle for mixed retrieval + LLM"
-        );
+        attribution.push("Tavily: executive retrieval bundle prepended (snippet-only, no generated synthesis)");
       }
       if (temporalBlock.trim()) {
         web = `${web ? `${web}\n\n` : ""}${temporalBlock.trim()}`;
@@ -1739,17 +1844,15 @@ ${digest}
 WEB RESEARCH EXCERPTS — Live retrieval as of ${todayIso} (may be empty). Synthesize into fluent prose; use only supported themes—never invent details:
 ${webForLlm || "(none — no web excerpts; follow empty-web rules above)"}`;
 
-    if (!process.env.GROQ_API_KEY) {
-      attribution.push("LLM: disabled — structured data-only template (set GROQ_API_KEY for AI narrative)");
-      if (process.env.TAVILY_API_KEY?.trim() && webFull.trim()) {
+    const buildDeterministicPestelBlend = async (
+      reasonLabel: string
+    ): Promise<{ analysis: PestelAnalysis; attributionLabel?: string }> => {
+      if ((providedTavilyApiKey || process.env.TAVILY_API_KEY?.trim()) && webFull.trim()) {
         let tavilyPartial: Partial<PestelAnalysis> | null = buildPartialPestelFromTavilyWeb(webFull);
-        const swotP = await fetchPestelSwotPartialFromTavily(meta?.name ?? cca3, year);
+        const swotP = await fetchPestelSwotPartialFromTavily(meta?.name ?? cca3, year, providedTavilyApiKey);
         if (tavilyPartial && swotP) tavilyPartial = mergePestelPartials(tavilyPartial, swotP);
         else if (!tavilyPartial) tavilyPartial = swotP ?? null;
         if (tavilyPartial) {
-          attribution.push(
-            "PESTEL: Tavily-mixed assembly (no Groq — dimensions from web bundles + SWOT pass; merged with data scaffold)"
-          );
           const groundingCtx = { bundle, digest, staticProfile, web: webFull };
           const { partial: groundedPartial, droppedFragments } = sanitizePestelPartial(tavilyPartial, groundingCtx);
           if (droppedFragments > 0) {
@@ -1757,10 +1860,20 @@ ${webForLlm || "(none — no web excerpts; follow empty-web rules above)"}`;
               `Grounding filter removed ${droppedFragments} fragment(s) not supported by indicators, profile, or web corpus`
             );
           }
-          return res.json({ analysis: mergePestelAnalysis(groundedPartial, fallback), attribution });
+          return {
+            analysis: mergePestelAnalysis(groundedPartial, fallback),
+            attributionLabel: `${reasonLabel}: deterministic Tavily+data blend`,
+          };
         }
       }
-      return res.json({ analysis: fallback, attribution });
+      return { analysis: fallback, attributionLabel: `${reasonLabel}: deterministic data scaffold` };
+    };
+
+    if (!(providedGroqApiKey || process.env.GROQ_API_KEY)) {
+      attribution.push("LLM: disabled — structured data-only template (set GROQ_API_KEY for AI narrative)");
+      const deterministic = await buildDeterministicPestelBlend("PESTEL");
+      if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
+      return res.json({ analysis: deterministic.analysis, attribution });
     }
 
     const pestelJsonSystem = `You are a senior macro-strategy analyst. Output **only** valid JSON matching the user schema.
@@ -1779,6 +1892,7 @@ Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMark
         analyticsRecencyHint: false,
         temperature: 0.06,
         topP: 0.85,
+        apiKey: providedGroqApiKey,
       });
       attribution.push(
         primaryFailed
@@ -1797,7 +1911,20 @@ Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMark
           `LLM: grounding filter removed ${droppedFragments} fragment(s) with years/figures not supported by indicators, profile, or web corpus`
         );
       }
-      return mergePestelAnalysis(groundedPartial, fallback);
+      const merged = mergePestelAnalysis(groundedPartial, fallback);
+      const validation = validatePestelAnalysisGrounding(merged, groundingCtx);
+      if (!validation.ok) {
+        attribution.push(
+          `LLM: rejected by strict grounding gate (${validation.reasons.join("; ")})`
+        );
+        const deterministic = await buildDeterministicPestelBlend("PESTEL");
+        if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
+        return deterministic.analysis;
+      }
+      attribution.push(
+        `Grounding QA: passed (${validation.groundedFragments}/${validation.totalFragments} fragments grounded)`
+      );
+      return merged;
     };
 
     try {
@@ -1808,7 +1935,7 @@ Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMark
       attribution.push(
         `LLM: Groq PESTEL stack failed — ${msg.slice(0, 200)}${msg.length > 200 ? "…" : ""}`
       );
-      if (process.env.GROQ_API_KEY?.trim()) {
+      if (providedGroqApiKey || process.env.GROQ_API_KEY?.trim()) {
         try {
           const analysis = await runGroqPestelJson(
             "assistant",
@@ -1823,28 +1950,9 @@ Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMark
           );
         }
       }
-      if (process.env.TAVILY_API_KEY?.trim() && webFull.trim()) {
-        let tavilyPartial: Partial<PestelAnalysis> | null = buildPartialPestelFromTavilyWeb(webFull);
-        const swotP = await fetchPestelSwotPartialFromTavily(meta?.name ?? cca3, year);
-        if (tavilyPartial && swotP) tavilyPartial = mergePestelPartials(tavilyPartial, swotP);
-        else if (!tavilyPartial) tavilyPartial = swotP ?? null;
-        if (tavilyPartial) {
-          attribution.push(
-            "PESTEL: Tavily-mixed fallback (dimension bullets from Tavily bundles + dedicated SWOT search; merged with data scaffold)"
-          );
-          const groundingCtx = { bundle, digest, staticProfile, web: webFull };
-          const { partial: groundedPartial, droppedFragments } = sanitizePestelPartial(tavilyPartial, groundingCtx);
-          if (droppedFragments > 0) {
-            attribution.push(
-              `Grounding filter removed ${droppedFragments} fragment(s) not supported by indicators, profile, or web corpus`
-            );
-          }
-          res.json({ analysis: mergePestelAnalysis(groundedPartial, fallback), attribution });
-          return;
-        }
-      }
-      attribution.push("Using data-only scaffold (no usable Tavily assembly)");
-      res.json({ analysis: fallback, attribution });
+      const deterministic = await buildDeterministicPestelBlend("PESTEL fallback");
+      if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
+      res.json({ analysis: deterministic.analysis, attribution });
     }
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -1853,6 +1961,8 @@ Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMark
 
 app.post("/api/analysis/porter", async (req, res) => {
   try {
+    const providedGroqApiKey = readRequestApiKey(req, "groq");
+    const providedTavilyApiKey = readRequestApiKey(req, "tavily");
     const cca3 = String(req.body?.countryCode ?? "").toUpperCase();
     const year = req.body?.year
       ? clampYear(parseInt(String(req.body.year), 10))
@@ -1878,7 +1988,7 @@ app.post("/api/analysis/porter", async (req, res) => {
     );
 
     let webFull = "";
-    if (process.env.TAVILY_API_KEY?.trim()) {
+    if (providedTavilyApiKey || process.env.TAVILY_API_KEY?.trim()) {
       const name = meta?.name ?? cca3;
       const calY = String(new Date().getFullYear());
       const today = utcDateISO();
@@ -1912,10 +2022,11 @@ app.post("/api/analysis/porter", async (req, res) => {
               startDate: topic === "news" ? startNews : startGeneral,
               endDate: today,
               preferNewestSourcesFirst: true,
+              apiKey: providedTavilyApiKey,
             })
           )
         ),
-        fetchPorterTemporalHorizonWeb(name, cca3, industrySector, year),
+        fetchPorterTemporalHorizonWeb(name, cca3, industrySector, year, providedTavilyApiKey),
       ]);
       const webParts: string[] = [];
       for (let i = 0; i < queries.length; i++) {
@@ -1933,6 +2044,7 @@ app.post("/api/analysis/porter", async (req, res) => {
             topic: "general",
             timeRange: "year",
             preferNewestSourcesFirst: true,
+            apiKey: providedTavilyApiKey,
           }
         );
       }
@@ -2102,7 +2214,7 @@ ${webForLlm || "(none — follow no-web rules above)"}`;
       return { ...analysis, forces, comprehensiveSections };
     };
 
-    if (!process.env.GROQ_API_KEY) {
+    if (!(providedGroqApiKey || process.env.GROQ_API_KEY)) {
       attribution.push("Porter: AI narrative disabled; using digest-based Porter analysis");
       return res.json({ analysis: fallback, attribution });
     }
@@ -2116,7 +2228,7 @@ ${webForLlm || "(none — follow no-web rules above)"}`;
         "porter",
         `You are a competitive strategy analyst. Output **only** valid JSON. Every string is client-facing: no "SOURCE A/B", no internal labels. Exactly **5 bullets** per force; **2 paragraphs** per comprehensive body; **5 bullets** each for newMarketAnalysis, keyTakeaways, and recommendations. Priorize PLATFORM INDICATORS for numbers and years, then web themes across time horizons.`,
         prompt,
-        { jsonObject: true, temperature: 0.2, topP: 0.86, analyticsRecencyHint: true }
+        { jsonObject: true, temperature: 0.2, topP: 0.86, analyticsRecencyHint: true, apiKey: providedGroqApiKey }
       );
       attribution.push(
         primaryFailed
@@ -2392,6 +2504,7 @@ function buildBusinessCorrelationNarrativeFallback(args: {
 
 app.post("/api/analysis/business/correlation-narrative", async (req, res) => {
   try {
+    const providedGroqApiKey = readRequestApiKey(req, "groq");
     const metricX = String(req.body?.metricX ?? "").trim();
     const metricY = String(req.body?.metricY ?? "").trim();
     if (!METRIC_BY_ID[metricX] || !METRIC_BY_ID[metricY]) return res.status(400).json({ error: "Unknown metricX or metricY" });
@@ -2477,7 +2590,7 @@ app.post("/api/analysis/business/correlation-narrative", async (req, res) => {
       residualDiagnostics,
     });
 
-    if (!process.env.GROQ_API_KEY?.trim()) {
+    if (!(providedGroqApiKey || process.env.GROQ_API_KEY?.trim())) {
       res.json({ narrative: fallback, modelUsed: null, triedModels: [] });
       return;
     }
@@ -2539,7 +2652,7 @@ Return schema:
       "business",
       sys,
       `Payload (stats + context) is below. Produce JSON only.\n${user}`,
-      { jsonObject: true, temperature: 0.22, topP: 0.84, timeoutMs: 70_000 }
+      { jsonObject: true, temperature: 0.22, topP: 0.84, timeoutMs: 70_000, apiKey: providedGroqApiKey }
     );
 
     let parsed: any = null;
@@ -2576,7 +2689,7 @@ STRICT OUTPUT REQUIREMENTS:
       "business",
       strictSys,
       `Payload (stats + context) is below. Produce JSON only.\n${user}`,
-      { jsonObject: true, temperature: 0.12, topP: 0.78, timeoutMs: 70_000 }
+      { jsonObject: true, temperature: 0.12, topP: 0.78, timeoutMs: 70_000, apiKey: providedGroqApiKey }
     );
 
     let retryParsed: any = null;
@@ -2659,7 +2772,11 @@ app.post("/api/analysis/correlation", async (req, res) => {
   }
 });
 
-const port = Number(process.env.PORT) || 4000;
-app.listen(port, () => {
-  console.log(`Country Analytics API http://localhost:${port}`);
-});
+if (process.env.VERCEL !== "1") {
+  const port = Number(process.env.PORT) || 4000;
+  app.listen(port, () => {
+    console.log(`Country Analytics API http://localhost:${port}`);
+  });
+}
+
+export default app;

@@ -18,9 +18,10 @@ export async function fetchPorterTemporalHorizonWeb(
   countryName: string,
   cca3: string,
   industrySector: string,
-  year: number
+  year: number,
+  tavilyApiKey?: string
 ): Promise<string> {
-  if (!process.env.TAVILY_API_KEY?.trim()) return "";
+  if (!(tavilyApiKey?.trim() || process.env.TAVILY_API_KEY?.trim())) return "";
   const today = utcDateISO();
   const y = String(year);
   const calY = String(new Date().getUTCFullYear());
@@ -36,6 +37,7 @@ export async function fetchPorterTemporalHorizonWeb(
         startDate: start,
         endDate: today,
         preferNewestSourcesFirst: true,
+        apiKey: tavilyApiKey,
       });
       const inner = [
         meta.synthesizedAnswer?.trim() ? `**Synthesis:** ${meta.synthesizedAnswer.trim()}` : "",

@@ -21,6 +21,8 @@ The product unifies six primary capabilities:
    Industry attractiveness analysis by country and ILO-ISIC sector.
 6. **Business Analytics**  
    Correlation/regression diagnostics and narrative synthesis for variable-pair analysis.
+7. **Cross-app AI Key Management (BYOK)**  
+   App-wide user-owned Groq/Tavily key management, validation, and reuse across Assistant, PESTEL, Porter, and Business Analytics.
 
 ## Product benefits
 
@@ -28,6 +30,7 @@ The product unifies six primary capabilities:
 - **Faster decision cycles**: analytics, strategic frameworks, and narratives are generated in one workflow.
 - **Evidence transparency**: the app distinguishes selected year vs actual data year and records source behavior.
 - **Governed AI behavior**: assistant, PESTEL, and Porter flows use grounding plus deterministic fallback paths.
+- **Portable enterprise controls**: app-wide header key manager enables Bring Your Own Key (BYOK) without exposing keys in repository config.
 - **Cross-functional alignment**: PRD, personas, stories, metrics/OKRs, guardrails, and traceability share one documentation baseline.
 
 ## Feature logic and business rules (high level)
@@ -35,6 +38,7 @@ The product unifies six primary capabilities:
 - **Data-first logic**: platform analytics are grounded in metric series and deterministic processing before narrative generation.
 - **Year-bound logic**: input years are clamped to supported ranges; sparse series can use controlled fill/fallback behavior.
 - **Safety logic**: when model/web dependencies are unavailable or low-confidence, the product falls back to deterministic scaffolds.
+- **Grounding QA logic**: PESTEL outputs pass strict snippet-based grounding validation; weak LLM output is replaced with deterministic evidence blends.
 - **Governance logic**: requirement-to-code mapping and technical/business guardrails are documented and release-gated.
 
 ## Tech stack
@@ -83,9 +87,11 @@ npm run build
 Start with `docs/README.md` for the full enterprise reading path.
 
 Core references:
+- Executive overview: `docs/EXECUTIVE_DOCUMENTATION_SUMMARY.md`
 - Product requirements: `docs/PRD.md`
 - Personas and user stories: `docs/USER_PERSONAS.md`, `docs/USER_STORIES.md`
 - Architecture and API contracts: `docs/ARCHITECTURE.md`, `docs/API_REFERENCE.md`
+- Deployment runbook: `docs/DEPLOYMENT_VERCEL.md`
 - Variables and metrics: `docs/VARIABLES.md`, `docs/METRIC_CATALOG.md`
 - Product metrics and OKRs: `docs/METRICS_AND_OKRS.md`
 - Design standards: `docs/DESIGN_GUIDELINES.md`
@@ -102,6 +108,7 @@ Core references:
 - `GET /api/global/snapshot`
 - `GET /api/global/table`
 - `POST /api/assistant/chat`
+- `POST /api/keys/validate`
 - `POST /api/analysis/pestel`
 - `POST /api/analysis/porter`
 - `GET /api/analysis/correlation-global`

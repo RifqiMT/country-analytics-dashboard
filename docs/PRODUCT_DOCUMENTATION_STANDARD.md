@@ -64,6 +64,11 @@ Documentation updates must preserve cross-document consistency:
   - `docs/GUARDRAILS.md`
   - `docs/API_REFERENCE.md`
   - `docs/TRACEABILITY_MATRIX.md`
+- App-wide key management / auth-header behavior changes require updates in:
+  - `docs/VARIABLES.md`
+  - `docs/API_REFERENCE.md`
+  - `docs/GUARDRAILS.md`
+  - `docs/TRACEABILITY_MATRIX.md`
 - Analysis method changes require updates in:
   - `docs/ANALYSIS_METHODS.md`
   - `docs/VARIABLES.md` (derived variables/formulas)

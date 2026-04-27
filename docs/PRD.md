@@ -68,6 +68,8 @@ Examples of core FR capabilities:
 - PESTEL and Porter structured output with fallback scaffolds
 - Business Analytics: correlation diagnostics (r, p-value, r², slope, intercept, residuals) and narrative generation
 - Persisted analysis across navigation until user regenerates
+- Cross-app BYOK (Bring Your Own Key): users can supply Groq/Tavily keys in one header panel and reuse them across AI modules
+- PESTEL strict grounding QA: low-evidence LLM outputs are rejected and replaced by deterministic evidence blends
 
 ## 7) Non-Functional Requirements (NFR)
 
@@ -109,6 +111,18 @@ The platform uses an evidence hierarchy:
 3. **AI synthesis**: only after scope + grounding controls apply
 
 When evidence quality fails gates, the system uses deterministic fallbacks instead of unsupported claims.
+
+### 9.1 BYOK operating model
+
+- Users can provide personal API keys for Groq and Tavily in the header-level `AI API Keys (App-wide)` panel.
+- Keys are attached to API requests through headers and can be validated via `/api/keys/validate`.
+- Backend resolves key priority as: request-level user key -> server environment key -> deterministic fallback.
+
+### 9.2 PESTEL quality strategy
+
+- Web context for PESTEL uses snippet-only retrieval blocks (not synthesized web answers).
+- LLM PESTEL output is filtered by grounding sanitizer, then validated by strict grounding QA.
+- If grounded ratio/section quality fails thresholds, output is replaced by deterministic Tavily+data blend or data-only scaffold.
 
 ## 10) Metrics of Success
 

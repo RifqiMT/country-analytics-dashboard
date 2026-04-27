@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAppBootstrap } from "../hooks/useAppBootstrap";
 import ApiToastStack from "./ApiToastStack";
 import ApiTransportPanel from "./ApiTransportPanel";
+import UserApiKeysHeaderPanel from "./assistant/UserApiKeysHeaderPanel";
 
 const PinIcon = () => (
   <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
@@ -59,8 +60,13 @@ export default function Layout() {
               A modern, analyst-grade view across financial, demographic, and health metrics for every country
               (2000 – latest), powered by World Bank, UN, UNESCO, WHO, and IMF data.
             </p>
-            <div className="flex w-full justify-end">
-              <ApiTransportPanel variant="inline" inlineAlign="end" />
+            <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start">
+              <div className="order-2 lg:order-1 lg:flex-1">
+                <UserApiKeysHeaderPanel />
+              </div>
+              <div className="order-1 flex w-full justify-end lg:order-2 lg:w-auto lg:shrink-0">
+                <ApiTransportPanel variant="inline" inlineAlign="end" />
+              </div>
             </div>
           </div>
           <nav className="mt-3 flex flex-wrap gap-1.5 sm:gap-2 lg:mt-3">

@@ -61,6 +61,24 @@ function buildCorpus(ctx: PestelGroundingContext): string {
   return `${ctx.digest}\n${ctx.staticProfile}\n${ctx.web}`.toLowerCase();
 }
 
+function tokenizeInformative(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 4 && !/^\d+$/.test(t));
+}
+
+function lexicalGroundedness(text: string, corpus: string): number {
+  const toks = tokenizeInformative(text);
+  if (toks.length === 0) return 0;
+  let hits = 0;
+  for (const t of toks) {
+    if (corpus.includes(t)) hits += 1;
+  }
+  return hits / toks.length;
+}
+
 /** Percent token in prose is allowed if it matches digest/web/profile (with small float tolerance). */
 function percentagesGrounded(s: string, corpus: string): boolean {
   const tokens = s.match(/\d+(?:\.\d+)?%/g);
@@ -124,7 +142,11 @@ function populationOrScaleMagnitudesGrounded(s: string, corpus: string): boolean
 export function proseIsGrounded(text: string, ctx: PestelGroundingContext, corpus: string): boolean {
   const t = text.trim();
   if (!t) return false;
-  if (!STAT_ASSERTION.test(t)) return true;
+  const lexical = lexicalGroundedness(t, corpus);
+  if (!STAT_ASSERTION.test(t)) {
+    // Qualitative prose still needs lexical support from retrieved evidence/context.
+    return lexical >= 0.28;
+  }
 
   const allowedYears = buildAllowedYears(ctx);
   for (const y of extractYears(t)) {
@@ -133,6 +155,7 @@ export function proseIsGrounded(text: string, ctx: PestelGroundingContext, corpu
   if (!percentagesGrounded(t, corpus)) return false;
   if (!dollarSnippetsGrounded(t, corpus)) return false;
   if (!populationOrScaleMagnitudesGrounded(t, corpus)) return false;
+  if (lexical < 0.2) return false;
   return true;
 }
 
@@ -200,4 +223,63 @@ export function sanitizePestelPartial(
   }
 
   return { partial: out, droppedFragments: dropped.n };
+}
+
+export type PestelGroundingValidation = {
+  ok: boolean;
+  groundedFragments: number;
+  totalFragments: number;
+  ratio: number;
+  reasons: string[];
+};
+
+export function validatePestelAnalysisGrounding(
+  analysis: PestelAnalysis,
+  ctx: PestelGroundingContext
+): PestelGroundingValidation {
+  const corpus = buildCorpus(ctx);
+  const reasons: string[] = [];
+  let total = 0;
+  let grounded = 0;
+
+  const check = (s: string) => {
+    total += 1;
+    if (proseIsGrounded(s, ctx, corpus)) grounded += 1;
+  };
+
+  for (const d of analysis.pestelDimensions) for (const b of d.bullets) check(b);
+  for (const b of analysis.swot.strengths) check(b);
+  for (const b of analysis.swot.weaknesses) check(b);
+  for (const b of analysis.swot.opportunities) check(b);
+  for (const b of analysis.swot.threats) check(b);
+  for (const s of analysis.comprehensiveSections) {
+    for (const p of s.body.split(/\n\s*\n/).map((x) => x.trim()).filter(Boolean)) check(p);
+  }
+  for (const s of analysis.strategicBusiness) for (const p of s.paragraphs) check(p);
+  for (const b of analysis.newMarketAnalysis) check(b);
+  for (const b of analysis.keyTakeaways) check(b);
+  for (const b of analysis.recommendations) check(b);
+
+  const ratio = total > 0 ? grounded / total : 0;
+  if (ratio < 0.74) reasons.push(`grounded ratio too low (${grounded}/${total}, ${(ratio * 100).toFixed(1)}%)`);
+  const econ = analysis.pestelDimensions.find((d) => d.label === "ECONOMIC");
+  if (econ) {
+    const econGrounded = econ.bullets.filter((b) => proseIsGrounded(b, ctx, corpus)).length;
+    if (econGrounded < 3) reasons.push(`ECONOMIC bullets weakly grounded (${econGrounded}/5)`);
+  }
+  const executive = analysis.comprehensiveSections.find((s) => s.title.toLowerCase().includes("executive"));
+  if (executive) {
+    const paras = executive.body.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
+    if (paras.length > 0 && !proseIsGrounded(paras[0]!, ctx, corpus)) {
+      reasons.push("executive summary opening paragraph not grounded");
+    }
+  }
+
+  return {
+    ok: reasons.length === 0,
+    groundedFragments: grounded,
+    totalFragments: total,
+    ratio,
+    reasons,
+  };
 }

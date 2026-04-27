@@ -29,6 +29,23 @@ Response:
 { "ok": true }
 ```
 
+#### POST `/api/keys/validate`
+
+Purpose: validate user-provided Groq/Tavily API keys from request headers.
+
+Headers (optional):
+- `X-User-Groq-Api-Key`
+- `X-User-Tavily-Api-Key`
+
+Response:
+```json
+{
+  "groq": { "ok": true, "message": "Groq key is valid." },
+  "tavily": { "ok": false, "message": "No Tavily key provided." },
+  "checkedAt": 1714240000000
+}
+```
+
 #### GET `/api/metrics`
 
 Purpose: return the metric catalog used across the app.
@@ -356,6 +373,9 @@ Fields:
 - `countryCode` (optional): focus ISO3 for grounding
 - `webSearchPriority` (optional): boolean; when true, biases toward fresh web retrieval
 - `assistantMode` (optional): legacy alias for web-priority mode (`"web_priority"`)
+- Header override support for BYOK:
+  - `X-User-Groq-Api-Key`
+  - `X-User-Tavily-Api-Key`
 
 Response:
 ```json
@@ -383,6 +403,10 @@ Request body:
 ```json
 { "countryCode": "IDN", "year": 2025 }
 ```
+
+Header override support for BYOK:
+- `X-User-Groq-Api-Key`
+- `X-User-Tavily-Api-Key`
 
 Response:
 ```json
@@ -419,7 +443,7 @@ Response:
 }
 ```
 
-When Groq/Tavily keys are missing or evidence is insufficient, the backend returns a data-only scaffold (stable UI shape).
+When Groq/Tavily keys are missing or evidence is insufficient, the backend returns a deterministic scaffold/blend (stable UI shape). PESTEL now uses snippet-only web evidence and strict grounding QA before accepting LLM output.
 
 Errors:
 - `400` invalid `countryCode`
@@ -433,6 +457,10 @@ Request body:
 ```json
 { "countryCode": "IDN", "year": 2025, "industrySector": "10 - Manufacture of food products" }
 ```
+
+Header override support for BYOK:
+- `X-User-Groq-Api-Key`
+- `X-User-Tavily-Api-Key`
 
 Response:
 ```json
@@ -527,6 +555,9 @@ Request body (key fields):
   "residualDiagnostics": { "meanAbsResidual": 2.4, "medianResidual": -0.1, "residualIqr": 1.6 }
 }
 ```
+
+Header override support for BYOK:
+- `X-User-Groq-Api-Key`
 
 Response:
 ```json

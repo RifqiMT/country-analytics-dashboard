@@ -22,9 +22,10 @@ export const PESTEL_TEMPORAL_SECTION_MARKER = "## Multi-horizon web research";
 export async function fetchPestelTemporalHorizonWeb(
   countryName: string,
   cca3: string,
-  year: number
+  year: number,
+  tavilyApiKey?: string
 ): Promise<string> {
-  if (!process.env.TAVILY_API_KEY?.trim()) return "";
+  if (!(tavilyApiKey?.trim() || process.env.TAVILY_API_KEY?.trim())) return "";
   const today = utcDateISO();
   const y = String(year);
   const calY = String(new Date().getUTCFullYear());
@@ -40,13 +41,10 @@ export async function fetchPestelTemporalHorizonWeb(
         startDate: start,
         endDate: today,
         preferNewestSourcesFirst: true,
+        apiKey: tavilyApiKey,
       });
-      const inner = [
-        meta.synthesizedAnswer?.trim() ? `**Synthesis:** ${meta.synthesizedAnswer.trim()}` : "",
-        meta.formattedBlock.trim(),
-      ]
-        .filter(Boolean)
-        .join("\n\n");
+      // Use retrieved snippets only; skip Tavily synthesized answer to reduce second-order hallucinations.
+      const inner = meta.formattedBlock.trim();
       const clipped = inner.slice(0, 2000);
       const header = `### ${label} (indexed ~${start}–${today})`;
       if (!clipped.trim()) {
@@ -200,10 +198,10 @@ export function buildPartialPestelFromTavilyWeb(web: string): Partial<PestelAnal
 export async function fetchPestelTavilyExecutiveLayer(
   countryName: string,
   cca3: string,
-  year: number
+  year: number,
+  tavilyApiKey?: string
 ): Promise<string> {
-  const key = process.env.TAVILY_API_KEY?.trim();
-  if (!key) return "";
+  if (!(tavilyApiKey?.trim() || process.env.TAVILY_API_KEY?.trim())) return "";
   const y = String(year);
   const today = utcDateISO();
   const start = utcDateDaysAgo(120);
@@ -216,22 +214,22 @@ export async function fetchPestelTavilyExecutiveLayer(
     startDate: start,
     endDate: today,
     preferNewestSourcesFirst: true,
+    apiKey: tavilyApiKey,
   });
+  // Keep only direct retrieval snippets; do not prepend generated synthesis.
   const parts: string[] = [`### ${EXEC_HEADER}`];
-  if (meta.synthesizedAnswer?.trim()) {
-    parts.push(`Brief synthesis (Tavily answer): ${meta.synthesizedAnswer.trim()}`);
-  }
-  if (meta.formattedBlock.trim()) {
-    parts.push(meta.formattedBlock.trim().slice(0, 2400));
-  }
+  if (meta.formattedBlock.trim()) parts.push(meta.formattedBlock.trim().slice(0, 2400));
   const block = parts.join("\n\n").trim();
   return block.length > 40 ? `${block}\n\n` : "";
 }
 
 /** SWOT quadrants from a dedicated Tavily pass when Groq JSON is unavailable. */
-export async function fetchPestelSwotPartialFromTavily(countryName: string, year: number): Promise<Partial<PestelAnalysis> | null> {
-  const key = process.env.TAVILY_API_KEY?.trim();
-  if (!key) return null;
+export async function fetchPestelSwotPartialFromTavily(
+  countryName: string,
+  year: number,
+  tavilyApiKey?: string
+): Promise<Partial<PestelAnalysis> | null> {
+  if (!(tavilyApiKey?.trim() || process.env.TAVILY_API_KEY?.trim())) return null;
   const today = utcDateISO();
   const start = utcDateDaysAgo(150);
   const q = `${countryName} SWOT analysis for business and investment: strengths, weaknesses, opportunities, threats. Use recent macro and policy context. Year context: ${year}.`;
@@ -243,8 +241,9 @@ export async function fetchPestelSwotPartialFromTavily(countryName: string, year
     startDate: start,
     endDate: today,
     preferNewestSourcesFirst: true,
+    apiKey: tavilyApiKey,
   });
-  const blob = [meta.synthesizedAnswer, meta.formattedBlock].filter(Boolean).join("\n\n");
+  const blob = meta.formattedBlock;
   if (!blob.trim()) return null;
   const pool = chunkToTavilyBullets(blob, 24);
   if (pool.length < 4) return null;

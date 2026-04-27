@@ -59,6 +59,15 @@ Stories are written in user language, but each acceptance section is specific en
 - The UI exposes routing/category signals (dashboard vs web vs verified web).
 - Citation behavior is consistent with the evidence model and does not leak placeholder tokens.
 
+### Story A4: App-wide BYOK key usage
+
+**Story:** As a power user, I want my Groq/Tavily keys entered once and reused across all AI modules.
+
+**Acceptance criteria:**
+- Header key manager accepts and stores user keys according to session/persistent preference.
+- Backend receives keys via request headers and applies them to Assistant, PESTEL, Porter, and Business narrative routes.
+- Key validation endpoint returns provider-specific pass/fail feedback.
+
 ## 3) Strategy Modules (PESTEL / Porter)
 
 ### Story S1: Coherent PESTEL and Porter narratives
@@ -76,6 +85,15 @@ Stories are written in user language, but each acceptance section is specific en
 **Acceptance criteria:**
 - If generation fails grounding/safety checks (or AI keys are missing), deterministic scaffold output is returned.
 - Attribution indicates when fallback/scaffold mode was used.
+
+### Story S3: PESTEL strict grounding quality gate
+
+**Story:** As a strategy stakeholder, I want PESTEL output to reject unsupported claims and return only evidence-backed content.
+
+**Acceptance criteria:**
+- PESTEL web context uses snippet-only retrieval evidence.
+- LLM output is sanitized and validated by grounding ratio/section checks.
+- If quality gate fails, backend returns deterministic Tavily+data blend or data-only scaffold with stable schema.
 
 ## 4) Business Analytics
 

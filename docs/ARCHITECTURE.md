@@ -79,6 +79,13 @@ If evidence quality or scope constraints fail, the system uses deterministic fal
    - fallback activation when output is weak or evidence is thin
 5. Backend returns a stable response with attribution/routing signals for the UI.
 
+#### C.1) App-wide BYOK key flow
+
+1. User enters keys in header panel (`AI API Keys (App-wide)`).
+2. Frontend stores keys (session/persistent per user choice) and attaches request headers.
+3. Backend resolves key precedence: request header key -> server env key -> deterministic fallback path.
+4. Optional `/api/keys/validate` endpoint provides provider-specific key health checks.
+
 #### D) Strategy generation (PESTEL, Porter)
 
 1. UI selects `countryCode` and year. Porter also includes `industrySector`.
@@ -86,6 +93,14 @@ If evidence quality or scope constraints fail, the system uses deterministic fal
    - if Groq is configured and evidence quality passes: structured narrative output
    - else: data-only scaffold output with stable UI sections
 3. Frontend renders the narrative sections and standardized bullet formatting.
+
+##### PESTEL strict grounding architecture
+
+- Retrieval context is snippet-based (no provider-synthesized answer injection).
+- LLM partial output passes:
+  1) fragment-level grounding sanitizer
+  2) final analysis grounding validator (ratio/section checks)
+- If either gate fails, backend returns deterministic Tavily+data blend or data-only scaffold.
 
 #### E) Business analytics correlation and narrative
 

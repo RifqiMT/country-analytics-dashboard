@@ -5,19 +5,10 @@ import ExportPngButton from "../ExportPngButton";
 
 type Key = keyof PestelSwot;
 
-function splitIntoSentences(raw: string): string[] {
-  const t = raw.replace(/\s+/g, " ").trim();
-  if (!t) return [];
-  // Split on sentence-ending punctuation (. ! ?) and keep the punctuation.
-  // If there is no sentence-ending punctuation, the full text is returned as one sentence.
-  const parts = t.match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? [];
-  return parts.map((p) => p.trim()).filter(Boolean);
-}
-
 export default function PestelSwotGrid({ swot }: { swot: PestelSwot }) {
   const keys: Key[] = ["strengths", "weaknesses", "opportunities", "threats"];
   const swotRef = useRef<HTMLElement | null>(null);
-  const MAX_SENTENCES_PER_CARD = 6;
+  const MAX_ITEMS_PER_CARD = 5;
 
   return (
     <section ref={(n) => (swotRef.current = n)} className="space-y-4">
@@ -56,11 +47,12 @@ export default function PestelSwotGrid({ swot }: { swot: PestelSwot }) {
               <div className="flex-1 p-4 sm:p-5" style={{ backgroundColor: cfg.tint }}>
                 <ul className="list-disc space-y-2 pl-4 text-sm leading-relaxed text-slate-800">
                   {items
-                    .flatMap((line) => splitIntoSentences(String(line)))
-                    .slice(0, MAX_SENTENCES_PER_CARD)
-                    .map((sentence, i) => (
-                      <li key={`${k}-s-${i}`} className="line-clamp-2">
-                        {sentence}
+                    .map((line) => String(line).replace(/\s+/g, " ").trim())
+                    .filter(Boolean)
+                    .slice(0, MAX_ITEMS_PER_CARD)
+                    .map((bullet, i) => (
+                      <li key={`${k}-b-${i}`}>
+                        {bullet}
                       </li>
                     ))}
                 </ul>

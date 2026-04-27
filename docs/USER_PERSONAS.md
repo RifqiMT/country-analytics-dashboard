@@ -89,3 +89,25 @@ Each persona describes:
 
 **Success signals:**
 - Doc drift is detected early; releases are auditable and measurable.
+
+## Persona 5: Enterprise Power User (BYOK Analyst)
+
+**Primary goal:** use personal API quotas/credentials safely across modules without waiting for server-level key provisioning.
+
+**Jobs to be done:**
+- Enter and validate Groq/Tavily keys once, then use them in Assistant, PESTEL, Porter, and Business narratives.
+- Keep keys in session or persistent browser storage based on security policy.
+- Confirm key status quickly before heavy analysis runs.
+
+**Pain points:**
+- Re-entering keys per feature/request
+- Hidden key usage path (unclear whether requests use personal key or server key)
+- Unhelpful provider errors for invalid or expired keys
+
+**Evidence needs:**
+- Per-key validation status and clear failure messages
+- App-wide consistency in key usage
+- Safe fallback when keys are unavailable
+
+**Success signals:**
+- User can set keys in one place and complete all AI workflows without reconfiguration.

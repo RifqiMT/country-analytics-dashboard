@@ -68,6 +68,17 @@ How often the system had to fall back because the AI/web output did not meet gro
 **Why it matters:**  
 High fallback can indicate either a quality problem (model drift) or evidence retrieval gaps.
 
+### 2.4 PESTEL Grounding Pass Rate
+
+**What it measures:**  
+Share of PESTEL generations that pass strict grounding QA without forced deterministic replacement.
+
+**Definition (working):**
+`PestelGroundingPassRate = count(PESTEL runs passing strict grounding validation) / count(total PESTEL runs) * 100`
+
+**Why it matters:**  
+Directly measures whether PESTEL remains evidence-backed and usable for human decision workflows.
+
 ## 3) Performance metrics
 
 ### 3.1 Assistant latency (P50 / P95)
@@ -92,6 +103,14 @@ Backend compute + retrieval time specifically (useful for diagnosing delays).
 **What it measures:**
 - Average/percentile retrieval time for web context
 - Frequency of retrieval failures/timeouts
+
+### 3.4 Key validation success rate
+
+**What it measures:**  
+Ratio of successful provider validations from `/api/keys/validate`.
+
+**Definition (working):**
+`KeyValidationSuccessRate = count(validated keys with ok=true) / count(validation attempts with provided keys) * 100`
 
 ## 4) Usage & outcomes metrics
 
@@ -138,6 +157,7 @@ Key Results:
 - **KR1:** Reduce hallucination-related user complaints by **60% QoQ**
 - **KR2:** Achieve **>= 95% grounded-output pass rate** on a monitored benchmark suite
 - **KR3:** Keep unresolved citation placeholder leakage incidents at **<= 2%**
+- **KR4:** Keep PESTEL strict grounding pass rate at **>= 85%** on monitored countries/sectors
 
 Measurement guidance:
 - Maintain a stable benchmark prompt set per intent class (ranking, comparison, verified web, non-metric web)

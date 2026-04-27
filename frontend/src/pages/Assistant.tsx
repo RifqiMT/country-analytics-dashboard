@@ -260,6 +260,9 @@ export default function Assistant() {
             training data. Use <em>Web-first</em> when you want retrieval on every turn; <em>Auto</em> keeps metrics
             cleanly dashboard-grounded unless you need the extra search pass.
           </p>
+          <p className="text-xs text-slate-500">
+            API keys are managed in the top header panel (<span className="font-semibold">AI API Keys (App-wide)</span>) and are reused across Assistant, PESTEL, Porter, and Business Analytics.
+          </p>
         </div>
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
           <div>
@@ -350,7 +353,7 @@ export default function Assistant() {
                 <li className="rounded-lg border border-slate-100 bg-slate-50/80 p-2.5">
                   <p className="text-[11px] font-medium text-slate-700">4 · Answer style</p>
                   <p className="mt-0.5 text-[10px] text-slate-500">
-                    Web-first needs <code className="rounded bg-slate-200/80 px-0.5">TAVILY_API_KEY</code> on the API.
+                    Web-first needs a Tavily key from either server env or your own key below.
                   </p>
                   <div className="mt-1.5 flex flex-col gap-1.5">
                     <button

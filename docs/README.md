@@ -56,6 +56,9 @@ The documentation set must enable readers to:
 - `TRACEABILITY_MATRIX.md`: requirement-to-implementation validation map
 - `PRODUCT_DOCUMENTATION_STANDARD.md`: documentation governance rules
 - `CHANGELOG.md`: versioned history of documentation and product-alignment updates
+- `DEPLOYMENT_VERCEL.md`: production deployment setup and validation checklist for Vercel
+- `RELEASE_READINESS_CHECKLIST.md`: release gate checklist (quality, guardrails, docs sync, deployment)
+- `EXECUTIVE_DOCUMENTATION_SUMMARY.md`: leadership-level product/documentation status snapshot
 
 ## Minimum update protocol
 

@@ -178,6 +178,8 @@ export type TavilySearchOptions = {
   includeAnswer?: boolean | "basic" | "advanced";
   /** Sort hits by `published_date` when the API returns it (default true). */
   preferNewestSourcesFirst?: boolean;
+  /** Optional per-request API key override (e.g., user-provided key in Assistant). */
+  apiKey?: string;
 };
 
 /** Today as YYYY-MM-DD (UTC). */
@@ -217,7 +219,7 @@ export async function tavilySearchWithMeta(
   maxResults = 5,
   options?: TavilySearchOptions
 ): Promise<TavilySearchMeta> {
-  const key = process.env.TAVILY_API_KEY?.trim();
+  const key = options?.apiKey?.trim() || process.env.TAVILY_API_KEY?.trim();
   if (!key) return { formattedBlock: "", synthesizedAnswer: null, results: [] };
   const max_results = options?.maxResults ?? maxResults;
   const body: Record<string, unknown> = {
@@ -233,13 +235,7 @@ export async function tavilySearchWithMeta(
   if (options?.startDate) body.start_date = options.startDate;
   if (options?.endDate) body.end_date = options.endDate;
 
-  const res = await fetch("https://api.tavily.com/search", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) return { formattedBlock: "", synthesizedAnswer: null, results: [] };
-  const data = (await res.json()) as {
+  let data: {
     answer?: string;
     results?: {
       title?: string;
@@ -248,6 +244,26 @@ export async function tavilySearchWithMeta(
       published_date?: string;
     }[];
   };
+  try {
+    const res = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return { formattedBlock: "", synthesizedAnswer: null, results: [] };
+    data = (await res.json()) as {
+      answer?: string;
+      results?: {
+        title?: string;
+        url?: string;
+        content?: string;
+        published_date?: string;
+      }[];
+    };
+  } catch {
+    // Network-level failures (e.g., DNS/TLS/socket) should degrade gracefully instead of failing the whole request.
+    return { formattedBlock: "", synthesizedAnswer: null, results: [] };
+  }
   const synth =
     typeof data.answer === "string" && data.answer.trim() ? data.answer.trim() : null;
   const chunks: string[] = [];
@@ -311,9 +327,11 @@ export async function groqChat(
     timeoutMs?: number;
     /** Cap completion length (default 8192). */
     maxTokens?: number;
+    /** Optional per-request API key override (e.g., user-provided key in Assistant). */
+    apiKey?: string;
   }
 ): Promise<{ text: string; model: string }> {
-  const key = process.env.GROQ_API_KEY;
+  const key = options?.apiKey?.trim() || process.env.GROQ_API_KEY;
   const model =
     options?.model?.trim() && options.model.trim().length > 0
       ? options.model.trim()
@@ -398,6 +416,8 @@ export async function groqChatWithFallbackForUseCase(
     analyticsRecencyHint?: boolean;
     timeoutMs?: number;
     maxTokens?: number;
+    /** Optional per-request API key override (e.g., user-provided key in Assistant). */
+    apiKey?: string;
   }
 ): Promise<{
   text: string;

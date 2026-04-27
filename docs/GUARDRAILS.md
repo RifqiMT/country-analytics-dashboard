@@ -54,6 +54,14 @@ Tables/cards should always reflect returned years (not just requested years).
 - External provider calls are bounded by timeouts and retry logic.
 - LLM calls must respect provider limits (prompt payload caps).
 
+### TG-04: Request-level BYOK key precedence
+
+- If user-provided key headers exist, backend must prefer them over server env keys for that request.
+- Header contracts:
+  - `X-User-Groq-Api-Key`
+  - `X-User-Tavily-Api-Key`
+- Missing/invalid user keys must never crash the route; deterministic fallback remains mandatory.
+
 ## 4) AI guardrails (assistant + analysis generation)
 
 ### AG-01: Evidence-first answering (no unsupported certainty)
@@ -79,6 +87,17 @@ Tables/cards should always reflect returned years (not just requested years).
 
 - Deterministic fallbacks are not “best effort”; they are a required safety mechanism.
 - Fallback behavior should be stable and professional, never exposing engineering failure wording.
+
+### AG-06: PESTEL snippet-only retrieval evidence
+
+- PESTEL web context must use retrieved snippets as evidence blocks.
+- Generated web synthesis text (provider-generated answer summaries) must not be treated as authoritative evidence.
+
+### AG-07: PESTEL strict grounding QA gate
+
+- Final merged PESTEL analysis must pass strict grounding validation ratio/section checks.
+- If validation fails, backend must return deterministic Tavily+data blend or data-only scaffold.
+- Grounding rejection reason should be recorded in attribution for auditability.
 
 ## 5) Business guardrails (responsible use)
 
