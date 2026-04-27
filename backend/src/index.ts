@@ -2504,6 +2504,13 @@ function buildBusinessCorrelationNarrativeFallback(args: {
 
 app.post("/api/analysis/business/correlation-narrative", async (req, res) => {
   try {
+    const requestStartedAt = Date.now();
+    const NARRATIVE_BUDGET_MS = 28_000;
+    const MIN_ATTEMPT_WINDOW_MS = 7_500;
+    const SAFETY_BUFFER_MS = 1_500;
+    const remainingBudgetMs = () => NARRATIVE_BUDGET_MS - (Date.now() - requestStartedAt);
+    const canRunAnotherAttempt = () => remainingBudgetMs() > MIN_ATTEMPT_WINDOW_MS;
+
     const providedGroqApiKey = readRequestApiKey(req, "groq");
     const metricX = String(req.body?.metricX ?? "").trim();
     const metricY = String(req.body?.metricY ?? "").trim();
@@ -2648,16 +2655,38 @@ Return schema:
       fallback,
     });
 
-    const { text } = await groqChatWithFallbackForUseCase(
+    if (!canRunAnotherAttempt()) {
+      res.json({
+        narrative: fallback,
+        modelUsed: null,
+        triedModels: [],
+        fallbackReason: "request-budget-exhausted-before-llm",
+      });
+      return;
+    }
+
+    const firstAttemptTimeoutMs = Math.max(
+      6_000,
+      Math.min(14_000, remainingBudgetMs() - SAFETY_BUFFER_MS)
+    );
+
+    const firstAttempt = await groqChatWithFallbackForUseCase(
       "business",
       sys,
       `Payload (stats + context) is below. Produce JSON only.\n${user}`,
-      { jsonObject: true, temperature: 0.22, topP: 0.84, timeoutMs: 70_000, apiKey: providedGroqApiKey }
+      {
+        jsonObject: true,
+        temperature: 0.22,
+        topP: 0.84,
+        timeoutMs: firstAttemptTimeoutMs,
+        maxModelAttempts: 2,
+        apiKey: providedGroqApiKey,
+      }
     );
 
     let parsed: any = null;
     try {
-      parsed = JSON.parse(text);
+      parsed = JSON.parse(firstAttempt.text);
     } catch {
       parsed = null;
     }
@@ -2673,7 +2702,7 @@ Return schema:
       Array.isArray(parsed.recommendedAnalyses) &&
       parsed.recommendedAnalyses.length === 3
     ) {
-      res.json({ narrative: parsed, modelUsed: null, triedModels: [] });
+      res.json({ narrative: parsed, modelUsed: firstAttempt.model, triedModels: firstAttempt.triedModels });
       return;
     }
 
@@ -2685,16 +2714,38 @@ STRICT OUTPUT REQUIREMENTS:
 - Array lengths: associationParagraphs=2, correlationBullets=3, causationHypotheses=3, recommendedAnalyses=3.
 `;
 
-    const { text: retryText } = await groqChatWithFallbackForUseCase(
+    if (!canRunAnotherAttempt()) {
+      res.json({
+        narrative: fallback,
+        modelUsed: null,
+        triedModels: firstAttempt.triedModels,
+        fallbackReason: "request-budget-exhausted-after-first-attempt",
+      });
+      return;
+    }
+
+    const retryTimeoutMs = Math.max(
+      5_500,
+      Math.min(10_000, remainingBudgetMs() - SAFETY_BUFFER_MS)
+    );
+
+    const retryAttempt = await groqChatWithFallbackForUseCase(
       "business",
       strictSys,
       `Payload (stats + context) is below. Produce JSON only.\n${user}`,
-      { jsonObject: true, temperature: 0.12, topP: 0.78, timeoutMs: 70_000, apiKey: providedGroqApiKey }
+      {
+        jsonObject: true,
+        temperature: 0.12,
+        topP: 0.78,
+        timeoutMs: retryTimeoutMs,
+        maxModelAttempts: 1,
+        apiKey: providedGroqApiKey,
+      }
     );
 
     let retryParsed: any = null;
     try {
-      retryParsed = JSON.parse(retryText);
+      retryParsed = JSON.parse(retryAttempt.text);
     } catch {
       retryParsed = null;
     }
@@ -2710,13 +2761,48 @@ STRICT OUTPUT REQUIREMENTS:
       Array.isArray(retryParsed.recommendedAnalyses) &&
       retryParsed.recommendedAnalyses.length === 3
     ) {
-      res.json({ narrative: retryParsed, modelUsed: null, triedModels: [] });
+      res.json({
+        narrative: retryParsed,
+        modelUsed: retryAttempt.model,
+        triedModels: [...firstAttempt.triedModels, ...retryAttempt.triedModels],
+      });
       return;
     }
 
-    res.json({ narrative: fallback, modelUsed: null, triedModels: [] });
+    res.json({
+      narrative: fallback,
+      modelUsed: null,
+      triedModels: [...firstAttempt.triedModels, ...retryAttempt.triedModels],
+      fallbackReason: "llm-json-schema-invalid",
+    });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    res.json({
+      narrative: buildBusinessCorrelationNarrativeFallback({
+        metricX: String(req.body?.metricX ?? ""),
+        metricY: String(req.body?.metricY ?? ""),
+        labelX: String(req.body?.labelX ?? req.body?.metricX ?? "Metric X"),
+        labelY: String(req.body?.labelY ?? req.body?.metricY ?? "Metric Y"),
+        startYear: Number(req.body?.startYear ?? MIN_DATA_YEAR),
+        endYear: Number(req.body?.endYear ?? currentDataYear()),
+        yearCount: Math.max(1, Number(req.body?.endYear ?? currentDataYear()) - Number(req.body?.startYear ?? MIN_DATA_YEAR) + 1),
+        excludeIqr: String(req.body?.excludeIqr ?? "false").toLowerCase() === "true",
+        highlightCountryIso3: req.body?.highlightCountryIso3 ? String(req.body.highlightCountryIso3) : undefined,
+        highlightCountryName: req.body?.highlightCountryName ? String(req.body.highlightCountryName) : undefined,
+        correlation: req.body?.correlation === null ? null : Number(req.body?.correlation),
+        pValue: req.body?.pValue === null ? null : String(req.body?.pValue),
+        rSquared: req.body?.rSquared === null ? null : Number(req.body?.rSquared),
+        slope: req.body?.slope === null ? null : Number(req.body?.slope),
+        intercept: req.body?.intercept === null ? null : Number(req.body?.intercept),
+        n: Number(req.body?.n ?? 0),
+        nMissing: Number(req.body?.nMissing ?? 0),
+        nIqrFlagged: Number(req.body?.nIqrFlagged ?? 0),
+        subgroups: [],
+      }),
+      modelUsed: null,
+      triedModels: [],
+      fallbackReason: "llm-runtime-error",
+      error: e instanceof Error ? e.message : String(e),
+    });
   }
 });
 

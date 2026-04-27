@@ -416,6 +416,8 @@ export async function groqChatWithFallbackForUseCase(
     analyticsRecencyHint?: boolean;
     timeoutMs?: number;
     maxTokens?: number;
+    /** Limit how many model candidates are tried for this call. */
+    maxModelAttempts?: number;
     /** Optional per-request API key override (e.g., user-provided key in Assistant). */
     apiKey?: string;
   }
@@ -426,7 +428,14 @@ export async function groqChatWithFallbackForUseCase(
   primaryFailed: boolean;
   useCase: GroqUseCase;
 }> {
-  const candidates = resolveGroqModelCandidatesForUseCase(useCase);
+  const candidatesAll = resolveGroqModelCandidatesForUseCase(useCase);
+  const maxAttempts =
+    typeof options?.maxModelAttempts === "number" &&
+    Number.isFinite(options.maxModelAttempts) &&
+    options.maxModelAttempts > 0
+      ? Math.min(candidatesAll.length, Math.floor(options.maxModelAttempts))
+      : candidatesAll.length;
+  const candidates = candidatesAll.slice(0, maxAttempts);
   const tried: string[] = [];
   let lastErr: Error | null = null;
   let lastStatus: number | null = null;
