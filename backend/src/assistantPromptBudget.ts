@@ -3,7 +3,12 @@
  * context-length / payload errors (especially with large ranking tables + comparisons).
  */
 
-const DEFAULT_MAX_USER_CHARS = 52_000;
+/**
+ * Conservative cap for assistant user payload.
+ * The previous 52k-char budget could still trigger provider-side token limit
+ * errors on smaller/latency-first models (e.g. llama-3.1-8b-instant).
+ */
+const DEFAULT_MAX_USER_CHARS = 18_000;
 
 /** Match the section headers built in `POST /api/assistant/chat` user template. */
 const RANK_HEADER = "## Global ranking snapshot";

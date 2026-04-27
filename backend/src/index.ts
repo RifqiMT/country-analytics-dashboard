@@ -951,6 +951,12 @@ app.post("/api/assistant/chat", async (req, res) => {
       }
     }
     const comparisonCodes = finalizeComparisonCodes(extractedCompare, cca3, message);
+    const explicitlyMentionedCountryCodes = extractCountryCodesMentionedInText(
+      message,
+      countries,
+      ASSISTANT_MAX_COMPARISON_COUNTRIES
+    );
+    const primaryMentionedCountryCode = explicitlyMentionedCountryCodes[0] ?? "";
     const comparisonMetricIds = extractAssistantComparisonMetricIds(message);
     const preferWebPrimary = intentPrefersWebFirst(intent);
     const nameByCca3 = new Map(countries.map((c) => [c.cca3, c.name] as const));
@@ -1108,9 +1114,25 @@ app.post("/api/assistant/chat", async (req, res) => {
         tavilyConfigured &&
         shouldSkipTavilyForPlatformFirst(intent, hasAuthoritativePayload, message));
 
+    // If the user explicitly names another country, do not pollute web retrieval
+    // with the currently selected dashboard country.
+    const effectiveSearchAnchorCca3 =
+      primaryMentionedCountryCode && primaryMentionedCountryCode !== cca3
+        ? primaryMentionedCountryCode
+        : cca3;
+    const effectiveSearchAnchorName = effectiveSearchAnchorCca3
+      ? nameByCca3.get(effectiveSearchAnchorCca3)
+      : undefined;
+
     let webContext = "";
     if (tavilyConfigured && !skipWebForPlatform) {
-      const webQuery = buildAssistantWebSearchQuery(message, intent, cca3, comparisonCodes, nameByCca3, {
+      const webQuery = buildAssistantWebSearchQuery(
+        message,
+        intent,
+        effectiveSearchAnchorCca3,
+        comparisonCodes,
+        nameByCca3,
+        {
         boostVerifiedFact: needsVerifiedWeb,
       });
       /** Stats-only web supplement (narrow); disabled when the question mixes in ephemeral facts. */
@@ -1218,8 +1240,13 @@ app.post("/api/assistant/chat", async (req, res) => {
       webContext,
       webRelevance: {
         message,
-        countryName: dashboardFocusMeta?.name,
-        cca3: dashboardFocusMeta?.cca3 ?? (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
+        countryName: effectiveSearchAnchorName ?? dashboardFocusMeta?.name,
+        cca3:
+          (effectiveSearchAnchorCca3 && /^[A-Z]{3}$/.test(effectiveSearchAnchorCca3)
+            ? effectiveSearchAnchorCca3
+            : undefined) ??
+          dashboardFocusMeta?.cca3 ??
+          (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
       },
     });
     const hasCitationKeys =
@@ -1424,6 +1451,8 @@ The message the user sees **opens with** the platform’s ranking markdown table
           {
             temperature: needsVerifiedWeb && !webSearchThin ? 0.22 : groqTemperatureForIntent(intent),
             topP: needsVerifiedWeb && !webSearchThin ? 0.82 : 0.86,
+            timeoutMs: 20_000,
+            maxModelAttempts: 2,
             analyticsRecencyHint:
               (needsVerifiedWeb && !webSearchThin) ||
               intent === "general_web" ||
@@ -1453,6 +1482,8 @@ CITATION ENFORCEMENT (mandatory):
             const retry = await groqChatWithFallbackForUseCase("assistant", strictSystem, userForLlm, {
               temperature: 0.18,
               topP: 0.8,
+              timeoutMs: 15_000,
+              maxModelAttempts: 1,
               analyticsRecencyHint:
                 (needsVerifiedWeb && !webSearchThin) ||
                 intent === "general_web" ||
@@ -1511,8 +1542,13 @@ CITATION ENFORCEMENT (mandatory):
         if (tavilyConfigured) {
           const { text, hasSynthesis } = await tavilyAssistantFallbackReply({
             message,
-            countryName: dashboardFocusMeta?.name,
-            cca3: dashboardFocusMeta?.cca3 ?? (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
+            countryName: effectiveSearchAnchorName ?? dashboardFocusMeta?.name,
+            cca3:
+              (effectiveSearchAnchorCca3 && /^[A-Z]{3}$/.test(effectiveSearchAnchorCca3)
+                ? effectiveSearchAnchorCca3
+                : undefined) ??
+              dashboardFocusMeta?.cca3 ??
+              (/^[A-Z]{3}$/.test(cca3) ? cca3 : undefined),
             platformSectionMarkdown: platformForTavilyFallback.trim() || undefined,
             tavilyApiKey: providedTavilyApiKey,
           });
