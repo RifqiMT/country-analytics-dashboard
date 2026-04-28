@@ -60,12 +60,12 @@ export default function Layout() {
               A modern, analyst-grade view across financial, demographic, and health metrics for every country
               (2000 – latest), powered by World Bank, UN, UNESCO, WHO, and IMF data.
             </p>
-            <div className="flex w-full flex-col gap-2 lg:flex-row lg:items-start">
-              <div className="order-2 lg:order-1 lg:flex-1">
+            <div className="flex w-full flex-col gap-2">
+              <div className="w-full">
                 <UserApiKeysHeaderPanel />
               </div>
-              <div className="order-1 flex w-full justify-end lg:order-2 lg:w-auto lg:shrink-0">
-                <ApiTransportPanel variant="inline" inlineAlign="end" />
+              <div className="flex w-full justify-start">
+                <ApiTransportPanel variant="inline" inlineAlign="start" />
               </div>
             </div>
           </div>

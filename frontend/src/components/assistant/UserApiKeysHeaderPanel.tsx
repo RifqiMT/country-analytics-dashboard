@@ -109,7 +109,7 @@ export default function UserApiKeysHeaderPanel() {
           {hasAnyKey ? "Active" : "Not set"}
         </span>
       </summary>
-      <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
+      <div className="mt-2 grid grid-cols-1 gap-2">
         <label className="min-w-0">
           <span className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             Groq key
@@ -144,7 +144,7 @@ export default function UserApiKeysHeaderPanel() {
             className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
           />
         </label>
-        <div className="md:col-span-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
           <label className="inline-flex items-center gap-2">
             <input
               type="checkbox"
