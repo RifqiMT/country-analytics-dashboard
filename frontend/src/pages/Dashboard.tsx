@@ -76,6 +76,94 @@ const DASHBOARD_EDU_VIZ_META = [
   },
 ] as const;
 
+/** Core financial/labour + population metrics for the first dashboard paint. */
+const DASHBOARD_CORE_METRIC_IDS: readonly string[] = [
+  "population",
+  "gdp",
+  "gdp_ppp",
+  "gdp_per_capita",
+  "gdp_per_capita_ppp",
+  "gni_per_capita_atlas",
+  "gov_debt_usd",
+  "gov_debt_pct_gdp",
+  "inflation",
+  "lending_rate",
+  "unemployment_ilo",
+  "labor_force_total",
+  "poverty_headcount",
+  "poverty_national",
+  "life_expectancy",
+  "mortality_under5",
+  "maternal_mortality",
+  "undernourishment",
+  "birth_rate",
+  "tb_incidence",
+  "uhc_service_coverage",
+  "hospital_beds",
+  "physicians_density",
+  "nurses_midwives_density",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
+];
+
+/** Health and demographics group (loaded in a separate request). */
+const DASHBOARD_HEALTH_METRIC_IDS: readonly string[] = [
+  "population",
+  "life_expectancy",
+  "mortality_under5",
+  "maternal_mortality",
+  "undernourishment",
+  "birth_rate",
+  "tb_incidence",
+  "uhc_service_coverage",
+  "hospital_beds",
+  "physicians_density",
+  "nurses_midwives_density",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
+  "pop_age_0_14",
+  "pop_15_64_pct",
+  "pop_age_65_plus",
+];
+
+/** Education group (loaded in a separate request). */
+const DASHBOARD_EDU_METRIC_IDS: readonly string[] = [
+  "oosc_primary",
+  "oosc_secondary",
+  "oosc_tertiary",
+  "school_primary_completion",
+  "completion_secondary",
+  "completion_tertiary",
+  "reading_proficiency",
+  "literacy_adult",
+  "gpi_primary",
+  "gpi_secondary",
+  "gpi_tertiary",
+  "trained_teachers_pri",
+  "trained_teachers_sec",
+  "trained_teachers_ter",
+  "edu_expenditure_gdp",
+  "enrollment_primary_count",
+  "enrollment_secondary_count",
+  "enrollment_tertiary_count",
+  "enrollment_primary_pct",
+  "enrollment_secondary",
+  "enrollment_tertiary_pct",
+  "teachers_primary_count",
+  "teachers_secondary_count",
+  "teachers_tertiary_count",
+];
+
+function buildSeriesPath(country: string, start: number, end: number, metricIds: readonly string[]): string {
+  const q = new URLSearchParams({ start: String(start), end: String(end) });
+  q.set("metrics", metricIds.join(","));
+  return `/api/country/${country}/series?${q}`;
+}
+
 function latest(series: SeriesPoint[]): { year: number; value: number } | null {
   for (let i = series.length - 1; i >= 0; i--) {
     const v = series[i].value;
@@ -110,6 +198,24 @@ function headOfGovernment(gov?: string): string {
   return "—";
 }
 
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    promise.then(
+      (v) => {
+        window.clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        window.clearTimeout(timer);
+        reject(e);
+      }
+    );
+  });
+}
+
 export default function Dashboard() {
   const maxYear = maxSelectableYear();
   const [country, setCountry] = useState(() => readStoredDashboardCountry() ?? "IDN");
@@ -140,22 +246,46 @@ export default function Dashboard() {
   );
 
   const wbProfile = meta?.worldBankProfile ?? null;
-  const dashboardMetricIds = useMemo(() => metricCatalog.map((m) => m.id), [metricCatalog]);
 
   const load = useCallback(async () => {
     if (!country) return;
     setLoading(true);
     setLoadingExtras(true);
     setErr(null);
-    const q = new URLSearchParams({ start: String(start), end: String(end) });
-    if (dashboardMetricIds.length > 0) q.set("metrics", dashboardMetricIds.join(","));
     try {
-      const [m, b] = await Promise.all([
+      const groupErrors: string[] = [];
+      const fetchGroup = async (
+        label: string,
+        metricIds: readonly string[]
+      ): Promise<Record<string, SeriesPoint[]>> => {
+        try {
+          return await withTimeout(
+            getJson<Record<string, SeriesPoint[]>>(
+              buildSeriesPath(country, start, end, metricIds)
+            ),
+            25_000,
+            `Series group ${label}`
+          );
+        } catch (e) {
+          console.warn(`Dashboard metric group "${label}" failed`, e);
+          groupErrors.push(label);
+          return {};
+        }
+      };
+
+      const [m, coreBundle, healthBundle, eduBundle] = await Promise.all([
         getJson<CountrySummary>(`/api/country/${country}`),
-        getJson<Record<string, SeriesPoint[]>>(`/api/country/${country}/series?${q}`),
+        fetchGroup("core", DASHBOARD_CORE_METRIC_IDS),
+        fetchGroup("health", DASHBOARD_HEALTH_METRIC_IDS),
+        fetchGroup("education", DASHBOARD_EDU_METRIC_IDS),
       ]);
       setMeta(m);
-      setBundle(b);
+      setBundle({ ...coreBundle, ...healthBundle, ...eduBundle });
+      if (groupErrors.length > 0) {
+        setErr(
+          `Some metric groups timed out (${groupErrors.join(", ")}). Showing available data; try refresh or narrower year range.`
+        );
+      }
     } catch (e) {
       setErr(String(e));
       setLoadingExtras(false);
@@ -165,19 +295,23 @@ export default function Dashboard() {
     }
 
     try {
-      const cmp = await getJson<{ rows: ComparisonRow[]; year: number; countryName: string }>(
-        `/api/dashboard/comparison?cca3=${country}&year=${end}`
+      const cmp = await withTimeout(
+        getJson<{ rows: ComparisonRow[]; year: number; countryName: string }>(
+          `/api/dashboard/comparison?cca3=${country}&year=${end}`
+        ),
+        12_000,
+        "Dashboard comparison"
       );
       setComparison(cmp.rows);
       setCompYear(cmp.year);
       setCompName(cmp.countryName);
     } catch (e) {
-      console.error(e);
-      setErr((prev) => prev ?? String(e));
+      console.warn("Comparison table unavailable for this request", e);
+      setComparison([]);
     } finally {
       setLoadingExtras(false);
     }
-  }, [country, start, end, tick, dashboardMetricIds]);
+  }, [country, start, end, tick]);
 
   useEffect(() => {
     void load();

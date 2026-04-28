@@ -9,8 +9,44 @@ import { currentDataYear, MIN_DATA_YEAR } from "./yearBounds.js";
 import { isUsableNumber } from "./wdiParse.js";
 import { getCache, setCache } from "./cache.js";
 
-/** Only metrics needed for comparison rows (not full METRIC_BY_ID). */
-const COMPARISON_COUNTRY_METRIC_IDS: string[] = Object.keys(METRIC_BY_ID);
+/**
+ * Comparison rows intentionally use a curated dashboard-relevant subset.
+ * Fetching the full catalog can exceed serverless budgets for many countries.
+ */
+const COMPARISON_COUNTRY_METRIC_IDS: string[] = [
+  "population",
+  "gdp",
+  "gdp_ppp",
+  "gdp_per_capita",
+  "gdp_per_capita_ppp",
+  "gni_per_capita_atlas",
+  "gov_debt_usd",
+  "gov_debt_pct_gdp",
+  "inflation",
+  "unemployment_ilo",
+  "lending_rate",
+  "labor_force_total",
+  "poverty_headcount",
+  "poverty_national",
+  "life_expectancy",
+  "mortality_under5",
+  "maternal_mortality",
+  "undernourishment",
+  "birth_rate",
+  "tb_incidence",
+  "uhc_service_coverage",
+  "hospital_beds",
+  "physicians_density",
+  "nurses_midwives_density",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
+  "pop_age_0_14",
+  "pop_15_64_pct",
+  "pop_age_65_plus",
+  "literacy_adult",
+].filter((id) => Boolean(METRIC_BY_ID[id]));
 
 const COMPARISON_CACHE_TTL_MS = 1000 * 60 * 15;
 
@@ -30,7 +66,7 @@ export type ComparisonRow = {
   note?: string;
 };
 
-const SNAPSHOT_LOOKBACK_YEARS = 14;
+const SNAPSHOT_LOOKBACK_YEARS = 6;
 const MIN_COUNTRIES_FOR_UNEMPLOYED_AVG = 8;
 
 function memberIsoSet(countries: CountrySummary[]): Set<string> {
@@ -547,10 +583,137 @@ async function computeDashboardComparison(iso3: string, year: number) {
 
 export async function buildDashboardComparison(iso3: string, year: number) {
   const upper = iso3.toUpperCase();
-  const key = `dash:comparison:v4:${upper}:${year}`;
-  const hit = getCache<Awaited<ReturnType<typeof computeDashboardComparison>>>(key);
+  const key = `dash:comparison:v5-fast:${upper}:${year}`;
+  const hit = getCache<Awaited<ReturnType<typeof computeDashboardComparisonFast>>>(key);
   if (hit) return hit;
-  const data = await computeDashboardComparison(upper, year);
+  const data = await computeDashboardComparisonFast(upper, year);
   setCache(key, data, COMPARISON_CACHE_TTL_MS);
   return data;
+}
+
+/**
+ * Fast serverless-safe comparison builder.
+ * Uses selected-country + WLD series (same metric pipeline as dashboard) and avoids
+ * expensive cross-country snapshot scans that can exceed Vercel time limits.
+ */
+async function computeDashboardComparisonFast(iso3: string, year: number) {
+  const upper = iso3.toUpperCase();
+  const allCountries = await listCountries();
+  const meta = allCountries.find((c) => c.cca3.toUpperCase() === upper);
+  const members = memberIsoSet(allCountries);
+  const { medianArea, sumArea } = geographyFromRest(allCountries);
+  const eezMap = await resolveEezSqKmMap(allCountries);
+
+  const metricIds = [...COMPARISON_COUNTRY_METRIC_IDS];
+  const [bundle, wldBundle] = await Promise.all([
+    fetchCountryBundle(upper, metricIds, MIN_DATA_YEAR, currentDataYear()),
+    fetchCountryBundle("WLD", metricIds, MIN_DATA_YEAR, currentDataYear()),
+  ]);
+
+  const rows: ComparisonRow[] = [];
+
+  const pushMetricRow = (metricId: string) => {
+    const countrySeries = bundle[metricId] ?? [];
+    const worldSeries = wldBundle[metricId] ?? [];
+    const cur = latestUpToYear(countrySeries, year);
+    const yoy = yoyFromSeries(countrySeries, cur?.year ?? year);
+    const globalVal = latestUpToYear(worldSeries, year)?.value ?? null;
+    rows.push({
+      id: metricId,
+      label: getMetricShortLabel(metricId),
+      country: { value: cur?.value ?? null, yoyPct: yoy.pct, yoyBps: yoy.bps },
+      avgCountry: { value: null, yoyPct: null, yoyBps: null },
+      global: { value: globalVal, yoyPct: null, yoyBps: null },
+      note: "wld-only-fast",
+    });
+  };
+
+  if (meta) {
+    const eezCoastalValues = [...eezMap.values()].filter(
+      (v): v is number => v != null && Number.isFinite(v) && v > 0
+    );
+    const eezSorted = [...eezCoastalValues].sort((a, b) => a - b);
+    const eezMedianAll = medianFromSorted(eezSorted);
+    const eezSumAll =
+      eezCoastalValues.length > 0 ? eezCoastalValues.reduce((a, b) => a + b, 0) : null;
+    const countryEez = meta.landlocked === true ? null : (eezMap.get(upper) ?? null);
+
+    rows.push({
+      id: "land_area",
+      label: getMetricShortLabel("land_area"),
+      country: { value: meta.area > 0 ? meta.area : null, yoyPct: null, yoyBps: null },
+      avgCountry: { value: medianArea, yoyPct: null, yoyBps: null },
+      global: { value: sumArea, yoyPct: null, yoyBps: null },
+      note: "rest-area",
+    });
+    rows.push({
+      id: "total_area",
+      label: getMetricShortLabel("total_area"),
+      country: { value: meta.area > 0 ? meta.area : null, yoyPct: null, yoyBps: null },
+      avgCountry: { value: medianArea, yoyPct: null, yoyBps: null },
+      global: { value: sumArea, yoyPct: null, yoyBps: null },
+      note: "rest-area",
+    });
+    rows.push({
+      id: "eez",
+      label: getMetricShortLabel("eez"),
+      country: { value: countryEez, yoyPct: null, yoyBps: null },
+      avgCountry: { value: eezMedianAll, yoyPct: null, yoyBps: null },
+      global: { value: eezSumAll, yoyPct: null, yoyBps: null },
+      note: "eez-rest",
+    });
+  }
+
+  for (const metricId of metricIds) {
+    if (metricId === "labor_force_total" || metricId === "unemployment_ilo") {
+      // handled below + as normal row for consistency
+      pushMetricRow(metricId);
+      continue;
+    }
+    pushMetricRow(metricId);
+  }
+
+  const unemployedCountry = (() => {
+    const u = latestUpToYear(bundle.unemployment_ilo ?? [], year)?.value;
+    const lf = latestUpToYear(bundle.labor_force_total ?? [], year)?.value;
+    if (!isUsableNumber(u) || !isUsableNumber(lf)) return null;
+    return (u / 100) * lf;
+  })();
+  const unemployedWorld = (() => {
+    const u = latestUpToYear(wldBundle.unemployment_ilo ?? [], year)?.value;
+    const lf = latestUpToYear(wldBundle.labor_force_total ?? [], year)?.value;
+    if (!isUsableNumber(u) || !isUsableNumber(lf)) return null;
+    return (u / 100) * lf;
+  })();
+  const unemployedPrev = (() => {
+    const u = latestUpToYear(bundle.unemployment_ilo ?? [], year - 1)?.value;
+    const lf = latestUpToYear(bundle.labor_force_total ?? [], year - 1)?.value;
+    if (!isUsableNumber(u) || !isUsableNumber(lf)) return null;
+    return (u / 100) * lf;
+  })();
+  const unemployedYoYPct =
+    unemployedCountry !== null &&
+    unemployedPrev !== null &&
+    unemployedPrev !== 0
+      ? ((unemployedCountry - unemployedPrev) / Math.abs(unemployedPrev)) * 100
+      : null;
+
+  rows.push({
+    id: "unemployed_number",
+    label: getMetricShortLabel("unemployed_number"),
+    country: { value: unemployedCountry, yoyPct: unemployedYoYPct, yoyBps: null },
+    avgCountry: { value: null, yoyPct: null, yoyBps: null },
+    global: { value: unemployedWorld, yoyPct: null, yoyBps: null },
+    note: "derived-from-unemployment-and-labor-force",
+  });
+
+  return {
+    year,
+    countryIso3: upper,
+    countryName: meta?.name ?? upper,
+    rows,
+    geographyMeta: { medianArea, sumArea },
+    membersCount: members.size,
+    mode: "fast-wld",
+  };
 }

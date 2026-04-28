@@ -109,7 +109,18 @@ export async function fetchIndicatorSeries(
     const url = `https://api.worldbank.org/v2/country/${encodeURIComponent(
       countryIso3
     )}/indicator/${encodeURIComponent(indicator)}?date=${startYear}:${endYear}&format=json&per_page=${perPage}&page=${page}`;
-    const raw = await fetchJson(url);
+    let raw: unknown;
+    try {
+      raw = await fetchJson(url);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      // Some indicators/country combinations return 400/404. Treat as no data
+      // for this metric instead of failing the entire dashboard payload.
+      if (msg.includes("World Bank HTTP 400") || msg.includes("World Bank HTTP 404")) {
+        break;
+      }
+      throw e;
+    }
     if (!Array.isArray(raw) || raw.length < 2) break;
     const meta = raw[0] as { pages?: number };
     const chunk = raw[1];
