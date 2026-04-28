@@ -1024,16 +1024,13 @@ export default function Dashboard() {
                     <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
                     {finCards.slice(0, 5).map((c) => {
                       const lv = c.series.length ? latest(c.series) : null;
+                      const isComputed = c.metricId === "unemployed_number";
                       const val =
-                        c.series.length && lv
-                          ? c.fmt(lv.value)
-                          : typeof c.fmt === "function" && c.series.length === 0
-                            ? (c.fmt as () => string)()
-                            : "—";
+                        lv ? c.fmt(lv.value) : isComputed ? (c.fmt as () => string)() : "—";
                       const yoy =
-                        c.series.length && lv
+                        lv
                           ? c.yoy(c.series)
-                          : typeof c.yoy === "function"
+                          : isComputed
                             ? (c.yoy as () => ReturnType<typeof formatYoY>)()
                             : { text: "—", tone: "flat" as const };
                       return <MetricCard key={c.label} label={c.label} value={val} yoy={yoy} />;
@@ -1058,16 +1055,13 @@ export default function Dashboard() {
                   <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {finCards.slice(7, 12).map((c) => {
                       const lv = c.series.length ? latest(c.series) : null;
+                      const isComputed = c.metricId === "unemployed_number";
                       const val =
-                        c.series.length && lv
-                          ? c.fmt(lv.value)
-                          : typeof c.fmt === "function" && c.series.length === 0
-                            ? (c.fmt as () => string)()
-                            : "—";
+                        lv ? c.fmt(lv.value) : isComputed ? (c.fmt as () => string)() : "—";
                       const yoy =
-                        c.series.length && lv
+                        lv
                           ? c.yoy(c.series)
-                          : typeof c.yoy === "function"
+                          : isComputed
                             ? (c.yoy as () => ReturnType<typeof formatYoY>)()
                             : { text: "—", tone: "flat" as const };
                       return <MetricCard key={c.label} label={c.label} value={val} yoy={yoy} />;
