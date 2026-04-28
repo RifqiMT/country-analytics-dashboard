@@ -453,17 +453,37 @@ export async function fetchCountryBundle(
   endYear = currentDataYear(),
   opts?: { skipWldFallback?: boolean }
 ): Promise<Record<string, SeriesPoint[]>> {
+  const mapWithConcurrency = async <T, R>(
+    items: T[],
+    concurrency: number,
+    fn: (item: T) => Promise<R>
+  ): Promise<R[]> => {
+    const out: R[] = new Array(items.length);
+    let next = 0;
+    const worker = async () => {
+      for (;;) {
+        const i = next++;
+        if (i >= items.length) return;
+        out[i] = await fn(items[i]!);
+      }
+    };
+    const n = Math.max(1, Math.min(concurrency, items.length));
+    await Promise.all(new Array(n).fill(0).map(worker));
+    return out;
+  };
+
   const fetchSet = new Set(metricIds);
   for (const a of ENRICHMENT_ANCHOR_METRIC_IDS) {
     if (METRIC_BY_ID[a]) fetchSet.add(a);
   }
   const fetchIds = [...fetchSet];
   const raw: Record<string, SeriesPoint[]> = {};
-  await Promise.all(
-    fetchIds.map(async (id) => {
-      raw[id] = await fetchMetricSeriesForCountry(countryIso3, id, startYear, endYear);
-    })
-  );
+  // Avoid issuing dozens of parallel World Bank requests (rate limits -> retries -> timeouts).
+  // A small concurrency cap significantly improves worst-case latency on serverless.
+  await mapWithConcurrency(fetchIds, 6, async (id) => {
+    raw[id] = await fetchMetricSeriesForCountry(countryIso3, id, startYear, endYear);
+    return null;
+  });
   await applyCrossMetricBundleEnrichments(countryIso3, raw, startYear, endYear);
 
   for (const id of fetchIds) {

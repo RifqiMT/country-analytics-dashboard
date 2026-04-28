@@ -4,7 +4,8 @@ import { fetchGlobalYearSnapshot, type GlobalRow } from "./globalSnapshot.js";
 import type { SeriesPoint } from "./series.js";
 import { fetchCountryBundle } from "./worldBank.js";
 import { listCountries, type CountrySummary } from "./restCountries.js";
-import { resolveEezSqKmMap } from "./eezResolve.js";
+import { EEZ_SQKM_FALLBACK } from "./eezSqKmFallback.js";
+import { fetchSeaAroundUsEezAreaKm2 } from "./seaAroundUsEez.js";
 import { currentDataYear, MIN_DATA_YEAR } from "./yearBounds.js";
 import { isUsableNumber } from "./wdiParse.js";
 import { getCache, setCache } from "./cache.js";
@@ -348,23 +349,39 @@ function geographyFromRest(all: CountrySummary[]) {
 async function computeDashboardComparison(iso3: string, year: number) {
   const upper = iso3.toUpperCase();
   const allCountries = await listCountries();
-  const eezMap = await resolveEezSqKmMap(allCountries);
   const members = memberIsoSet(allCountries);
   const { medianArea, sumArea } = geographyFromRest(allCountries);
   const meta = allCountries.find((c) => c.cca3.toUpperCase() === upper);
 
-  const eezCoastalValues = [...eezMap.values()].filter(
-    (v): v is number => v != null && Number.isFinite(v) && v > 0
-  );
-  const eezSorted = [...eezCoastalValues].sort((a, b) => a - b);
-  const eezMedianAll = medianFromSorted(eezSorted);
+  const eezCoastalValues = allCountries
+    .map((c) => (c.cca3 || "").toUpperCase())
+    .filter((iso) => /^[A-Z]{3}$/.test(iso))
+    .map((iso) => EEZ_SQKM_FALLBACK[iso])
+    .filter((v): v is number => v != null && Number.isFinite(v) && v > 0)
+    .sort((a, b) => a - b);
+  const eezMedianAll = medianFromSorted(eezCoastalValues);
   const eezSumAll = eezCoastalValues.length > 0 ? eezCoastalValues.reduce((a, b) => a + b, 0) : null;
-  const countryEez =
-    meta?.landlocked === true ? null : (eezMap.get(upper) ?? null);
-  const bundle = await fetchCountryBundle(upper, [...COMPARISON_COUNTRY_METRIC_IDS], MIN_DATA_YEAR, currentDataYear());
+  const countryEez = await (async () => {
+    if (meta?.landlocked === true) return null;
+    const fb = EEZ_SQKM_FALLBACK[upper];
+    if (fb != null && Number.isFinite(fb) && fb > 0) return fb;
+    if (!meta?.ccn3) return null;
+    try {
+      const api = await fetchSeaAroundUsEezAreaKm2(meta.ccn3);
+      return api != null && Number.isFinite(api) && api > 0 ? api : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const endYear = Math.min(currentDataYear(), year);
+  const startYear = Math.max(MIN_DATA_YEAR, endYear - 12);
+  const bundle = await fetchCountryBundle(upper, [...COMPARISON_COUNTRY_METRIC_IDS], startYear, endYear, {
+    skipWldFallback: true,
+  });
 
   const wldMetricIds = [...COMPARISON_COUNTRY_METRIC_IDS];
-  const wldBundle = await fetchCountryBundle("WLD", [...new Set(wldMetricIds)], MIN_DATA_YEAR, currentDataYear());
+  const wldBundle = await fetchCountryBundle("WLD", [...new Set(wldMetricIds)], startYear, endYear);
 
   const unemployedSeries = bundle.unemployment_ilo ?? [];
   const laborSeries = bundle.labor_force_total ?? [];
@@ -602,12 +619,15 @@ async function computeDashboardComparisonFast(iso3: string, year: number) {
   const meta = allCountries.find((c) => c.cca3.toUpperCase() === upper);
   const members = memberIsoSet(allCountries);
   const { medianArea, sumArea } = geographyFromRest(allCountries);
-  const eezMap = await resolveEezSqKmMap(allCountries);
 
   const metricIds = [...COMPARISON_COUNTRY_METRIC_IDS];
+  const endYear = Math.min(currentDataYear(), year);
+  const startYear = Math.max(MIN_DATA_YEAR, endYear - 12);
   const [bundle, wldBundle] = await Promise.all([
-    fetchCountryBundle(upper, metricIds, MIN_DATA_YEAR, currentDataYear()),
-    fetchCountryBundle("WLD", metricIds, MIN_DATA_YEAR, currentDataYear()),
+    // Comparison table only needs recent history for latest + YoY.
+    // Also skip internal WLD-fallback here since we fetch WLD explicitly.
+    fetchCountryBundle(upper, metricIds, startYear, endYear, { skipWldFallback: true }),
+    fetchCountryBundle("WLD", metricIds, startYear, endYear),
   ]);
 
   const rows: ComparisonRow[] = [];
@@ -629,14 +649,28 @@ async function computeDashboardComparisonFast(iso3: string, year: number) {
   };
 
   if (meta) {
-    const eezCoastalValues = [...eezMap.values()].filter(
-      (v): v is number => v != null && Number.isFinite(v) && v > 0
-    );
-    const eezSorted = [...eezCoastalValues].sort((a, b) => a - b);
-    const eezMedianAll = medianFromSorted(eezSorted);
-    const eezSumAll =
-      eezCoastalValues.length > 0 ? eezCoastalValues.reduce((a, b) => a + b, 0) : null;
-    const countryEez = meta.landlocked === true ? null : (eezMap.get(upper) ?? null);
+    // Avoid resolving EEZ for every country (would fan out into many external calls).
+    // Use the static fallback table for global stats, and (at most) fetch for the requested country.
+    const eezCoastalValues = allCountries
+      .map((c) => (c.cca3 || "").toUpperCase())
+      .filter((iso) => /^[A-Z]{3}$/.test(iso))
+      .map((iso) => EEZ_SQKM_FALLBACK[iso])
+      .filter((v): v is number => v != null && Number.isFinite(v) && v > 0);
+    eezCoastalValues.sort((a, b) => a - b);
+    const eezMedianAll = medianFromSorted(eezCoastalValues);
+    const eezSumAll = eezCoastalValues.length > 0 ? eezCoastalValues.reduce((a, b) => a + b, 0) : null;
+
+    const countryEez = await (async () => {
+      if (meta.landlocked === true) return null;
+      const fb = EEZ_SQKM_FALLBACK[upper];
+      if (fb != null && Number.isFinite(fb) && fb > 0) return fb;
+      try {
+        const api = await fetchSeaAroundUsEezAreaKm2(meta.ccn3);
+        return api != null && Number.isFinite(api) && api > 0 ? api : null;
+      } catch {
+        return null;
+      }
+    })();
 
     rows.push({
       id: "land_area",

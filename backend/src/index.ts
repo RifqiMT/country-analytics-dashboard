@@ -235,8 +235,19 @@ app.get("/api/country/:cca3", async (req, res) => {
     const c = await getCountry(req.params.cca3);
     if (!c) return res.status(404).json({ error: "Country not found" });
     const iso = c.cca3.toUpperCase();
+    const [wd, eezApi, worldBankProfile] = await Promise.all([
+      fetchWikidataCountryEnrichment(iso),
+      c.landlocked ? Promise.resolve(null) : fetchSeaAroundUsEezAreaKm2(c.ccn3),
+      fetchWbCountryProfile(iso),
+    ]);
     const ianaTimezone = (() => {
       try {
+        // Prefer capital coordinates (World Bank profile) for multi-timezone countries.
+        const wbLat = worldBankProfile?.latitude ? Number(worldBankProfile.latitude) : NaN;
+        const wbLng = worldBankProfile?.longitude ? Number(worldBankProfile.longitude) : NaN;
+        if (Number.isFinite(wbLat) && Number.isFinite(wbLng)) {
+          return tzLookup(wbLat, wbLng);
+        }
         const [lat, lng] = c.latlng ?? [NaN, NaN];
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
         return tzLookup(lat, lng);
@@ -244,11 +255,6 @@ app.get("/api/country/:cca3", async (req, res) => {
         return undefined;
       }
     })();
-    const [wd, eezApi, worldBankProfile] = await Promise.all([
-      fetchWikidataCountryEnrichment(iso),
-      c.landlocked ? Promise.resolve(null) : fetchSeaAroundUsEezAreaKm2(c.ccn3),
-      fetchWbCountryProfile(iso),
-    ]);
     const government = c.government ?? wd?.government;
     const headOfGovernmentTitle = wd?.headOfGovernmentTitle;
     const eezSqKm = c.landlocked ? null : eezApi ?? EEZ_SQKM_FALLBACK[iso] ?? null;
