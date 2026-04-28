@@ -60,9 +60,8 @@ import {
 import {
   buildPartialPestelFromTavilyWeb,
   fetchPestelSwotPartialFromTavily,
-  fetchPestelTemporalHorizonWeb,
-  fetchPestelTavilyExecutiveLayer,
   mergePestelPartials,
+  PESTEL_CREDIBLE_DOMAINS,
   truncatePestelSourceBForLlm,
 } from "./pestelTavily.js";
 import {
@@ -1744,23 +1743,20 @@ app.post("/api/analysis/pestel", async (req, res) => {
           topic: "general",
         },
       ];
-      const [blocks, temporalBlock, execPrefix] = await Promise.all([
-        Promise.all(
-          queries.map(({ q, topic }) =>
-            tavilySearch(q, 5, {
-              ...tavilyBase,
-              topic,
-              timeRange: topic === "news" ? "week" : "month",
-              startDate: topic === "news" ? startNews : startGeneral,
-              endDate: today,
-              preferNewestSourcesFirst: true,
-              apiKey: providedTavilyApiKey,
-            })
-          )
-        ),
-        fetchPestelTemporalHorizonWeb(name, cca3, year, providedTavilyApiKey),
-        fetchPestelTavilyExecutiveLayer(meta?.name ?? cca3, cca3, year, providedTavilyApiKey),
-      ]);
+      const blocks = await Promise.all(
+        queries.map(({ q, topic }) =>
+          tavilySearch(q, 5, {
+            ...tavilyBase,
+            topic,
+            timeRange: topic === "news" ? "week" : "month",
+            startDate: topic === "news" ? startNews : startGeneral,
+            endDate: today,
+            preferNewestSourcesFirst: true,
+            allowedDomains: [...PESTEL_CREDIBLE_DOMAINS],
+            apiKey: providedTavilyApiKey,
+          })
+        )
+      );
       const webParts: string[] = [];
       for (let i = 0; i < queries.length; i++) {
         const b = blocks[i]?.trim();
@@ -1768,16 +1764,6 @@ app.post("/api/analysis/pestel", async (req, res) => {
       }
       web = webParts.join("\n\n");
       if (web) attribution.push("Web context: Tavily (6 topic bundles × 5 results, advanced retrieval, recency-biased)");
-      if (execPrefix.trim()) {
-        web = `${execPrefix.trim()}${web ? `\n${web}` : ""}`;
-        attribution.push("Tavily: executive retrieval bundle prepended (snippet-only, no generated synthesis)");
-      }
-      if (temporalBlock.trim()) {
-        web = `${web ? `${web}\n\n` : ""}${temporalBlock.trim()}`;
-        attribution.push(
-          "Tavily: five publication windows (7d, 1mo, 6mo, 1y, 5y) with date-bounded cross-PESTEL search per window"
-        );
-      }
     }
 
     const todayIso = utcDateISO();

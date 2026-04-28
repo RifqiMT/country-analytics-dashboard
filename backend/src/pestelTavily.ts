@@ -3,6 +3,30 @@ import { tavilySearchWithMeta, utcDateDaysAgo, utcDateISO } from "./llm.js";
 
 const EXEC_HEADER = "Tavily cross-dimension synthesis (answer field)";
 
+export const PESTEL_CREDIBLE_DOMAINS: readonly string[] = [
+  "worldbank.org",
+  "imf.org",
+  "oecd.org",
+  "adb.org",
+  "un.org",
+  "undp.org",
+  "who.int",
+  "ilo.org",
+  "fao.org",
+  "wto.org",
+  "bis.org",
+  "asean.org",
+  "go.id",
+  "bps.go.id",
+  "bi.go.id",
+  "kemkeu.go.id",
+  "reuters.com",
+  "apnews.com",
+  "ft.com",
+  "bloomberg.com",
+  "economist.com",
+];
+
 /** Publication windows (Tavily start_date / end_date, UTC). Labels are for model routing—output prose must not copy them verbatim. */
 const TEMPORAL_WINDOWS: { label: string; days: number; topic: "general" | "news" }[] = [
   { label: "Very recent (~1 week)", days: 7, topic: "news" },
@@ -41,6 +65,7 @@ export async function fetchPestelTemporalHorizonWeb(
         startDate: start,
         endDate: today,
         preferNewestSourcesFirst: true,
+        allowedDomains: [...PESTEL_CREDIBLE_DOMAINS],
         apiKey: tavilyApiKey,
       });
       // Use retrieved snippets only; skip Tavily synthesized answer to reduce second-order hallucinations.
@@ -244,6 +269,7 @@ export async function fetchPestelTavilyExecutiveLayer(
     startDate: start,
     endDate: today,
     preferNewestSourcesFirst: true,
+    allowedDomains: [...PESTEL_CREDIBLE_DOMAINS],
     apiKey: tavilyApiKey,
   });
   // Keep only direct retrieval snippets; do not prepend generated synthesis.
@@ -271,6 +297,7 @@ export async function fetchPestelSwotPartialFromTavily(
     startDate: start,
     endDate: today,
     preferNewestSourcesFirst: true,
+    allowedDomains: [...PESTEL_CREDIBLE_DOMAINS],
     apiKey: tavilyApiKey,
   });
   const blob = meta.formattedBlock;

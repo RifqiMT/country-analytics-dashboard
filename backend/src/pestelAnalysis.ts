@@ -247,9 +247,9 @@ function hasBusinessImplicationAnchor(text: string): boolean {
 function ensureImplicationTail(text: string): string {
   const t = text.trim();
   if (!t) return t;
-  if (hasBusinessImplicationAnchor(t)) return t;
-  if (/[.;:]$/.test(t)) return `${t} This implies a direct execution and risk-planning consideration for operators.`;
-  return `${t}. This implies a direct execution and risk-planning consideration for operators.`;
+  // Do not append boilerplate implication tails; they reduce readability and feel hallucinated.
+  // Keep existing sentence as-is and rely on deterministic fallback prose for coherent implications.
+  return t;
 }
 
 function strengthenBulletsWithFallbackEvidence(
@@ -609,6 +609,17 @@ function polishPestelProse(s: string): string {
     [/\bREST Countries dataset\b/gi, "the reference profile"],
     [/\(REST Countries\)/gi, "(profile)"],
     [/\bREST Countries\b/gi, "the country profile"],
+    [/\bThis implies a direct execution and risk-planning consideration for operators\.?/gi, ""],
+    [/\bKey Highlights\b/gi, ""],
+    [/\bReasons to Buy\b/gi, ""],
+    [/\bBuy Report\b/gi, ""],
+    [/\bDownload FREE Resources\b/gi, ""],
+    [/\bReport Code:\s*[A-Z0-9\-]+\b/gi, ""],
+    [/\bShare on [A-Za-z ]+\b/gi, ""],
+    [/\bCopy Link\b/gi, ""],
+    [/\bMacroeconomic Outlook Report\b/gi, "macroeconomic outlook"],
+    [/###\s*[A-Za-z0-9 ~()\-:]+/g, ""],
+    [/\[Retrieval window:[^\]]*\]/gi, ""],
   ];
   for (const [re, rep] of pairs) t = t.replace(re, rep);
   return t

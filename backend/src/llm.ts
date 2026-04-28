@@ -178,6 +178,8 @@ export type TavilySearchOptions = {
   includeAnswer?: boolean | "basic" | "advanced";
   /** Sort hits by `published_date` when the API returns it (default true). */
   preferNewestSourcesFirst?: boolean;
+  /** Optional domain allowlist; when set, non-matching hosts are dropped. */
+  allowedDomains?: string[];
   /** Optional per-request API key override (e.g., user-provided key in Assistant). */
   apiKey?: string;
 };
@@ -214,6 +216,43 @@ export type TavilySearchMeta = {
   results: TavilyWebResult[];
 };
 
+function hostFromUrl(url: string): string {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function matchesAllowedDomain(url: string, allowed: string[]): boolean {
+  if (allowed.length === 0) return true;
+  const host = hostFromUrl(url);
+  if (!host) return false;
+  return allowed.some((d) => {
+    const dom = d.toLowerCase().replace(/^\*\./, "").trim();
+    return host === dom || host.endsWith(`.${dom}`);
+  });
+}
+
+function cleanTavilySnippet(raw: string): string {
+  let t = raw;
+  const drops: RegExp[] = [
+    /^#{1,6}\s+.*$/gm,
+    /\bKey Highlights\b/gi,
+    /\bReasons to Buy\b/gi,
+    /\bBuy Report\b/gi,
+    /\$?\d{1,4}\s*Buy\b/gi,
+    /\bDownload FREE Resources\b/gi,
+    /\bReport Code:\s*[A-Z0-9\-]+\b/gi,
+    /\bShare on [A-Za-z ]+\b/gi,
+    /\bCopy Link\b/gi,
+    /\bPublished:\s*[A-Za-z]+\s+\d{1,2},\s*\d{4}\b/gi,
+    /\[Retrieval window:[^\]]*\]/gi,
+  ];
+  for (const re of drops) t = t.replace(re, " ");
+  return t.replace(/\s+/g, " ").trim();
+}
+
 export async function tavilySearchWithMeta(
   query: string,
   maxResults = 5,
@@ -234,6 +273,7 @@ export async function tavilySearchWithMeta(
   if (options?.timeRange) body.time_range = options.timeRange;
   if (options?.startDate) body.start_date = options.startDate;
   if (options?.endDate) body.end_date = options.endDate;
+  if (options?.allowedDomains?.length) body.include_domains = options.allowedDomains;
 
   let data: {
     answer?: string;
@@ -267,11 +307,6 @@ export async function tavilySearchWithMeta(
   const synth =
     typeof data.answer === "string" && data.answer.trim() ? data.answer.trim() : null;
   const chunks: string[] = [];
-  if (options?.startDate) {
-    chunks.push(
-      `[Retrieval window: sources on or after ${options.startDate}${options.endDate ? ` through ${options.endDate}` : ""} where indexed dates exist]`
-    );
-  }
   // Keep generated answer separate from snippet blocks so downstream grounding paths
   // can stay strictly retrieval-based (title/url/content only).
   let rows = data.results ?? [];
@@ -285,12 +320,16 @@ export async function tavilySearchWithMeta(
       return tb - ta;
     });
   }
-  const results: TavilyWebResult[] = rows.map((r) => ({
-    title: String(r.title ?? "").trim(),
-    url: String(r.url ?? "").trim(),
-    content: String(r.content ?? "").trim(),
-    published_date: r.published_date && String(r.published_date).trim() ? String(r.published_date).trim() : undefined,
-  }));
+  const allowed = options?.allowedDomains?.map((d) => d.trim()).filter(Boolean) ?? [];
+  const results: TavilyWebResult[] = rows
+    .map((r) => ({
+      title: String(r.title ?? "").trim(),
+      url: String(r.url ?? "").trim(),
+      content: cleanTavilySnippet(String(r.content ?? "").trim()),
+      published_date:
+        r.published_date && String(r.published_date).trim() ? String(r.published_date).trim() : undefined,
+    }))
+    .filter((r) => r.url && r.content && matchesAllowedDomain(r.url, allowed));
   const parts = results.map((r) => {
     const when =
       r.published_date && r.published_date.length > 0
