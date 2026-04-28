@@ -84,12 +84,35 @@ function dedupePush(out: string[], seen: Set<string>, s: string) {
   out.push(t);
 }
 
+const PESTEL_RELEVANCE_RE =
+  /\b(policy|government|regulat|law|court|tax|trade|tariff|fiscal|monetary|central bank|inflation|gdp|growth|debt|investment|market|employment|unemployment|education|health|demograph|population|labor|workforce|technology|digital|innovation|infrastructure|energy|climate|emission|sustainab|environment|geopolit|election|compliance)\b/i;
+const NOISE_RE =
+  /\b(dog|dogs|cat|cats|pet|flea|tick|collar|puppy|kitten|grooming|review site|coupon|casino|odds|recipe)\b/i;
+
+function looksPestelRelevant(text: string): boolean {
+  if (NOISE_RE.test(text)) return false;
+  return PESTEL_RELEVANCE_RE.test(text);
+}
+
+function recencyScoreFromText(text: string): number {
+  const m = text.match(/\b(20\d{2})-(\d{2})-(\d{2})\b/);
+  if (!m) return 0;
+  const ts = Date.parse(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`);
+  if (!Number.isFinite(ts)) return 0;
+  const ageDays = Math.max(0, Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24)));
+  if (ageDays <= 30) return 3;
+  if (ageDays <= 90) return 2;
+  if (ageDays <= 365) return 1;
+  return 0;
+}
+
 /**
  * Turn a Tavily formatted block (snippets + optional synthesis line) into short bullets.
  */
 export function chunkToTavilyBullets(block: string, max: number): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
+  const ranked: { text: string; score: number }[] = [];
   for (const line of block.split("\n")) {
     const lt = line.trim();
     if (lt.startsWith("[Model note")) continue;
@@ -97,17 +120,24 @@ export function chunkToTavilyBullets(block: string, max: number): string[] {
       const raw = lt.slice(2);
       const idx = raw.lastIndexOf(": ");
       const body = idx >= 0 ? raw.slice(idx + 2).trim() : raw;
-      dedupePush(out, seen, body);
-    } else if (/^brief synthesis/i.test(lt)) {
-      const m = lt.match(/:\s*(.+)/i);
-      if (m?.[1]) dedupePush(out, seen, m[1]);
+      if (looksPestelRelevant(body)) {
+        const t = body.replace(/\s+/g, " ").trim();
+        if (!seen.has(t) && t.length >= 22 && t.length <= 520) {
+          seen.add(t);
+          ranked.push({ text: t, score: recencyScoreFromText(raw) });
+        }
+      }
     }
+  }
+  ranked.sort((a, b) => b.score - a.score);
+  for (const r of ranked) {
+    out.push(r.text);
     if (out.length >= max) return out.slice(0, max);
   }
   const blob = block.replace(/\n+/g, " ").trim();
   if (out.length < max && blob.length > 40) {
     for (const sent of blob.split(/(?<=[.!?])\s+/)) {
-      dedupePush(out, seen, sent);
+      if (looksPestelRelevant(sent)) dedupePush(out, seen, sent);
       if (out.length >= max) break;
     }
   }

@@ -238,6 +238,20 @@ function hasEvidenceAnchor(text: string): boolean {
   );
 }
 
+function hasBusinessImplicationAnchor(text: string): boolean {
+  return /\b(implication|implies|suggests|therefore|so this means|for business|for operators|for investors|risk|opportunity|margin|pricing|entry|capex|opex|compliance|execution)\b/i.test(
+    text
+  );
+}
+
+function ensureImplicationTail(text: string): string {
+  const t = text.trim();
+  if (!t) return t;
+  if (hasBusinessImplicationAnchor(t)) return t;
+  if (/[.;:]$/.test(t)) return `${t} This implies a direct execution and risk-planning consideration for operators.`;
+  return `${t}. This implies a direct execution and risk-planning consideration for operators.`;
+}
+
 function strengthenBulletsWithFallbackEvidence(
   merged: string[],
   fallback: string[],
@@ -324,7 +338,14 @@ function swotBulletLooksUsable(s: string): boolean {
 function stabilizeSwotQuadrant(primary: string[], fallback: string[], globalSeen: Set<string>): string[] {
   const cleanedPrimary = primary.map(normalizeSwotBullet).filter(swotBulletLooksUsable);
   const merged = ensureFiveBullets(cleanedPrimary, fallback.map(normalizeSwotBullet), globalSeen);
-  return merged.map(normalizeSwotBullet);
+  return merged.map((b) => ensureImplicationTail(normalizeSwotBullet(b)));
+}
+
+function enforceDimensionQuality(primary: string[], fallback: string[], minEvidence: number): string[] {
+  let out = ensureFiveBullets(primary, fallback);
+  out = strengthenBulletsWithFallbackEvidence(out, fallback, minEvidence);
+  out = out.map((b) => ensureImplicationTail(b));
+  return out.slice(0, 5);
 }
 
 /**
@@ -492,10 +513,13 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
   const pestelDimensions: PestelDimension[] = DIMENSION_TEMPLATE.map((t, i) => {
     const fromLlm = byLabel.get(t.label);
     const fb = fallback.pestelDimensions[i]!;
-    let merged = ensureFiveBullets(fromLlm ?? [], fb.bullets);
-    if (t.label === "ECONOMIC" || t.label === "SOCIOCULTURAL" || t.label === "TECHNOLOGICAL") {
-      merged = strengthenBulletsWithFallbackEvidence(merged, fb.bullets, 2);
-    }
+    const minEvidence =
+      t.label === "ECONOMIC" || t.label === "POLITICAL" || t.label === "LEGAL"
+        ? 3
+        : t.label === "SOCIOCULTURAL" || t.label === "TECHNOLOGICAL" || t.label === "ENVIRONMENTAL"
+          ? 2
+          : 2;
+    const merged = enforceDimensionQuality(fromLlm ?? [], fb.bullets, minEvidence);
     return { letter: t.letter, label: t.label, bullets: merged };
   });
 
@@ -527,9 +551,15 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
 
   const strategicBusiness = normalizeStrategicSections(partial.strategicBusiness, fallback.strategicBusiness);
 
-  const newMarketAnalysis = ensureFiveBullets(partial.newMarketAnalysis ?? [], fallback.newMarketAnalysis);
-  const keyTakeaways = ensureFiveBullets(partial.keyTakeaways ?? [], fallback.keyTakeaways);
-  const recommendations = ensureFiveBullets(partial.recommendations ?? [], fallback.recommendations);
+  const newMarketAnalysis = ensureFiveBullets(partial.newMarketAnalysis ?? [], fallback.newMarketAnalysis).map(
+    ensureImplicationTail
+  );
+  const keyTakeaways = ensureFiveBullets(partial.keyTakeaways ?? [], fallback.keyTakeaways).map(
+    ensureImplicationTail
+  );
+  const recommendations = ensureFiveBullets(partial.recommendations ?? [], fallback.recommendations).map(
+    ensureImplicationTail
+  );
 
   return polishPestelAnalysisForClient({
     pestelDimensions,
@@ -544,7 +574,9 @@ export function mergePestelAnalysis(partial: Partial<PestelAnalysis>, fallback: 
 
 /** Remove internal retrieval jargon from strings shown to end users. */
 function polishPestelProse(s: string): string {
-  let t = s;
+  let t = s
+    // User-visible style guard: avoid em/en dashes in final client text.
+    .replace(/[—–]/g, " - ");
   const pairs: [RegExp, string][] = [
     [/\bSOURCE\s+A\b/gi, ""],
     [/\bSOURCE\s+B\b/gi, ""],

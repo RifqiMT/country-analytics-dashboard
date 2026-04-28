@@ -261,11 +261,21 @@ export function validatePestelAnalysisGrounding(
   for (const b of analysis.recommendations) check(b);
 
   const ratio = total > 0 ? grounded / total : 0;
-  if (ratio < 0.74) reasons.push(`grounded ratio too low (${grounded}/${total}, ${(ratio * 100).toFixed(1)}%)`);
+  if (ratio < 0.82) reasons.push(`grounded ratio too low (${grounded}/${total}, ${(ratio * 100).toFixed(1)}%)`);
   const econ = analysis.pestelDimensions.find((d) => d.label === "ECONOMIC");
   if (econ) {
     const econGrounded = econ.bullets.filter((b) => proseIsGrounded(b, ctx, corpus)).length;
-    if (econGrounded < 3) reasons.push(`ECONOMIC bullets weakly grounded (${econGrounded}/5)`);
+    if (econGrounded < 4) reasons.push(`ECONOMIC bullets weakly grounded (${econGrounded}/5)`);
+  }
+  const political = analysis.pestelDimensions.find((d) => d.label === "POLITICAL");
+  if (political) {
+    const polGrounded = political.bullets.filter((b) => proseIsGrounded(b, ctx, corpus)).length;
+    if (polGrounded < 3) reasons.push(`POLITICAL bullets weakly grounded (${polGrounded}/5)`);
+  }
+  const legal = analysis.pestelDimensions.find((d) => d.label === "LEGAL");
+  if (legal) {
+    const legalGrounded = legal.bullets.filter((b) => proseIsGrounded(b, ctx, corpus)).length;
+    if (legalGrounded < 3) reasons.push(`LEGAL bullets weakly grounded (${legalGrounded}/5)`);
   }
   const executive = analysis.comprehensiveSections.find((s) => s.title.toLowerCase().includes("executive"));
   if (executive) {

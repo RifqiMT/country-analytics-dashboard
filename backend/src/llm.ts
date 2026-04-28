@@ -272,9 +272,8 @@ export async function tavilySearchWithMeta(
       `[Retrieval window: sources on or after ${options.startDate}${options.endDate ? ` through ${options.endDate}` : ""} where indexed dates exist]`
     );
   }
-  if (synth) {
-    chunks.push(`Brief synthesis (search-generated, prefer for “what’s current”): ${synth}`);
-  }
+  // Keep generated answer separate from snippet blocks so downstream grounding paths
+  // can stay strictly retrieval-based (title/url/content only).
   let rows = data.results ?? [];
   if (options?.preferNewestSourcesFirst !== false && rows.length > 1) {
     rows = [...rows].sort((a, b) => {

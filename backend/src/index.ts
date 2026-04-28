@@ -1808,6 +1808,7 @@ SCOPE: You analyze **only** ${meta?.name ?? cca3} (${cca3}). Do not substitute a
 VOICE & CLIENT OUTPUT (non-negotiable):
 - Write for **executives and board readers**: cohesive, fluid **memo-style** prose. Every JSON string you output is **client-facing**—never paste internal retrieval labels, markdown headings from the research bundle, bracketed “model notes,” or engineering terms.
 - **Forbidden in user-visible text:** “SOURCE A”, “SOURCE B”, “Source A/B”, “STATIC PROFILE”, “Past 7 days”, “Past 1 month”, “temporal window”, subsection titles from the web bundle, or raw “YYYY-MM-DD → YYYY-MM-DD” range lines. Instead use natural language, e.g. “Official series show … (year)”, “Recent reporting suggests …”, “Over the last several months …”, “Longer-run patterns indicate …”.
+- Typography rule: never use the em-dash character (—) or en-dash character (–) in output strings; use commas, parentheses, or a plain hyphen instead.
 - **Also avoid** product/engineering scaffolding in client strings: “From platform metadata”, “Data layer:”, “REST Countries”, “WDI-backed”, “the application’s … series”—write as a consultant would (“the reference profile …”, “reported indicators …”, “official development statistics …”).
 - Weave **platform statistics** and **web themes** into single flowing sentences; do not structure bullets as “(1) data (2) web (3) implication” explicitly.
 
@@ -1836,6 +1837,7 @@ ${
 - **No web research** is available. Do **not** invent internet-era facts. For every PESTEL comprehensive subsection except Executive summary: paragraph 2 must be **one or two short sentences** stating that live web context was not available and that qualitative colour rests on platform indicators and country profile only. Executive summary paragraph 2 may say once that live web context was unavailable.`
 }
 - PESTEL & SWOT bullets: tight, analytical mini-paragraphs; no laundry lists of internal labels.
+- For each bullet, follow this logic: (1) evidence-backed claim, (2) why it matters for business execution, risk, or investment sequencing. Avoid generic observations without implications.
 - Comprehensive & strategicBusiness: **exactly two paragraphs** each (blank line between), each paragraph reads as **one continuous argument**, not a labeled outline.
 - TECHNOLOGICAL: use literacy / enrollment / education spend from **indicators** for skills; never use GDP per capita as digital adoption. Digital policy themes only when web excerpts support them.
 - strategicBusiness: four distinct voices; no duplicated closings across quadrants.
@@ -1933,10 +1935,11 @@ ${webForLlm || "(none — no web excerpts; follow empty-web rules above)"}`;
 **Grounding:** every statistic must come from the country profile block, the platform indicator list, or explicit text in web research excerpts. Never use pretrained knowledge to add numbers, names of officials, or events. If evidence is thin, say so briefly in natural language—never reference internal source codes.
 
 **Client voice:** every string must read as a finished **board-ready** narrative—cohesive, fluid, free of engineering labels (no “Source A/B”, no pasted retrieval headings or date-range stamps).
+**Typography:** never output em-dash (—) or en-dash (–) characters; use commas, parentheses, or plain hyphen.
 
 The API may **discard** fragments whose figures are not supported by the evidence bundle—fabricating numbers wastes tokens.
 
-Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMarketAnalysis, keyTakeaways, recommendations; 3 paragraphs per comprehensive section and per strategicBusiness quadrant. Varied prose; no duplicated section openings. SWOT: zero cross-quadrant copy-paste—each of the 20 SWOT bullets must be unique in substance.`;
+Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMarketAnalysis, keyTakeaways, recommendations; exactly 2 paragraphs per comprehensive section and exactly 2 paragraph strings per strategicBusiness quadrant. Varied prose; no duplicated section openings. SWOT: zero cross-quadrant copy-paste—each of the 20 SWOT bullets must be unique in substance.`;
 
     const runGroqPestelJson = async (useCase: "pestel" | "assistant", label: string): Promise<PestelAnalysis> => {
       const { text, model, primaryFailed } = await groqChatWithFallbackForUseCase(useCase, pestelJsonSystem, prompt, {
