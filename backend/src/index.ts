@@ -1923,92 +1923,12 @@ ${webForLlm || "(none — no web excerpts; follow empty-web rules above)"}`;
       return { analysis: fallback, attributionLabel: `${reasonLabel}: deterministic data scaffold` };
     };
 
-    if (!(providedGroqApiKey || process.env.GROQ_API_KEY)) {
-      attribution.push("LLM: disabled — structured data-only template (set GROQ_API_KEY for AI narrative)");
-      const deterministic = await buildDeterministicPestelBlend("PESTEL");
-      if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
-      return res.json({ analysis: deterministic.analysis, attribution });
-    }
-
-    const pestelJsonSystem = `You are a senior macro-strategy analyst. Output **only** valid JSON matching the user schema.
-
-**Grounding:** every statistic must come from the country profile block, the platform indicator list, or explicit text in web research excerpts. Never use pretrained knowledge to add numbers, names of officials, or events. If evidence is thin, say so briefly in natural language—never reference internal source codes.
-
-**Client voice:** every string must read as a finished **board-ready** narrative—cohesive, fluid, free of engineering labels (no “Source A/B”, no pasted retrieval headings or date-range stamps).
-**Typography:** never output em-dash (—) or en-dash (–) characters; use commas, parentheses, or plain hyphen.
-
-The API may **discard** fragments whose figures are not supported by the evidence bundle—fabricating numbers wastes tokens.
-
-Exact counts: 5 bullets per PESTEL dimension; 5 per SWOT quadrant; 5 for newMarketAnalysis, keyTakeaways, recommendations; exactly 2 paragraphs per comprehensive section and exactly 2 paragraph strings per strategicBusiness quadrant. Varied prose; no duplicated section openings. SWOT: zero cross-quadrant copy-paste—each of the 20 SWOT bullets must be unique in substance.`;
-
-    const runGroqPestelJson = async (useCase: "pestel" | "assistant", label: string): Promise<PestelAnalysis> => {
-      const { text, model, primaryFailed } = await groqChatWithFallbackForUseCase(useCase, pestelJsonSystem, prompt, {
-        jsonObject: true,
-        analyticsRecencyHint: false,
-        temperature: 0.06,
-        topP: 0.85,
-        apiKey: providedGroqApiKey,
-      });
-      attribution.push(
-        primaryFailed
-          ? `LLM: Groq — ${label} (${model}, fallback model in stack)`
-          : `LLM: Groq — ${label} (${model})`
-      );
-      const partial = parsePestelAnalysisFromLlm(text);
-      const groundingCtx = { bundle, digest, staticProfile, web: webFull };
-      if (!partial) {
-        attribution.push("LLM: response was not valid PESTEL JSON — returning data scaffold merge");
-        return fallback;
-      }
-      const { partial: groundedPartial, droppedFragments } = sanitizePestelPartial(partial, groundingCtx);
-      if (droppedFragments > 0) {
-        attribution.push(
-          `LLM: grounding filter removed ${droppedFragments} fragment(s) with years/figures not supported by indicators, profile, or web corpus`
-        );
-      }
-      const merged = mergePestelAnalysis(groundedPartial, fallback);
-      const validation = validatePestelAnalysisGrounding(merged, groundingCtx);
-      if (!validation.ok) {
-        attribution.push(
-          `LLM: rejected by strict grounding gate (${validation.reasons.join("; ")})`
-        );
-        const deterministic = await buildDeterministicPestelBlend("PESTEL");
-        if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
-        return deterministic.analysis;
-      }
-      attribution.push(
-        `Grounding QA: passed (${validation.groundedFragments}/${validation.totalFragments} fragments grounded)`
-      );
-      return merged;
-    };
-
-    try {
-      const analysis = await runGroqPestelJson("pestel", "PESTEL stack + web research bundle (mixed retrieval + JSON LLM)");
-      res.json({ analysis, attribution });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      attribution.push(
-        `LLM: Groq PESTEL stack failed — ${msg.slice(0, 200)}${msg.length > 200 ? "…" : ""}`
-      );
-      if (providedGroqApiKey || process.env.GROQ_API_KEY?.trim()) {
-        try {
-          const analysis = await runGroqPestelJson(
-            "assistant",
-            "Assistant stack retry (same JSON schema; mixed Tavily + alternate Groq models)"
-          );
-          res.json({ analysis, attribution });
-          return;
-        } catch (e2) {
-          const msg2 = e2 instanceof Error ? e2.message : String(e2);
-          attribution.push(
-            `LLM: Groq Assistant stack failed — ${msg2.slice(0, 200)}${msg2.length > 200 ? "…" : ""}`
-          );
-        }
-      }
-      const deterministic = await buildDeterministicPestelBlend("PESTEL fallback");
-      if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
-      res.json({ analysis: deterministic.analysis, attribution });
-    }
+    // Hallucination-safe mode: always return deterministic evidence-only synthesis
+    // (dashboard indicators + filtered Tavily snippets), never free-form JSON generation.
+    const deterministic = await buildDeterministicPestelBlend("PESTEL");
+    attribution.push("Generation mode: deterministic evidence synthesis (LLM narrative disabled for reliability)");
+    if (deterministic.attributionLabel) attribution.push(deterministic.attributionLabel);
+    res.json({ analysis: deterministic.analysis, attribution });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

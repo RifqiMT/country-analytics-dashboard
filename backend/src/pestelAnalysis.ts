@@ -931,11 +931,11 @@ export function buildDataOnlyPestel(
       "Coordinate tax, labor, licensing, and IP workstreams early to avoid late-stage surprises.",
     ],
     recommendations: [
-      "This is the data-only scaffold: set GROQ_API_KEY in `.env` at the repo root or in `backend/`, restart the API, and ensure your terminal is not exporting an empty GROQ_API_KEY (that blocks dotenv). Add TAVILY_API_KEY for cited web context, then click Generate again.",
-      "Pair this scan with the Country Dashboard charts and Global Analytics for peer context.",
-      "Assign data owners to refresh digest-linked indicators each quarter and log the observation years cited in memos.",
-      "For material decisions, triangulate PESTEL bullets with legal counsel, tax, and local operating partners.",
-      "Re-run PESTEL after elections, large FX moves, or major data revisions flagged on the dashboard.",
+      "Use this PESTEL as a first-pass strategic brief, then prioritize two to three sector-specific hypotheses for immediate validation with customers, partners, and regulators.",
+      "Pair this scan with Country Dashboard trend charts and peer-country comparisons to separate short-term noise from structural shifts.",
+      "Assign owners for each critical assumption and refresh core indicators quarterly, explicitly tracking data year and policy-update dates.",
+      "For material commitments, triangulate findings with legal, tax, compliance, and local operating experts before final approval.",
+      "Re-run PESTEL after major policy changes, election cycles, inflation or FX shocks, and significant revisions in official statistics.",
     ],
   });
 }
