@@ -1,6 +1,7 @@
 import { fetchGlobalYearSnapshot } from "./globalSnapshot.js";
 import { listCountries } from "./restCountries.js";
 import { METRIC_BY_ID } from "./metrics.js";
+import { getCache, setCache } from "./cache.js";
 
 export interface CorrelationPoint {
   countryIso3: string;
@@ -103,11 +104,16 @@ export async function computeCorrelationGlobal(
   excludeIqrOutliers: boolean,
   highlightCountry: string
 ): Promise<CorrelationGlobalResult> {
+  const cacheKey = `corr:global:v2:${metricX}:${metricY}:${startYear}:${endYear}:${excludeIqrOutliers ? 1 : 0}:${highlightCountry || "-"}`;
+  const hit = getCache<CorrelationGlobalResult>(cacheKey);
+  if (hit) return hit;
+
   if (!METRIC_BY_ID[metricX] || !METRIC_BY_ID[metricY]) {
     throw new Error("Unknown metric");
   }
 
   const countries = await listCountries();
+  const members = new Set(countries.map((c) => c.cca3.toUpperCase()));
   const regionByIso = new Map(countries.map((c) => [c.cca3, c.region || "Unknown"]));
   const nameByIso = new Map(countries.map((c) => [c.cca3, c.name]));
 
@@ -123,6 +129,9 @@ export async function computeCorrelationGlobal(
     const byCountryY = new Map(rowsY.map((r) => [r.countryIso3, r.value]));
     const allIso = new Set([...byCountryX.keys(), ...byCountryY.keys()]);
     for (const iso of allIso) {
+      const up = String(iso).toUpperCase();
+      // Exclude WDI aggregates/regions (e.g. WLD, AFE, AFW) for country-only analytics.
+      if (!members.has(up)) continue;
       const vx = byCountryX.get(iso);
       const vy = byCountryY.get(iso);
       if (vx === null || vx === undefined || Number.isNaN(vx) || vy === null || vy === undefined || Number.isNaN(vy)) {
@@ -130,9 +139,9 @@ export async function computeCorrelationGlobal(
         continue;
       }
       rawPoints.push({
-        countryIso3: iso,
-        countryName: nameByIso.get(iso) ?? iso,
-        region: regionByIso.get(iso) ?? "Unknown",
+        countryIso3: up,
+        countryName: nameByIso.get(up) ?? up,
+        region: regionByIso.get(up) ?? "Unknown",
         year,
         x: Number(vx),
         y: Number(vy),
@@ -204,7 +213,7 @@ export async function computeCorrelationGlobal(
     }
   }
 
-  return {
+  const out = {
     points,
     n: points.length,
     nMissing,
@@ -218,4 +227,6 @@ export async function computeCorrelationGlobal(
     subgroups,
     ciBand,
   };
+  setCache(cacheKey, out, 1000 * 60 * 15);
+  return out;
 }

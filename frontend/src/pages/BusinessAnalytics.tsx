@@ -94,6 +94,20 @@ function median(values: number[]): number | null {
 }
 
 export default function BusinessAnalytics() {
+  const withTimeout = async <T,>(promise: Promise<T>, ms: number, msg: string): Promise<T> => {
+    let timer: number | null = null;
+    try {
+      return await Promise.race<T>([
+        promise,
+        new Promise<T>((_, reject) => {
+          timer = window.setTimeout(() => reject(new Error(msg)), ms);
+        }),
+      ]);
+    } finally {
+      if (timer !== null) window.clearTimeout(timer);
+    }
+  };
+
   const maxY = maxSelectableYear();
   const [metrics, setMetrics] = useState<MetricDef[]>([]);
   const [startYear, setStartYear] = useState(MIN_DATA_YEAR);
@@ -161,7 +175,11 @@ export default function BusinessAnalytics() {
         excludeIqr: String(excludeIqr),
         highlight: highlight,
       });
-      const r = await getJson<CorrResult>(`/api/analysis/correlation-global?${params}`);
+      const r = await withTimeout(
+        getJson<CorrResult>(`/api/analysis/correlation-global?${params}`),
+        35000,
+        "Correlation analysis timed out. Please retry with a narrower year range."
+      );
       setRes(r);
     } catch (e) {
       setErr(String(e));
@@ -380,30 +398,34 @@ export default function BusinessAnalytics() {
 
     void (async () => {
       try {
-        const r = await postJson<{ narrative: BusinessCorrelationNarrative }>(
-          "/api/analysis/business/correlation-narrative",
-          {
-            metricX: xId,
-            metricY: yId,
-            labelX,
-            labelY,
-            startYear,
-            endYear,
-            excludeIqr,
-            highlightCountryIso3: highlight,
-            highlightCountryName: highlightName,
-            correlation: res.correlation,
-            pValue: res.pValue,
-            rSquared: res.rSquared,
-            slope: res.slope,
-            intercept: res.intercept,
-            n: res.n,
-            nMissing: res.nMissing,
-            nIqrFlagged: res.nIqrFlagged,
-            subgroups: res.subgroups,
-            highlightStats,
-            residualDiagnostics,
-          }
+        const r = await withTimeout(
+          postJson<{ narrative: BusinessCorrelationNarrative }>(
+            "/api/analysis/business/correlation-narrative",
+            {
+              metricX: xId,
+              metricY: yId,
+              labelX,
+              labelY,
+              startYear,
+              endYear,
+              excludeIqr,
+              highlightCountryIso3: highlight,
+              highlightCountryName: highlightName,
+              correlation: res.correlation,
+              pValue: res.pValue,
+              rSquared: res.rSquared,
+              slope: res.slope,
+              intercept: res.intercept,
+              n: res.n,
+              nMissing: res.nMissing,
+              nIqrFlagged: res.nIqrFlagged,
+              subgroups: res.subgroups,
+              highlightStats,
+              residualDiagnostics,
+            }
+          ),
+          30000,
+          "Business narrative timed out. Statistical tables are still available."
         );
         setBizNarrative(r.narrative);
       } catch (e) {
