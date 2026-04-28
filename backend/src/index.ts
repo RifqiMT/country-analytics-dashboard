@@ -75,6 +75,7 @@ import {
 import { fetchPorterTemporalHorizonWeb, PORTER_TEMPORAL_SECTION_MARKER } from "./porterTavily.js";
 import { ILO_ISIC_DIVISIONS } from "./iloIsicDivisions.js";
 import { computeCorrelationGlobal } from "./correlationGlobal.js";
+import tzLookup from "tz-lookup";
 import { getMetricShortLabel } from "./metricShortLabels.js";
 import {
   MIN_DATA_YEAR,
@@ -234,6 +235,15 @@ app.get("/api/country/:cca3", async (req, res) => {
     const c = await getCountry(req.params.cca3);
     if (!c) return res.status(404).json({ error: "Country not found" });
     const iso = c.cca3.toUpperCase();
+    const ianaTimezone = (() => {
+      try {
+        const [lat, lng] = c.latlng ?? [NaN, NaN];
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
+        return tzLookup(lat, lng);
+      } catch {
+        return undefined;
+      }
+    })();
     const [wd, eezApi, worldBankProfile] = await Promise.all([
       fetchWikidataCountryEnrichment(iso),
       c.landlocked ? Promise.resolve(null) : fetchSeaAroundUsEezAreaKm2(c.ccn3),
@@ -242,7 +252,7 @@ app.get("/api/country/:cca3", async (req, res) => {
     const government = c.government ?? wd?.government;
     const headOfGovernmentTitle = wd?.headOfGovernmentTitle;
     const eezSqKm = c.landlocked ? null : eezApi ?? EEZ_SQKM_FALLBACK[iso] ?? null;
-    res.json({ ...c, government, headOfGovernmentTitle, eezSqKm, worldBankProfile });
+    res.json({ ...c, ianaTimezone, government, headOfGovernmentTitle, eezSqKm, worldBankProfile });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

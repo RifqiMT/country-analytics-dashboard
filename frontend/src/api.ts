@@ -278,6 +278,8 @@ export type CountrySummary = {
   latlng: [number, number];
   flags: { png?: string; svg?: string };
   timezones?: string[];
+  /** Representative IANA timezone derived from lat/lng (handles DST). */
+  ianaTimezone?: string;
   currencies?: string[];
   government?: string;
   /** Wikidata office label shortened (e.g. President), when REST Countries omits government. */

@@ -12,6 +12,8 @@ export interface CountrySummary {
   population: number;
   area: number;
   latlng: [number, number];
+  /** Representative IANA timezone derived from lat/lng (handles DST). */
+  ianaTimezone?: string;
   flags: { png?: string; svg?: string };
   timezones: string[];
   currencies: string[];

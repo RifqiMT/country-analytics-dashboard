@@ -939,7 +939,7 @@ export default function Dashboard() {
                           {meta.capital?.[0] ?? wbProfile?.capitalCity ?? "—"}
                         </p>
                       </div>
-                      <TimezoneClockCard timezone={meta.timezones?.[0]} />
+                      <TimezoneClockCard timezone={meta.ianaTimezone ?? meta.timezones?.[0]} />
                     </div>
                   </div>
                   <div>
