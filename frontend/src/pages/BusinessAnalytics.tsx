@@ -112,6 +112,7 @@ export default function BusinessAnalytics() {
   const [metrics, setMetrics] = useState<MetricDef[]>([]);
   const [startYear, setStartYear] = useState(MIN_DATA_YEAR);
   const [endYear, setEndYear] = useState(() => maxSelectableYear());
+  const [strictSelectedRange, setStrictSelectedRange] = useState(true);
   const [excludeIqr, setExcludeIqr] = useState(false);
   const [highlight, setHighlight] = useState("IDN");
   const [xId, setXId] = useState("gdp_per_capita");
@@ -126,14 +127,46 @@ export default function BusinessAnalytics() {
   const [subgroupSortKey, setSubgroupSortKey] = useState<string | null>(null);
   const [subgroupSortDir, setSubgroupSortDir] = useState<SortDir>("asc");
   const [loading, setLoading] = useState(false);
+  const [analysisLoadProgress, setAnalysisLoadProgress] = useState(0);
+  const [narrativeLoadProgress, setNarrativeLoadProgress] = useState(0);
+  const [analysisDiag, setAnalysisDiag] = useState<{ status: "idle" | "running" | "ok" | "error"; ms?: number }>({
+    status: "idle",
+  });
+  const [narrativeDiag, setNarrativeDiag] = useState<{ status: "idle" | "running" | "ok" | "error"; ms?: number }>({
+    status: "idle",
+  });
+  const [presentationMode, setPresentationMode] = useState(false);
+  const [analysisDeliveryNote, setAnalysisDeliveryNote] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [analysisConfig, setAnalysisConfig] = useState<BusinessAnalysisConfig | null>(null);
 
   const restoringFromCacheRef = useRef(false);
   const skipNextFilterClearRef = useRef(false);
+  const analysisReqSeqRef = useRef(0);
+  const narrativeReqSeqRef = useRef(0);
 
   useEffect(() => {
     getJson<MetricDef[]>("/api/metrics").then(setMetrics).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return;
+      const target = e.target as HTMLElement | null;
+      const tag = (target?.tagName ?? "").toLowerCase();
+      const isEditable =
+        tag === "input" ||
+        tag === "textarea" ||
+        tag === "select" ||
+        Boolean(target?.isContentEditable);
+      if (isEditable) return;
+      if ((e.key === "p" || e.key === "P") && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setPresentationMode((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
   useEffect(() => {
@@ -164,29 +197,83 @@ export default function BusinessAnalytics() {
   }, []);
 
   const fetchData = useCallback(async () => {
+    const reqSeq = ++analysisReqSeqRef.current;
+    const startedAt = performance.now();
     setLoading(true);
+    setAnalysisLoadProgress(8);
+    setAnalysisDiag({ status: "running" });
+    setAnalysisDeliveryNote(null);
     setErr(null);
+    const progressTimer = window.setInterval(() => {
+      setAnalysisLoadProgress((prev) => (prev < 92 ? prev + 6 : 92));
+    }, 250);
     try {
-      const params = new URLSearchParams({
-        metricX: xId,
-        metricY: yId,
-        start: String(startYear),
-        end: String(endYear),
-        excludeIqr: String(excludeIqr),
-        highlight: highlight,
-      });
-      const r = await withTimeout(
-        getJson<CorrResult>(`/api/analysis/correlation-global?${params}`),
-        35000,
-        "Correlation analysis timed out. Please retry with a narrower year range."
-      );
-      setRes(r);
+      const attemptRanges: Array<{ start: number; end: number; timeoutMs: number; note?: string }> = [
+        { start: startYear, end: endYear, timeoutMs: 55_000 },
+      ];
+      const selectedSpan = endYear - startYear + 1;
+      const y12Start = Math.max(MIN_DATA_YEAR, endYear - 11);
+      const y6Start = Math.max(MIN_DATA_YEAR, endYear - 5);
+      if (!strictSelectedRange && selectedSpan > 12) {
+        attemptRanges.push({
+          start: y12Start,
+          end: endYear,
+          timeoutMs: 40_000,
+          note: `Primary request timed out; automatically using last ${endYear - y12Start + 1} years.`,
+        });
+      }
+      if (!strictSelectedRange && selectedSpan > 6 && y6Start > startYear) {
+        attemptRanges.push({
+          start: y6Start,
+          end: endYear,
+          timeoutMs: 30_000,
+          note: `Still slow; automatically using last ${endYear - y6Start + 1} years for a reliable result.`,
+        });
+      }
+
+      let delivered = false;
+      let lastErr: unknown = null;
+      for (const attempt of attemptRanges) {
+        try {
+          const params = new URLSearchParams({
+            metricX: xId,
+            metricY: yId,
+            start: String(attempt.start),
+            end: String(attempt.end),
+            excludeIqr: String(excludeIqr),
+            highlight: highlight,
+          });
+          const r = await withTimeout(
+            getJson<CorrResult>(`/api/analysis/correlation-global?${params}`),
+            attempt.timeoutMs,
+            "Correlation analysis timed out."
+          );
+          if (reqSeq !== analysisReqSeqRef.current) return;
+          setRes(r);
+          if (attempt.note) setAnalysisDeliveryNote(attempt.note);
+          delivered = true;
+          break;
+        } catch (e) {
+          lastErr = e;
+        }
+      }
+      if (!delivered) {
+        throw lastErr instanceof Error ? lastErr : new Error(String(lastErr ?? "Correlation analysis failed"));
+      }
+      setAnalysisLoadProgress(100);
+      setAnalysisDiag({ status: "ok", ms: Math.round(performance.now() - startedAt) });
     } catch (e) {
+      if (reqSeq !== analysisReqSeqRef.current) return;
       setErr(String(e));
+      setRes(null);
+      setAnalysisLoadProgress(0);
+      setAnalysisDiag({ status: "error", ms: Math.round(performance.now() - startedAt) });
     } finally {
+      window.clearInterval(progressTimer);
+      if (reqSeq !== analysisReqSeqRef.current) return;
       setLoading(false);
     }
-  }, [xId, yId, startYear, endYear, excludeIqr, highlight]);
+  }, [xId, yId, startYear, endYear, excludeIqr, highlight, strictSelectedRange]);
 
   const onGenerateAnalysis = useCallback(() => {
     // Only generate analysis when user explicitly requests it.
@@ -203,6 +290,7 @@ export default function BusinessAnalytics() {
     setRes(null);
     setBizNarrative(null);
     setBizNarrativeErr(null);
+    setAnalysisDeliveryNote(null);
     setErr(null);
     void fetchData();
   }, [fetchData]);
@@ -340,6 +428,9 @@ export default function BusinessAnalytics() {
   const defY = metrics.find((m) => m.id === yId);
   const labelX = res?.labelX ?? (defX ? metricDisplayLabel(defX) : xId);
   const labelY = res?.labelY ?? (defY ? metricDisplayLabel(defY) : yId);
+  const analysisStartYear = res?.startYear ?? startYear;
+  const analysisEndYear = res?.endYear ?? endYear;
+  const analysisYearCount = analysisEndYear - analysisStartYear + 1;
   const highlightName = highlight
     ? (res?.points?.find((p) => p.countryIso3 === highlight)?.countryName ?? highlight)
     : "None";
@@ -393,8 +484,15 @@ export default function BusinessAnalytics() {
 
   useEffect(() => {
     if (!res || loading || bizNarrative) return;
+    const reqSeq = ++narrativeReqSeqRef.current;
+    const startedAt = performance.now();
     setBizNarrativeLoading(true);
+    setNarrativeLoadProgress(10);
+    setNarrativeDiag({ status: "running" });
     setBizNarrativeErr(null);
+    const progressTimer = window.setInterval(() => {
+      setNarrativeLoadProgress((prev) => (prev < 94 ? prev + 5 : 94));
+    }, 250);
 
     void (async () => {
       try {
@@ -406,8 +504,8 @@ export default function BusinessAnalytics() {
               metricY: yId,
               labelX,
               labelY,
-              startYear,
-              endYear,
+              startYear: res.startYear,
+              endYear: res.endYear,
               excludeIqr,
               highlightCountryIso3: highlight,
               highlightCountryName: highlightName,
@@ -427,13 +525,24 @@ export default function BusinessAnalytics() {
           30000,
           "Business narrative timed out. Statistical tables are still available."
         );
+        if (reqSeq !== narrativeReqSeqRef.current) return;
         setBizNarrative(r.narrative);
+        setNarrativeLoadProgress(100);
+        setNarrativeDiag({ status: "ok", ms: Math.round(performance.now() - startedAt) });
       } catch (e) {
+        if (reqSeq !== narrativeReqSeqRef.current) return;
         setBizNarrativeErr(e instanceof Error ? e.message : String(e));
+        setNarrativeLoadProgress(0);
+        setNarrativeDiag({ status: "error", ms: Math.round(performance.now() - startedAt) });
       } finally {
+        window.clearInterval(progressTimer);
+        if (reqSeq !== narrativeReqSeqRef.current) return;
         setBizNarrativeLoading(false);
       }
     })();
+    return () => {
+      window.clearInterval(progressTimer);
+    };
   }, [
     res,
     loading,
@@ -463,26 +572,56 @@ export default function BusinessAnalytics() {
   return (
     <div className="space-y-8">
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="grid grid-cols-1 gap-3">
-          <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
-            Business Analytics
-          </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
-            Multi-metric correlation analysis: compare countries across two metrics to explore market
-            positioning and correlations. Uses the same analyst-grade data as the platform (World Bank,
-            UN, WHO, IMF; 2000 – latest). Use the filters below (year range, exclude IQR outliers, highlight
-            country, and Variable 1/Variable 2); then click Generate analysis. Each country–year in the
-            range is a point.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid min-w-0 flex-1 grid-cols-1 gap-3">
+            <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
+              Business Analytics
+            </h1>
+            <p className="w-full text-sm leading-relaxed text-slate-600">
+              Multi-metric correlation analysis: compare countries across two metrics to explore market
+              positioning and correlations. Uses the same analyst-grade data as the platform (World Bank,
+              UN, WHO, IMF; 2000 – latest). Use the filters below (year range, exclude IQR outliers, highlight
+              country, and Variable 1/Variable 2); then click Generate analysis. Each country–year in the
+              range is a point.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPresentationMode((v) => !v)}
+            className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+              presentationMode
+                ? "bg-slate-900 text-white hover:bg-slate-800"
+                : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            }`}
+          >
+            {presentationMode ? "Exit presentation mode" : "Presentation mode"}
+          </button>
         </div>
+        {!presentationMode && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+              Analysis request: <span className="font-semibold text-slate-800">{analysisDiag.status}</span>
+              {typeof analysisDiag.ms === "number" ? ` · ${analysisDiag.ms} ms` : ""}
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600">
+              Narrative request: <span className="font-semibold text-slate-800">{narrativeDiag.status}</span>
+              {typeof narrativeDiag.ms === "number" ? ` · ${narrativeDiag.ms} ms` : ""}
+            </span>
+          </div>
+        )}
 
-        <div className="mt-5 space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Filters selection</p>
-          <div className="flex flex-wrap gap-8">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Year range
-              </p>
+        {!presentationMode && (
+          <div className="mt-5 space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Filters selection</p>
+            <p className="text-xs text-slate-500">
+              {yearCount} years selected ({startYear}–{endYear})
+            </p>
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-12">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Year range</p>
               <div className="mt-2 flex items-center gap-2">
                 <input
                   type="number"
@@ -502,37 +641,47 @@ export default function BusinessAnalytics() {
                   className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
                 />
               </div>
-              <p className="mt-1 text-xs text-slate-500">
-                {yearCount} years selected ({startYear}–{endYear})
-              </p>
+              <p className="mt-1 text-xs text-slate-500">Coverage: {MIN_DATA_YEAR}–{maxY}</p>
             </div>
-            <div>
-              <label className="flex cursor-pointer items-start gap-3">
-                <input
-                  type="checkbox"
-                  checked={excludeIqr}
-                  onChange={(e) => setExcludeIqr(e.target.checked)}
-                  className="mt-1 rounded border-slate-300"
-                />
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Exclude IQR outliers
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">
-                    Remove points &gt;1.5×IQR from Q1/Q3 (univariate on Variable 1 and Variable 2)
-                  </p>
-                </div>
-              </label>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Analysis options</p>
+              <div className="mt-2 space-y-2">
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent px-1 py-1 hover:border-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={excludeIqr}
+                    onChange={(e) => setExcludeIqr(e.target.checked)}
+                    className="mt-1 rounded border-slate-300"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Exclude IQR outliers</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Removes points outside 1.5×IQR on both selected variables.</p>
+                  </div>
+                </label>
+                <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-transparent px-1 py-1 hover:border-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={strictSelectedRange}
+                    onChange={(e) => setStrictSelectedRange(e.target.checked)}
+                    className="mt-1 rounded border-slate-300"
+                  />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Strict selected range only</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Disables automatic fallback to shorter windows when timeout occurs.</p>
+                  </div>
+                </label>
+              </div>
             </div>
-            <div className="min-w-[200px]">
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Highlight country
-              </p>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Focus country</p>
               <div className="mt-2">
                 <HighlightCountrySelect value={highlight} onChange={setHighlight} />
               </div>
             </div>
-            <div className="min-w-[240px]">
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Variable 1</p>
               <select
                 value={xId}
@@ -546,7 +695,8 @@ export default function BusinessAnalytics() {
                 ))}
               </select>
             </div>
-            <div className="min-w-[240px]">
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 lg:col-span-5">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Variable 2</p>
               <select
                 value={yId}
@@ -560,18 +710,20 @@ export default function BusinessAnalytics() {
                 ))}
               </select>
             </div>
+
+            <div className="flex items-end justify-start lg:col-span-2 lg:justify-end">
+              <button
+                type="button"
+                onClick={onGenerateAnalysis}
+                disabled={loading}
+                className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50 lg:w-auto"
+              >
+                {loading ? "Generating…" : "Generate analysis"}
+              </button>
+            </div>
           </div>
-          <div className="mt-4 flex justify-end">
-            <button
-              type="button"
-              onClick={onGenerateAnalysis}
-              disabled={loading}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Generating…" : "Generate analysis"}
-            </button>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
@@ -582,17 +734,47 @@ export default function BusinessAnalytics() {
         </p>
         <div className="mt-6 rounded-xl border border-slate-100 bg-slate-50/50 p-4">
           {loading ? (
-            <div className="flex h-[420px] items-center justify-center text-sm text-slate-500">
-              Loading global metrics for {yearCount} years…
+            <div className="flex h-[420px] items-center justify-center">
+              <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <p className="text-sm font-medium text-slate-700">
+                  Loading global metrics for {yearCount} years…
+                </p>
+                <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div
+                    className="h-full rounded-full bg-red-600 transition-all duration-300"
+                    style={{ width: `${analysisLoadProgress}%` }}
+                    role="progressbar"
+                    aria-valuenow={analysisLoadProgress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label="Business analytics loading progress"
+                  />
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{analysisLoadProgress}% loaded</p>
+              </div>
             </div>
           ) : err ? (
-            <p className="py-8 text-center text-sm text-red-600">{err}</p>
+            <div className="space-y-3 py-8 text-center">
+              <p className="text-sm text-red-600">{err}</p>
+              <button
+                type="button"
+                onClick={onGenerateAnalysis}
+                className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Retry analysis
+              </button>
+            </div>
           ) : res ? (
             <div className="space-y-3">
               {analysisRestoredFromCache ? (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2 text-sm text-slate-700">
                   Showing <span className="font-semibold text-slate-900">last generated</span> analysis (it stays visible until you click{" "}
                   <span className="font-semibold">Generate analysis</span> again).
+                </div>
+              ) : null}
+              {analysisDeliveryNote ? (
+                <div className="rounded-xl border border-blue-200 bg-blue-50/70 px-4 py-2 text-sm text-blue-900">
+                  {analysisDeliveryNote}
                 </div>
               ) : null}
               <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-2 text-sm text-slate-700">
@@ -622,14 +804,36 @@ export default function BusinessAnalytics() {
 
       {res && !loading && (
         <>
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/70 p-4 shadow-sm sm:p-5">
             <h2 className="text-lg font-bold text-slate-900">
               Correlation &amp; causation analysis
             </h2>
             <p className="mt-1 text-sm text-slate-500">
               Statistical summary and interpretation for the selected pair: {labelX} (Variable 1) vs{" "}
-              {labelY} (Variable 2). Years: {startYear}–{endYear} ({yearCount} years, each country–year is a point).
+              {labelY} (Variable 2). Years: {analysisStartYear}–{analysisEndYear} ({analysisYearCount} years, each country–year is a point).
             </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Points used</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{formatCompactCount(res.n)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">Pearson r</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {res.correlation !== null ? res.correlation.toFixed(3) : "—"}
+                </p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">P-value</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{res.pValue ?? "—"}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] uppercase tracking-wide text-slate-500">R²</p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">
+                  {res.rSquared !== null ? res.rSquared.toFixed(3) : "—"}
+                </p>
+              </div>
+            </div>
             <div className="mt-6 rounded-xl border-l-4 border-red-400 bg-red-50/80 px-4 py-3 text-sm text-slate-700">
               <strong>Correlation does NOT imply causation.</strong> The following describes
               association and strength of linear relationship. Causal claims require additional
@@ -649,7 +853,7 @@ export default function BusinessAnalytics() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
               <h3 className="font-bold text-slate-900">Executive summary</h3>
               <div className="mt-4 overflow-hidden rounded-lg border border-slate-200">
                 <table className="w-full text-sm">
@@ -696,7 +900,7 @@ export default function BusinessAnalytics() {
                 </table>
               </div>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
               <h3 className="font-bold text-slate-900">Correlation (Pearson)</h3>
               <p className="mt-3 text-sm text-slate-600">
                 {res.correlation !== null && (
@@ -732,7 +936,7 @@ export default function BusinessAnalytics() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
             <h3 className="font-bold text-slate-900">Residuals vs fitted</h3>
             <p className="mt-1 text-sm text-slate-500">
               Check for heteroscedasticity: residuals should be scattered around zero.
@@ -749,7 +953,7 @@ export default function BusinessAnalytics() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
             <h3 className="font-bold text-slate-900">Subgroup analysis (by region)</h3>
             <p className="mt-1 text-sm text-slate-500">
               Consistency across regions (Bradford Hill).
@@ -811,10 +1015,24 @@ export default function BusinessAnalytics() {
           </div>
 
           <div className="space-y-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
               <h3 className="font-bold text-slate-900">Causation &amp; context</h3>
               {bizNarrativeLoading ? (
-                <p className="mt-3 text-sm text-slate-500">Generating analyst narrative...</p>
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm text-slate-600">Generating analyst narrative...</p>
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+                    <div
+                      className="h-full rounded-full bg-red-600 transition-all duration-300"
+                      style={{ width: `${narrativeLoadProgress}%` }}
+                      role="progressbar"
+                      aria-valuenow={narrativeLoadProgress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-label="Narrative generation loading progress"
+                    />
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">{narrativeLoadProgress}% loaded</p>
+                </div>
               ) : bizNarrative ? (
                 <>
                   <p className="mt-3 text-sm leading-relaxed text-slate-600">{bizNarrative.causationParagraph}</p>
@@ -842,7 +1060,7 @@ export default function BusinessAnalytics() {
                 </>
               )}
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
               <h3 className="font-bold text-slate-900">Actionable insight</h3>
               <p className="mt-3 text-sm leading-relaxed text-slate-600">
                 {res.slope !== null && (
@@ -855,7 +1073,7 @@ export default function BusinessAnalytics() {
                 )}
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
               <h3 className="font-bold text-slate-900">If causation is not supported</h3>
               {bizNarrative ? (
                 <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-relaxed text-slate-600">
@@ -872,7 +1090,7 @@ export default function BusinessAnalytics() {
                 </ol>
               )}
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ring-1 ring-slate-100/70 sm:p-5">
               <h3 className="font-bold text-slate-900">
                 Comprehensive hypothesis for business analysis
               </h3>
@@ -880,7 +1098,7 @@ export default function BusinessAnalytics() {
                 <>
                   <p className="mt-2 text-sm text-slate-600">
                     Analyst narrative for <strong>{labelX}</strong> (Variable 1) vs{" "}
-                    <strong>{labelY}</strong> (Variable 2) across {yearCount} years ({startYear}–{endYear}):
+                    <strong>{labelY}</strong> (Variable 2) across {analysisYearCount} years ({analysisStartYear}–{analysisEndYear}):
                   </p>
                   <p className="mt-3 text-sm leading-relaxed text-slate-600">
                     {bizNarrative.associationParagraphs[0]}
@@ -905,7 +1123,7 @@ export default function BusinessAnalytics() {
                 <>
                   <p className="mt-2 text-sm text-slate-600">
                     Working hypothesis for <strong>{labelX}</strong> (Variable 1) vs{" "}
-                    <strong>{labelY}</strong> (Variable 2) across {yearCount} years ({startYear}–{endYear}):
+                    <strong>{labelY}</strong> (Variable 2) across {analysisYearCount} years ({analysisStartYear}–{analysisEndYear}):
                   </p>
                   <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-600">
                     <li>

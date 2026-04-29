@@ -251,7 +251,7 @@ export default function Assistant() {
           <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
             Analytics Assistant
           </h1>
-          <p className="max-w-4xl text-sm leading-relaxed text-slate-600 lg:max-w-none">
+          <p className="w-full text-sm leading-relaxed text-slate-600">
             The assistant answers in clear, analyst-style prose. For <strong className="font-semibold text-slate-800">numbers and rankings</strong>, it anchors to the{" "}
             <strong className="font-semibold text-slate-800">same indicator series as the dashboard</strong> (World Bank
             WDI and configured extensions)—including full global snapshots when you ask for top or bottom countries. For{" "}

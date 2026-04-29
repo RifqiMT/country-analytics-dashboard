@@ -102,6 +102,7 @@ Primary NFR themes:
 1. Select metricX/metricY and year window.
 2. Generate correlation diagnostics and residual plots.
 3. Use narrative (when generated) as hypothesis guidance; confirm with robustness checks.
+4. If long-range requests are slow, users can choose strict-range mode or reliability mode (automatic shorter-window fallback).
 
 ## 9) Evidence and AI Strategy (high level)
 
@@ -154,3 +155,22 @@ Release changes that affect evidence behavior must update:
 - any impacted API/assistant/variable documentation
 
 For governance details, see `docs/PRODUCT_DOCUMENTATION_STANDARD.md`.
+
+## 14) Current-state implementation notes (2026-04-29)
+
+### 14.1 Exchange-rate requirement behavior
+
+- Country dashboard exchange-rate card returns `1 USD = local currency` with source/date transparency.
+- Source priority:
+  1. ECB daily quote (via Frankfurter)
+  2. World Bank official annual FX (`PA.NUS.FCRF`) fallback
+- Validation/fallback logic prevents clearly anomalous values from being surfaced without fallback.
+
+### 14.2 Business Analytics timeout-resilience behavior
+
+- Correlation computation backend uses batched year processing with per-year fault tolerance.
+- Frontend delivery applies timeout-aware multi-attempt logic:
+  - full selected range first,
+  - optional fallback to shorter recent windows when reliability mode is enabled,
+  - strict selected-range mode available for exact-window analysis governance.
+- Narrative generation has deterministic fallback if LLM JSON shape/timeout gates fail.

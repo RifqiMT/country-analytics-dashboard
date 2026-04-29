@@ -257,6 +257,8 @@ export default function GlobalAnalytics() {
   const [tableSortDir, setTableSortDir] = useState<SortDir>("asc");
   const [tableFullscreen, setTableFullscreen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [mapLoadProgress, setMapLoadProgress] = useState(0);
+  const [tableLoadProgress, setTableLoadProgress] = useState(0);
   const [err, setErr] = useState<string | null>(null);
 
   const regions = useMemo(() => {
@@ -339,23 +341,67 @@ export default function GlobalAnalytics() {
 
   useEffect(() => {
     if (view !== "map") return;
+    let active = true;
     setLoading(true);
     setErr(null);
+    setSnapshot(null);
+    setMapLoadProgress(8);
+    const progressTimer = window.setInterval(() => {
+      setMapLoadProgress((prev) => (prev < 90 ? prev + 7 : 90));
+    }, 250);
     getJson<Snapshot>(`/api/global/snapshot?metric=${mapMetric}&year=${year}`)
-      .then(setSnapshot)
-      .catch((e) => setErr(String(e)))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!active) return;
+        setSnapshot(data);
+        setMapLoadProgress(100);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setErr(String(e));
+        setMapLoadProgress(0);
+      })
+      .finally(() => {
+        if (!active) return;
+        window.clearInterval(progressTimer);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+      window.clearInterval(progressTimer);
+    };
   }, [view, mapMetric, year]);
 
   useEffect(() => {
     if (view !== "table") return;
+    let active = true;
     setLoading(true);
     setErr(null);
+    setTableData(null);
+    setTableLoadProgress(10);
+    const progressTimer = window.setInterval(() => {
+      setTableLoadProgress((prev) => (prev < 92 ? prev + 6 : 92));
+    }, 250);
     const q = new URLSearchParams({ year: String(year), region, category: tableCat });
     getJson<GlobalTablePayload>(`/api/global/table?${q}`)
-      .then((payload) => setTableData(payload))
-      .catch((e) => setErr(String(e)))
-      .finally(() => setLoading(false));
+      .then((payload) => {
+        if (!active) return;
+        setTableData(payload);
+        setTableLoadProgress(100);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setErr(String(e));
+        setTableLoadProgress(0);
+      })
+      .finally(() => {
+        if (!active) return;
+        window.clearInterval(progressTimer);
+        setLoading(false);
+      });
+    return () => {
+      active = false;
+      window.clearInterval(progressTimer);
+    };
   }, [view, year, region, tableCat]);
 
   useEffect(() => {
@@ -441,7 +487,7 @@ export default function GlobalAnalytics() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="grid grid-cols-1 gap-2">
           <h1 className="text-2xl font-bold uppercase tracking-tight text-slate-900">Global view</h1>
-          <p className="max-w-3xl text-sm text-slate-600">
+          <p className="w-full text-sm text-slate-600">
             A modern, analyst-grade view across financial, demographic, and health metrics for every country (2000 – latest),
             powered by World Bank, UN, WHO, and IMF data. Switch between an interactive world map, a full global country
             table, and global macro charts for cross-country comparison.
@@ -526,13 +572,32 @@ export default function GlobalAnalytics() {
       {err && <p className="text-sm text-red-600">{err}</p>}
       {loading && view !== "charts" && <p className="text-sm text-slate-500">Loading…</p>}
 
-      {view === "map" && snapshot && (
+      {view === "map" && loading ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-slate-700">Loading global map data…</p>
+          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-red-600 transition-all duration-300"
+              style={{ width: `${mapLoadProgress}%` }}
+              role="progressbar"
+              aria-valuenow={mapLoadProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Global map data loading progress"
+            />
+          </div>
+          <p className="mt-2 text-xs text-slate-500">{mapLoadProgress}% loaded</p>
+        </section>
+      ) : null}
+
+      {view === "map" && !loading && snapshot && (
         <AccordionSection title="Geographic snapshot · map & metric table" defaultOpen>
           <p className="text-sm text-slate-600">
             Hover for country name, flag emoji, metric value, and—when available—a flag image inside the shape (REST
             Countries PNG). Default fill follows the metric scale; outline thickens on hover. Data use World Bank WDI and
             configured fallbacks (e.g. IMF for debt %). The API may use an earlier year than selected when the latest
-            global release is still sparse.
+            global release is still sparse, and if a country is still missing in that year it automatically falls back to
+            that country's latest available historical value.
             <strong className="text-slate-800"> Data year: {mapDataYear}</strong>
             {mapYearMismatch ? (
               <span className="text-slate-500">
@@ -574,6 +639,28 @@ export default function GlobalAnalytics() {
         </AccordionSection>
       )}
 
+      {view === "map" && !loading && !snapshot && !err ? (
+        <p className="text-sm text-slate-500">Map data is unavailable for now. Please retry.</p>
+      ) : null}
+
+      {view === "table" && loading ? (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-slate-700">Loading global table data…</p>
+          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-red-600 transition-all duration-300"
+              style={{ width: `${tableLoadProgress}%` }}
+              role="progressbar"
+              aria-valuenow={tableLoadProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Global table data loading progress"
+            />
+          </div>
+          <p className="mt-2 text-xs text-slate-500">{tableLoadProgress}% loaded</p>
+        </section>
+      ) : null}
+
       {view === "table" && tableData && (
         <div
           className={
@@ -612,6 +699,9 @@ export default function GlobalAnalytics() {
               <h2 className="text-lg font-bold uppercase tracking-wide text-slate-900">Global country table</h2>
               <p className="mt-1 text-sm text-slate-600">
                 Primary WDI year <strong>{tableDataYear}</strong>.
+                {" "}
+                If a country is missing in that year, the API falls back to that country's latest available historical
+                value for the selected metric.
                 {tableCat === "financial" ? (
                   <>
                     {" "}

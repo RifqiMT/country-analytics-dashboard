@@ -29,6 +29,8 @@ export interface CountrySummary {
 }
 
 const REST_BASE = "https://restcountries.com/v3.1/all";
+const COUNTRIES_CACHE_KEY = "restcountries:v3.1:all:v11-cca2-fallback";
+const COUNTRIES_BACKUP_CACHE_KEY = "restcountries:v3.1:all:backup:v11";
 
 /** REST Countries v3.1 returns 400 if `fields` lists more than 10 names */
 const FIELDS_MAIN =
@@ -169,23 +171,116 @@ function normalize(raw: unknown): CountrySummary[] {
 }
 
 export async function listCountries(): Promise<CountrySummary[]> {
-  const key = "restcountries:v3.1:all:v10-cca2";
-  const cached = getCache<CountrySummary[]>(key);
+  const cached = getCache<CountrySummary[]>(COUNTRIES_CACHE_KEY);
   if (cached) return cached;
+  const backup = getCache<CountrySummary[]>(COUNTRIES_BACKUP_CACHE_KEY);
 
-  const [main, extra, geo, cca2chunk] = await Promise.all([
-    fetchCountriesChunk(FIELDS_MAIN),
-    fetchCountriesChunk(FIELDS_EXTRA),
-    fetchCountriesChunk(FIELDS_GEO),
-    fetchCountriesChunk(FIELDS_CCA2),
-  ]);
-  const merged = mergeCountryRows(main, extra, geo, cca2chunk);
-  const list = normalize(merged);
-  setCache(key, list, 1000 * 60 * 60 * 6);
-  return list;
+  try {
+    const [main, extra, geo, cca2chunk] = await Promise.all([
+      fetchCountriesChunk(FIELDS_MAIN),
+      fetchCountriesChunk(FIELDS_EXTRA),
+      fetchCountriesChunk(FIELDS_GEO),
+      fetchCountriesChunk(FIELDS_CCA2),
+    ]);
+    const merged = mergeCountryRows(main, extra, geo, cca2chunk);
+    const list = normalize(merged);
+    if (list.length > 0) {
+      setCache(COUNTRIES_CACHE_KEY, list, 1000 * 60 * 60 * 6);
+      setCache(COUNTRIES_BACKUP_CACHE_KEY, list, 1000 * 60 * 60 * 24 * 30);
+      return list;
+    }
+    throw new Error("REST Countries merged result empty");
+  } catch {
+    try {
+      const list = await fetchCountriesAllFallback();
+      if (list.length > 0) {
+        setCache(COUNTRIES_CACHE_KEY, list, 1000 * 60 * 30);
+        setCache(COUNTRIES_BACKUP_CACHE_KEY, list, 1000 * 60 * 60 * 24 * 30);
+        return list;
+      }
+      throw new Error("REST Countries /all fallback empty");
+    } catch {
+      try {
+        const wb = await fetchCountriesFromWorldBankFallback();
+        if (wb.length > 0) {
+          setCache(COUNTRIES_CACHE_KEY, wb, 1000 * 60 * 30);
+          setCache(COUNTRIES_BACKUP_CACHE_KEY, wb, 1000 * 60 * 60 * 24 * 30);
+          return wb;
+        }
+      } catch {
+        // fall through to backup
+      }
+      if (backup && backup.length > 0) {
+        setCache(COUNTRIES_CACHE_KEY, backup, 1000 * 60 * 5);
+        return backup;
+      }
+      throw new Error("Country directory unavailable from upstreams");
+    }
+  }
 }
 
 export async function getCountry(cca3: string): Promise<CountrySummary | undefined> {
   const all = await listCountries();
   return all.find((c) => c.cca3 === cca3.toUpperCase());
+}
+
+export async function fetchCountryByIso3Direct(cca3: string): Promise<CountrySummary | null> {
+  const iso = String(cca3 ?? "").toUpperCase();
+  if (!/^[A-Z]{3}$/.test(iso)) return null;
+  const url = `https://restcountries.com/v3.1/alpha/${encodeURIComponent(iso)}`;
+  const res = await fetchWithRetry(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) return null;
+  const body = (await res.json()) as unknown;
+  if (!Array.isArray(body) || body.length === 0) return null;
+  const rows = normalize(body);
+  return rows[0] ?? null;
+}
+
+async function fetchCountriesAllFallback(): Promise<CountrySummary[]> {
+  const res = await fetchWithRetry(REST_BASE, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`REST Countries /all HTTP ${res.status}`);
+  const body = (await res.json()) as unknown;
+  return normalize(body);
+}
+
+async function fetchCountriesFromWorldBankFallback(): Promise<CountrySummary[]> {
+  const url = "https://api.worldbank.org/v2/country?format=json&per_page=400";
+  const res = await fetchWithRetry(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`World Bank country directory HTTP ${res.status}`);
+  const body = (await res.json()) as unknown;
+  if (!Array.isArray(body) || body.length < 2 || !Array.isArray(body[1])) return [];
+  const rows = body[1] as Array<Record<string, unknown>>;
+  const out: CountrySummary[] = [];
+  for (const row of rows) {
+    const cca3 = String(row.id ?? "").toUpperCase();
+    if (!/^[A-Z]{3}$/.test(cca3)) continue;
+    const regionObj = row.region as { value?: unknown } | undefined;
+    const region = String(regionObj?.value ?? "").trim();
+    if (!region || /^aggregates?$/i.test(region)) continue;
+    const cca2raw = String(row.iso2Code ?? "").toUpperCase();
+    const cca2 = /^[A-Z]{2}$/.test(cca2raw) ? cca2raw : undefined;
+    const lat = Number(row.latitude);
+    const lng = Number(row.longitude);
+    out.push({
+      cca3,
+      cca2,
+      name: String(row.name ?? cca3),
+      region,
+      subregion: "",
+      capital: String(row.capitalCity ?? "").trim() ? [String(row.capitalCity)] : [],
+      population: 0,
+      area: 0,
+      latlng: [Number.isFinite(lat) ? lat : 0, Number.isFinite(lng) ? lng : 0],
+      flags:
+        cca2 != null
+          ? {
+              png: `https://flagcdn.com/w320/${cca2.toLowerCase()}.png`,
+              svg: `https://flagcdn.com/${cca2.toLowerCase()}.svg`,
+            }
+          : {},
+      timezones: [],
+      currencies: [],
+    });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
 }

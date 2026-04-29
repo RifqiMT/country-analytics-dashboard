@@ -56,7 +56,7 @@ export default function Layout() {
             <h1 className="font-display text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
               Country Analytics Platform
             </h1>
-            <p className="max-w-3xl text-sm leading-snug text-slate-600 xl:max-w-[42rem]">
+            <p className="w-full text-sm leading-snug text-slate-600">
               A modern, analyst-grade view across financial, demographic, and health metrics for every country
               (2000 – latest), powered by World Bank, UN, UNESCO, WHO, and IMF data.
             </p>

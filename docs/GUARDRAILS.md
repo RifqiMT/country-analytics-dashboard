@@ -54,6 +54,13 @@ Tables/cards should always reflect returned years (not just requested years).
 - External provider calls are bounded by timeouts and retry logic.
 - LLM calls must respect provider limits (prompt payload caps).
 
+### TG-05: Exchange-rate provider integrity
+
+- Country FX outputs must prioritize institutional, auditable sources.
+- Daily quote path: ECB (via Frankfurter).
+- Official fallback path: World Bank `PA.NUS.FCRF` (LCU per USD).
+- If daily quote appears anomalous against official baseline, fallback is required.
+
 ### TG-04: Request-level BYOK key precedence
 
 - If user-provided key headers exist, backend must prefer them over server env keys for that request.
@@ -111,6 +118,11 @@ Tables/cards should always reflect returned years (not just requested years).
 - Business Analytics correlation analysis is correlation, not causation.
 - Causal language must be hypothesis-generation language, not proof.
 
+### BG-03: Reliability vs strictness must be explicit to users
+
+- If analysis is delivered on a narrower fallback window, UI must disclose it.
+- Users must be able to opt into strict selected-range-only mode for governance-sensitive workflows.
+
 ## 6) Operational guardrails (release discipline)
 
 ### OG-01: Update docs + traceability on AI behavior changes
@@ -128,3 +140,11 @@ When metrics change (add/remove/rename), ensure:
 - Any assistant metric extraction documentation
 
 are updated in the same release cycle.
+
+### OG-03: Sources and methodology documentation synchronization
+
+When data-source hierarchy or resilience logic changes (e.g., FX provider fallback, timeout fallback strategy), update:
+- `docs/PRD.md`
+- `docs/VARIABLES.md`
+- `docs/TRACEABILITY_MATRIX.md`
+- `frontend/src/pages/Sources.tsx` narrative content

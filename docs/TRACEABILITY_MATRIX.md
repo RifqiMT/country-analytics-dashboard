@@ -38,6 +38,10 @@ It is not meant to replace testing. Instead, it provides a release-ready mapping
 | FR-19 | Key validation endpoint returns provider-specific status | `backend/src/index.ts` (`POST /api/keys/validate`) | header panel validate flow | Validate valid/invalid keys and confirm per-provider status text |
 | FR-20 | PESTEL strict grounding gate rejects weak LLM output | `backend/src/pestelGrounding.ts`, `backend/src/index.ts` | `backend/src/pestelTavily.ts`, `backend/src/pestelAnalysis.ts` | Prompt tests on high-risk countries/topics: verify fallback to deterministic blend when grounding QA fails |
 | FR-21 | SWOT cards render stable five bullet items per quadrant without truncation artifacts | `frontend/src/components/pestel/PestelSwotGrid.tsx` | `backend/src/pestelAnalysis.ts` SWOT normalization | Visual QA: no sentence-fragment splitting, no line-clamp clipping, exactly five usable bullets |
+| FR-22 | Country dashboard exchange-rate card returns source-aware USD quote with institutional fallback | `backend/src/index.ts` (`fetchUsdFxSnapshot`, `fetchBestUsdFxSnapshot`) | `frontend/src/pages/Dashboard.tsx`, `frontend/src/api.ts` | Validate sample countries show `1 USD = ...` with source/date; verify fallback path when ECB quote unavailable |
+| FR-23 | Business Analytics supports strict mode vs reliability fallback delivery | `frontend/src/pages/BusinessAnalytics.tsx` | `backend/src/correlationGlobal.ts` batched fetch, `/api/analysis/correlation-global` | QA both modes: strict (no fallback), reliability (narrow-window fallback with delivery note) |
+| FR-24 | Business Analytics presentation mode and keyboard toggle | `frontend/src/pages/BusinessAnalytics.tsx` | keydown handler + view toggle | Keyboard `P` toggles mode; typing in input/select/textarea/contenteditable does not toggle |
+| FR-25 | Sources page supports collapsible major sections and metric sub-sections | `frontend/src/pages/Sources.tsx` | accordion state controls (`providersOpen`, `accordionOpen`, category + card disclosure states) | Verify top sections collapsed by default and all chevrons toggle open/close states |
 
 ## 2) Non-functional requirements (NFR)
 
@@ -50,6 +54,7 @@ It is not meant to replace testing. Instead, it provides a release-ready mapping
 | NFR-05 | Maintainability through documented APIs and variables | docs set + metric catalog alignment | Doc drift review + catalog sync checks |
 | NFR-06 | Accessibility in UI states (focus, keyboard, contrast) | consistent component styling | Accessibility review (keyboard + contrast) |
 | NFR-07 | PESTEL hallucination containment through snippet-only retrieval + strict grounding QA | `backend/src/pestelTavily.ts`, `backend/src/pestelGrounding.ts`, `backend/src/index.ts` | Controlled prompt set shows grounded output or deterministic fallback with attribution signal |
+| NFR-08 | Business analytics timeout resilience for large year windows | `backend/src/correlationGlobal.ts` (batched year processing + per-year tolerance), `frontend/src/pages/BusinessAnalytics.tsx` (retry/fallback delivery logic) | Long-window regression checks: successful completion under reliability mode with explicit fallback disclosure |
 
 ## 3) Governance controls and release rule
 

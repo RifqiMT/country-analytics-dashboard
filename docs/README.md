@@ -66,3 +66,12 @@ If implementation or behavior changes, update affected docs in the same PR and v
 - request/response examples still match current code;
 - variable, metric, and guardrail references stay synchronized;
 - traceability mappings and changelog entries are updated.
+
+## Latest sync checkpoint
+
+### 2026-04-29 implementation-to-doc sync included:
+
+- Country dashboard FX source hierarchy and fallback documentation
+- Business Analytics timeout-resilience and strict-range governance behavior
+- Business Analytics presentation mode + keyboard shortcut guidance
+- Sources page accordion/disclosure UX and default collapsed top sections

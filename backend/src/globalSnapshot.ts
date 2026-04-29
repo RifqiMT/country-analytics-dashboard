@@ -2,6 +2,8 @@ import { getCache, setCache } from "./cache.js";
 import { METRIC_BY_ID } from "./metrics.js";
 import { MIN_DATA_YEAR, resolveGlobalWdiYear } from "./yearBounds.js";
 import { fetchImfWeoSeries } from "./imfWeo.js";
+import { listCountries } from "./restCountries.js";
+import { fetchCountryBundle } from "./worldBank.js";
 import {
   canonicalWbIso3,
   isMissingMetricValue,
@@ -288,7 +290,8 @@ export async function fetchGlobalSnapshotWithYearFallback(
   let bestRows = rows;
   let bestN = countNonNullGlobalRows(rows);
   if (bestN >= SNAPSHOT_TARGET_MIN_OBS) {
-    return { dataYear: bestY, rows: bestRows };
+    const filled = await fillMissingRowsWithCountryLatest(metricId, bestY, bestRows);
+    return { dataYear: bestY, rows: filled };
   }
   for (let step = 0; step < SNAPSHOT_YEAR_FALLBACK_MAX_STEPS && y > MIN_DATA_YEAR; step++) {
     y -= 1;
@@ -301,5 +304,129 @@ export async function fetchGlobalSnapshotWithYearFallback(
     }
     if (bestN >= SNAPSHOT_TARGET_MIN_OBS) break;
   }
-  return { dataYear: bestY, rows: bestRows };
+  const filled = await fillMissingRowsWithCountryLatest(metricId, bestY, bestRows);
+  return { dataYear: bestY, rows: filled };
+}
+
+async function fillMissingRowsWithCountryLatest(
+  metricId: string,
+  baseYear: number,
+  rows: GlobalRow[]
+): Promise<GlobalRow[]> {
+  const byIso = new Map<string, GlobalRow>();
+  for (const r of rows) byIso.set(r.countryIso3.toUpperCase(), { ...r });
+
+  const unresolved = () =>
+    [...byIso.values()].filter((r) => r.value === null || Number.isNaN(r.value)).length;
+
+  // Ensure every known country appears in the snapshot row-set so map/table coverage
+  // can be reconciled against per-country series (dashboard path).
+  const countries = await listCountries().catch(() => []);
+  for (const c of countries) {
+    const iso = c.cca3.toUpperCase();
+    if (!byIso.has(iso)) {
+      byIso.set(iso, { countryIso3: iso, countryName: c.name, value: null });
+    }
+  }
+
+  if (unresolved() === 0) return [...byIso.values()];
+
+  let y = baseYear - 1;
+  let steps = 0;
+  while (y >= MIN_DATA_YEAR && steps < SNAPSHOT_YEAR_FALLBACK_MAX_STEPS && unresolved() > 0) {
+    const prevRows = await fetchGlobalYearSnapshot(metricId, y);
+    for (const prev of prevRows) {
+      if (prev.value === null || Number.isNaN(prev.value)) continue;
+      const iso = prev.countryIso3.toUpperCase();
+      const cur = byIso.get(iso);
+      if (!cur) {
+        byIso.set(iso, { ...prev });
+        continue;
+      }
+      if (cur.value === null || Number.isNaN(cur.value)) {
+        byIso.set(iso, { ...cur, value: prev.value, countryName: cur.countryName || prev.countryName });
+      }
+    }
+    y -= 1;
+    steps += 1;
+  }
+
+  // Final reconciliation: use each country's latest available value from the same
+  // metric series pipeline used by dashboard country pages.
+  const pending = [...byIso.values()]
+    .filter((r) => r.value === null || Number.isNaN(r.value))
+    .map((r) => r.countryIso3.toUpperCase());
+  if (pending.length > 0) {
+    const latestByIso = await fillMissingViaCountrySeries(metricId, baseYear, pending);
+    for (const iso of pending) {
+      const v = latestByIso.get(iso);
+      if (v === undefined || v === null || Number.isNaN(v)) continue;
+      const cur = byIso.get(iso);
+      if (!cur) continue;
+      byIso.set(iso, { ...cur, value: v });
+    }
+  }
+
+  return [...byIso.values()];
+}
+
+function latestNonNullValue(
+  points: Array<{ year: number; value: number | null; provenance?: string }>
+): number | null {
+  for (let i = points.length - 1; i >= 0; i--) {
+    const p = points[i];
+    const v = p?.value;
+    // Global map/table must avoid synthetic world-proxy values for country accuracy.
+    if (p?.provenance === "wld_proxy") continue;
+    if (v !== null && v !== undefined && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  try {
+    return await Promise.race<T>([
+      promise,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function fillMissingViaCountrySeries(
+  metricId: string,
+  endYear: number,
+  countryIso3s: string[]
+): Promise<Map<string, number | null>> {
+  const out = new Map<string, number | null>();
+  const cacheKey = `global:country-latest:v1:${metricId}:${endYear}:${countryIso3s.sort().join(",")}`;
+  const cached = getCache<Array<[string, number | null]>>(cacheKey);
+  if (cached) return new Map(cached);
+
+  const concurrency = 8;
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= countryIso3s.length) return;
+      const iso = countryIso3s[i]!;
+      try {
+        const bundle = await withTimeout(
+          fetchCountryBundle(iso, [metricId], MIN_DATA_YEAR, endYear),
+          20000,
+          { [metricId]: [] as Array<{ year: number; value: number | null; provenance?: string }> }
+        );
+        out.set(iso, latestNonNullValue(bundle[metricId] ?? []));
+      } catch {
+        out.set(iso, null);
+      }
+    }
+  };
+  await Promise.all(new Array(Math.min(concurrency, countryIso3s.length)).fill(0).map(worker));
+  setCache(cacheKey, [...out.entries()], 1000 * 60 * 30);
+  return out;
 }

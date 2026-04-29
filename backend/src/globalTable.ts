@@ -10,6 +10,7 @@ import { getMetricShortLabel } from "./metricShortLabels.js";
 import { MIN_DATA_YEAR, resolveGlobalWdiYear } from "./yearBounds.js";
 import { fetchWikidataGovernmentMap } from "./wikidataGovernmentMap.js";
 import { resolveEezSqKmMap } from "./eezResolve.js";
+import { fetchMetricSeriesForCountry } from "./worldBank.js";
 
 export type TableCategory = "general" | "financial" | "health" | "education";
 
@@ -341,6 +342,73 @@ function yoy(
   return { yoyPct: pct, yoyBps: yoyBps ? bps : null };
 }
 
+async function fillTableMissingFromCountrySeries(
+  rows: TableRow[],
+  metricIds: string[],
+  dataYear: number,
+  columns: TableColumn[]
+): Promise<void> {
+  const colById = new Map(columns.map((c) => [c.id, c] as const));
+  const latestAndPrev = (series: Array<{ year: number; value: number | null }>): { cur: number; prev: number | null } | null => {
+    let cur: number | null = null;
+    let prev: number | null = null;
+    let curYear = -Infinity;
+    for (let i = series.length - 1; i >= 0; i--) {
+      const p = series[i]!;
+      if (p.year > dataYear) continue;
+      if (p.value === null || !Number.isFinite(p.value)) continue;
+      if (cur === null) {
+        cur = p.value;
+        curYear = p.year;
+      } else if (p.year < curYear) {
+        prev = p.value;
+        break;
+      }
+    }
+    if (cur === null) return null;
+    return { cur, prev };
+  };
+
+  const tasks: Array<{ row: TableRow; metricId: string }> = [];
+  for (const row of rows) {
+    for (const mid of metricIds) {
+      const cell = row.cells[mid];
+      if (!cell || typeof cell === "string" || cell.value === null || Number.isNaN(cell.value)) {
+        tasks.push({ row, metricId: mid });
+      }
+    }
+  }
+  if (tasks.length === 0) return;
+
+  const promiseByKey = new Map<string, Promise<{ cur: number; prev: number | null } | null>>();
+  const getSeriesStats = (iso: string, metricId: string): Promise<{ cur: number; prev: number | null } | null> => {
+    const key = `${iso}:${metricId}:${dataYear}`;
+    const existing = promiseByKey.get(key);
+    if (existing) return existing;
+    const p = fetchMetricSeriesForCountry(iso, metricId, MIN_DATA_YEAR, dataYear)
+      .then((series) => latestAndPrev(series))
+      .catch(() => null);
+    promiseByKey.set(key, p);
+    return p;
+  };
+
+  const concurrency = 16;
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= tasks.length) return;
+      const t = tasks[i]!;
+      const stats = await getSeriesStats(t.row.iso3, t.metricId);
+      if (!stats) continue;
+      const col = colById.get(t.metricId);
+      const yo = yoy(stats.cur, stats.prev, col?.yoyBps ?? false);
+      t.row.cells[t.metricId] = { value: stats.cur, yoyPct: yo.yoyPct, yoyBps: yo.yoyBps };
+    }
+  };
+  await Promise.all(new Array(Math.min(concurrency, Math.max(1, tasks.length))).fill(0).map(worker));
+}
+
 const FINANCIAL_METRICS = [
   "gdp",
   "gdp_ppp",
@@ -564,6 +632,7 @@ export async function buildGlobalTable(
     const ooscProxyMaps = await buildEducationOoscProxyMaps(ladderYears);
     applyEducationOoscProxyFills(rows, ooscProxyMaps, columns);
   }
+  await fillTableMissingFromCountrySeries(rows, metricIds, dataYear, columns);
 
   return {
     requestedYear,

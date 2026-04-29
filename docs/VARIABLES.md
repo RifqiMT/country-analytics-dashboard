@@ -141,6 +141,17 @@ Request variables are the fields you send to endpoints. Backend validation rules
 | `excludeIqr` | Exclude IQR outliers | Removes points flagged by IQR rule | Parsed as boolean string (`"true"`) | Correlation global route | `true` |
 | `highlight` | Highlight Country | ISO3 code to highlight on plot | Uppercased by caller | Business Analytics page | `IDN` |
 
+### 3.6 Country exchange-rate response variables
+
+#### `GET /api/country/:cca3` (FX-related output fields)
+
+| Variable Name | Friendly Name | Definition | Formula / Rule | Location in the apps | Example |
+| --- | --- | --- | --- | --- | --- |
+| `usdFxRate` | USD FX Rate | Returned quote for one USD in target local currency | Prefer ECB daily quote; fallback to World Bank `PA.NUS.FCRF` when needed | `backend/src/index.ts`, `frontend/src/pages/Dashboard.tsx` | `98.34` |
+| `usdFxRateAsOf` | FX As-Of Date | Date attached to returned quote | Daily quote date for ECB; annual fallback date for WB | Dashboard exchange card | `2026-04-29` |
+| `usdFxCurrency` | FX Currency Code | Currency code used for quote | Resolved from currency candidates (country metadata + fallback mapping) | Dashboard exchange card | `ALL` |
+| `usdFxSource` | FX Source Label | Human-readable provider/source label | `ECB via Frankfurter` or `World Bank PA.NUS.FCRF` variants | Dashboard exchange card | `ECB via Frankfurter` |
+
 #### `POST /api/analysis/correlation`
 
 This endpoint computes a correlation for a single country between `metricX` and `metricY` across overlapping years.
@@ -232,6 +243,14 @@ These are computed on the frontend in `frontend/src/pages/BusinessAnalytics.tsx`
 | `residualDiagnostics.meanAbsResidual` | Mean absolute residual | Mean of `abs(residual)` | Average of abs residuals | Business narrative payload | `2.4` |
 | `residualDiagnostics.medianResidual` | Median residual | Middle value of residuals | Median of residuals | Business narrative payload | `-0.1` |
 | `residualDiagnostics.residualIqr` | Residual IQR | IQR spread of residuals | `q3 - q1` of residuals | Business narrative payload | `1.6` |
+
+### 4.6 Business Analytics delivery-control variables (frontend)
+
+| Variable | Friendly Name | Definition | Formula / Rule | Where it appears | Example |
+| --- | --- | --- | --- | --- | --- |
+| `strictSelectedRange` | Strict Selected Range Mode | Toggle for strict-range-only requests | If `true`, no automatic fallback year-window retries | `frontend/src/pages/BusinessAnalytics.tsx` | `true` |
+| `analysisDeliveryNote` | Delivery Note | UI explanation when fallback window is used | Set when reliability retries deliver a narrower window | Business Analytics result banner | `Primary request timed out; using last 12 years.` |
+| `presentationMode` | Presentation Mode | Hides control/diagnostic chrome for review mode | Toggle by button or keyboard `P` | Business Analytics page | `true` |
 
 ## 5) Relationship Chart (Where variables connect)
 

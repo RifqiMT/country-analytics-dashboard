@@ -30,6 +30,15 @@ export const ENRICHMENT_ANCHOR_METRIC_IDS: readonly string[] = [
   "pop_age_65_plus",
 ];
 
+const DERIVATION_REQUIRES_ANCHOR: Readonly<Record<string, readonly string[]>> = {
+  gdp_ppp: ["gdp"],
+  gdp_per_capita: ["gdp", "population"],
+  gdp_per_capita_ppp: ["gdp_ppp", "population"],
+  pop_age_0_14: ["pop_15_64_pct", "pop_age_65_plus"],
+  pop_15_64_pct: ["pop_age_0_14", "pop_age_65_plus"],
+  pop_age_65_plus: ["pop_age_0_14", "pop_15_64_pct"],
+};
+
 const WB_CACHE_VER = "wb:v8";
 
 /** How many calendar years after the last published point we repeat that value (WDI/IMF lag + WEO forecasts). */
@@ -59,6 +68,12 @@ function parseRowsToSeries(rows: unknown[]): SeriesPoint[] {
   return [...byYear.entries()]
     .map(([year, value]) => ({ year, value }))
     .sort((a, b) => a.year - b.year);
+}
+
+function emptyDenseSeries(startYear: number, endYear: number): SeriesPoint[] {
+  const out: SeriesPoint[] = [];
+  for (let y = startYear; y <= endYear; y++) out.push({ year: y, value: null });
+  return out;
 }
 
 /** One entry per year in [startYear, endYear]; missing observations are explicit null */
@@ -119,7 +134,9 @@ export async function fetchIndicatorSeries(
       if (msg.includes("World Bank HTTP 400") || msg.includes("World Bank HTTP 404")) {
         break;
       }
-      throw e;
+      // Network/transient upstream failures should not break the whole bundle.
+      // Return the rows accumulated so far (or empty if page 1 failed).
+      break;
     }
     if (!Array.isArray(raw) || raw.length < 2) break;
     const meta = raw[0] as { pages?: number };
@@ -236,6 +253,36 @@ function fillDerivedPerCapitaDense(
     }
     return p;
   });
+}
+
+function fillFromSiblingDense(target: SeriesPoint[], source: SeriesPoint[]): SeriesPoint[] {
+  return target.map((p, i) => {
+    if (!isMissingMetricValue(p.value)) return p;
+    const sv = source[i]?.value;
+    if (!isMissingMetricValue(sv)) {
+      return { year: p.year, value: sv as number, provenance: "derived_cross_metric" };
+    }
+    return p;
+  });
+}
+
+function fillTeachersByTriadDense(
+  pri: SeriesPoint[],
+  sec: SeriesPoint[],
+  ter: SeriesPoint[]
+): [SeriesPoint[], SeriesPoint[], SeriesPoint[]] {
+  const p = pri.map((x) => ({ ...x }));
+  const s = sec.map((x) => ({ ...x }));
+  const t = ter.map((x) => ({ ...x }));
+  for (let i = 0; i < p.length; i++) {
+    const vals = [p[i].value, s[i].value, t[i].value].filter((v) => !isMissingMetricValue(v)) as number[];
+    if (vals.length === 0) continue;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    if (isMissingMetricValue(p[i].value)) p[i] = { year: p[i].year, value: avg, provenance: "derived_cross_metric" };
+    if (isMissingMetricValue(s[i].value)) s[i] = { year: s[i].year, value: avg, provenance: "derived_cross_metric" };
+    if (isMissingMetricValue(t[i].value)) t[i] = { year: t[i].year, value: avg, provenance: "derived_cross_metric" };
+  }
+  return [p, s, t];
 }
 
 /**
@@ -379,6 +426,38 @@ async function applyCrossMetricBundleEnrichments(
   if (op) bundle.oosc_primary = op;
   if (os) bundle.oosc_secondary = os;
   if (ot) bundle.oosc_tertiary = ot;
+
+  if (bundle.gpi_primary && bundle.gpi_secondary) {
+    bundle.gpi_secondary = fillFromSiblingDense(bundle.gpi_secondary, bundle.gpi_primary);
+  }
+  if (bundle.gpi_primary && bundle.gpi_tertiary) {
+    bundle.gpi_tertiary = fillFromSiblingDense(bundle.gpi_tertiary, bundle.gpi_primary);
+  }
+  if (bundle.completion_secondary && bundle.completion_tertiary) {
+    bundle.completion_tertiary = fillFromSiblingDense(bundle.completion_tertiary, bundle.completion_secondary);
+  }
+  if (bundle.school_primary_completion && bundle.completion_secondary) {
+    bundle.completion_secondary = fillFromSiblingDense(
+      bundle.completion_secondary,
+      bundle.school_primary_completion
+    );
+  }
+  if (bundle.school_primary_completion && bundle.completion_tertiary) {
+    bundle.completion_tertiary = fillFromSiblingDense(
+      bundle.completion_tertiary,
+      bundle.school_primary_completion
+    );
+  }
+  if (bundle.trained_teachers_pri && bundle.trained_teachers_sec && bundle.trained_teachers_ter) {
+    const [pri, sec, ter] = fillTeachersByTriadDense(
+      bundle.trained_teachers_pri,
+      bundle.trained_teachers_sec,
+      bundle.trained_teachers_ter
+    );
+    bundle.trained_teachers_pri = pri;
+    bundle.trained_teachers_sec = sec;
+    bundle.trained_teachers_ter = ter;
+  }
 }
 
 export async function fetchMetricSeriesForCountry(
@@ -390,11 +469,26 @@ export async function fetchMetricSeriesForCountry(
   const def = METRIC_BY_ID[metricId];
   if (!def) throw new Error(`Unknown metric: ${metricId}`);
 
+  const safeIndicator = async (indicator: string): Promise<SeriesPoint[]> => {
+    try {
+      return await fetchIndicatorSeries(countryIso3, indicator, startYear, endYear);
+    } catch {
+      return [];
+    }
+  };
+  const safeMetric = async (id: string): Promise<SeriesPoint[]> => {
+    try {
+      return await fetchMetricSeriesForCountry(countryIso3, id, startYear, endYear);
+    } catch {
+      return emptyDenseSeries(startYear, endYear);
+    }
+  };
+
   if (metricId === "gov_debt_usd") {
     const [directRaw, gdpDense, pctDense] = await Promise.all([
-      fetchIndicatorSeries(countryIso3, def.worldBankCode, startYear, endYear),
-      fetchMetricSeriesForCountry(countryIso3, "gdp", startYear, endYear),
-      fetchMetricSeriesForCountry(countryIso3, "gov_debt_pct_gdp", startYear, endYear),
+      safeIndicator(def.worldBankCode),
+      safeMetric("gdp"),
+      safeMetric("gov_debt_pct_gdp"),
     ]);
     let debtUsd = mergeDebtUsdWithDerived(directRaw, gdpDense, pctDense, startYear, endYear);
     debtUsd = carryForwardTerminalDense(debtUsd, TERMINAL_CARRY_MAX_YEARS);
@@ -403,14 +497,19 @@ export async function fetchMetricSeriesForCountry(
     return debtUsd;
   }
 
-  const primary = await fetchIndicatorSeries(countryIso3, def.worldBankCode, startYear, endYear);
+  const primary = await safeIndicator(def.worldBankCode);
   let series = primary;
   if (def.fallbackWorldBankCode) {
-    const fb = await fetchIndicatorSeries(countryIso3, def.fallbackWorldBankCode, startYear, endYear);
+    const fb = await safeIndicator(def.fallbackWorldBankCode);
     series = mergeSeries(series, fb, "wb_alternate_code");
   }
   if (def.imfWeoIndicator) {
-    let imf = await fetchImfWeoSeries(countryIso3, def.imfWeoIndicator, startYear, endYear);
+    let imf: SeriesPoint[] = [];
+    try {
+      imf = await fetchImfWeoSeries(countryIso3, def.imfWeoIndicator, startYear, endYear);
+    } catch {
+      imf = [];
+    }
     const sc = def.imfWeoScale ?? 1;
     if (sc !== 1) {
       imf = imf.map((p) => ({
@@ -422,20 +521,25 @@ export async function fetchMetricSeriesForCountry(
     series = mergeSeries(series, imf, "imf_weo");
   }
   if (def.uisIndicatorId) {
-    const uis = await fetchUisCountrySeries(countryIso3, def.uisIndicatorId, startYear, endYear);
+    let uis: SeriesPoint[] = [];
+    try {
+      uis = await fetchUisCountrySeries(countryIso3, def.uisIndicatorId, startYear, endYear);
+    } catch {
+      uis = [];
+    }
     series = mergeSeries(series, uis, "uis");
   }
   if (metricId === "life_expectancy") {
     const [maleS, femaleS] = await Promise.all([
-      fetchIndicatorSeries(countryIso3, "SP.DYN.LE00.MA.IN", startYear, endYear),
-      fetchIndicatorSeries(countryIso3, "SP.DYN.LE00.FE.IN", startYear, endYear),
+      safeIndicator("SP.DYN.LE00.MA.IN"),
+      safeIndicator("SP.DYN.LE00.FE.IN"),
     ]);
     series = mergeSexAverageForNullSparse(series, maleS, femaleS);
   }
   if (metricId === "mortality_under5") {
     const [maleS, femaleS] = await Promise.all([
-      fetchIndicatorSeries(countryIso3, "SH.DYN.MORT.MA", startYear, endYear),
-      fetchIndicatorSeries(countryIso3, "SH.DYN.MORT.FE", startYear, endYear),
+      safeIndicator("SH.DYN.MORT.MA"),
+      safeIndicator("SH.DYN.MORT.FE"),
     ]);
     series = mergeSexAverageForNullSparse(series, maleS, femaleS);
   }
@@ -473,15 +577,22 @@ export async function fetchCountryBundle(
   };
 
   const fetchSet = new Set(metricIds);
-  for (const a of ENRICHMENT_ANCHOR_METRIC_IDS) {
-    if (METRIC_BY_ID[a]) fetchSet.add(a);
+  for (const id of metricIds) {
+    const anchors = DERIVATION_REQUIRES_ANCHOR[id] ?? [];
+    for (const a of anchors) {
+      if (METRIC_BY_ID[a]) fetchSet.add(a);
+    }
   }
   const fetchIds = [...fetchSet];
   const raw: Record<string, SeriesPoint[]> = {};
   // Avoid issuing dozens of parallel World Bank requests (rate limits -> retries -> timeouts).
   // A small concurrency cap significantly improves worst-case latency on serverless.
   await mapWithConcurrency(fetchIds, 6, async (id) => {
-    raw[id] = await fetchMetricSeriesForCountry(countryIso3, id, startYear, endYear);
+    try {
+      raw[id] = await fetchMetricSeriesForCountry(countryIso3, id, startYear, endYear);
+    } catch {
+      raw[id] = emptyDenseSeries(startYear, endYear);
+    }
     return null;
   });
   await applyCrossMetricBundleEnrichments(countryIso3, raw, startYear, endYear);

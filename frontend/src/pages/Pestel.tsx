@@ -67,7 +67,7 @@ export default function Pestel() {
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="grid grid-cols-1 gap-3">
           <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">PESTEL ANALYSIS</h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="w-full text-sm leading-relaxed text-slate-600">
             Comprehensive macro-environmental analysis (Political, Economic, Social, Technological, Environmental,
             Legal) with PESTEL-SWOT matrix (Opportunities and Risks), new market analysis, key takeaways, and
             actionable recommendations. Uses the same analyst-grade data as the platform (World Bank, UN, WHO, IMF;

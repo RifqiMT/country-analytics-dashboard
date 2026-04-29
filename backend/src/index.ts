@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
+import countryToCurrency from "country-to-currency";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 /** Load `.env` from likely locations; `override: true` so values win over empty exported vars in the shell. */
@@ -23,11 +24,11 @@ if (!process.env.GROQ_API_KEY?.trim()) {
 import cors from "cors";
 import express from "express";
 import { METRICS, METRIC_BY_ID } from "./metrics.js";
-import { listCountries, getCountry, type CountrySummary } from "./restCountries.js";
+import { listCountries, getCountry, fetchCountryByIso3Direct, type CountrySummary } from "./restCountries.js";
 import { fetchWikidataCountryEnrichment } from "./wikidataCountryProfile.js";
 import { fetchSeaAroundUsEezAreaKm2 } from "./seaAroundUsEez.js";
 import { EEZ_SQKM_FALLBACK } from "./eezSqKmFallback.js";
-import { fetchCountryBundle, fetchMetricSeriesForCountry, allMetricIds } from "./worldBank.js";
+import { fetchCountryBundle, fetchMetricSeriesForCountry, fetchIndicatorSeries, allMetricIds } from "./worldBank.js";
 import type { SeriesPoint } from "./series.js";
 import { fetchGlobalSnapshotWithYearFallback } from "./globalSnapshot.js";
 import {
@@ -97,6 +98,7 @@ import {
   isWebSearchContextThin,
   looksLikePovertyInternationalVsNationalComparison,
   questionInvokesFocusCountryPlatformMetrics,
+  questionIsSensitiveCountryFact,
   questionLooksMetricAnchored,
   questionNeedsLiveWebVerification,
   shouldSkipTavilyForPlatformFirst,
@@ -124,6 +126,219 @@ function readRequestApiKey(req: express.Request, kind: "groq" | "tavily"): strin
   const fromBody = req.body?.[bodyName];
   if (typeof fromBody === "string" && fromBody.trim().length > 0) return fromBody.trim();
   return undefined;
+}
+
+async function settleWithin<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  let timer: NodeJS.Timeout | null = null;
+  const guarded = promise.catch(() => fallback);
+  try {
+    return await Promise.race<T>([
+      guarded,
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function fetchCountriesFromWorldBankDirectory(): Promise<CountrySummary[]> {
+  const key = "wb:country-directory:v1";
+  const cached = getCache<CountrySummary[]>(key);
+  if (cached && cached.length > 0) return cached;
+  const url = "https://api.worldbank.org/v2/country?format=json&per_page=400";
+  const ac = new AbortController();
+  const t = setTimeout(() => ac.abort(), 8000);
+  try {
+    const res = await fetch(url, { signal: ac.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) return [];
+    const raw = (await res.json()) as unknown;
+    if (!Array.isArray(raw) || raw.length < 2 || !Array.isArray(raw[1])) return [];
+    const rows = raw[1] as Array<Record<string, unknown>>;
+    const out: CountrySummary[] = [];
+    for (const r of rows) {
+      const iso3 = String(r.id ?? "").toUpperCase();
+      if (!/^[A-Z]{3}$/.test(iso3)) continue;
+      const regionObj = r.region as { value?: unknown } | undefined;
+      const region = String(regionObj?.value ?? "").trim();
+      if (!region || /^aggregates?$/i.test(region)) continue;
+      const iso2 = String(r.iso2Code ?? "").toUpperCase();
+      const cca2 = /^[A-Z]{2}$/.test(iso2) ? iso2 : undefined;
+      const lat = Number(r.latitude);
+      const lng = Number(r.longitude);
+      out.push({
+        cca3: iso3,
+        cca2,
+        name: String(r.name ?? iso3),
+        region,
+        subregion: "",
+        capital: String(r.capitalCity ?? "").trim() ? [String(r.capitalCity)] : [],
+        population: 0,
+        area: 0,
+        latlng: [Number.isFinite(lat) ? lat : 0, Number.isFinite(lng) ? lng : 0],
+        flags: cca2
+          ? {
+              png: `https://flagcdn.com/w320/${cca2.toLowerCase()}.png`,
+              svg: `https://flagcdn.com/${cca2.toLowerCase()}.svg`,
+            }
+          : {},
+        timezones: [],
+        currencies: [],
+      });
+    }
+    const sorted = out.sort((a, b) => a.name.localeCompare(b.name));
+    if (sorted.length > 0) setCache(key, sorted, 1000 * 60 * 60 * 24);
+    return sorted;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+type UsdFxSnapshot = {
+  /** ISO currency code quoted against USD (or LCU fallback label). */
+  target: string;
+  /** 1 USD = rate target currency units. */
+  rate: number;
+  /** Upstream rate date in YYYY-MM-DD, when available. */
+  asOf?: string;
+  /** Institution/provider used for the returned rate. */
+  source: string;
+} | null;
+
+type WbUsdFxSnapshot = {
+  /** PA.NUS.FCRF yearly official rate (LCU per USD). */
+  rate: number;
+  /** Year represented by the official rate. */
+  year: number;
+} | null;
+
+async function fetchWbOfficialUsdFxLatest(iso3: string): Promise<WbUsdFxSnapshot> {
+  const countryIso = String(iso3 ?? "").toUpperCase();
+  if (!/^[A-Z]{3}$/.test(countryIso)) return null;
+  const key = `fx:wb:usd:${countryIso}:v1`;
+  const cached = getCache<WbUsdFxSnapshot>(key);
+  if (cached && cached.rate > 0) return cached;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 8000);
+  try {
+    const url = `https://api.worldbank.org/v2/country/${encodeURIComponent(
+      countryIso
+    )}/indicator/PA.NUS.FCRF?format=json&per_page=80`;
+    const res = await fetch(url, { signal: ac.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) return null;
+    const raw = (await res.json()) as unknown;
+    if (!Array.isArray(raw) || raw.length < 2 || !Array.isArray(raw[1])) return null;
+    const rows = raw[1] as Array<{ date?: unknown; value?: unknown }>;
+    for (const row of rows) {
+      const year = Number(row.date);
+      const rate = Number(row.value);
+      if (!Number.isFinite(year) || !Number.isFinite(rate) || rate <= 0) continue;
+      const out: WbUsdFxSnapshot = { rate, year };
+      // WB official FX is annual; cache daily refresh is enough.
+      setCache(key, out, 1000 * 60 * 60 * 24);
+      return out;
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchUsdFxSnapshot(targetCurrency: string, iso3: string): Promise<UsdFxSnapshot> {
+  const target = String(targetCurrency ?? "").toUpperCase();
+  if (!/^[A-Z]{3}$/.test(target) || target === "USD") {
+    return target === "USD" ? { target: "USD", rate: 1, asOf: undefined, source: "Identity (USD)" } : null;
+  }
+  const key = `fx:usd:${target}:v1`;
+  const cached = getCache<UsdFxSnapshot>(key);
+  if (cached && cached.rate > 0) return cached;
+  const wbOfficial = await settleWithin(fetchWbOfficialUsdFxLatest(iso3), 7000, null);
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 7000);
+  try {
+    const url = `https://api.frankfurter.app/latest?from=USD&to=${encodeURIComponent(target)}`;
+    const res = await fetch(url, { signal: ac.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) {
+      if (wbOfficial?.rate) {
+        return {
+          target,
+          rate: wbOfficial.rate,
+          asOf: `${wbOfficial.year}-12-31`,
+          source: "World Bank PA.NUS.FCRF",
+        };
+      }
+      return null;
+    }
+    const raw = (await res.json()) as { date?: unknown; rates?: Record<string, unknown> } | null;
+    const rateCandidate = raw?.rates?.[target];
+    const rate = Number(rateCandidate);
+    if (!Number.isFinite(rate) || rate <= 0) {
+      if (wbOfficial?.rate) {
+        return {
+          target,
+          rate: wbOfficial.rate,
+          asOf: `${wbOfficial.year}-12-31`,
+          source: "World Bank PA.NUS.FCRF",
+        };
+      }
+      return null;
+    }
+    const asOf = typeof raw?.date === "string" && raw.date.trim() ? raw.date.trim() : undefined;
+    // Guard against occasional outlier/inverted quotes by comparing to WB official annual series.
+    if (wbOfficial?.rate && wbOfficial.rate > 0) {
+      const deviation = Math.abs(rate - wbOfficial.rate) / wbOfficial.rate;
+      if (deviation > 0.6) {
+        return {
+          target,
+          rate: wbOfficial.rate,
+          asOf: `${wbOfficial.year}-12-31`,
+          source: "World Bank PA.NUS.FCRF (sanity fallback)",
+        };
+      }
+    }
+    const out: UsdFxSnapshot = { target, rate, asOf, source: "ECB via Frankfurter" };
+    // Cache for 6 hours to reduce external API pressure while keeping rates fresh.
+    setCache(key, out, 1000 * 60 * 60 * 6);
+    return out;
+  } catch {
+    if (wbOfficial?.rate) {
+      return {
+        target,
+        rate: wbOfficial.rate,
+        asOf: `${wbOfficial.year}-12-31`,
+        source: "World Bank PA.NUS.FCRF",
+      };
+    }
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchBestUsdFxSnapshot(currencyCandidates: string[], iso3: string): Promise<UsdFxSnapshot> {
+  const uniqueCandidates = [...new Set(currencyCandidates.map((c) => String(c ?? "").toUpperCase()))].filter((c) =>
+    /^[A-Z]{3}$/.test(c)
+  );
+  for (const code of uniqueCandidates) {
+    const snap = await settleWithin(fetchUsdFxSnapshot(code, iso3), 7000, null);
+    if (snap?.rate && Number.isFinite(snap.rate) && snap.rate > 0) return snap;
+  }
+  // Final fallback: if no currency quote is available, still provide an official WB LCU-per-USD rate.
+  const wbOfficial = await settleWithin(fetchWbOfficialUsdFxLatest(iso3), 7000, null);
+  if (wbOfficial?.rate && Number.isFinite(wbOfficial.rate) && wbOfficial.rate > 0) {
+    return {
+      target: uniqueCandidates[0] ?? "LCU",
+      rate: wbOfficial.rate,
+      asOf: `${wbOfficial.year}-12-31`,
+      source: "World Bank PA.NUS.FCRF",
+    };
+  }
+  return null;
 }
 
 async function validateGroqApiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
@@ -217,27 +432,62 @@ app.get("/api/ilo-isic-divisions", (_req, res) => {
 
 app.get("/api/countries", async (_req, res) => {
   try {
-    const countries = await listCountries();
-    res.json(
-      countries
-        .filter((c) => /^[A-Z]{3}$/.test(c.cca3))
-        .sort((a, b) => a.name.localeCompare(b.name))
-    );
+    let countries = await settleWithin(listCountries(), 10000, []);
+    if (countries.length === 0) {
+      const wb = await fetchCountriesFromWorldBankDirectory();
+      if (wb.length > 0) {
+        countries = wb;
+        res.setHeader("x-cap-warning", "countries-wb-fallback-used");
+      }
+    }
+    res.json(countries.filter((c) => /^[A-Z]{3}$/.test(c.cca3)).sort((a, b) => a.name.localeCompare(b.name)));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    res.status(502).json({ error: msg });
+    res.setHeader("x-cap-warning", `countries-fallback-empty:${msg.slice(0, 120)}`);
+    res.json([]);
   }
 });
 
 app.get("/api/country/:cca3", async (req, res) => {
   try {
-    const c = await getCountry(req.params.cca3);
-    if (!c) return res.status(404).json({ error: "Country not found" });
-    const iso = c.cca3.toUpperCase();
+    const isoReq = String(req.params.cca3 ?? "").toUpperCase();
+    if (!/^[A-Z]{3}$/.test(isoReq)) return res.status(400).json({ error: "Invalid ISO3 code" });
+    const [c, directCountry, wbDirectoryCountry] = await Promise.all([
+      settleWithin(getCountry(isoReq), 8000, undefined),
+      settleWithin(fetchCountryByIso3Direct(isoReq), 7000, null),
+      settleWithin(
+        fetchCountriesFromWorldBankDirectory().then((rows) => rows.find((row) => row.cca3 === isoReq) ?? null),
+        7000,
+        null
+      ),
+    ]);
+    const country: CountrySummary =
+      c ??
+      ({
+        cca3: isoReq,
+        name: directCountry?.name ?? wbDirectoryCountry?.name ?? isoReq,
+        region: "",
+        subregion: "",
+        capital: directCountry?.capital ?? wbDirectoryCountry?.capital ?? [],
+        population: 0,
+        area: directCountry?.area ?? wbDirectoryCountry?.area ?? 0,
+        latlng: directCountry?.latlng ?? wbDirectoryCountry?.latlng ?? [0, 0],
+        flags: directCountry?.flags ?? wbDirectoryCountry?.flags ?? {},
+        timezones: [],
+        currencies: directCountry?.currencies ?? [],
+        currencyDisplay: directCountry?.currencyDisplay,
+        cca2: directCountry?.cca2 ?? wbDirectoryCountry?.cca2,
+        ccn3: directCountry?.ccn3,
+        landlocked: directCountry?.landlocked,
+      } satisfies CountrySummary);
+    if (!c) res.setHeader("x-cap-warning", "country-directory-fallback-used");
+    const iso = country.cca3.toUpperCase();
     const [wd, eezApi, worldBankProfile] = await Promise.all([
-      fetchWikidataCountryEnrichment(iso),
-      c.landlocked ? Promise.resolve(null) : fetchSeaAroundUsEezAreaKm2(c.ccn3),
-      fetchWbCountryProfile(iso),
+      settleWithin(fetchWikidataCountryEnrichment(iso), 7000, null),
+      country.landlocked
+        ? Promise.resolve(null)
+        : settleWithin(fetchSeaAroundUsEezAreaKm2(country.ccn3), 7000, null),
+      settleWithin(fetchWbCountryProfile(iso), 7000, null),
     ]);
     const ianaTimezone = (() => {
       try {
@@ -247,19 +497,115 @@ app.get("/api/country/:cca3", async (req, res) => {
         if (Number.isFinite(wbLat) && Number.isFinite(wbLng)) {
           return tzLookup(wbLat, wbLng);
         }
-        const [lat, lng] = c.latlng ?? [NaN, NaN];
+        const [lat, lng] = country.latlng ?? [NaN, NaN];
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) return undefined;
         return tzLookup(lat, lng);
       } catch {
         return undefined;
       }
     })();
-    const government = c.government ?? wd?.government;
+    const resolvedCountry: CountrySummary =
+      c || !worldBankProfile
+        ? country
+        : {
+            ...country,
+            name: worldBankProfile.name || country.name,
+            region: worldBankProfile.region || country.region,
+            capital:
+              worldBankProfile.capitalCity && worldBankProfile.capitalCity.trim().length > 0
+                ? [worldBankProfile.capitalCity.trim()]
+                : country.capital,
+            latlng: [
+              Number.isFinite(Number(worldBankProfile.latitude))
+                ? Number(worldBankProfile.latitude)
+                : country.latlng?.[0] ?? 0,
+              Number.isFinite(Number(worldBankProfile.longitude))
+                ? Number(worldBankProfile.longitude)
+                : country.latlng?.[1] ?? 0,
+            ],
+          };
+    const mergedCountry: CountrySummary = {
+      ...resolvedCountry,
+      currencies:
+        resolvedCountry.currencies && resolvedCountry.currencies.length > 0
+          ? resolvedCountry.currencies
+          : (directCountry?.currencies ?? []),
+      currencyDisplay: resolvedCountry.currencyDisplay ?? directCountry?.currencyDisplay,
+      flags:
+        (resolvedCountry.flags?.png || resolvedCountry.flags?.svg)
+          ? resolvedCountry.flags
+          : (directCountry?.flags ?? wbDirectoryCountry?.flags ?? resolvedCountry.flags),
+      cca2: resolvedCountry.cca2 ?? directCountry?.cca2 ?? wbDirectoryCountry?.cca2,
+      area:
+        Number.isFinite(resolvedCountry.area) && resolvedCountry.area > 0
+          ? resolvedCountry.area
+          : (directCountry?.area ?? resolvedCountry.area),
+    };
+    const [totalAreaSeries, landAreaSeries] = await Promise.all([
+      settleWithin(fetchIndicatorSeries(iso, "AG.SRF.TOTL.K2", MIN_DATA_YEAR, currentDataYear()), 7000, []),
+      settleWithin(fetchIndicatorSeries(iso, "AG.LND.TOTL.K2", MIN_DATA_YEAR, currentDataYear()), 7000, []),
+    ]);
+    const lastNonNullValue = (rows: SeriesPoint[]): number | null => {
+      for (let i = rows.length - 1; i >= 0; i--) {
+        const v = rows[i]?.value;
+        if (v !== null && v !== undefined && Number.isFinite(v)) return v;
+      }
+      return null;
+    };
+    const totalAreaKm2 = lastNonNullValue(totalAreaSeries);
+    const landAreaKm2 = lastNonNullValue(landAreaSeries);
+    const areaResolved =
+      Number.isFinite(mergedCountry.area) && mergedCountry.area > 0
+        ? mergedCountry.area
+        : (totalAreaKm2 ?? landAreaKm2 ?? mergedCountry.area);
+    const government = resolvedCountry.government ?? wd?.government;
     const headOfGovernmentTitle = wd?.headOfGovernmentTitle;
-    const eezSqKm = c.landlocked ? null : eezApi ?? EEZ_SQKM_FALLBACK[iso] ?? null;
-    res.json({ ...c, ianaTimezone, government, headOfGovernmentTitle, eezSqKm, worldBankProfile });
+    const eezSqKm = mergedCountry.landlocked ? null : eezApi ?? EEZ_SQKM_FALLBACK[iso] ?? null;
+    const directCurrencyFallback =
+      mergedCountry.cca2 && /^[A-Z]{2}$/.test(mergedCountry.cca2)
+        ? (countryToCurrency[mergedCountry.cca2 as keyof typeof countryToCurrency] as string | undefined)
+        : undefined;
+    const currencyCodes = (mergedCountry.currencies ?? []).filter((code) => /^[A-Z]{3}$/.test(String(code)));
+    if (currencyCodes.length === 0 && directCurrencyFallback && /^[A-Z]{3}$/.test(directCurrencyFallback)) {
+      currencyCodes.push(directCurrencyFallback);
+    }
+    const currencyFromDisplay =
+      typeof mergedCountry.currencyDisplay === "string"
+        ? (mergedCountry.currencyDisplay.match(/\b[A-Z]{3}\b/g) ?? []).filter((c) => /^[A-Z]{3}$/.test(c))
+        : [];
+    const fallbackByIso3: Record<string, string> = {
+      XKX: "EUR",
+    };
+    const fxCurrencyCandidates = [
+      ...currencyCodes,
+      ...currencyFromDisplay,
+      ...(directCurrencyFallback ? [directCurrencyFallback] : []),
+      ...(fallbackByIso3[iso] ? [fallbackByIso3[iso]] : []),
+    ];
+    const currencyDisplayResolved =
+      (typeof mergedCountry.currencyDisplay === "string" && mergedCountry.currencyDisplay.trim()
+        ? mergedCountry.currencyDisplay.trim()
+        : "") || currencyCodes[0];
+    const usdFxRate = await settleWithin(fetchBestUsdFxSnapshot(fxCurrencyCandidates, iso), 14000, null);
+    res.json({
+      ...mergedCountry,
+      currencies: currencyCodes,
+      currencyDisplay: currencyDisplayResolved,
+      usdFxRate: usdFxRate?.rate ?? null,
+      usdFxRateAsOf: usdFxRate?.asOf,
+      usdFxCurrency: usdFxRate?.target ?? currencyCodes[0] ?? null,
+      usdFxSource: usdFxRate?.source,
+      area: areaResolved,
+      totalAreaKm2,
+      landAreaKm2,
+      ianaTimezone,
+      government,
+      headOfGovernmentTitle,
+      eezSqKm,
+      worldBankProfile,
+    });
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    res.status(502).json({ error: String(e) });
   }
 });
 
@@ -279,7 +625,19 @@ app.get("/api/dashboard/comparison", async (req, res) => {
       ? clampYear(parseInt(String(req.query.year), 10))
       : clampYear(currentDataYear() - 1);
     if (!/^[A-Z]{3}$/.test(cca3)) return res.status(400).json({ error: "cca3 required" });
-    const data = await buildDashboardComparison(cca3, year);
+    const fallback: Awaited<ReturnType<typeof buildDashboardComparison>> = {
+      year,
+      countryIso3: cca3,
+      countryName: cca3,
+      rows: [],
+      geographyMeta: { medianArea: null, sumArea: 0 },
+      membersCount: 0,
+      mode: "fallback",
+    };
+    const data = await settleWithin(buildDashboardComparison(cca3, year), 45000, fallback);
+    if (!Array.isArray(data.rows) || data.rows.length === 0) {
+      res.setHeader("x-cap-warning", "dashboard-comparison-fallback-empty");
+    }
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -316,6 +674,9 @@ function countrySeriesCacheKey(cca3: string, start: number, end: number, metricI
 }
 
 const COUNTRY_SERIES_CACHE_TTL_MS = 1000 * 60 * 20;
+function makeNullSeries(start: number, end: number): SeriesPoint[] {
+  return Array.from({ length: end - start + 1 }, (_, i) => ({ year: start + i, value: null }));
+}
 
 app.get("/api/country/:cca3/series", async (req, res) => {
   try {
@@ -333,12 +694,32 @@ app.get("/api/country/:cca3/series", async (req, res) => {
     const cca3 = req.params.cca3.toUpperCase();
     const cacheKey = countrySeriesCacheKey(cca3, start, end, metricIds);
     const cached = getCache<Record<string, SeriesPoint[]>>(cacheKey);
-    if (cached) {
+    const isAllNullBundle = (b: Record<string, SeriesPoint[]>): boolean =>
+      Object.values(b).length > 0 &&
+      Object.values(b).every((s) => Array.isArray(s) && s.every((p) => p.value === null));
+    if (cached && !isAllNullBundle(cached)) {
       res.json(cached);
       return;
     }
-    const bundle = await fetchCountryBundle(cca3, metricIds, start, end);
-    setCache(cacheKey, bundle, COUNTRY_SERIES_CACHE_TTL_MS);
+    const fallbackBundle: Record<string, SeriesPoint[]> = Object.fromEntries(
+      metricIds.map((id) => [
+        id,
+        Array.from({ length: end - start + 1 }, (_, i) => ({ year: start + i, value: null })),
+      ])
+    );
+    const seriesTimeoutMs = metricIds.length >= 40 ? 95000 : 55000;
+    const bundle = await settleWithin(
+      fetchCountryBundle(cca3, metricIds, start, end),
+      seriesTimeoutMs,
+      fallbackBundle
+    );
+    const allNull = isAllNullBundle(bundle);
+    if (!allNull) {
+      setCache(cacheKey, bundle, COUNTRY_SERIES_CACHE_TTL_MS);
+    }
+    if (allNull) {
+      res.setHeader("x-cap-warning", "country-series-fallback-null-dense");
+    }
     res.json(bundle);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -352,7 +733,14 @@ app.get("/api/global/snapshot", async (req, res) => {
       ? clampYear(parseInt(String(req.query.year), 10))
       : clampYear(currentDataYear() - 1);
     if (!METRIC_BY_ID[metricId]) return res.status(400).json({ error: "Unknown metric" });
-    const { dataYear, rows } = await fetchGlobalSnapshotWithYearFallback(metricId, requestedYear);
+    const fallbackRows = [] as Awaited<ReturnType<typeof fetchGlobalSnapshotWithYearFallback>>["rows"];
+    const snap = await settleWithin(
+      fetchGlobalSnapshotWithYearFallback(metricId, requestedYear),
+      120000,
+      { dataYear: requestedYear, rows: fallbackRows }
+    );
+    const { dataYear, rows } = snap;
+    if (rows.length === 0) res.setHeader("x-cap-warning", "global-snapshot-fallback-empty");
     res.json({ metricId, requestedYear, dataYear, year: dataYear, rows });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -369,7 +757,18 @@ app.get("/api/global/table", async (req, res) => {
     if (!["general", "financial", "health", "education"].includes(category)) {
       return res.status(400).json({ error: "Invalid category" });
     }
-    const data = await buildGlobalTable(year, region, category);
+    const fallbackTable: Awaited<ReturnType<typeof buildGlobalTable>> = {
+      requestedYear: year,
+      dataYear: year,
+      category,
+      columns: [],
+      rows: [],
+      wdiLookbackYears: 0,
+    };
+    const data = await settleWithin(buildGlobalTable(year, region, category), 30000, fallbackTable);
+    if (!Array.isArray(data) || data.length === 0) {
+      res.setHeader("x-cap-warning", "global-table-fallback-empty");
+    }
     res.json(data);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -391,7 +790,13 @@ app.get("/api/global/wld-series", async (req, res) => {
       req.query.start ? parseInt(String(req.query.start), 10) : MIN_DATA_YEAR,
       req.query.end ? parseInt(String(req.query.end), 10) : currentDataYear()
     );
-    const bundle = await fetchCountryBundle("WLD", metricIds, start, end);
+    const wldFallback: Record<string, SeriesPoint[]> = Object.fromEntries(
+      metricIds.map((id) => [id, makeNullSeries(start, end)])
+    );
+    const wldTimeoutMs = metricIds.length >= 30 ? 95000 : 45000;
+    const bundle = await settleWithin(fetchCountryBundle("WLD", metricIds, start, end), wldTimeoutMs, wldFallback);
+    const allNull = Object.values(bundle).every((s) => s.every((p) => p.value === null));
+    if (allNull) res.setHeader("x-cap-warning", "global-wld-series-fallback-null");
     res.json({ start, end, series: bundle });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -414,10 +819,14 @@ app.get("/api/compare", async (req, res) => {
     const series: Record<string, SeriesPoint[]> = {};
     await Promise.all(
       countries.map(async (iso) => {
-        const b = await fetchCountryBundle(iso, [metricId], start, end);
-        series[iso] = b[metricId] ?? [];
+        const fallback = { [metricId]: makeNullSeries(start, end) } as Record<string, SeriesPoint[]>;
+        const b = await settleWithin(fetchCountryBundle(iso, [metricId], start, end), 40000, fallback);
+        series[iso] = b[metricId] ?? makeNullSeries(start, end);
       })
     );
+    if (Object.values(series).every((s) => s.every((p) => p.value === null))) {
+      res.setHeader("x-cap-warning", "compare-series-fallback-null");
+    }
     res.json({ metricId, series });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -764,6 +1173,38 @@ function extractTaggedLines(section: string, re: RegExp, max = 6): string[] {
   return out;
 }
 
+const ASSISTANT_CREDIBLE_DOMAINS = [
+  "worldbank.org",
+  "imf.org",
+  "oecd.org",
+  "who.int",
+  "ilo.org",
+  "un.org",
+  "undp.org",
+  "unesco.org",
+  "wto.org",
+  "europa.eu",
+  "ec.europa.eu",
+  "census.gov",
+  "data.gov",
+  "ourworldindata.org",
+  "britannica.com",
+  "wikipedia.org",
+  "wikidata.org",
+];
+
+const ASSISTANT_SENSITIVE_FACT_DOMAINS = [
+  "wikipedia.org",
+  "wikidata.org",
+  "britannica.com",
+  "cia.gov",
+  "state.gov",
+  "gov.uk",
+  "europa.eu",
+  "un.org",
+  "unesco.org",
+];
+
 type ParsedComparisonCountry = {
   countryName: string;
   iso3: string;
@@ -903,6 +1344,165 @@ function buildDeterministicRankingOrComparisonReply(opts: {
   return `${intro}\n\n${header}\n${rows}`;
 }
 
+function buildDeterministicDashboardMetricTableReply(opts: {
+  message: string;
+  dashboardBlock: string;
+  intent: AssistantIntent;
+  hasComparison: boolean;
+  hasRanking: boolean;
+  metricAnchored: boolean;
+}): string | null {
+  if (!opts.dashboardBlock.trim()) return null;
+  if (opts.hasComparison || opts.hasRanking) return null;
+  // Strict rule: table format is only for pure dashboard-metric questions.
+  if (!opts.metricAnchored) return null;
+  if (!(opts.intent === "statistics_drill" || opts.intent === "country_overview")) return null;
+
+  const lines = opts.dashboardBlock.split(/\r?\n/);
+  const countryLine = lines.find((l) => /^Country:\s+/i.test(l.trim()))?.trim() ?? "Country";
+  const metricRows: Array<{ label: string; latest: string; year: string; yoy: string }> = [];
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t.startsWith("• ")) continue;
+    const m = t.match(
+      /^•\s+(.+?):\s+(.+?)\s+\(data year\s+(\d{4})\)(?:;\s*YoY vs prior year:\s*([\-0-9.]+)%?)?$/i
+    );
+    if (!m?.[1] || !m[2] || !m[3]) continue;
+    const label = m[1].trim().replace(/\|/g, "·");
+    const latest = m[2].trim().replace(/\|/g, "·");
+    const year = m[3].trim();
+    const yoy = m[4] ? `${m[4].trim()}%` : "n/a";
+    metricRows.push({ label, latest, year, yoy });
+  }
+  if (metricRows.length === 0) return null;
+
+  const header = `| Indicator | Latest value | Data year | YoY |\n| --- | --- | ---: | ---: |`;
+  const rows = metricRows.map((r) => `| ${r.label} | ${r.latest} | ${r.year} | ${r.yoy} |`).join("\n");
+  const pick = (re: RegExp) => metricRows.find((r) => re.test(r.label));
+  const gdp = pick(/\bGDP\b/i);
+  const infl = pick(/\binflation\b/i);
+  const unemp = pick(/\bunemployment\b/i);
+  const debt = pick(/\bdebt\b/i);
+  const life = pick(/\blife expectancy\b/i);
+
+  const analysisLines: string[] = [];
+  analysisLines.push("**High-level analysis**");
+  if (gdp) analysisLines.push(`- Output level remains anchored by ${gdp.label.toLowerCase()} at ${gdp.latest} (${gdp.year}).`);
+  if (infl) analysisLines.push(`- Price pressure context: ${infl.latest} in ${infl.year}${infl.yoy !== "n/a" ? ` with YoY ${infl.yoy}` : ""}.`);
+  if (unemp)
+    analysisLines.push(
+      `- Labor-market signal: ${unemp.label.toLowerCase()} is ${unemp.latest} (${unemp.year})${unemp.yoy !== "n/a" ? `, YoY ${unemp.yoy}` : ""}.`
+    );
+  if (!unemp && debt)
+    analysisLines.push(
+      `- Fiscal-risk read: ${debt.label.toLowerCase()} at ${debt.latest} (${debt.year})${debt.yoy !== "n/a" ? `, YoY ${debt.yoy}` : ""}.`
+    );
+  if (life) analysisLines.push(`- Human-development anchor: ${life.latest} (${life.year}) for ${life.label.toLowerCase()}.`);
+  if (analysisLines.length === 1)
+    analysisLines.push("- The table shows the latest platform snapshot and YoY direction for the requested dashboard indicators.");
+
+  return `${countryLine}\n\n${header}\n${rows}\n\n${analysisLines.join("\n")}\n\nThe table above uses the same platform snapshot logic as dashboard/comparison answers.`;
+}
+
+function messageAnchorsSelectedCountry(message: string): boolean {
+  return /\bselected\s+countr(?:y)?\b/i.test(message) || /\bthe\s+selected\s+countr(?:y)?\b/i.test(message);
+}
+
+const METRIC_DEFINITION_ALIAS_MAP: ReadonlyArray<{ re: RegExp; metricId: string }> = [
+  { re: /\bgdp growth\b|\bgrowth rate\b/, metricId: "gdp_growth" },
+  { re: /\bgdp per capita\b.*\bppp\b|\bppp gdp per capita\b/, metricId: "gdp_per_capita_ppp" },
+  { re: /\bgdp per capita\b/, metricId: "gdp_per_capita" },
+  { re: /\bgdp\b.*\bppp\b|\bppp gdp\b/, metricId: "gdp_ppp" },
+  { re: /\bgdp\b/, metricId: "gdp" },
+  { re: /\bgni per capita\b|\batlas method\b/, metricId: "gni_per_capita_atlas" },
+  { re: /\bgovernment debt\b.*\b%|\bdebt % of gdp\b/, metricId: "gov_debt_pct_gdp" },
+  { re: /\bgovernment debt\b|\bnominal debt\b/, metricId: "gov_debt_usd" },
+  { re: /\binflation\b/, metricId: "inflation" },
+  { re: /\blending rate\b/, metricId: "lending_rate" },
+  { re: /\bunemployment\b|\bilo\b/, metricId: "unemployment_ilo" },
+  { re: /\blabor force\b|\blabour force\b/, metricId: "labor_force_total" },
+  { re: /\bpoverty\b.*\b2\.15\b|\binternational poverty\b/, metricId: "poverty_headcount" },
+  { re: /\bnational poverty\b/, metricId: "poverty_national" },
+  { re: /\blife expectancy\b/, metricId: "life_expectancy" },
+  { re: /\bund(er)?-?five mortality\b/, metricId: "mortality_under5" },
+  { re: /\bmaternal mortality\b/, metricId: "maternal_mortality" },
+  { re: /\bundernourishment\b/, metricId: "undernourishment" },
+  { re: /\bbirth rate\b/, metricId: "birth_rate" },
+  { re: /\btuberculosis\b|\btb incidence\b/, metricId: "tb_incidence" },
+  { re: /\buhc\b|\bservice coverage\b/, metricId: "uhc_service_coverage" },
+  { re: /\bhospital beds?\b/, metricId: "hospital_beds" },
+  { re: /\bphysicians?\b/, metricId: "physicians_density" },
+  { re: /\bnurses?\b|\bmidwives?\b/, metricId: "nurses_midwives_density" },
+  { re: /\bimmunization\b.*\bdpt\b|\bvaccination\b.*\bdpt\b/, metricId: "immunization_dpt" },
+  { re: /\bimmunization\b.*\bmeasles\b|\bvaccination\b.*\bmeasles\b/, metricId: "immunization_measles" },
+  { re: /\bhealth expenditure\b/, metricId: "health_expenditure_gdp" },
+  { re: /\bsmoking prevalence\b/, metricId: "smoking_prevalence" },
+  { re: /\bliteracy\b/, metricId: "literacy_adult" },
+  { re: /\benrollment\b.*\bprimary\b/, metricId: "enrollment_primary_pct" },
+  { re: /\benrollment\b.*\bsecondary\b/, metricId: "enrollment_secondary" },
+  { re: /\benrollment\b.*\btertiary\b/, metricId: "enrollment_tertiary_pct" },
+  { re: /\bgender parity\b|\bgpi\b/, metricId: "gpi_secondary" },
+  { re: /\beducation expenditure\b/, metricId: "edu_expenditure_gdp" },
+  { re: /\barea\b|\bland area\b|\btotal area\b/, metricId: "area" },
+];
+
+function questionLooksMetricDefinitionQuery(message: string): boolean {
+  const q = message.toLowerCase();
+  const directDefinitionAsk =
+    /\b(define|definition|what is|what does .* mean|explain|difference between|compare .* definition|methodology)\b/.test(
+      q
+    );
+  const mapDefinitionAsk =
+    /\b(map|global map|choropleth)\b/.test(q) &&
+    /\b(metric|indicator|means?|definition|interpret|read|how to read|what does)\b/.test(q);
+  return directDefinitionAsk || mapDefinitionAsk;
+}
+
+function resolveMetricDefinitionIds(message: string): string[] {
+  const q = message.toLowerCase();
+  const out: string[] = [];
+  for (const a of METRIC_DEFINITION_ALIAS_MAP) {
+    if (a.re.test(q) && !out.includes(a.metricId)) out.push(a.metricId);
+  }
+  // Fallback on metric labels for broader phrasing.
+  for (const m of METRICS) {
+    const lbl = m.label.toLowerCase();
+    if (lbl.length >= 6 && q.includes(lbl) && !out.includes(m.id)) out.push(m.id);
+  }
+  return out.slice(0, 6);
+}
+
+function buildMetricDefinitionExpertReply(message: string, metricIds: string[]): string | null {
+  if (metricIds.length === 0) return null;
+  const blocks: string[] = [];
+  blocks.push("Here are professional metric definitions grounded in institutional metadata used by this app:");
+  for (const id of metricIds) {
+    const m = METRIC_BY_ID[id];
+    if (!m) continue;
+    const desc = (m.description ?? "").trim();
+    const unit = m.unit?.trim() ? `Unit: ${m.unit.trim()}.` : "";
+    const src = m.sourceName?.trim() || "Institutional source";
+    const srcUrl = m.sourceUrl?.trim();
+    const formula = m.formula?.trim() ? `Formula note: ${m.formula.trim()}.` : "";
+    const line = [
+      `- **${m.label}**`,
+      desc ? `Definition: ${desc}` : "Definition: Official indicator definition from the source metadata.",
+      unit,
+      formula,
+      `Source: ${src}${srcUrl ? ` ([link](${srcUrl}))` : ""}.`,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    blocks.push(line);
+  }
+  if (metricIds.length >= 2 && /\bdifference|compare\b/i.test(message)) {
+    blocks.push(
+      "Use these definitions comparatively by checking scope first (nominal vs PPP, rate vs level, stock vs flow), then unit consistency and reference year alignment."
+    );
+  }
+  return blocks.join("\n\n");
+}
+
 function buildAssistantPrimaryDataBlock(
   meta: NonNullable<Awaited<ReturnType<typeof getCountry>>>,
   bundle: Record<string, SeriesPoint[]>,
@@ -951,9 +1551,27 @@ app.post("/api/assistant/chat", async (req, res) => {
       req.body?.webSearchPriority === "true" ||
       String(req.body?.assistantMode ?? "").toLowerCase() === "web_priority";
 
-    const countries = await listCountries();
+    const countries = await settleWithin(listCountries(), 10000, []);
     const intent = classifyAssistantIntent(message);
+    const explicitCountryKeyword = /\b(selected country|named country|country\b)\b/i.test(message);
+    const namedCountries = extractCountryCodesMentionedInText(
+      message,
+      countries,
+      ASSISTANT_MAX_COMPARISON_COUNTRIES
+    );
+    const definitionMetricIds = resolveMetricDefinitionIds(message);
+    if (questionLooksMetricDefinitionQuery(message) && !explicitCountryKeyword && namedCountries.length === 0) {
+      const definitionReply = buildMetricDefinitionExpertReply(message, definitionMetricIds);
+      if (definitionReply) {
+        return res.json({
+          reply: definitionReply,
+          attribution: ["Definition mode: institutional metric definitions (no country scope requested)"],
+          citations: { D: {}, W: {} },
+        });
+      }
+    }
     const needsVerifiedWeb = questionNeedsLiveWebVerification(message);
+    const sensitiveCountryFact = questionIsSensitiveCountryFact(message);
     let extractedCompare = extractComparisonCca3s(message, cca3, countries);
     if (extractedCompare.length < 2) {
       const scanned = extractCountryCodesMentionedInText(
@@ -973,6 +1591,10 @@ app.post("/api/assistant/chat", async (req, res) => {
     );
     const primaryMentionedCountryCode = explicitlyMentionedCountryCodes[0] ?? "";
     const comparisonMetricIds = extractAssistantComparisonMetricIds(message);
+    const selectedCountryMacroTurn =
+      messageAnchorsSelectedCountry(message) &&
+      questionLooksMetricAnchored(message) &&
+      comparisonCodes.length < 2;
     const preferWebPrimary = intentPrefersWebFirst(intent);
     const nameByCca3 = new Map(countries.map((c) => [c.cca3, c.name] as const));
 
@@ -1000,6 +1622,11 @@ app.post("/api/assistant/chat", async (req, res) => {
     ];
 
     const requestedFocusMetricIds = extractAssistantFocusMetricIds(message);
+    const nonMetricWebTurn =
+      !questionLooksMetricAnchored(message) &&
+      !looksLikePovertyInternationalVsNationalComparison(message) &&
+      comparisonCodes.length < 2 &&
+      !looksLikeGlobalRankingQuery(message);
     const requestedFocusMetricIdsForFetch =
       requestedFocusMetricIds && requestedFocusMetricIds.length > 0 ? requestedFocusMetricIds : ASSISTANT_OVERVIEW_METRIC_IDS;
     const [dashFocus, rankingPayload, comparisonBlock] = await Promise.all([
@@ -1009,11 +1636,25 @@ app.post("/api/assistant/chat", async (req, res) => {
         bundle?: Record<string, SeriesPoint[]>;
       }> => {
         if (!cca3 || !/^[A-Z]{3}$/.test(cca3)) return { block: "" };
-        const [meta, bundle] = await Promise.all([
+        const [metaMaybe, bundle] = await Promise.all([
           getCountry(cca3),
           fetchCountryBundle(cca3, requestedFocusMetricIdsForFetch, MIN_DATA_YEAR, currentDataYear()),
         ]);
-        if (!meta) return { block: "" };
+        const meta: CountrySummary =
+          metaMaybe ??
+          ({
+            cca3,
+            name: cca3,
+            region: "",
+            subregion: "",
+            capital: [],
+            population: 0,
+            area: 0,
+            latlng: [0, 0],
+            flags: {},
+            timezones: [],
+            currencies: [],
+          } satisfies CountrySummary);
         return {
           block: buildAssistantPrimaryDataBlock(meta, bundle, requestedFocusMetricIds),
           meta,
@@ -1087,7 +1728,7 @@ app.post("/api/assistant/chat", async (req, res) => {
     // For non-metric, time-sensitive “who is in office right now” turns, avoid injecting
     // platform indicator snapshots that can distract the model from live excerpt grounding.
     const dashboardForPrompt =
-      intent === "general_web"
+      (intent === "general_web" && !questionLooksMetricAnchored(message)) || nonMetricWebTurn
         ? ""
         : omitDuplicateDashboard || !focusMetricsInScope
           ? ""
@@ -1124,10 +1765,13 @@ app.post("/api/assistant/chat", async (req, res) => {
       !needsVerifiedWeb;
     const forceSkipWebForMetricTurn = tavilyConfigured && !webSearchPriority && metricScopedTurn;
     const skipWebForPlatform =
+      nonMetricWebTurn
+        ? false
+        : (
       forceSkipWebForMetricTurn ||
       (!webSearchPriority &&
         tavilyConfigured &&
-        shouldSkipTavilyForPlatformFirst(intent, hasAuthoritativePayload, message));
+        shouldSkipTavilyForPlatformFirst(intent, hasAuthoritativePayload, message)));
 
     // If the user explicitly names another country, do not pollute web retrieval
     // with the currently selected dashboard country.
@@ -1162,6 +1806,9 @@ app.post("/api/assistant/chat", async (req, res) => {
           topic: "news",
           timeRange: "month",
           preferNewestSourcesFirst: true,
+          allowedDomains: sensitiveCountryFact
+            ? ASSISTANT_SENSITIVE_FACT_DOMAINS
+            : ASSISTANT_CREDIBLE_DOMAINS,
           apiKey: providedTavilyApiKey,
         });
         if (isWebSearchContextThin(webContext)) {
@@ -1177,6 +1824,9 @@ app.post("/api/assistant/chat", async (req, res) => {
               startDate: utcDateDaysAgo(400),
               endDate: today,
               preferNewestSourcesFirst: true,
+              allowedDomains: sensitiveCountryFact
+                ? ASSISTANT_SENSITIVE_FACT_DOMAINS
+                : ASSISTANT_CREDIBLE_DOMAINS,
               apiKey: providedTavilyApiKey,
             }
           );
@@ -1191,6 +1841,9 @@ app.post("/api/assistant/chat", async (req, res) => {
             topic: "general",
             timeRange: "year",
             preferNewestSourcesFirst: true,
+            allowedDomains: sensitiveCountryFact
+              ? ASSISTANT_SENSITIVE_FACT_DOMAINS
+              : ASSISTANT_CREDIBLE_DOMAINS,
             apiKey: providedTavilyApiKey,
           });
           if (wide.trim().length > webContext.trim().length) webContext = wide;
@@ -1215,6 +1868,9 @@ app.post("/api/assistant/chat", async (req, res) => {
           startDate: strictStart,
           endDate: today,
           preferNewestSourcesFirst: true,
+          allowedDomains: sensitiveCountryFact
+            ? ASSISTANT_SENSITIVE_FACT_DOMAINS
+            : ASSISTANT_CREDIBLE_DOMAINS,
           apiKey: providedTavilyApiKey,
         });
         if (!webContext.trim()) {
@@ -1224,6 +1880,9 @@ app.post("/api/assistant/chat", async (req, res) => {
             topic: statsSupplementWebOnly ? "general" : "news",
             timeRange: statsSupplementWebOnly ? "year" : "month",
             preferNewestSourcesFirst: true,
+            allowedDomains: sensitiveCountryFact
+              ? ASSISTANT_SENSITIVE_FACT_DOMAINS
+              : ASSISTANT_CREDIBLE_DOMAINS,
             apiKey: providedTavilyApiKey,
           });
         }
@@ -1247,12 +1906,15 @@ app.post("/api/assistant/chat", async (req, res) => {
 
     const webSearchThin = isWebSearchContextThin(webContext);
     const todayUtc = utcDateISO();
+    const broadGeneralWebTurn =
+      intent === "general_web" && !sensitiveCountryFact && !questionLooksMetricAnchored(message);
 
     const cited = compactAssistantRetrievalForLlm({
       dashboardForPrompt,
       comparisonBlock,
       rankingSection,
       webContext,
+      webTopK: broadGeneralWebTurn ? 3 : 1,
       webRelevance: {
         message,
         countryName: effectiveSearchAnchorName ?? dashboardFocusMeta?.name,
@@ -1295,10 +1957,23 @@ app.post("/api/assistant/chat", async (req, res) => {
         : deterministicReply;
       return res.json({ reply, attribution, citations: cited.citations });
     }
+
+    const deterministicDashboardTable = buildDeterministicDashboardMetricTableReply({
+      message,
+      dashboardBlock: dashboardBlock,
+      intent,
+      hasComparison: Boolean(comparisonBlock),
+      hasRanking: Boolean(rankingSection),
+      metricAnchored: questionLooksMetricAnchored(message) || selectedCountryMacroTurn,
+    });
+    if (deterministicDashboardTable) {
+      attribution.push("Deterministic: platform metrics table for dashboard-oriented question");
+      return res.json({ reply: deterministicDashboardTable, attribution, citations: cited.citations });
+    }
     const citationInstruction = hasCitationKeys
       ? `
 
-CITATIONS: In the context below, **platform** facts (dashboard + ranking rows) are prefixed with **[D1], [D2], …**. **At most one** live-web excerpt is provided as **[W1]**—use it only for claims it actually supports. Put the matching tag right after the supported phrase (e.g. "unemployment is near 5% [D6]"). Use only tags that appear in this turn. Do not quote the full labeled reference lines back to the user—the inline tags are enough.`
+CITATIONS: In the context below, **platform** facts (dashboard + ranking rows) are prefixed with **[D1], [D2], …**. Live-web excerpts may appear as **[W1]**, **[W2]**, and **[W3]**. Use only tags that appear in this turn and put each tag right after the supported phrase. Do not quote the full labeled reference lines back to the user—the inline tags are enough.`
       : "";
 
     const humanVoice = `STYLE — read like a thoughtful human analyst, not a chatbot:
@@ -1394,7 +2069,7 @@ TRUTH (non-negotiable):
 Open with the sharpest contrast, then walk the reader through the rest with explicit country names and the exact figures that matter.`;
 
     const systemBase =
-      intent === "general_web"
+      intent === "general_web" || nonMetricWebTurn
         ? systemWebPrimary
         : intent === "country_overview"
           ? systemOverview
@@ -1406,7 +2081,16 @@ Open with the sharpest contrast, then walk the reader through the rest with expl
 
 DATA SCOPE (non-negotiable): **[D#]** tags and any **Official indicators** / ranking / comparison lines in this thread are the **only** figures that come from this application’s database/APIs. Use them **only** to support claims they directly answer—never as filler when the user asked about something else (culture, sport, biography, offices, etc.). If the question is outside that numeric scope, answer from web excerpts and proportionate general knowledge without inventing or importing unrelated dashboard statistics. Never tell the user a number is “from the platform” unless it appears on a **[D#]** line you cite.`;
 
-    const system = `${systemBase}${ephemeralFactBlock}${citationInstruction}${platformDataScopeSuffix}`;
+    const nonDashboardWebFormatBlock = broadGeneralWebTurn
+      ? `
+
+FORMAT FOR THIS TURN:
+- Keep the majority of the response as direct, accurate answer prose.
+- End with a short **Sources** section (max 3 bullets) using simple markdown hyperlinks from available [W#] citations only.
+- Keep source links concise and clearly shorter than the answer body.`
+      : "";
+
+    const system = `${systemBase}${ephemeralFactBlock}${citationInstruction}${platformDataScopeSuffix}${nonDashboardWebFormatBlock}`;
 
     const verifiedRetrievalNote =
       needsVerifiedWeb && webSearchThin && tavilyConfigured
@@ -1595,8 +2279,8 @@ CITATION ENFORCEMENT (mandatory):
       }
 
       // Non-metric general-web turns should not drift back into platform-metric padding.
-      if (intent === "general_web" && assistantReplyContainsPlatformCitation(assistantLlmText)) {
-        attribution.push("Safety: general-web reply drifted into platform metric citations; returned web-grounded fallback");
+      if ((intent === "general_web" || nonMetricWebTurn) && assistantReplyContainsPlatformCitation(assistantLlmText)) {
+        attribution.push("Safety: web-mode reply drifted into platform metric citations; returned web-grounded fallback");
         assistantLlmText = buildAssistantGroundedFallbackFromCited({
           asked: message,
           focusBlock: "",
@@ -1647,7 +2331,7 @@ CITATION ENFORCEMENT (mandatory):
     if (comparisonBlock) {
       fallbackParts.push(`**Comparison (platform API)**\n\n${comparisonBlock}`);
     }
-    if (dashboardForPrompt) {
+    if (dashboardForPrompt && !nonMetricWebTurn) {
       fallbackParts.push(`**Selected country (platform API)**\n\n${dashboardForPrompt}`);
     }
     const fallback =

@@ -112,6 +112,36 @@ The `AI API Keys (App-wide)` panel is a top-level operational control and must f
 - Keep helper text concise and security-aware (session vs persistent storage behavior).
 - Ensure panel does not crowd/overlap API transport widget; both should share header row cleanly at desktop sizes.
 
+### 3.10 Business Analytics control surface standard
+
+- Use responsive grouped control cards (`lg:grid-cols-12`) for:
+  - year range,
+  - analysis options,
+  - focus country,
+  - variable selectors,
+  - primary action.
+- Keep the generate action visually dominant but layout-adaptive:
+  - full-width on small screens,
+  - compact right-aligned on desktop.
+- Present runtime diagnostics as lightweight chips, not blocking banners.
+- Maintain explicit loading progress bars for both:
+  - correlation analysis fetch,
+  - narrative generation.
+
+### 3.11 Presentation mode standard
+
+- Provide a clean “review mode” that hides filter/diagnostic chrome while preserving core outputs.
+- Toggle must be available via:
+  - explicit button,
+  - keyboard shortcut (`P`) with safe guards (ignore while typing in editable controls).
+- Presentation mode should never alter computed results; only visual chrome.
+
+### 3.12 Sources page accordion pattern
+
+- Major sections must support expand/collapse with consistent chevron behavior.
+- Metric cards should support sub-section disclosure (`Formula`, `Sources`) for scanability.
+- Default collapsed state is recommended for high-density sections to reduce visual load.
+
 ## 4) Accessibility standards (must-have)
 
 - Ensure adequate contrast between text and backgrounds.

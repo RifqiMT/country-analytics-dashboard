@@ -207,6 +207,9 @@ export default function CountrySelect({
         <input
           ref={inputRef}
           type="text"
+          name="cap_country_selector"
+          data-lpignore="true"
+          data-form-type="other"
           role="combobox"
           aria-expanded={open}
           aria-controls={listId}

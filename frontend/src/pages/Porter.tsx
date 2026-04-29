@@ -89,7 +89,7 @@ export default function Porter() {
           <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
             Porter Five Forces
           </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="w-full text-sm leading-relaxed text-slate-600">
             Industry attractiveness analysis (Threat of new entrants, Bargaining power of suppliers,
             Bargaining power of buyers, Threat of substitutes, Competitive rivalry) for the selected
             country and ILO-ISIC industry sector. Uses the same platform data (World Bank, UN, WHO, IMF;

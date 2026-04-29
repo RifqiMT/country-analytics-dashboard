@@ -67,8 +67,24 @@ function ExternalIcon() {
   );
 }
 
+function ChevronIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={`h-5 w-5 text-slate-500 transition ${open ? "rotate-180" : ""}`}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      aria-hidden
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+    </svg>
+  );
+}
+
 function MetricCard({ m }: { m: MetricDef }) {
   const links = metricSourceLinks(m);
+  const [formulaOpen, setFormulaOpen] = useState(true);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -83,33 +99,51 @@ function MetricCard({ m }: { m: MetricDef }) {
         </span>
       </div>
       <p className="mt-3 text-sm leading-relaxed text-slate-600">{m.description}</p>
-      <div className="mt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Formula</p>
-        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800">
-          {m.formula ?? (
-            <span className="font-sans text-slate-500">
-              As defined by the primary indicator; see source documentation.
-            </span>
-          )}
-        </div>
+      <div className="mt-4 rounded-lg border border-slate-200">
+        <button
+          type="button"
+          onClick={() => setFormulaOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-3 py-2 text-left"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Formula</p>
+          <ChevronIcon open={formulaOpen} />
+        </button>
+        {formulaOpen && (
+          <div className="border-t border-slate-200 bg-slate-50 px-3 py-2 font-mono text-sm text-slate-800">
+            {m.formula ?? (
+              <span className="font-sans text-slate-500">
+                As defined by the primary indicator; see source documentation.
+              </span>
+            )}
+          </div>
+        )}
       </div>
-      <div className="mt-4">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sources</p>
-        <ul className="mt-2 list-none space-y-1">
-          {links.map((l, i) => (
-            <li key={i}>
-              <a
-                href={l.url}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center text-sm font-medium text-blue-600 hover:underline"
-              >
-                {l.name}
-                <ExternalIcon />
-              </a>
-            </li>
-          ))}
-        </ul>
+      <div className="mt-4 rounded-lg border border-slate-200">
+        <button
+          type="button"
+          onClick={() => setSourcesOpen((o) => !o)}
+          className="flex w-full items-center justify-between px-3 py-2 text-left"
+        >
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Sources</p>
+          <ChevronIcon open={sourcesOpen} />
+        </button>
+        {sourcesOpen && (
+          <ul className="list-none space-y-1 border-t border-slate-200 px-3 py-2">
+            {links.map((l, i) => (
+              <li key={i}>
+                <a
+                  href={l.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center text-sm font-medium text-blue-600 hover:underline"
+                >
+                  {l.name}
+                  <ExternalIcon />
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </article>
   );
@@ -120,7 +154,11 @@ export default function Sources() {
   const [dataProviders, setDataProviders] = useState<DataProvidersPayload | null>(null);
   const [query, setQuery] = useState("");
   const [selectedSources, setSelectedSources] = useState<Set<string>>(new Set());
-  const [accordionOpen, setAccordionOpen] = useState(true);
+  const [accordionOpen, setAccordionOpen] = useState(false);
+  const [providersOpen, setProvidersOpen] = useState(false);
+  const [categoryOpen, setCategoryOpen] = useState<Set<string>>(
+    new Set(CATEGORY_ORDER.map((c) => c as string))
+  );
 
   useEffect(() => {
     getJson<MetricDef[]>("/api/metrics").then(setMetrics).catch(console.error);
@@ -184,7 +222,7 @@ export default function Sources() {
           <h1 className="text-2xl font-bold uppercase tracking-wide text-slate-900">
             Data Sources &amp; Methodology
           </h1>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="w-full text-sm leading-relaxed text-slate-600">
             The stack is built around <strong>credible public institutions</strong>:{" "}
             <strong>World Bank WDI</strong> for almost all quantitative series, the <strong>World Bank Country API</strong>{" "}
             for income and lending metadata, <strong>IMF WEO (DataMapper)</strong> where a metric defines an IMF
@@ -192,56 +230,72 @@ export default function Sources() {
             EEZ area when their API returns a match, and <strong>Wikidata</strong> only to fill REST Countries gaps
             (e.g. government type). <strong>UNESCO UIS</strong> indicators appear as <strong>WDI indicator codes</strong>{" "}
             so units and revisions stay aligned with the Bank; direct UIS API wiring can be added later for targeted
-            gap-fills.
+            gap-fills. Country FX on the dashboard uses <strong>ECB daily rates</strong> (via Frankfurter) with a
+            credibility fallback to <strong>World Bank PA.NUS.FCRF</strong> (official LCU per USD) when daily quotes are
+            unavailable or flagged as outliers.
           </p>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="w-full text-sm leading-relaxed text-slate-600">
             Outbound calls use a shared user-agent, short exponential retries on transient HTTP errors (429 / 5xx), and
             server-side caching. The canonical provider list and merge order for time series live at{" "}
             <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">GET /api/data-providers</code> and in the
             cards below.
           </p>
-          <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+          <p className="w-full text-sm leading-relaxed text-slate-600">
             Indicator codes, units, and formulas are documented per metric in the searchable dictionary.
           </p>
         </div>
 
         {dataProviders && (
           <div className="mt-8 space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                Country time-series merge order
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-700">{dataProviders.seriesMergePipeline}</p>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {dataProviders.providers.map((p) => (
-                <article
-                  key={p.id}
-                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                >
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{p.institution}</p>
-                  <h2 className="mt-1 text-base font-bold text-slate-900">{p.name}</h2>
-                  <p className="mt-2 text-sm text-slate-600">{p.role}</p>
-                  {p.seriesMergeOrder != null && (
-                    <p className="mt-2 text-xs font-medium text-slate-500">Series merge step: {p.seriesMergeOrder}</p>
-                  )}
-                  <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-600">
-                    {p.usedFor.map((u) => (
-                      <li key={u}>{u}</li>
+            <div className="rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setProvidersOpen((o) => !o)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50"
+              >
+                Provider stack & merge pipeline
+                <ChevronIcon open={providersOpen} />
+              </button>
+              {providersOpen && (
+                <div className="space-y-4 border-t border-slate-200 p-4">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      Country time-series merge order
+                    </p>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-700">{dataProviders.seriesMergePipeline}</p>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {dataProviders.providers.map((p) => (
+                      <article
+                        key={p.id}
+                        className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                      >
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{p.institution}</p>
+                        <h2 className="mt-1 text-base font-bold text-slate-900">{p.name}</h2>
+                        <p className="mt-2 text-sm text-slate-600">{p.role}</p>
+                        {p.seriesMergeOrder != null && (
+                          <p className="mt-2 text-xs font-medium text-slate-500">Series merge step: {p.seriesMergeOrder}</p>
+                        )}
+                        <ul className="mt-3 list-disc space-y-1 pl-5 text-xs text-slate-600">
+                          {p.usedFor.map((u) => (
+                            <li key={u}>{u}</li>
+                          ))}
+                        </ul>
+                        {p.notes && <p className="mt-3 text-xs leading-relaxed text-slate-500">{p.notes}</p>}
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 inline-flex items-center text-xs font-semibold text-blue-600 hover:underline"
+                        >
+                          Official site / API
+                          <ExternalIcon />
+                        </a>
+                      </article>
                     ))}
-                  </ul>
-                  {p.notes && <p className="mt-3 text-xs leading-relaxed text-slate-500">{p.notes}</p>}
-                  <a
-                    href={p.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center text-xs font-semibold text-blue-600 hover:underline"
-                  >
-                    Official site / API
-                    <ExternalIcon />
-                  </a>
-                </article>
-              ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -253,14 +307,7 @@ export default function Sources() {
             className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-slate-50"
           >
             Where metrics and information appear
-            <svg
-              className={`h-5 w-5 text-slate-500 transition ${accordionOpen ? "rotate-180" : ""}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <ChevronIcon open={accordionOpen} />
           </button>
           {accordionOpen && (
             <div className="space-y-4 border-t border-slate-200 px-4 py-4 text-sm leading-relaxed text-slate-600">
@@ -269,7 +316,9 @@ export default function Sources() {
                 <p className="mt-1">
                   Summary KPI cards, timeline accordions (Financial, Population, Macro, Unemployment),
                   and the country comparison table. Some territories use alternate ISO mappings or
-                  proxy series where WDI coverage is partial.
+                  proxy series where WDI coverage is partial. Exchange-rate display (`1 USD = ...`)
+                  uses ECB daily quotes first, then falls back to World Bank official annual FX
+                  (PA.NUS.FCRF) with source/date shown in the UI.
                 </p>
               </div>
               <div>
@@ -305,7 +354,11 @@ export default function Sources() {
                 <p className="mt-1">
                   Multi-metric scatter plots over country–year observations; Pearson correlation
                   coefficients, regression lines, residual plots, and subgroup summaries are computed in
-                  the API from the same indicator definitions as elsewhere.
+                  the API from the same indicator definitions as elsewhere. The correlation backend uses
+                  batched year processing with per-year fault tolerance and response caching; frontend
+                  delivery uses timeout-aware retries with optional automatic year-window fallback
+                  (or strict selected-range mode), plus deterministic narrative fallback when LLM output
+                  is unavailable.
                 </p>
               </div>
               <div>
@@ -369,16 +422,31 @@ export default function Sources() {
         {CATEGORY_ORDER.map((cat) => {
           const list = byCat[cat];
           if (!list?.length) return null;
+          const isOpen = categoryOpen.has(cat);
           return (
-            <section key={cat} className="mt-10">
-              <h2 className="text-lg font-bold text-slate-900">
-                {CATEGORY_LABEL[cat] ?? cat}
-              </h2>
-              <div className="mt-4 space-y-4">
-                {list.map((m) => (
-                  <MetricCard key={m.id} m={m} />
-                ))}
-              </div>
+            <section key={cat} className="mt-6 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() =>
+                  setCategoryOpen((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(cat)) next.delete(cat);
+                    else next.add(cat);
+                    return next;
+                  })
+                }
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+              >
+                <h2 className="text-lg font-bold text-slate-900">{CATEGORY_LABEL[cat] ?? cat}</h2>
+                <ChevronIcon open={isOpen} />
+              </button>
+              {isOpen && (
+                <div className="space-y-4 border-t border-slate-200 p-4">
+                  {list.map((m) => (
+                    <MetricCard key={m.id} m={m} />
+                  ))}
+                </div>
+              )}
             </section>
           );
         })}

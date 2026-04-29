@@ -111,3 +111,23 @@ Each persona describes:
 
 **Success signals:**
 - User can set keys in one place and complete all AI workflows without reconfiguration.
+
+## Persona 6: Executive Reviewer (Presentation Consumer)
+
+**Primary goal:** consume analysis outputs quickly in a clean, decision-ready format for review meetings.
+
+**Jobs to be done:**
+- Review Business Analytics outputs without control-panel clutter.
+- Focus on key diagnostics (r, p-value, R², sample size, narrative summary).
+- Capture clean screenshots for board/leadership decks.
+
+**Pain points:**
+- Overloaded analyst UI during executive review sessions.
+- Difficulty separating controls/debug information from final insights.
+
+**Evidence needs:**
+- Clear KPI summaries and narrative interpretation blocks.
+- Minimal, polished view with stable formatting.
+
+**Success signals:**
+- User can toggle presentation mode and complete review/export in one uninterrupted flow.

@@ -112,6 +112,28 @@ Ratio of successful provider validations from `/api/keys/validate`.
 **Definition (working):**
 `KeyValidationSuccessRate = count(validated keys with ok=true) / count(validation attempts with provided keys) * 100`
 
+### 3.5 Business analysis completion rate (timeout-resilience KPI)
+
+**What it measures:**  
+How often Business Analytics returns a usable result payload after users click Generate.
+
+**Definition (working):**
+`BusinessAnalysisCompletionRate = count(generate clicks resulting in non-empty correlation payload) / count(total generate clicks) * 100`
+
+**Why it matters:**  
+Directly tracks the reliability pain-point for long-range statistical runs.
+
+### 3.6 Business fallback utilization rate
+
+**What it measures:**  
+How often reliability mode had to use narrower year windows.
+
+**Definition (working):**
+`BusinessFallbackUtilizationRate = count(runs where fallback year window was used) / count(total business analysis runs) * 100`
+
+**Why it matters:**  
+Shows where backend performance still needs optimization to satisfy strict-range runs.
+
 ## 4) Usage & outcomes metrics
 
 ### 4.1 Task completion rate for key workflows
@@ -169,6 +191,8 @@ Key Results:
 - **KR1:** Reduce `/api/assistant/chat` P95 latency by **35%**
 - **KR2:** Reduce multi-country comparison response completion time by **30%**
 - **KR3:** Increase successful first-answer acceptance by **25%**
+- **KR4:** Keep `BusinessAnalysisCompletionRate >= 97%` over rolling 28 days
+- **KR5:** Keep strict-range timeout failure rate under **8%** for default full-range runs
 
 Measurement guidance:
 - “First-answer acceptance” should be defined using a user signal (for example: regenerate clicks vs completed satisfaction)

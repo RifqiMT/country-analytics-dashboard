@@ -41,6 +41,23 @@ The product unifies six primary capabilities:
 - **Grounding QA logic**: PESTEL outputs pass strict snippet-based grounding validation; weak LLM output is replaced with deterministic evidence blends.
 - **Governance logic**: requirement-to-code mapping and technical/business guardrails are documented and release-gated.
 
+## Latest implementation highlights (2026-04-29)
+
+- **Country FX reliability upgraded**:
+  - Country dashboard exchange rate now prioritizes **ECB daily quotes** (via Frankfurter).
+  - If quote is missing/suspicious, backend falls back to **World Bank official FX** (`PA.NUS.FCRF`).
+  - UI now shows quote date and source.
+- **Business Analytics resilience upgraded**:
+  - Correlation backend now uses batched year processing with per-year fault tolerance and cache-backed delivery.
+  - Frontend supports timeout-aware retries, optional automatic fallback to shorter windows, and strict selected-range mode.
+  - Added loading progress bars, retry UX, request diagnostics, and narrative generation progress.
+- **Business Analytics UX upgraded**:
+  - Modernized responsive control surface and polished analysis cards.
+  - Added `Presentation mode` plus keyboard shortcut (`P`) for executive-ready view.
+- **Sources UX upgraded**:
+  - Enabled consistent expand/collapse controls for major sections and metric sub-sections.
+  - Top documentation sections are collapsed by default for cleaner navigation.
+
 ## Tech stack
 
 - **Frontend**: React + TypeScript + Vite

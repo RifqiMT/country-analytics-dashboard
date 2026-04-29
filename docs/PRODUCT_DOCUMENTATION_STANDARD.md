@@ -88,6 +88,7 @@ A documentation change is complete only when:
 - limitations and assumptions are stated for affected behavior;
 - impacted traceability rows are updated where needed;
 - a change note is recorded in `docs/CHANGELOG.md`.
+- the in-app Sources/Methodology page content is synchronized for user-facing transparency.
 
 ## Review workflow
 

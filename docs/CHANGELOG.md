@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-04-29 (Business reliability + source governance sync)
+
+- Upgraded Country Dashboard exchange-rate logic:
+  - Added ECB daily quote path (via Frankfurter) with source/date transparency.
+  - Added World Bank `PA.NUS.FCRF` institutional fallback and anomaly guard logic.
+- Upgraded Business Analytics reliability and UX:
+  - Added staged progress bars, request race guards, retry UX, and diagnostics badges.
+  - Added strict selected-range mode and reliability fallback behavior for timeout scenarios.
+  - Added presentation mode and keyboard shortcut (`P`) for executive review workflows.
+  - Improved control-panel and results-area responsive design system.
+- Upgraded Sources feature UX:
+  - Added collapsible section/sub-section behavior (providers, category groups, metric formula/sources).
+  - Set top Sources sections to collapsed-by-default for cleaner first view.
+- Synchronized enterprise documentation:
+  - Updated `README.md`, `docs/README.md`, `PRD.md`, `USER_PERSONAS.md`, `USER_STORIES.md`,
+    `VARIABLES.md`, `METRICS_AND_OKRS.md`, `DESIGN_GUIDELINES.md`, `TRACEABILITY_MATRIX.md`,
+    `GUARDRAILS.md`, and `PRODUCT_DOCUMENTATION_STANDARD.md`.
+
 ## 2026-04-27 (Documentation + Quality Revamp)
 
 - Completed full documentation audit and synchronized enterprise docs to current implementation state.

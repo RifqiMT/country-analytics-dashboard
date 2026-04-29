@@ -275,6 +275,8 @@ export type CountrySummary = {
   capital: string[];
   population: number;
   area: number;
+  landAreaKm2?: number | null;
+  totalAreaKm2?: number | null;
   latlng: [number, number];
   flags: { png?: string; svg?: string };
   timezones?: string[];
@@ -289,6 +291,14 @@ export type CountrySummary = {
   ccn3?: string;
   landlocked?: boolean;
   currencyDisplay?: string;
+  /** Latest available quote for 1 USD in local currency units. */
+  usdFxRate?: number | null;
+  /** Upstream quote date (YYYY-MM-DD) when available. */
+  usdFxRateAsOf?: string;
+  /** Currency code used for the USD quote. */
+  usdFxCurrency?: string | null;
+  /** Institution/provider used for exchange-rate quote. */
+  usdFxSource?: string;
   /** ISO 3166-1 alpha-2 (REST Countries) — flag emoji / map patterns */
   cca2?: string;
   /** World Bank Country API — income & lending groups aligned with WDI (same request as profile metadata). */

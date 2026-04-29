@@ -158,6 +158,10 @@ const DASHBOARD_EDU_METRIC_IDS: readonly string[] = [
   "teachers_tertiary_count",
 ];
 
+const DASHBOARD_ALL_METRIC_IDS: readonly string[] = Array.from(
+  new Set([...DASHBOARD_CORE_METRIC_IDS, ...DASHBOARD_HEALTH_METRIC_IDS, ...DASHBOARD_EDU_METRIC_IDS])
+);
+
 function buildSeriesPath(country: string, start: number, end: number, metricIds: readonly string[]): string {
   const q = new URLSearchParams({ start: String(start), end: String(end) });
   q.set("metrics", metricIds.join(","));
@@ -228,6 +232,8 @@ export default function Dashboard() {
   const [compName, setCompName] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingExtras, setLoadingExtras] = useState(false);
+  const [mainLoadProgress, setMainLoadProgress] = useState(0);
+  const [extrasLoadProgress, setExtrasLoadProgress] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [metricCatalog, setMetricCatalog] = useState<MetricDef[]>([]);
@@ -251,49 +257,40 @@ export default function Dashboard() {
     if (!country) return;
     setLoading(true);
     setLoadingExtras(true);
+    setMainLoadProgress(8);
+    setExtrasLoadProgress(0);
     setErr(null);
+    const mainProgressTimer = window.setInterval(() => {
+      setMainLoadProgress((prev) => (prev < 92 ? prev + 6 : 92));
+    }, 250);
     try {
-      const groupErrors: string[] = [];
-      const fetchGroup = async (
-        label: string,
-        metricIds: readonly string[]
-      ): Promise<Record<string, SeriesPoint[]>> => {
-        try {
-          return await withTimeout(
-            getJson<Record<string, SeriesPoint[]>>(
-              buildSeriesPath(country, start, end, metricIds)
-            ),
-            25_000,
-            `Series group ${label}`
-          );
-        } catch (e) {
-          console.warn(`Dashboard metric group "${label}" failed`, e);
-          groupErrors.push(label);
-          return {};
-        }
-      };
-
-      const [m, coreBundle, healthBundle, eduBundle] = await Promise.all([
+      const [m, allSeriesBundle] = await Promise.all([
         getJson<CountrySummary>(`/api/country/${country}`),
-        fetchGroup("core", DASHBOARD_CORE_METRIC_IDS),
-        fetchGroup("health", DASHBOARD_HEALTH_METRIC_IDS),
-        fetchGroup("education", DASHBOARD_EDU_METRIC_IDS),
+        withTimeout(
+          getJson<Record<string, SeriesPoint[]>>(
+            buildSeriesPath(country, start, end, DASHBOARD_ALL_METRIC_IDS)
+          ),
+          95_000,
+          "Dashboard full metric bundle"
+        ),
       ]);
       setMeta(m);
-      setBundle({ ...coreBundle, ...healthBundle, ...eduBundle });
-      if (groupErrors.length > 0) {
-        setErr(
-          `Some metric groups timed out (${groupErrors.join(", ")}). Showing available data; try refresh or narrower year range.`
-        );
-      }
+      setBundle(allSeriesBundle);
+      setMainLoadProgress(100);
     } catch (e) {
       setErr(String(e));
+      setMainLoadProgress(0);
       setLoadingExtras(false);
       return;
     } finally {
+      window.clearInterval(mainProgressTimer);
       setLoading(false);
     }
 
+    setExtrasLoadProgress(10);
+    const extrasProgressTimer = window.setInterval(() => {
+      setExtrasLoadProgress((prev) => (prev < 94 ? prev + 5 : 94));
+    }, 250);
     try {
       const cmp = await withTimeout(
         getJson<{ rows: ComparisonRow[]; year: number; countryName: string }>(
@@ -305,10 +302,13 @@ export default function Dashboard() {
       setComparison(cmp.rows);
       setCompYear(cmp.year);
       setCompName(cmp.countryName);
+      setExtrasLoadProgress(100);
     } catch (e) {
       console.warn("Comparison table unavailable for this request", e);
       setComparison([]);
+      setExtrasLoadProgress(0);
     } finally {
+      window.clearInterval(extrasProgressTimer);
       setLoadingExtras(false);
     }
   }, [country, start, end, tick]);
@@ -820,9 +820,26 @@ export default function Dashboard() {
       </div>
 
       {err && <p className="text-sm text-red-600">{err}</p>}
-      {loading && <p className="text-sm text-slate-500">Loading charts &amp; country…</p>}
-      {!loading && loadingExtras && (
-        <p className="text-sm text-slate-400">Loading World Bank profile &amp; comparison table…</p>
+      {(loading || loadingExtras) && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-slate-700">
+            {loading ? "Loading charts & country data…" : "Loading comparison data…"}
+          </p>
+          <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-red-600 transition-all duration-300"
+              style={{ width: `${loading ? mainLoadProgress : extrasLoadProgress}%` }}
+              role="progressbar"
+              aria-valuenow={loading ? mainLoadProgress : extrasLoadProgress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={loading ? "Country dashboard main loading progress" : "Country dashboard extras loading progress"}
+            />
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {loading ? mainLoadProgress : extrasLoadProgress}% loaded
+          </p>
+        </section>
       )}
 
       {meta && (
@@ -945,10 +962,36 @@ export default function Dashboard() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Economy</p>
                     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
-                      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Currency</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">
-                        {meta.currencyDisplay ?? meta.currencies?.join(", ") ?? "—"}
-                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-lg border border-slate-200 bg-white/70 p-3">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Currency</p>
+                          <p className="mt-2 text-lg font-semibold text-slate-900">
+                            {meta.currencyDisplay?.trim() ||
+                              (meta.currencies && meta.currencies.length > 0 ? meta.currencies.join(", ") : "—")}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-white/70 p-3">
+                          <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Exchange rate</p>
+                          {typeof meta.usdFxRate === "number" && Number.isFinite(meta.usdFxRate) && meta.usdFxRate > 0 ? (
+                            <>
+                              <p className="mt-2 text-sm font-semibold text-slate-900">
+                                {`1 USD = ${meta.usdFxRate.toLocaleString(undefined, {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                })} ${meta.usdFxCurrency ?? meta.currencies?.[0] ?? ""}`}
+                              </p>
+                              {meta.usdFxRateAsOf ? (
+                                <p className="mt-1 text-xs text-slate-500">
+                                  {meta.usdFxRateAsOf}
+                                  {meta.usdFxSource ? ` · ${meta.usdFxSource}` : ""}
+                                </p>
+                              ) : null}
+                            </>
+                          ) : (
+                            <p className="mt-2 text-sm text-slate-500">—</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <div>
@@ -957,13 +1000,13 @@ export default function Dashboard() {
                       <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Land area</p>
                         <p className="mt-2 text-lg font-semibold text-slate-900">
-                          {formatCompactNumber(meta.area, { suffix: " km²", maxFrac: 2 })}
+                          {formatCompactNumber(meta.landAreaKm2 ?? meta.area, { suffix: " km²", maxFrac: 2 })}
                         </p>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
                         <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500">Total area</p>
                         <p className="mt-2 text-lg font-semibold text-slate-900">
-                          {formatCompactNumber(meta.area, { suffix: " km²", maxFrac: 2 })}
+                          {formatCompactNumber(meta.totalAreaKm2 ?? meta.area, { suffix: " km²", maxFrac: 2 })}
                         </p>
                       </div>
                       <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">

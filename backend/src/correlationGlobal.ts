@@ -120,11 +120,28 @@ export async function computeCorrelationGlobal(
   const rawPoints: { countryIso3: string; countryName: string; region: string; year: number; x: number; y: number }[] = [];
   let nMissing = 0;
 
-  for (let year = startYear; year <= endYear; year++) {
-    const [rowsX, rowsY] = await Promise.all([
-      fetchGlobalYearSnapshot(metricX, year),
-      fetchGlobalYearSnapshot(metricY, year),
-    ]);
+  const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
+  const YEAR_PAIR_CONCURRENCY = 4;
+  const yearPairs: Array<{ year: number; rowsX: Awaited<ReturnType<typeof fetchGlobalYearSnapshot>>; rowsY: Awaited<ReturnType<typeof fetchGlobalYearSnapshot>> }> = [];
+  for (let i = 0; i < years.length; i += YEAR_PAIR_CONCURRENCY) {
+    const chunk = years.slice(i, i + YEAR_PAIR_CONCURRENCY);
+    const resolvedChunk = await Promise.all(
+      chunk.map(async (year) => {
+        try {
+          const [rowsX, rowsY] = await Promise.all([
+            fetchGlobalYearSnapshot(metricX, year),
+            fetchGlobalYearSnapshot(metricY, year),
+          ]);
+          return { year, rowsX, rowsY };
+        } catch {
+          // Keep analysis resilient: a single bad year should not fail the whole request.
+          return { year, rowsX: [], rowsY: [] };
+        }
+      })
+    );
+    yearPairs.push(...resolvedChunk);
+  }
+  for (const { year, rowsX, rowsY } of yearPairs) {
     const byCountryX = new Map(rowsX.map((r) => [r.countryIso3, r.value]));
     const byCountryY = new Map(rowsY.map((r) => [r.countryIso3, r.value]));
     const allIso = new Set([...byCountryX.keys(), ...byCountryY.keys()]);

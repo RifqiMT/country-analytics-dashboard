@@ -27,7 +27,7 @@ export function questionLooksMetricAnchored(message: string): boolean {
   const q = message.toLowerCase();
   if (q.length < 3) return false;
   if (
-    /\b(gdp|gni|inflation|population|unemployment|debt|deficit|surplus|growth|recession|wdi|world bank|imf|uis|metric|indicator|series|per capita|income group|ppp|literacy|life expectancy|birth rate|tuberculosis|tb incidence|uhc|hospital beds|health workforce|immunization|vaccination|health expenditure|smoking|risk factor|poverty|interest rate|lending|yoy|year over year)\b/.test(
+    /\b(gdp|gni|inflation|population|unemployment|debt|deficit|surplus|growth|recession|wdi|world bank|imf|uis|metrics?|indicators?|series|per capita|income group|ppp|literacy|life expectancy|birth rate|tuberculosis|tb incidence|uhc|hospital beds|health workforce|immunization|vaccination|health expenditure|smoking|risk factor|poverty|interest rate|lending|yoy|year over year)\b/.test(
       q
     )
   ) {
@@ -38,7 +38,7 @@ export function questionLooksMetricAnchored(message: string): boolean {
   }
   if (
     /\b(dashboard|country analytics|this app|the app|the platform)\b/.test(q) &&
-    /\b(data|metric|indicator|figure|number|stat)\b/.test(q)
+    /\b(data|metrics?|indicators?|figure|number|stats?)\b/.test(q)
   ) {
     return true;
   }
@@ -128,6 +128,16 @@ export function questionNeedsLiveWebVerification(message: string): boolean {
   if (/\b(u\.s\.|us|united\s+states)\s+president\b/.test(q)) return true;
   if (/\bwho\s+won\b.*\b(election|vote|runoff|primary|referendum)\b/.test(q)) return true;
   return false;
+}
+
+/**
+ * Sensitive country-fact asks that should prefer encyclopedic / institutional sources.
+ */
+export function questionIsSensitiveCountryFact(message: string): boolean {
+  const q = message.toLowerCase();
+  return /\b(president|leader|head\s+of\s+state|head\s+of\s+government|prime\s+minister|king|queen|cuisine|dish|food|culture|cultural|religion|religious|border|borders|neighbor|neighbour|region|regions|geography|where\s+is|located|country\s+facts?|politics|political)\b/.test(
+    q
+  );
 }
 
 /** True when Tavily output is too thin to ground a verified-fact answer. */

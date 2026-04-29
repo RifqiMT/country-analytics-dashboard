@@ -113,3 +113,22 @@ Stories are written in user language, but each acceptance section is specific en
 **Acceptance criteria:**
 - Generated correlation/narrative data is restored when returning to the module.
 - Changing filters invalidates prior results and clears until the user clicks “Generate analysis” again.
+
+### Story B3: Survive timeout and still deliver analysis
+
+**Story:** As an analyst, I want business analytics to still return usable output when long queries are slow.
+
+**Acceptance criteria:**
+- Progress indicators are visible during analysis and narrative generation.
+- If reliability mode is enabled, the frontend can automatically retry with narrower windows.
+- If strict mode is enabled, only the selected range is attempted.
+- When fallback range is used, the UI explicitly tells users which window was delivered.
+
+### Story B4: Executive-ready presentation mode
+
+**Story:** As an executive reviewer, I want to view business results without control-panel noise.
+
+**Acceptance criteria:**
+- Presentation mode hides diagnostics and filter chrome while keeping core results visible.
+- Users can toggle presentation mode via button and keyboard shortcut (`P`).
+- Shortcut is ignored while typing in editable controls.

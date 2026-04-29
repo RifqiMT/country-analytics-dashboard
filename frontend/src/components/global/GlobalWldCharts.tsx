@@ -154,6 +154,54 @@ function WldGranulatedCard({
 
 type Bundle = Record<string, SeriesPoint[]>;
 
+const WLD_REQUIRED_METRIC_IDS = [
+  "gdp",
+  "gdp_ppp",
+  "gov_debt_usd",
+  "gdp_per_capita",
+  "gdp_per_capita_ppp",
+  "gni_per_capita_atlas",
+  "population",
+  "inflation",
+  "unemployment_ilo",
+  "poverty_headcount",
+  "poverty_national",
+  "gov_debt_pct_gdp",
+  "lending_rate",
+  "maternal_mortality",
+  "mortality_under5",
+  "life_expectancy",
+  "undernourishment",
+  "hospital_beds",
+  "physicians_density",
+  "nurses_midwives_density",
+  "uhc_service_coverage",
+  "immunization_dpt",
+  "immunization_measles",
+  "health_expenditure_gdp",
+  "smoking_prevalence",
+  "birth_rate",
+  "tb_incidence",
+  "enrollment_primary_count",
+  "enrollment_secondary_count",
+  "enrollment_tertiary_count",
+  "enrollment_primary_pct",
+  "enrollment_secondary",
+  "enrollment_tertiary_pct",
+  "labor_force_total",
+  "pop_age_0_14",
+  "pop_15_64_pct",
+  "pop_age_65_plus",
+] as const;
+
+function chunkMetricIds(ids: readonly string[], chunkSize: number): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < ids.length; i += chunkSize) {
+    out.push(ids.slice(i, i + chunkSize) as string[]);
+  }
+  return out;
+}
+
 const WLD_VIZ_META = [
   {
     title: "Global GDP & debt (WLD, US$)",
@@ -206,7 +254,9 @@ export default function GlobalWldCharts() {
   const [bundle, setBundle] = useState<Bundle>({});
   const [metricCatalog, setMetricCatalog] = useState<MetricDef[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadProgress, setLoadProgress] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  const [partialWarning, setPartialWarning] = useState<string | null>(null);
   const chartEnd = maxSelectableYear();
 
   useEffect(() => {
@@ -217,15 +267,61 @@ export default function GlobalWldCharts() {
 
   useEffect(() => {
     const end = maxSelectableYear();
+    let active = true;
     setLoading(true);
-    const metricIds = metricCatalog.map((m) => m.id);
-    if (metricIds.length === 0) return;
-    getJson<{ series: Bundle }>(
-      `/api/global/wld-series?metrics=${encodeURIComponent(metricIds.join(","))}&start=${MIN_DATA_YEAR}&end=${end}`
-    )
-      .then((r) => setBundle(r.series))
-      .catch((e) => setErr(String(e)))
-      .finally(() => setLoading(false));
+    setLoadProgress(8);
+    setErr(null);
+    setPartialWarning(null);
+    const metricIds = WLD_REQUIRED_METRIC_IDS.filter((id) => metricCatalog.some((m) => m.id === id));
+    if (metricIds.length === 0) {
+      setBundle({});
+      setLoading(false);
+      setLoadProgress(0);
+      return;
+    }
+
+    const metricChunks = chunkMetricIds(metricIds, 14);
+    const run = async () => {
+      const merged: Bundle = {};
+      let successChunks = 0;
+      for (let i = 0; i < metricChunks.length; i++) {
+        const chunk = metricChunks[i]!;
+        const query = encodeURIComponent(chunk.join(","));
+        try {
+          const r = await getJson<{ series: Bundle }>(
+            `/api/global/wld-series?metrics=${query}&start=${MIN_DATA_YEAR}&end=${end}`
+          );
+          Object.assign(merged, r.series ?? {});
+          successChunks += 1;
+        } catch {
+          // Continue loading remaining chunks so one failure does not blank charts.
+        } finally {
+          if (!active) return;
+          const pct = Math.min(95, Math.round(((i + 1) / metricChunks.length) * 95));
+          setLoadProgress(pct);
+        }
+      }
+      if (!active) return;
+      if (successChunks === 0) {
+        setErr("Global chart data failed to load. Please retry.");
+        setBundle({});
+        setLoadProgress(0);
+      } else {
+        setBundle(merged);
+        const failedChunks = metricChunks.length - successChunks;
+        if (failedChunks > 0) {
+          setPartialWarning(
+            `Partial data loaded: ${failedChunks} of ${metricChunks.length} data batches failed. Charts show available series; retry for full coverage.`
+          );
+        }
+        setLoadProgress(100);
+      }
+      setLoading(false);
+    };
+    void run();
+    return () => {
+      active = false;
+    };
   }, [metricCatalog]);
 
   const labour = useMemo(() => labourChartRows(bundle, MIN_DATA_YEAR, chartEnd), [bundle, chartEnd]);
@@ -309,11 +405,42 @@ export default function GlobalWldCharts() {
     [bundle, chartEnd]
   );
 
-  if (loading) return <p className="text-sm text-slate-500">Loading world aggregates…</p>;
+  const hasAnyChartData = useMemo(
+    () => Object.values(bundle).some((arr) => arr.some((p) => p.value !== null && !Number.isNaN(p.value))),
+    [bundle]
+  );
+
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+        <p className="text-sm font-medium text-slate-700">Loading global chart data…</p>
+        <div className="mt-3 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-red-600 transition-all duration-300"
+            style={{ width: `${loadProgress}%` }}
+            role="progressbar"
+            aria-valuenow={loadProgress}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label="Global chart data loading progress"
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-500">{loadProgress}% loaded</p>
+      </section>
+    );
+  }
   if (err) return <p className="text-sm text-red-600">{err}</p>;
+  if (!hasAnyChartData) {
+    return <p className="text-sm text-slate-500">Global chart data is temporarily unavailable. Please retry.</p>;
+  }
 
   return (
     <div className="grid gap-3 lg:grid-cols-1">
+      {partialWarning ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          {partialWarning}
+        </div>
+      ) : null}
       <p className="text-xs leading-relaxed text-slate-500">
         WLD series use the same API as the country dashboard: the last published value may be carried forward by up to
         three years at the end of the range. GDP levels and per-capita scales are split so lines stay readable. Groups

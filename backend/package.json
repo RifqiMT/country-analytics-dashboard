@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "country-to-currency": "^2.0.3",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "tz-lookup": "^6.1.25"

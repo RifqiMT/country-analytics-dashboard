@@ -91,7 +91,7 @@ function citeRankingPlainBlock(raw: string, state: CiteState): string {
  * Tavily `formattedBlock`: synthesis line, optional retrieval window, `- title (url) · published/updated: …: content` rows.
  * Only **one** web source ([W1]) is emitted for sharper, less contradictory grounding.
  */
-function citeWebBlock(raw: string, state: CiteState): string {
+function citeWebBlock(raw: string, state: CiteState, maxWebCitations = 1): string {
   if (!raw.trim()) return "";
   const lines = raw.split(/\r?\n/);
   const out: string[] = [];
@@ -116,7 +116,7 @@ function citeWebBlock(raw: string, state: CiteState): string {
       /^- (.+) \((https?:\/\/[^)]+)\)(?: · published\/updated:\s*([^\n:]+))?: (.+)$/
     );
     if (m) {
-      if (webEmitted >= 1) continue;
+      if (webEmitted >= maxWebCitations) continue;
       webEmitted++;
       const title = m[1]!.trim();
       const url = m[2]!;
@@ -142,6 +142,8 @@ export function compactAssistantRetrievalForLlm(opts: {
   webContext: string;
   /** When set, Tavily bullets are scored and only the single best hit is kept before [W1] tagging. */
   webRelevance?: { message: string; countryName?: string; cca3?: string };
+  /** Max Tavily citations to keep in context (default 1). */
+  webTopK?: number;
 }): {
   dashboardForPrompt: string;
   comparisonBlock: string;
@@ -162,6 +164,7 @@ export function compactAssistantRetrievalForLlm(opts: {
   const rankingSection = citeRankingPlainBlock(opts.rankingSection, state);
 
   let webRaw = opts.webContext;
+  const webTopK = Math.max(1, Math.min(3, opts.webTopK ?? 1));
   if (opts.webRelevance?.message?.trim() && webRaw.trim()) {
     const { head, resultLines } = splitAssistantWebContextHeadAndBullets(webRaw);
     if (resultLines.length > 1) {
@@ -170,12 +173,12 @@ export function compactAssistantRetrievalForLlm(opts: {
         opts.webRelevance.message,
         opts.webRelevance.countryName,
         opts.webRelevance.cca3,
-        1
+        webTopK
       );
       webRaw = mergeAssistantWebHeadAndResults(head, one);
     }
   }
-  const webContext = citeWebBlock(webRaw, state);
+  const webContext = citeWebBlock(webRaw, state, webTopK);
 
   return {
     dashboardForPrompt,

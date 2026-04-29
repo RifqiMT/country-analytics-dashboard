@@ -119,9 +119,13 @@ export default function UserApiKeysHeaderPanel() {
           </span>
           <input
             type="password"
+            id="cap-groq-api-key"
+            name="cap_groq_api_key"
             value={groqApiKey}
             onChange={(e) => setGroqApiKey(e.target.value)}
-            autoComplete="off"
+            autoComplete="new-password"
+            data-lpignore="true"
+            data-form-type="other"
             spellCheck={false}
             placeholder="gsk_..."
             className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
@@ -136,9 +140,13 @@ export default function UserApiKeysHeaderPanel() {
           </span>
           <input
             type="password"
+            id="cap-tavily-api-key"
+            name="cap_tavily_api_key"
             value={tavilyApiKey}
             onChange={(e) => setTavilyApiKey(e.target.value)}
-            autoComplete="off"
+            autoComplete="new-password"
+            data-lpignore="true"
+            data-form-type="other"
             spellCheck={false}
             placeholder="tvly-..."
             className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400"
